@@ -5,36 +5,36 @@
 
 ## 1. Hedef ve Kısıtlar
 Mobilya fabrikası iş süreçlerini (stok, üretim, cari, satış) tek bir web
-uygulamasında yönetmek. Ürün bir **çok kiracılı (multi-tenant) SaaS**'tır:
-sektördeki birçok fabrikaya satılacak. **Bulut öncelikli** (Supabase + Vercel)
-tasarlanır; on-premise (SQL Server) ileri faz opsiyonu olduğundan veri katmanı
-yine de taşınabilir (ORM arkasında) kurgulanır.
+uygulamasında yönetmek. Ürün birçok fabrikaya satılacak; ancak hedef sektör
+verisinin fabrika dışında tutulmasını istemediği için **saf on-premise**
+tasarlanır: her fabrikanın **kendi sunucusunda**, **internetsiz** çalışır.
+Her kurulum tek bir fabrikaya aittir (single-tenant).
 
-## 2. Teknoloji Yığını (Öneri)
+## 2. Teknoloji Yığını (Karar)
 
-| Katman | Öneri | Not |
+| Katman | Seçim | Not |
 |---|---|---|
 | Frontend | **Next.js (App Router) + TypeScript** | SSR/RSC, modüler yapı |
 | UI | **shadcn/ui + Tailwind CSS** | Erişilebilir, tema desteği |
 | Form & Doğrulama | React Hook Form + **Zod** | Tip güvenli formlar |
 | Veri çekme | Server Actions / TanStack Query | Duruma göre |
-| Veritabanı (bulut) | **Supabase (PostgreSQL)** | Auth + RLS + Storage hazır |
-| Veritabanı (lokal) | **SQL Server** | Fabrika-içi kurulum senaryosu |
-| ORM | **Prisma** veya **Drizzle** | Çoklu DB için soyutlama katmanı |
-| Auth | Supabase Auth / NextAuth | Dağıtım modeline bağlı |
-| Dağıtım (bulut) | **Vercel** | CI/CD kolaylığı |
-| Dağıtım (lokal) | Docker / Node sunucu | On-premise |
+| Veritabanı | **PostgreSQL** | On-premise, ücretsiz, hızlı kurulum |
+| ORM | **Prisma** | Soyutlama; ileride SQL Server kapısı açık |
+| Auth | **NextAuth / Auth.js** | Local kimlik doğrulama, offline çalışır |
+| Çalışma ortamı | **Self-hosted Node** (fabrika sunucusu) | Vercel YOK |
+| Paketleme/kurulum | Docker veya Windows installer (🔴 açık) | Bkz. ADR-0005 |
 
-## 3. Çoklu-Veritabanı Stratejisi (Kritik Karar)
-Aynı kod tabanının hem Postgres (Supabase) hem SQL Server üzerinde çalışması
-isteniyorsa, **veri erişimi mutlaka bir ORM/soyutlama katmanı** arkasına alınmalı:
-- **Prisma** her iki veritabanını da destekler → tek şema, iki provider.
-- DB'ye özgü özelliklerden (Postgres RLS, SQL Server T-SQL) kaçınılmalı veya
-  koşullu ele alınmalı.
-- Auth katmanı Supabase Auth'a bağlanırsa lokal senaryoda alternatif gerekir
-  (NextAuth + DB tablosu). Bu yüzden **auth soyutlaması** önemli.
+## 3. On-premise Stratejisi (Kritik)
+- Uygulama + PostgreSQL fabrikanın sunucusunda çalışır; dış servise bağımlı değil.
+- Veri erişimi **Prisma** arkasına alınır → ileride SQL Server isteyen müşteri
+  için kapı açık kalır. DB'ye özgü kestirmelerden kaçınılır.
+- Auth tamamen local (NextAuth + DB). Bulut auth servisine bağımlılık YOK.
+- **Operasyonel zorluklar** (on-premise satışın bedeli): çok sahaya kurulum,
+  sürüm güncellemesi dağıtımı, lisanslama/aktivasyon, müşteri verisi yedekleme.
+  Bunlar baştan planlanmalı (ADR-0005).
 
-> 🔑 Bu karar netleşmeden DB'ye özgü kod yazılmamalı.
+> 🔑 Hedef fabrika sunucu profili (Windows Server / normal PC?) netleşmeli;
+> paketleme kararı (Docker vs installer) buna bağlı.
 
 ## 4. Önerilen Klasör/Modül Yapısı (Taslak)
 ```
@@ -60,7 +60,7 @@ docs/
 ## 5. Yatay (cross-cutting) Konular
 - **Yetkilendirme (RBAC):** rol bazlı erişim — modül ve aksiyon düzeyinde.
 - **Denetim izi (audit log):** kim, ne zaman, ne değiştirdi.
-- **Multi-tenancy (KARAR):** Paylaşımlı DB + `company_id` (tenant) + PostgreSQL RLS. Her tablo tenant'a bağlı; kullanıcı yalnız kendi şirketinin verisini görür. Ayrıca platform **süper-admin** rolü (müşteri/abonelik yönetimi) ayrı ele alınır.
+- **Tenant (KARAR):** Her kurulum single-tenant (tek fabrika). RLS gerekmez. Yine de `company_id` korunur; bir fabrikanın birden çok şubesi/legal şirketi olabilir.
 - **Raporlama:** stok durumu, üretim takibi, cari ekstre, satış analizleri.
 - **Yedekleme & veri göçü:** özellikle on-premise senaryoda.
 

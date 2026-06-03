@@ -13,10 +13,11 @@
 - **İş modeli:** ✅ **SaaS ürünü** — kendi fabrikamız yok; yazılım geliştirilip mobilya sektöründeki **birden çok fabrikaya satılacak**. (Belirli bir tek müşteri için değil.)
 - **Ana modüller:** Stok, Üretim, Cari (müşteri/tedarikçi), Satış. (Devamı gelecek)
 - **Aşama:** 🟡 **Planlama** — henüz kod yazılmıyor. Önce mimari ve özellikler.
-- **Teknoloji yönü:** Next.js + shadcn/ui. Backend/dağıtım için iki senaryo:
-  - **Bulut:** Supabase (Postgres) + Vercel
-  - **Yerel (on-premise):** SQL Server ile lokal kurulum
-  - (Hangisinin birincil olacağı **açık karar** — bkz. Açık Sorular)
+- **Teknoloji yönü (güncel):** Next.js + shadcn/ui, **saf on-premise** kurulum.
+  - **Dağıtım:** Her fabrikanın kendi sunucusuna kurulum (self-hosted, internetsiz çalışır).
+  - **Veritabanı:** PostgreSQL (Prisma ORM ile; ileride SQL Server kapısı açık).
+  - **Auth:** NextAuth/Auth.js (local).
+  - ❌ Bulut (Supabase Cloud + Vercel) iptal edildi.
 
 ---
 
@@ -54,9 +55,16 @@
 - **Kullanıcı netleştirmesi:** "Evet satılacak çünkü fabrikam yok, yazılımı yapıp satacağız ama bir fabrikaya değil, o sektörde kim isterse verilecek."
   - ⇒ Bu bir **SaaS ürünü**. Bu netleşme sayesinde dağıtım ve multi-tenant kararları kesinleşti (aşağıya bkz.).
 
-### 2026-06-03 — Mimari kararlar (SaaS netleşmesi sonrası)
-- ✅ **İş modeli: Çok kiracılı (multi-tenant) SaaS.** Birden çok fabrikaya satılacak.
-- ✅ **Dağıtım: Bulut öncelikli — Supabase (PostgreSQL) + Vercel.** Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
+### 2026-06-03 — DAĞITIM MODELİ KESİNLEŞTİ: SAF ON-PREMISE ✅
+- Kullanıcı: "Bu sektör uygulamanın dışarıda olmasını istemeyecek gibi duruyor, yani local çalışmak gerekecek sanırım."
+- **KARAR (Model A — Saf on-premise):** Uygulama her fabrikanın **kendi sunucusuna** kurulur. Veri tamamen fabrika içinde kalır; internet olmadan da çalışır. Önceki "bulut öncelikli (Supabase Cloud + Vercel)" kararı **iptal edildi.**
+- **KARAR — Veritabanı: PostgreSQL.** Gerekçe: çok sayıda fabrikaya tek tek kurulacak bir üründe asıl avantaj kurulum/geliştirme hızı + lisans derdinin olmaması. Çalışma performansı bu iş yükü için fazlasıyla yeterli. Uygulamanın içine paketlenip "tak-çalıştır" teslim edilebilir. (Kullanıcı "hız açısından en mantıklı" olanı sordu → PostgreSQL.)
+- **KARAR — ORM: Prisma.** Veri erişimi soyutlanır; ileride bir müşteri SQL Server isterse kapı açık kalır.
+- **Bunun sonuçları (önceki kararları değiştirir):**
+  - ❌ Vercel iptal → Next.js, fabrikanın sunucusunda kendi kendine barınan (self-hosted) Node servisi olarak (Docker ile paketlenir).
+  - ❌ Supabase Cloud + Supabase Auth iptal → **Auth: NextAuth/Auth.js** (kendi içinde, local kimlik doğrulama).
+  - 🔁 **Multi-tenant RLS gereksiz.** Her kurulum tek bir fabrikaya ait (fiilen single-tenant). İş modeli hâlâ "çok sayıda fabrikaya satış" ama her satış = ayrı kurulum. `company_id` yine de korunabilir (bir fabrikanın **çok şubesi/çok şirketi** olabilir).
+  - ➕ Yeni gündem maddeleri: **lisanslama/aktivasyon**, **güncelleme dağıtımı** (çok sahaya), **yedekleme**, **kurulum paketleme** (Docker mı / Windows installer mı?). Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
 - ✅ **Tenant izolasyonu: Paylaşımlı veritabanı + `company_id` + PostgreSQL RLS (Row Level Security).** Standart, maliyet-etkin SaaS deseni; Supabase ile doğal uyumlu.
 - 🟡 **On-premise (SQL Server) opsiyonu:** Birincil değil; ileride "kurumsal/özel kurulum" isteyen büyük müşteriler için açık kapı. Bu yüzden veri erişimi yine de ORM (Prisma) ile soyutlanacak ve DB'ye özgü kestirmelerden kaçınılacak. (Karar: erteleme — gerçek talep gelince değerlendirilecek.)
 - ✅ **Auth: Supabase Auth.** Multi-tenant + RLS ile entegre çalışır.
@@ -68,9 +76,13 @@
 > Bunlar planlamayı ilerletmek için netleşmesi gereken kritik kararlar.
 > Cevaplandıkça Karar Kaydı'na taşınır.
 
-1. ~~Dağıtım modeli~~ ✅ KARARLANDI: Bulut öncelikli (Supabase + Vercel). On-premise ileri faz opsiyonu.
-2. ~~Çok şirketli (multi-tenant) mi?~~ ✅ KARARLANDI: Evet, multi-tenant SaaS.
-3. **Kullanıcı/rol yapısı:** Kaç tür kullanıcı var? (ör. yönetici, depo, üretim, satış, muhasebe) — SaaS'ta ayrıca: müşteri firma yöneticisi vs. platform (bizim) süper-admin ayrımı.
+1. ~~Dağıtım modeli~~ ✅ KARARLANDI: **Saf on-premise** (her fabrikaya kendi sunucusuna kurulum). Veritabanı: PostgreSQL + Prisma.
+2. ~~Çok şirketli (multi-tenant) mi?~~ ✅ KARARLANDI: Her kurulum tek fabrikaya ait (single-tenant). `company_id` çok-şube için korunabilir.
+3. **Kullanıcı/rol yapısı:** Kaç tür kullanıcı var? (ör. yönetici, depo, üretim, satış, muhasebe)
+9. **Kurulum paketleme:** Docker mı, Windows installer mı? Hedef fabrika sunucusu genelde ne? (Windows Server / normal PC?)
+10. **Güncelleme dağıtımı:** Çok sahaya yeni sürüm nasıl ulaşacak? (manuel / otomatik?)
+11. **Lisanslama:** Ürün nasıl lisanslanacak/aktive edilecek (lisans anahtarı, süre?)
+12. **Yedekleme:** Fabrikadaki veriyi kim/nasıl yedekleyecek?
 4. **Üretim modeli:** Siparişe göre üretim (MTO) mu, stoğa üretim (MTS) mi, ikisi de mi? Reçete/BOM (ürün ağacı) gerekecek mi?
 5. **Mevcut sistem:** Halihazırda kullanılan bir yazılım/Excel/veritabanı var mı? Veri göçü gerekecek mi?
 6. **e-Fatura / muhasebe entegrasyonu** beklentisi var mı? (GİB e-Fatura, Logo/Mikro vb.)

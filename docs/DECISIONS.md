@@ -22,23 +22,30 @@
 - Karar: Next.js (App Router) + TypeScript, UI için shadcn/ui + Tailwind CSS.
 - Sonuçlar: Geniş ekosistem, erişilebilir bileşenler, tema desteği. Karar kesinleşince bu ADR "Kabul" olur.
 
-## ADR-0002: Veritabanı ve dağıtım modeli
+## ADR-0002: Dağıtım modeli ve veritabanı
 - Tarih: 2026-06-03
-- Durum: ✅ Kabul
-- Bağlam: Ürün bir SaaS (birden çok fabrikaya satılacak). Bulut (Supabase+Vercel) ve on-premise (SQL Server) seçenekleri vardı.
-- Karar: **Bulut öncelikli — Supabase (PostgreSQL) + Vercel.** On-premise SQL Server birincil hedef değil; ileride özel kurulum talebi olan müşteriler için açık kapı. Bu nedenle veri erişimi yine de **Prisma** ile soyutlanır ve DB'ye özgü kestirmelerden kaçınılır.
-- Sonuçlar: Tek kod tabanı, merkezi güncelleme, hızlı müşteri ekleme. RLS ve hazır Auth/Storage kazanımı. Risk: on-premise gerekirse Auth katmanı için alternatif (NextAuth) gerekebilir → soyutlama önemli.
+- Durum: ✅ Kabul (önceki "bulut öncelikli" kararın yerini aldı)
+- Bağlam: Hedef sektör (mobilya/üretim KOBİ) verisinin fabrika dışında (bulutta) tutulmasını istemiyor. Ürün birçok fabrikaya satılacak ama her fabrika kendi içinde çalışmak istiyor.
+- Karar: **Saf on-premise.** Uygulama her fabrikanın kendi sunucusuna kurulur; internetsiz çalışır. **Veritabanı: PostgreSQL** (Prisma ORM ile soyutlanır; ileride SQL Server talebi için kapı açık).
+- Sonuçlar: Veri tamamen müşteride → güven. Vercel/Supabase Cloud kullanılmaz. Maliyet: çok sahaya kurulum + güncelleme + destek yükü satıcıda. Bu yüzden paketleme/güncelleme/lisanslama stratejisi baştan planlanmalı (bkz. ADR-0005).
 
-## ADR-0003: Multi-tenant (çok kiracılı) mimari
+## ADR-0003: Tenant modeli
 - Tarih: 2026-06-03
-- Durum: ✅ Kabul
-- Bağlam: Ürün birden çok fabrikaya satılacak SaaS.
-- Karar: **Paylaşımlı veritabanı + `company_id` (tenant) kolonu + PostgreSQL RLS** ile tenant izolasyonu. Her tablo bir tenant'a bağlı; kullanıcılar yalnızca kendi şirketinin verisini görür.
-- Sonuçlar: Maliyet-etkin, ölçeklenebilir standart SaaS deseni. RLS politikaları baştan doğru kurulmalı (güvenlik kritik). Platform süper-admin rolü ayrı ele alınmalı.
+- Durum: ✅ Kabul (önceki "paylaşımlı DB + RLS" kararın yerini aldı)
+- Bağlam: On-premise olduğundan her kurulum tek bir fabrikaya ait.
+- Karar: **Her kurulum single-tenant.** Paylaşımlı-DB/RLS çoklu-kiracılık **gerekmez**. Yine de veri modelinde `company_id` korunur; çünkü bir fabrikanın birden çok **şubesi/legal şirketi** olabilir.
+- Sonuçlar: Daha basit mimari, daha az güvenlik riski. İş modeli "çok satış" ama teknik olarak her satış ayrı kurulum.
 
 ## ADR-0004: Kimlik doğrulama (Auth)
 - Tarih: 2026-06-03
-- Durum: 🟡 Öneri (bulut kararına bağlı, güçlü aday)
-- Bağlam: Multi-tenant SaaS, Supabase tabanlı.
-- Karar: **Supabase Auth** — RLS ile doğal entegrasyon, e-posta/şifre + ileride SSO.
-- Sonuçlar: Hızlı kurulum. On-premise senaryosunda alternatif gerekebilir.
+- Durum: ✅ Kabul (Supabase Auth yerine)
+- Bağlam: On-premise, internetsiz çalışabilmeli; bulut auth servisine bağımlı olunamaz.
+- Karar: **NextAuth / Auth.js** — uygulamanın içinde, local kimlik doğrulama (e-posta/kullanıcı adı + şifre). Roller DB'de tutulur (RBAC).
+- Sonuçlar: Tam offline çalışır. SSO/LDAP ileride eklenebilir (bazı fabrikaların domain'i olabilir).
+
+## ADR-0005: Paketleme, kurulum, güncelleme ve lisanslama
+- Tarih: 2026-06-03
+- Durum: 🔴 AÇIK (on-premise satışın en kritik operasyonel konusu)
+- Bağlam: Ürün çok sayıda fabrikanın kendi sunucusuna kurulacak; sürüm güncellemeleri ve lisans yönetimi gerekiyor.
+- Karar: — (Docker mı / Windows installer mı, otomatik güncelleme, lisans anahtarı/aktivasyon... tartışılacak.)
+- Sonuçlar: Yanlış kurgu ilerde yüksek destek maliyeti yaratır. Hedef sunucu profili (Windows Server / PC) netleşmeli.

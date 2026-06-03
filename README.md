@@ -6,10 +6,11 @@ Mobilya fabrikaları için modüler iş yönetim / ERP web uygulaması.
 > 🟡 **Durum: Planlama aşaması.** Henüz kod yazılmıyor; önce mimari ve
 > özellikler netleştiriliyor.
 
-## Teknoloji Yönü (taslak)
+## Teknoloji Yönü
 - **Frontend:** Next.js (App Router) + TypeScript + shadcn/ui + Tailwind
-- **Backend/DB:** Supabase (PostgreSQL) + Vercel **veya** lokal SQL Server (on-premise)
-- (Kesin seçim planlama sonunda — bkz. dokümanlar)
+- **Dağıtım:** Saf **on-premise** — her fabrikanın kendi sunucusunda, internetsiz çalışır
+- **Veritabanı:** PostgreSQL (Prisma ORM; ileride SQL Server kapısı açık)
+- **Auth:** NextAuth/Auth.js (local)
 
 ## Dokümantasyon
 - 📒 [MEMORY.md](MEMORY.md) — **Proje hafızası**: kararlar, konuşmalar, açık sorular
