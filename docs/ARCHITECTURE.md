@@ -5,8 +5,10 @@
 
 ## 1. Hedef ve Kısıtlar
 Mobilya fabrikası iş süreçlerini (stok, üretim, cari, satış) tek bir web
-uygulamasında yönetmek. Hem **bulut** hem **fabrika-içi (on-premise)** kurulum
-ihtimali var; bu nedenle veri katmanı taşınabilir tasarlanmalı.
+uygulamasında yönetmek. Ürün bir **çok kiracılı (multi-tenant) SaaS**'tır:
+sektördeki birçok fabrikaya satılacak. **Bulut öncelikli** (Supabase + Vercel)
+tasarlanır; on-premise (SQL Server) ileri faz opsiyonu olduğundan veri katmanı
+yine de taşınabilir (ORM arkasında) kurgulanır.
 
 ## 2. Teknoloji Yığını (Öneri)
 
@@ -58,7 +60,7 @@ docs/
 ## 5. Yatay (cross-cutting) Konular
 - **Yetkilendirme (RBAC):** rol bazlı erişim — modül ve aksiyon düzeyinde.
 - **Denetim izi (audit log):** kim, ne zaman, ne değiştirdi.
-- **Çoklu şirket/şube** (multi-tenant) ihtimaline göre veri modeli `company_id` taşımalı.
+- **Multi-tenancy (KARAR):** Paylaşımlı DB + `company_id` (tenant) + PostgreSQL RLS. Her tablo tenant'a bağlı; kullanıcı yalnız kendi şirketinin verisini görür. Ayrıca platform **süper-admin** rolü (müşteri/abonelik yönetimi) ayrı ele alınır.
 - **Raporlama:** stok durumu, üretim takibi, cari ekstre, satış analizleri.
 - **Yedekleme & veri göçü:** özellikle on-premise senaryoda.
 

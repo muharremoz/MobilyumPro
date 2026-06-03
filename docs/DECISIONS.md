@@ -24,14 +24,21 @@
 
 ## ADR-0002: Veritabanı ve dağıtım modeli
 - Tarih: 2026-06-03
-- Durum: 🔴 AÇIK (karar verilmedi)
-- Bağlam: Hem Supabase+Vercel (bulut) hem SQL Server (fabrika-içi) ihtimali var.
-- Karar: —
-- Sonuçlar: Eğer her iki ortam hedeflenirse veri erişimi ORM (Prisma) ile soyutlanmalı, DB'ye özgü özelliklerden kaçınılmalı. Tüm mimariyi etkiler.
+- Durum: ✅ Kabul
+- Bağlam: Ürün bir SaaS (birden çok fabrikaya satılacak). Bulut (Supabase+Vercel) ve on-premise (SQL Server) seçenekleri vardı.
+- Karar: **Bulut öncelikli — Supabase (PostgreSQL) + Vercel.** On-premise SQL Server birincil hedef değil; ileride özel kurulum talebi olan müşteriler için açık kapı. Bu nedenle veri erişimi yine de **Prisma** ile soyutlanır ve DB'ye özgü kestirmelerden kaçınılır.
+- Sonuçlar: Tek kod tabanı, merkezi güncelleme, hızlı müşteri ekleme. RLS ve hazır Auth/Storage kazanımı. Risk: on-premise gerekirse Auth katmanı için alternatif (NextAuth) gerekebilir → soyutlama önemli.
 
-## ADR-0003: Multi-tenant (çok şirketli) mimari
+## ADR-0003: Multi-tenant (çok kiracılı) mimari
 - Tarih: 2026-06-03
-- Durum: 🔴 AÇIK
-- Bağlam: Tek fabrika mı, satılabilir SaaS mı belirsiz.
-- Karar: —
-- Sonuçlar: SaaS ise veri modeline `company_id` ve tenant izolasyonu baştan eklenmeli.
+- Durum: ✅ Kabul
+- Bağlam: Ürün birden çok fabrikaya satılacak SaaS.
+- Karar: **Paylaşımlı veritabanı + `company_id` (tenant) kolonu + PostgreSQL RLS** ile tenant izolasyonu. Her tablo bir tenant'a bağlı; kullanıcılar yalnızca kendi şirketinin verisini görür.
+- Sonuçlar: Maliyet-etkin, ölçeklenebilir standart SaaS deseni. RLS politikaları baştan doğru kurulmalı (güvenlik kritik). Platform süper-admin rolü ayrı ele alınmalı.
+
+## ADR-0004: Kimlik doğrulama (Auth)
+- Tarih: 2026-06-03
+- Durum: 🟡 Öneri (bulut kararına bağlı, güçlü aday)
+- Bağlam: Multi-tenant SaaS, Supabase tabanlı.
+- Karar: **Supabase Auth** — RLS ile doğal entegrasyon, e-posta/şifre + ileride SSO.
+- Sonuçlar: Hızlı kurulum. On-premise senaryosunda alternatif gerekebilir.

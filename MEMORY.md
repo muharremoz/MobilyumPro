@@ -10,6 +10,7 @@
 
 - **Proje adı:** MobilyumPro
 - **Amaç:** Mobilya fabrikaları için modüler bir ERP/iş yönetim web uygulaması.
+- **İş modeli:** ✅ **SaaS ürünü** — kendi fabrikamız yok; yazılım geliştirilip mobilya sektöründeki **birden çok fabrikaya satılacak**. (Belirli bir tek müşteri için değil.)
 - **Ana modüller:** Stok, Üretim, Cari (müşteri/tedarikçi), Satış. (Devamı gelecek)
 - **Aşama:** 🟡 **Planlama** — henüz kod yazılmıyor. Önce mimari ve özellikler.
 - **Teknoloji yönü:** Next.js + shadcn/ui. Backend/dağıtım için iki senaryo:
@@ -50,6 +51,15 @@
   - MVP modülleri → **dördü de seçildi** (Cari, Stok, Satış, Üretim hepsi kapsamda).
   - Üretim tipi → *henüz emin değil* (tartışılacak).
 - Çoğu mimari karar açık kaldığı için, bir sonraki turda trade-off analizi sunup birlikte karar verilecek.
+- **Kullanıcı netleştirmesi:** "Evet satılacak çünkü fabrikam yok, yazılımı yapıp satacağız ama bir fabrikaya değil, o sektörde kim isterse verilecek."
+  - ⇒ Bu bir **SaaS ürünü**. Bu netleşme sayesinde dağıtım ve multi-tenant kararları kesinleşti (aşağıya bkz.).
+
+### 2026-06-03 — Mimari kararlar (SaaS netleşmesi sonrası)
+- ✅ **İş modeli: Çok kiracılı (multi-tenant) SaaS.** Birden çok fabrikaya satılacak.
+- ✅ **Dağıtım: Bulut öncelikli — Supabase (PostgreSQL) + Vercel.** Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
+- ✅ **Tenant izolasyonu: Paylaşımlı veritabanı + `company_id` + PostgreSQL RLS (Row Level Security).** Standart, maliyet-etkin SaaS deseni; Supabase ile doğal uyumlu.
+- 🟡 **On-premise (SQL Server) opsiyonu:** Birincil değil; ileride "kurumsal/özel kurulum" isteyen büyük müşteriler için açık kapı. Bu yüzden veri erişimi yine de ORM (Prisma) ile soyutlanacak ve DB'ye özgü kestirmelerden kaçınılacak. (Karar: erteleme — gerçek talep gelince değerlendirilecek.)
+- ✅ **Auth: Supabase Auth.** Multi-tenant + RLS ile entegre çalışır.
 
 ---
 
@@ -58,9 +68,9 @@
 > Bunlar planlamayı ilerletmek için netleşmesi gereken kritik kararlar.
 > Cevaplandıkça Karar Kaydı'na taşınır.
 
-1. **Dağıtım modeli:** Birincil hedef bulut (Supabase+Vercel) mi, yoksa fabrikada lokal kurulum (SQL Server) mu? Yoksa **ikisini birden** destekleyen tek kod tabanı mı hedefleniyor?
-2. **Çok şirketli (multi-tenant) mi?** Tek fabrika için mi, yoksa birden çok fabrikaya/şirkete satılabilecek SaaS mı?
-3. **Kullanıcı/rol yapısı:** Kaç tür kullanıcı var? (ör. yönetici, depo, üretim, satış, muhasebe)
+1. ~~Dağıtım modeli~~ ✅ KARARLANDI: Bulut öncelikli (Supabase + Vercel). On-premise ileri faz opsiyonu.
+2. ~~Çok şirketli (multi-tenant) mi?~~ ✅ KARARLANDI: Evet, multi-tenant SaaS.
+3. **Kullanıcı/rol yapısı:** Kaç tür kullanıcı var? (ör. yönetici, depo, üretim, satış, muhasebe) — SaaS'ta ayrıca: müşteri firma yöneticisi vs. platform (bizim) süper-admin ayrımı.
 4. **Üretim modeli:** Siparişe göre üretim (MTO) mu, stoğa üretim (MTS) mi, ikisi de mi? Reçete/BOM (ürün ağacı) gerekecek mi?
 5. **Mevcut sistem:** Halihazırda kullanılan bir yazılım/Excel/veritabanı var mı? Veri göçü gerekecek mi?
 6. **e-Fatura / muhasebe entegrasyonu** beklentisi var mı? (GİB e-Fatura, Logo/Mikro vb.)
