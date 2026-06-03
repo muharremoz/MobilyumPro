@@ -89,6 +89,29 @@
 
 ---
 
+## ⏸️ MOLA / SONRAKİ OTURUM (2026-06-03)
+
+**Durum:** Planlama iyi ilerledi; temel mimari kararlar alındı. Şimdi mola.
+
+**Kullanıcının yapacağı (saha araştırması):**
+- Bir **fabrikaya gidip üretim sürecini bizzat görecek** (kaç istasyon, akış nasıl ilerliyor).
+- **Halihazırda aktif bir yazılım kullanan bir fabrika çalışanından**, kullandıkları program hakkında bilgi alacak (neyi seviyor/sevmiyor, eksikler, akış).
+
+**Bu araştırma şunları netleştirecek (DATA-MODEL.md açık noktaları):**
+1. Üretim aşama takibi derinliği (sadece "tamamlandı" mı / istasyon istasyon mu?) — *en kritik*
+2. Fire/zayiat: sabit % mı, değişken mi?
+3. Birim dönüşümü (m²/plaka/metretül): otomatik mi, manuel mi?
+4. Maliyet: sadece malzeme mi, işçilik/genel gider de mi?
+5. Parti/seri takibi gerekli mi?
+6. Barkod ile depo giriş/çıkış MVP'de var mı?
+
+**Döndüğünde devam noktası:** Saha bulgularına göre `docs/DATA-MODEL.md`'yi
+keskinleştir → onaylanınca Prisma şemasına dönüştür → Faz 1 (proje iskeleti) başlasın.
+
+> 📌 Yeni oturuma başlarken: önce bu `MEMORY.md`'yi oku, sonra `docs/` dosyalarını.
+
+---
+
 ## ❓ Açık Sorular (cevap bekliyor)
 
 > Bunlar planlamayı ilerletmek için netleşmesi gereken kritik kararlar.
