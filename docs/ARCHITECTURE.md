@@ -36,6 +36,41 @@ Her kurulum tek bir fabrikaya aittir (single-tenant).
 > 🔑 Hedef fabrika sunucu profili (Windows Server / normal PC?) netleşmeli;
 > paketleme kararı (Docker vs installer) buna bağlı.
 
+## 3.1 Sistem Topolojisi (İki Bileşen)
+
+İki ayrı yazılım var:
+
+1. **MobilyumPro (on-premise app)** — fabrikada Windows Server'da çalışır. Müşteri
+   verisi burada, içeride, offline çalışır. Modüller lisansa göre açılır.
+2. **Merkezi Lisans & Güncelleme Sunucusu** — satıcıda/bulutta. Müşteri, lisans,
+   modül yetkilendirme ve sürüm dağıtımı. **Müşteri iş verisini tutmaz.**
+
+```mermaid
+flowchart LR
+  subgraph Vendor["Satıcı (Bulut)"]
+    LS["Lisans & Güncelleme Sunucusu<br/>(müşteri, lisans, modül, sürüm)"]
+  end
+
+  subgraph FactoryA["Fabrika A — Windows Server"]
+    AppA["MobilyumPro<br/>(Next.js + PostgreSQL)"]
+    DBA[("Veri — içeride")]
+    AppA --- DBA
+  end
+
+  subgraph FactoryB["Fabrika B — Windows Server"]
+    AppB["MobilyumPro<br/>(Next.js + PostgreSQL)"]
+    DBB[("Veri — içeride")]
+    AppB --- DBB
+  end
+
+  AppA -. "lisans yenileme + güncelleme (internet varken)" .-> LS
+  AppB -. "lisans yenileme + güncelleme (internet varken)" .-> LS
+```
+
+**Kritik kural:** Noktalı bağlantılar (internet) kopsa bile fabrikalar çalışır.
+Lisans imzalı ve offline-grace'lidir; merkezi sunucu yalnızca yenileme ve
+güncelleme için gerekir, günlük operasyon için değil.
+
 ## 4. Önerilen Klasör/Modül Yapısı (Taslak)
 ```
 app/

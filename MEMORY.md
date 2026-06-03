@@ -64,7 +64,18 @@
   - ❌ Vercel iptal → Next.js, fabrikanın sunucusunda kendi kendine barınan (self-hosted) Node servisi olarak (Docker ile paketlenir).
   - ❌ Supabase Cloud + Supabase Auth iptal → **Auth: NextAuth/Auth.js** (kendi içinde, local kimlik doğrulama).
   - 🔁 **Multi-tenant RLS gereksiz.** Her kurulum tek bir fabrikaya ait (fiilen single-tenant). İş modeli hâlâ "çok sayıda fabrikaya satış" ama her satış = ayrı kurulum. `company_id` yine de korunabilir (bir fabrikanın **çok şubesi/çok şirketi** olabilir).
-  - ➕ Yeni gündem maddeleri: **lisanslama/aktivasyon**, **güncelleme dağıtımı** (çok sahaya), **yedekleme**, **kurulum paketleme** (Docker mı / Windows installer mı?). Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
+  - ➕ Yeni gündem maddeleri: **lisanslama/aktivasyon**, **güncelleme dağıtımı** (çok sahaya), **yedekleme**, **kurulum paketleme** (Docker mı / Windows installer mı?).
+
+### 2026-06-03 — Kurulum, güncelleme ve lisanslama netleşti ✅
+- Kullanıcı: "Hepsinde sunucu olur, genelde **Windows Server** olur. Güncellemeleri **internetten** dağıtırız, gerekirse bir **API sunucusu** kurarız. Tabii ki **lisanslama, modül yönetimi** gibi işler olacak."
+- **KARAR — Hedef ortam: Windows Server.** Her fabrikada gerçek bir sunucu var (köşedeki PC değil).
+- **KARAR — İki ayrı sistem (topoloji):**
+  1. **MobilyumPro (on-premise app):** Fabrikada Windows Server üzerinde çalışan asıl ERP. Müşteri verisi burada, içeride, offline çalışır.
+  2. **Merkezi Lisans & Güncelleme Sunucusu (satıcıda/bulutta):** Müşteri, lisans, **modül yetkilendirme** ve sürüm dağıtımı. Burada müşteri iş verisi YOK → bulutta olabilir.
+- **KARAR — Güncelleme: internet üzerinden**, merkezi sunucudan. (Fabrikada internet varken çeker.)
+- **KARAR — Lisanslama: modül bazlı.** Müşteri hangi modülleri (Stok/Üretim/Cari/Satış...) aldıysa o açılır. → **Modular monolith + lisansla açılan modüller.**
+- 🔑 **Tasarım kuralı:** Lisans **imzalı ve offline-grace'li** olacak. İnternet kesik olsa bile fabrika çalışmaya devam eder; lisans periyodik (internet varken) yenilenir. Lisans sunucusuna ulaşılamaması üretimi ASLA durdurmaz.
+- 🟡 Açık kalan implementasyon detayı: Paketleme **Docker Compose** mı yoksa **native Windows installer** mı? (Öneri: Docker — temiz, güncellemesi kolay; Windows Server destekliyor.) Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
 - ✅ **Tenant izolasyonu: Paylaşımlı veritabanı + `company_id` + PostgreSQL RLS (Row Level Security).** Standart, maliyet-etkin SaaS deseni; Supabase ile doğal uyumlu.
 - 🟡 **On-premise (SQL Server) opsiyonu:** Birincil değil; ileride "kurumsal/özel kurulum" isteyen büyük müşteriler için açık kapı. Bu yüzden veri erişimi yine de ORM (Prisma) ile soyutlanacak ve DB'ye özgü kestirmelerden kaçınılacak. (Karar: erteleme — gerçek talep gelince değerlendirilecek.)
 - ✅ **Auth: Supabase Auth.** Multi-tenant + RLS ile entegre çalışır.
