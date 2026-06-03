@@ -29,7 +29,10 @@
 - ✅ Dokümantasyon yapısı kuruldu: `MEMORY.md`, `docs/ARCHITECTURE.md`, `docs/MODULES.md`, `docs/PLANNING.md`, `docs/DECISIONS.md`.
 - 🟡 Frontend framework: **Next.js (App Router)** — öneri, onay bekliyor.
 - 🟡 UI kütüphanesi: **shadcn/ui + Tailwind CSS** — öneri, onay bekliyor.
-- 🟡 Veritabanı/dağıtım: Supabase+Vercel **veya** lokal SQL Server — **henüz seçilmedi**.
+- 🟡 Veritabanı/dağıtım: Supabase+Vercel **veya** lokal SQL Server — **henüz seçilmedi** (kullanıcı kararsız, tartışılacak).
+- ✅ **Kapsam:** Dört modülün hepsi (Cari, Stok, Satış, Üretim) projede olacak. MVP başlangıç sırası tartışılacak (öneri: Cari → Stok → Satış → Üretim).
+- 🔴 Multi-tenant kararı: kullanıcı kararsız, tartışılacak.
+- 🔴 Üretim tipi (MTO/MTS): kullanıcı kararsız, tartışılacak.
 
 ---
 
@@ -41,6 +44,12 @@
 - İstek: "Şimdi kodlamaya bir süre geçmeyeceğiz, önce planlama yapılacak, mimari ve özellikler konuşulacak."
 - İstek: Gerekli `.md` dosyaları oluşturulsun, `MEMORY.md`'ye durum kaydedilsin; kararlar ve konuşmalar burada tutulacak.
 - **Aksiyon:** Planlama dokümanları oluşturuldu. Bir sonraki adım: mimari & modül kararlarını birlikte netleştirmek (bkz. Açık Sorular).
+- **Kullanıcı yanıtları (4 soru):**
+  - Dağıtım modeli → *henüz emin değil* (tartışılacak).
+  - Multi-tenant → *henüz emin değil* (tartışılacak).
+  - MVP modülleri → **dördü de seçildi** (Cari, Stok, Satış, Üretim hepsi kapsamda).
+  - Üretim tipi → *henüz emin değil* (tartışılacak).
+- Çoğu mimari karar açık kaldığı için, bir sonraki turda trade-off analizi sunup birlikte karar verilecek.
 
 ---
 
