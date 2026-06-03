@@ -47,7 +47,7 @@ Mobilya fabrikası için temel modüller ve olası kapsamlar. Bunlar birer
 - Raporlama & dashboard
 - Bildirimler
 
-## Önceliklendirme (taslak)
-MVP için tipik sıra: **Cari → Stok → Satış → Üretim**.
-(Cari ve stok temel; satış ve üretim bunların üzerine kurulur.)
-Bu sıra oturumda birlikte gözden geçirilecek.
+## Önceliklendirme (KARAR)
+**MVP = Stok + Üretim** ⭐ (mobilya fabrikasının çekirdek operasyonu).
+Sonra: **Cari → Satış**. Satış modülü **e-Fatura** entegrasyonunu da kapsayacak
+(veri modeli baştan e-Fatura'ya hazır kuruluyor — bkz. `DATA-MODEL.md`).

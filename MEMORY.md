@@ -75,7 +75,14 @@
 - **KARAR — Güncelleme: internet üzerinden**, merkezi sunucudan. (Fabrikada internet varken çeker.)
 - **KARAR — Lisanslama: modül bazlı.** Müşteri hangi modülleri (Stok/Üretim/Cari/Satış...) aldıysa o açılır. → **Modular monolith + lisansla açılan modüller.**
 - 🔑 **Tasarım kuralı:** Lisans **imzalı ve offline-grace'li** olacak. İnternet kesik olsa bile fabrika çalışmaya devam eder; lisans periyodik (internet varken) yenilenir. Lisans sunucusuna ulaşılamaması üretimi ASLA durdurmaz.
-- 🟡 Açık kalan implementasyon detayı: Paketleme **Docker Compose** mı yoksa **native Windows installer** mı? (Öneri: Docker — temiz, güncellemesi kolay; Windows Server destekliyor.) Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
+- 🟡 Açık kalan implementasyon detayı: Paketleme **Docker Compose** mı yoksa **native Windows installer** mı? (Öneri: Docker — temiz, güncellemesi kolay; Windows Server destekliyor.)
+
+### 2026-06-03 — MVP kapsamı ve fatura beklentisi netleşti ✅
+- Kullanıcı: MVP aslında **Stok ve Üretim**. (Önceki "Cari → Stok → Satış → Üretim" sırası değişti.)
+- **KARAR — MVP = Stok + Üretim.** Cari ve Satış sonraki fazlara kaydı. Gerekçe: mobilya fabrikasının çekirdek operasyonu üretim ve stok.
+- Kullanıcı: Fatura tarafında **e-Fatura ileride gerekli**.
+- **KARAR — Veri modeli baştan e-Fatura'ya hazır kurulacak:** ürünlerde KDV oranı + e-Fatura birim kodu (C62=adet, MTK=m², MTR=metre...), opsiyonel GTIP; firmada VKN/TCKN, vergi dairesi, adres alanları. (Şimdi eklemek ucuz; resmi e-Fatura entegrasyonu Satış modülüyle gelecek.)
+- **Aksiyon:** MVP (çekirdek + Stok + Üretim) için `docs/DATA-MODEL.md` taslağı hazırlanıyor. Gerekçe: SaaS için tek kod tabanı, merkezi güncelleme, kolay müşteri ekleme (onboarding). Her müşteriye ayrı on-premise kurulum SaaS modeline uymaz.
 - ✅ **Tenant izolasyonu: Paylaşımlı veritabanı + `company_id` + PostgreSQL RLS (Row Level Security).** Standart, maliyet-etkin SaaS deseni; Supabase ile doğal uyumlu.
 - 🟡 **On-premise (SQL Server) opsiyonu:** Birincil değil; ileride "kurumsal/özel kurulum" isteyen büyük müşteriler için açık kapı. Bu yüzden veri erişimi yine de ORM (Prisma) ile soyutlanacak ve DB'ye özgü kestirmelerden kaçınılacak. (Karar: erteleme — gerçek talep gelince değerlendirilecek.)
 - ✅ **Auth: Supabase Auth.** Multi-tenant + RLS ile entegre çalışır.

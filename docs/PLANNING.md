@@ -24,15 +24,17 @@ Hedef: kapsam, mimari ve teknoloji kararlarını netleştirmek.
 - Veritabanı bağlantısı + ilk şema/migration
 - Ortak layout, navigasyon, tema
 
-### Faz 2 — Cari + Stok (MVP çekirdeği)
-- Cari kartları ve hareketler
-- Stok kartları, depo, hareketler
+### Faz 2 — Stok + Üretim (MVP çekirdeği) ⭐
+> MVP burası: mobilya fabrikasının çekirdek operasyonu.
+- Stok kartları (hammadde/yarı mamul/mamul), depo, stok hareketleri
+- Ürün ağacı (BOM), iş emirleri, üretim sarfı ve girişi
 
-### Faz 3 — Satış
+### Faz 3 — Cari
+- Müşteri/tedarikçi kartları, cari hareketler
+
+### Faz 4 — Satış (+ e-Fatura hazırlığı)
 - Teklif/sipariş/irsaliye/fatura akışı
-
-### Faz 4 — Üretim
-- BOM, iş emirleri, üretim takibi
+- e-Fatura/e-Arşiv entegrasyonu (veri modeli baştan hazır kurulur)
 
 ### Faz 5 — Raporlama & İyileştirme
 - Dashboard, raporlar, denetim izi, performans
