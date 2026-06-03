@@ -1,0 +1,45 @@
+# PLANNING — Yol Haritası (Taslak)
+
+> ⚠️ **Durum: PLANLAMA.** Kod yazımı henüz başlamadı.
+> Bu doküman fazları ve ilerleyişi takip eder.
+
+## Mevcut Faz: 🟡 0 — Planlama & Mimari
+Hedef: kapsam, mimari ve teknoloji kararlarını netleştirmek.
+
+### Faz 0 — Yapılacaklar
+- [x] Dokümantasyon iskeleti (MEMORY + docs/)
+- [ ] "Açık Sorular"ı yanıtla (bkz. `../MEMORY.md`)
+- [ ] Dağıtım modeli kararı (bulut / on-premise / her ikisi)
+- [ ] Multi-tenant kararı
+- [ ] Teknoloji yığınını kesinleştir (Next.js + shadcn onayı, DB seçimi, ORM)
+- [ ] Modül kapsamlarını ve MVP sınırını netleştir
+- [ ] Veri modeli taslağı (ER diyagramı) — ana varlıklar
+- [ ] Rol/yetki matrisi taslağı
+
+## Sonraki Fazlar (taslak)
+
+### Faz 1 — Temel İskelet
+- Proje kurulumu (Next.js + shadcn + Tailwind + TS)
+- Auth & RBAC iskeleti
+- Veritabanı bağlantısı + ilk şema/migration
+- Ortak layout, navigasyon, tema
+
+### Faz 2 — Cari + Stok (MVP çekirdeği)
+- Cari kartları ve hareketler
+- Stok kartları, depo, hareketler
+
+### Faz 3 — Satış
+- Teklif/sipariş/irsaliye/fatura akışı
+
+### Faz 4 — Üretim
+- BOM, iş emirleri, üretim takibi
+
+### Faz 5 — Raporlama & İyileştirme
+- Dashboard, raporlar, denetim izi, performans
+
+> Fazlar ve kapsam, planlama sonunda netleşince güncellenecek.
+
+## Çalışma Prensibi
+1. Önce konuş/karar ver → `MEMORY.md`'ye yaz.
+2. Sonra ilgili dokümanı güncelle.
+3. Faz onayı gelince kod yazımına geç.
