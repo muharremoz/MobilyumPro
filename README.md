@@ -17,6 +17,7 @@ Mobilya fabrikaları için modüler iş yönetim / ERP web uygulaması.
 - 🏛️ [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Mimari taslağı
 - 🧩 [docs/MODULES.md](docs/MODULES.md) — Modül kapsamları
 - 🗃️ [docs/DATA-MODEL.md](docs/DATA-MODEL.md) — Veri modeli taslağı (MVP: Stok + Üretim)
+- 🔎 [docs/RESEARCH-MOBLESIS.md](docs/RESEARCH-MOBLESIS.md) — Rakip/referans analizi (MÖBLESİS)
 - 🗺️ [docs/PLANNING.md](docs/PLANNING.md) — Yol haritası / fazlar
 - 📑 [docs/DECISIONS.md](docs/DECISIONS.md) — Mimari karar kayıtları (ADR)
 

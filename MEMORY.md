@@ -96,6 +96,7 @@
 **Kullanıcının yapacağı (saha araştırması):**
 - Bir **fabrikaya gidip üretim sürecini bizzat görecek** (kaç istasyon, akış nasıl ilerliyor).
 - **Halihazırda aktif bir yazılım kullanan bir fabrika çalışanından**, kullandıkları program hakkında bilgi alacak (neyi seviyor/sevmiyor, eksikler, akış).
+- **Kullandıkları yazılım: MÖBLESİS** (mobilya üretimine özel ERP, İnegöl/Bursa kökenli). Ön araştırma yapıldı → `docs/RESEARCH-MOBLESIS.md`. Öne çıkanlar: barkod tabanlı üretim takibi, **saha terminalleriyle istasyon bazlı takip**, B2B bayi sipariş uygulaması, kumaş/renk varyantları. Saha ziyaretinde bu ekranlar gözlemlenecek (kontrol listesi research dosyasında).
 
 **Bu araştırma şunları netleştirecek (DATA-MODEL.md açık noktaları):**
 1. Üretim aşama takibi derinliği (sadece "tamamlandı" mı / istasyon istasyon mu?) — *en kritik*
