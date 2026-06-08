@@ -255,6 +255,79 @@ urunler[3].parcalar = [
 urunler[9].parcalar = [
   { parcaId: "PRC-2007", miktar: 1 }, // Gardırop 4 kapaklı
 ];
+urunler[6].parcalar = [
+  { parcaId: "PRC-2005", miktar: 1 }, // Elegance Şifonyer → Şifonyer 4 çekmeceli
+];
+
+// Üretim emirleri — bir modelin (ürünün) BOM'una göre üretimi.
+export type UretimDurum =
+  | "Planlandı"
+  | "Üretimde"
+  | "Tamamlandı"
+  | "İptal";
+
+export type UretimOncelik = "Düşük" | "Normal" | "Yüksek" | "Acil";
+
+export type UretimEmri = {
+  id: string;
+  urunId: string;
+  urunAd: string;
+  adet: number;
+  durum: UretimDurum;
+  oncelik?: UretimOncelik;
+  olusturma: string; // ISO tarih
+  termin?: string; // hedef bitiş tarihi
+  kaynakSiparis?: string; // opsiyonel: hangi siparişten doğdu
+  musteri?: string; // sipariş üretiminde hedef müşteri
+  hedefDepo?: string; // stok üretiminde hedef depo
+  not?: string;
+};
+
+// Depolar (üretim hedefi / stok lokasyonu).
+export type Depo = {
+  id: string;
+  ad: string;
+  sehir: string;
+  durum: "Aktif" | "Pasif";
+};
+
+export const depolar: Depo[] = [
+  { id: "DEP-01", ad: "Ana Depo", sehir: "İstanbul", durum: "Aktif" },
+  { id: "DEP-02", ad: "Yedek Depo", sehir: "İstanbul", durum: "Aktif" },
+  { id: "DEP-03", ad: "Showroom Merkez", sehir: "İstanbul", durum: "Aktif" },
+  { id: "DEP-04", ad: "Bursa Bölge", sehir: "Bursa", durum: "Pasif" },
+];
+
+export const uretimEmirleri: UretimEmri[] = [
+  {
+    id: "UE-4001",
+    urunId: "URN-1004",
+    urunAd: "Venüs Yatak Odası Takımı",
+    adet: 3,
+    durum: "Üretimde",
+    olusturma: "2026-06-04",
+    termin: "2026-06-12",
+    kaynakSiparis: "SIP-5019",
+  },
+  {
+    id: "UE-4002",
+    urunId: "URN-1010",
+    urunAd: "Aurora Gardırop 4 Kapaklı",
+    adet: 5,
+    durum: "Planlandı",
+    olusturma: "2026-06-05",
+    termin: "2026-06-15",
+  },
+  {
+    id: "UE-4003",
+    urunId: "URN-1004",
+    urunAd: "Venüs Yatak Odası Takımı",
+    adet: 2,
+    durum: "Tamamlandı",
+    olusturma: "2026-05-28",
+    termin: "2026-06-03",
+  },
+];
 
 // Dashboard kartları için özet metrikler.
 export const ozet = {

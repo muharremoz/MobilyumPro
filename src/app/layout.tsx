@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { AnimGuard } from "@/components/anim-guard";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full" suppressHydrationWarning>
+        <AnimGuard />
         {children}
         <Toaster position="bottom-center" />
       </body>

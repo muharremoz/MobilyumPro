@@ -128,7 +128,7 @@ export const sections: Section[] = [
     label: "Üretim Takibi",
     RailIcon: I(HammerIcon),
     items: [
-      { label: "Üretim Emirleri", href: "#", icon: I(HammerIcon) },
+      { label: "Üretim Emirleri", href: "/uretim/emirler", icon: I(HammerIcon) },
       { label: "Reçeteler (BOM)", href: "/uretim/recete", icon: I(LayersIcon) },
       { label: "İş İstasyonları", href: "#", icon: I(CpuIcon) },
       { label: "İş Akışı", href: "#", icon: I(WorkflowIcon) },

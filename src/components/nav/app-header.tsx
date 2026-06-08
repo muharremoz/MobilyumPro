@@ -10,6 +10,11 @@ function getCrumbs(pathname: string): string[] {
   const match = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href.split("?")[0]);
 
+  // Nav'da olmayan özel sayfalar
+  if (pathname.startsWith("/uretim/plan")) {
+    return ["Üretim Takibi", "Üretim Planla"];
+  }
+
   for (const s of [...sections, ...bottomSections]) {
     const it = s.items?.find((i) => i.href !== "#" && match(i.href));
     if (it) return [s.label, it.label];

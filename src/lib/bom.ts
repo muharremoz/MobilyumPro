@@ -79,6 +79,31 @@ export function modelMalzemeIhtiyaci(
   );
 }
 
+export type Yeterlilik = {
+  ihtiyac: MalzemeIhtiyac[];
+  /** Stoğu yetersiz kalan malzemeler. */
+  eksik: MalzemeIhtiyac[];
+  /** Tüm malzemeler yeterli mi? */
+  yeterli: boolean;
+  /** Tahmini toplam malzeme maliyeti. */
+  toplamMaliyet: number;
+};
+
+/**
+ * Bir model + adet için malzeme yeterliliğini hesaplar.
+ * Üretim emri oluşturmadan önce "stok yeter mi?" kararını verir.
+ */
+export function malzemeYeterlilik(
+  parcaSatirlari: ParcaSatiri[],
+  parcalar: Parca[],
+  malzemeler: Malzeme[],
+): Yeterlilik {
+  const ihtiyac = modelMalzemeIhtiyaci(parcaSatirlari, parcalar, malzemeler);
+  const eksik = ihtiyac.filter((m) => m.toplamMiktar > m.malzeme.stok);
+  const toplamMaliyet = ihtiyac.reduce((t, m) => t + m.toplamFiyat, 0);
+  return { ihtiyac, eksik, yeterli: eksik.length === 0, toplamMaliyet };
+}
+
 /** Bir reçete satırının okuyucu için kısa metni: "Vida 4×40 (3 adet)" */
 export function receteSatiriEtiket(
   satir: ReceteSatiri,
