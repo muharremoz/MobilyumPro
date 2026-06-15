@@ -27,42 +27,42 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ozet,
-  siparisler,
-  haftalikSatis,
-  formatTL,
-  formatTarih,
-} from "@/lib/data";
+import { haftalikSatis, formatTL, formatTarih } from "@/lib/data";
+import { getDashboardOzet, getSiparisler } from "@/lib/db/queries";
 
-const kartlar = [
-  {
-    baslik: "Toplam Ciro",
-    deger: formatTL(ozet.toplamCiro),
-    alt: "İptaller hariç",
-    icon: Banknote,
-  },
-  {
-    baslik: "Siparişler",
-    deger: ozet.siparisSayisi.toString(),
-    alt: "Tüm zamanlar",
-    icon: ShoppingCart,
-  },
-  {
-    baslik: "Ürünler",
-    deger: ozet.urunSayisi.toString(),
-    alt: "Katalogda",
-    icon: Sofa,
-  },
-  {
-    baslik: "Müşteriler",
-    deger: ozet.musteriSayisi.toString(),
-    alt: "Kayıtlı",
-    icon: Users,
-  },
-];
+export default async function DashboardPage() {
+  const [ozet, siparisler] = await Promise.all([
+    getDashboardOzet(),
+    getSiparisler(),
+  ]);
 
-export default function DashboardPage() {
+  const kartlar = [
+    {
+      baslik: "Toplam Ciro",
+      deger: formatTL(ozet.toplamCiro),
+      alt: "İptaller hariç",
+      icon: Banknote,
+    },
+    {
+      baslik: "Siparişler",
+      deger: ozet.siparisSayisi.toString(),
+      alt: "Tüm zamanlar",
+      icon: ShoppingCart,
+    },
+    {
+      baslik: "Ürünler",
+      deger: ozet.urunSayisi.toString(),
+      alt: "Katalogda",
+      icon: Sofa,
+    },
+    {
+      baslik: "Müşteriler",
+      deger: ozet.musteriSayisi.toString(),
+      alt: "Kayıtlı",
+      icon: Users,
+    },
+  ];
+
   const sonSiparisler = siparisler.slice(0, 5);
   const maxSatis = Math.max(...haftalikSatis.map((g) => g.tutar));
 

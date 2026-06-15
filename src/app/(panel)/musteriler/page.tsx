@@ -8,7 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { musteriler, formatTL } from "@/lib/data";
+import { formatTL } from "@/lib/data";
+import { getMusterilerDetay } from "@/lib/db/queries";
 
 function basHarfler(ad: string) {
   return ad
@@ -19,7 +20,8 @@ function basHarfler(ad: string) {
     .toUpperCase();
 }
 
-export default function MusterilerPage() {
+export default async function MusterilerPage() {
+  const musteriler = await getMusterilerDetay();
   return (
     <>
 

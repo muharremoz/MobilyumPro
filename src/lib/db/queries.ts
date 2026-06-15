@@ -9,6 +9,7 @@ import {
   urunParca,
   depo,
   musteri,
+  siparis,
   uretimEmri,
 } from "./schema";
 import type {
@@ -16,6 +17,9 @@ import type {
   Parca,
   Malzeme,
   Depo,
+  Musteri,
+  Siparis,
+  SiparisDurum,
   Kategori,
   ParcaKategori,
   MalzemeTipi,
@@ -116,6 +120,75 @@ export async function getMusteriler(): Promise<MusteriSecim[]> {
     ad: m.ad,
     sehir: m.sehir ?? "",
   }));
+}
+
+export async function getSiparisler(): Promise<Siparis[]> {
+  const rows = await db.select().from(siparis);
+  return rows
+    .map((s) => ({
+      id: s.id,
+      musteri: s.musteriAd,
+      tarih: s.tarih,
+      tutar: Number(s.tutar),
+      durum: s.durum as SiparisDurum,
+      urunAdedi: s.urunAdedi,
+    }))
+    .sort((a, b) => b.id.localeCompare(a.id));
+}
+
+/** Müşteriler + sipariş bazlı türetilmiş özet (siparişSayisi, toplamHarcama). */
+export async function getMusterilerDetay(): Promise<Musteri[]> {
+  const [musteriRows, siparisRows] = await Promise.all([
+    db.select().from(musteri),
+    db.select().from(siparis),
+  ]);
+  const adet = new Map<string, number>();
+  const harcama = new Map<string, number>();
+  for (const s of siparisRows) {
+    if (!s.musteriId) continue;
+    adet.set(s.musteriId, (adet.get(s.musteriId) ?? 0) + 1);
+    if (s.durum !== "İptal") {
+      harcama.set(
+        s.musteriId,
+        (harcama.get(s.musteriId) ?? 0) + Number(s.tutar),
+      );
+    }
+  }
+  return musteriRows.map((m) => ({
+    id: m.id,
+    ad: m.ad,
+    email: m.email ?? "",
+    sehir: m.sehir ?? "",
+    siparisSayisi: adet.get(m.id) ?? 0,
+    toplamHarcama: harcama.get(m.id) ?? 0,
+  }));
+}
+
+export type DashboardOzet = {
+  toplamCiro: number;
+  siparisSayisi: number;
+  urunSayisi: number;
+  musteriSayisi: number;
+  kritikStok: number;
+  tukenenStok: number;
+};
+
+export async function getDashboardOzet(): Promise<DashboardOzet> {
+  const [urunRows, siparisRows, musteriRows] = await Promise.all([
+    db.select().from(urun),
+    db.select().from(siparis),
+    db.select().from(musteri),
+  ]);
+  return {
+    toplamCiro: siparisRows
+      .filter((s) => s.durum !== "İptal")
+      .reduce((t, s) => t + Number(s.tutar), 0),
+    siparisSayisi: siparisRows.length,
+    urunSayisi: urunRows.length,
+    musteriSayisi: musteriRows.length,
+    kritikStok: urunRows.filter((u) => u.stok > 0 && u.stok <= 5).length,
+    tukenenStok: urunRows.filter((u) => u.stok === 0).length,
+  };
 }
 
 export async function getUretimEmirleri(): Promise<UretimEmri[]> {

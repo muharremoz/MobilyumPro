@@ -23,15 +23,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  urunler,
-  parcalar as PARCALAR,
-  malzemeler as MALZEMELER,
-  type Urun,
-} from "@/lib/data";
+import { type Urun, type Parca, type Malzeme } from "@/lib/data";
 import { flattenParca, modelMalzemeIhtiyaci } from "@/lib/bom";
 
-export function RecipePage() {
+export function RecipePage({
+  urunler,
+  parcalar,
+  malzemeler,
+}: {
+  urunler: Urun[];
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
+  const PARCALAR = parcalar;
+  const MALZEMELER = malzemeler;
   // Sadece parçalı modeller (BOM'u olanlar) seçilebilir.
   const modeller = urunler.filter((u) => u.parcalar && u.parcalar.length > 0);
   const [modelId, setModelId] = React.useState<string>(

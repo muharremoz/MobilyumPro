@@ -47,7 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTL, malzemeler as ILK, type Malzeme, type MalzemeTipi } from "@/lib/data";
+import { formatTL, type Malzeme, type MalzemeTipi } from "@/lib/data";
 
 const TIPLER: MalzemeTipi[] = ["Hammadde", "Yarı Mamul", "Yardımcı"];
 const BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
@@ -59,8 +59,8 @@ const TIP_RENK: Record<MalzemeTipi, string> = {
 const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "tip" | "birim" | "stok" | "birimFiyat" | "durum";
 
-export function Materials() {
-  const [liste, setListe] = React.useState<Malzeme[]>(ILK);
+export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
+  const [liste, setListe] = React.useState<Malzeme[]>(malzemeler);
   const [arama, setArama] = React.useState("");
   const [tip, setTip] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");

@@ -47,9 +47,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  parcalar as ILK_PARCALAR,
-  malzemeler as ILK_MALZEMELER,
   type Parca,
+  type Malzeme,
   type ParcaKategori,
   type ReceteSatiri,
 } from "@/lib/data";
@@ -68,8 +67,14 @@ const KATEGORILER: ParcaKategori[] = [
 const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "kategori" | "durum";
 
-export function Parts() {
-  const [liste, setListe] = React.useState<Parca[]>(ILK_PARCALAR);
+export function Parts({
+  parcalar,
+  malzemeler,
+}: {
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
+  const [liste, setListe] = React.useState<Parca[]>(parcalar);
   const [arama, setArama] = React.useState("");
   const [kategori, setKategori] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -393,6 +398,7 @@ export function Parts() {
         onOpenChange={setSheetOpen}
         item={duzenlenen}
         tumParcalar={liste}
+        tumMalzemeler={malzemeler}
         onSave={kaydet}
       />
     </div>
@@ -404,12 +410,14 @@ function PartSheet({
   onOpenChange,
   item,
   tumParcalar,
+  tumMalzemeler,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   item: Parca | null;
   tumParcalar: Parca[];
+  tumMalzemeler: Malzeme[];
   onSave: (p: Parca) => void;
 }) {
   const [form, setForm] = React.useState({
@@ -599,6 +607,7 @@ function PartSheet({
             <RecipeEditor
               recete={recete}
               parcalar={baskaParcalar}
+              malzemeler={tumMalzemeler}
               onMalzemeEkle={malzemeEkle}
               onParcaEkle={parcaEkle}
               onSatirSil={satirSil}
@@ -639,6 +648,7 @@ function TabBtn({
 function RecipeEditor({
   recete,
   parcalar,
+  malzemeler,
   onMalzemeEkle,
   onParcaEkle,
   onSatirSil,
@@ -646,6 +656,7 @@ function RecipeEditor({
 }: {
   recete: ReceteSatiri[];
   parcalar: Parca[];
+  malzemeler: Malzeme[];
   onMalzemeEkle: (id: string) => void;
   onParcaEkle: (id: string) => void;
   onSatirSil: (i: number) => void;
@@ -656,7 +667,7 @@ function RecipeEditor({
   const [parcaSec, setParcaSec] = React.useState<string | null>(null);
 
   const malzemeMap = React.useMemo(
-    () => new Map(ILK_MALZEMELER.map((m) => [m.id, m])),
+    () => new Map(malzemeler.map((m) => [m.id, m])),
     [],
   );
   const parcaMap = React.useMemo(
@@ -676,7 +687,7 @@ function RecipeEditor({
   function handleMalzeme(v: string | null) {
     if (!v) return;
     // SearchSelect tam ad'ı geri verir — eşleşen malzemeyi bul.
-    const m = ILK_MALZEMELER.find((x) => malzemeEtiket(x.id) === v);
+    const m = malzemeler.find((x) => malzemeEtiket(x.id) === v);
     if (m) {
       onMalzemeEkle(m.id);
       setMalzemeSec(null);
@@ -700,7 +711,7 @@ function RecipeEditor({
             Malzeme ekle
           </label>
           <SearchSelect
-            items={ILK_MALZEMELER.map((m) => malzemeEtiket(m.id))}
+            items={malzemeler.map((m) => malzemeEtiket(m.id))}
             value={malzemeSec}
             onValueChange={handleMalzeme}
             placeholder="Malzeme seç"

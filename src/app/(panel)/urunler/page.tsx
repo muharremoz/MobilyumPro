@@ -1,21 +1,18 @@
-"use client";
-
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-
 import { ProductsTable } from "@/components/products/products-table";
+import { getUrunler } from "@/lib/db/queries";
 
-function UrunlerInner() {
-  const params = useSearchParams();
-  const kategori = params.get("kategori") ?? "Tümü";
-
-  return <ProductsTable key={kategori} initialKategori={kategori} />;
-}
-
-export default function UrunlerPage() {
+export default async function UrunlerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kategori?: string }>;
+}) {
+  const { kategori = "Tümü" } = await searchParams;
+  const urunler = await getUrunler();
   return (
-    <Suspense>
-      <UrunlerInner />
-    </Suspense>
+    <ProductsTable
+      key={kategori}
+      urunler={urunler}
+      initialKategori={kategori}
+    />
   );
 }

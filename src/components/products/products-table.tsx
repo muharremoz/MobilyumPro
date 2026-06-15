@@ -38,7 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProductSheet } from "@/components/products/product-sheet";
-import { urunler as veriUrunler, formatTL, type Urun } from "@/lib/data";
+import { formatTL, type Urun } from "@/lib/data";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -65,8 +65,14 @@ function StokHucre({ stok }: { stok: number }) {
   );
 }
 
-export function ProductsTable({ initialKategori }: { initialKategori?: string }) {
-  const [liste, setListe] = React.useState<Urun[]>(veriUrunler);
+export function ProductsTable({
+  urunler,
+  initialKategori,
+}: {
+  urunler: Urun[];
+  initialKategori?: string;
+}) {
+  const [liste, setListe] = React.useState<Urun[]>(urunler);
   const [arama, setArama] = React.useState("");
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");

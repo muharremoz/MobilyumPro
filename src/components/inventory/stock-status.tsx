@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { urunler } from "@/lib/data";
+import type { Urun } from "@/lib/data";
 
 function durum(stok: number) {
   if (stok === 0)
@@ -31,7 +31,7 @@ function durum(stok: number) {
   return { etiket: "Yeterli", renk: "bg-emerald-100 text-emerald-800" };
 }
 
-export function StockStatus() {
+export function StockStatus({ urunler }: { urunler: Urun[] }) {
   const [arama, setArama] = React.useState("");
   const [filt, setFilt] = React.useState("Tümü");
 
