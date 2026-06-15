@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sofa, LogOut, User, Settings } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,17 +33,33 @@ import {
 
 function useAktif() {
   const pathname = usePathname();
-  const eslesir = (href: string) =>
-    href === "/"
-      ? pathname === "/"
-      : pathname.startsWith(href.split("?")[0]);
+  const search = useSearchParams();
+  // Hem path hem (varsa) query parametrelerini kıyaslar.
+  const eslesir = (href: string) => {
+    if (href === "/") return pathname === "/";
+    const [p, q] = href.split("?");
+    if (!pathname.startsWith(p)) return false;
+    if (!q) return true;
+    const want = new URLSearchParams(q);
+    for (const [k, v] of want) {
+      if (search.get(k) !== v) return false;
+    }
+    return true;
+  };
+  // Bölüm aktifliği: bölümün href'i veya alt öğelerinden biri (yalnızca path).
+  const bolumPathAktif = (href: string) => {
+    const [p] = href.split("?");
+    if (p === "/") return pathname === "/";
+    return pathname.startsWith(p);
+  };
 
   return {
     pathname,
     bolumAktif: (s: Section) => {
-      if (s.href && s.href !== "#") return eslesir(s.href);
+      if (s.href && s.href !== "#") return bolumPathAktif(s.href);
       return (
-        s.items?.some((it) => it.href !== "#" && eslesir(it.href)) ?? false
+        s.items?.some((it) => it.href !== "#" && bolumPathAktif(it.href)) ??
+        false
       );
     },
     ogeAktif: (href: string) => href !== "#" && eslesir(href),
@@ -145,30 +161,37 @@ function PanelItem({
   const { icon: Icon } = item;
   const yakinda = item.href === "#";
   return (
-    <li
-      onMouseEnter={() => ref.current?.startAnimation()}
-      onMouseLeave={() => ref.current?.stopAnimation()}
-    >
-      <Link
-        href={item.href}
-        onClick={(e) => {
-          if (yakinda) e.preventDefault();
-          else onNavigate();
-        }}
-        className={cn(
-          "flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground",
-          active && "bg-sidebar-accent font-medium text-foreground",
-          yakinda && "text-muted-foreground/60",
-        )}
+    <>
+      {item.groupHeader && (
+        <li className="mt-2 px-2.5 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0">
+          {item.groupHeader}
+        </li>
+      )}
+      <li
+        onMouseEnter={() => ref.current?.startAnimation()}
+        onMouseLeave={() => ref.current?.stopAnimation()}
       >
-        <Icon ref={ref} size={16} className="shrink-0" />
-        <span className="truncate">{item.label}</span>
-      </Link>
-    </li>
+        <Link
+          href={item.href}
+          onClick={(e) => {
+            if (yakinda) e.preventDefault();
+            else onNavigate();
+          }}
+          className={cn(
+            "flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground",
+            active && "bg-sidebar-accent font-medium text-foreground",
+            yakinda && "text-muted-foreground/60",
+          )}
+        >
+          <Icon ref={ref} size={16} className="shrink-0" />
+          <span className="truncate">{item.label}</span>
+        </Link>
+      </li>
+    </>
   );
 }
 
-export function AppNav() {
+function AppNavInner() {
   const router = useRouter();
   const { pathname, bolumAktif, ogeAktif } = useAktif();
   const [openId, setOpenId] = React.useState<string | null>(null);
@@ -270,5 +293,13 @@ export function AppNav() {
         )}
       </div>
     </TooltipProvider>
+  );
+}
+
+export function AppNav() {
+  return (
+    <React.Suspense fallback={null}>
+      <AppNavInner />
+    </React.Suspense>
   );
 }
