@@ -18,8 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  uretimEmirleri as ILK,
   formatTarih,
+  type UretimEmri,
   type UretimDurum,
   type UretimOncelik,
 } from "@/lib/data";
@@ -54,19 +54,19 @@ function UretimBadge({ durum }: { durum: UretimDurum }) {
   );
 }
 
-export function ProductionOrders() {
+export function ProductionOrders({ emirler }: { emirler: UretimEmri[] }) {
   const [arama, setArama] = React.useState("");
   const [durum, setDurum] = React.useState("Tümü");
 
   const filtreli = React.useMemo(() => {
     const q = arama.toLowerCase();
-    return ILK.filter((e) => {
+    return emirler.filter((e) => {
       const ara =
         e.urunAd.toLowerCase().includes(q) || e.id.toLowerCase().includes(q);
       const d = durum === "Tümü" || e.durum === durum;
       return ara && d;
     });
-  }, [arama, durum]);
+  }, [emirler, arama, durum]);
 
   return (
     <div>

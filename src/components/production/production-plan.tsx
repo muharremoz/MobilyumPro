@@ -29,20 +29,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  urunler,
-  musteriler,
-  depolar,
-  parcalar as PARCALAR,
-  malzemeler as MALZEMELER,
-  uretimEmirleri,
   formatTL,
-  type UretimEmri,
+  type Urun,
+  type Depo,
+  type Parca,
+  type Malzeme,
   type UretimOncelik,
 } from "@/lib/data";
 import { malzemeYeterlilik, type MalzemeIhtiyac } from "@/lib/bom";
+import { uretimEmriOlustur } from "@/lib/db/actions";
 
 type Neden = "stok" | "siparis";
 type Secim = { id: number; urunId: string; adet: string };
+type MusteriSecim = { id: string; ad: string; sehir: string };
 
 const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 
@@ -63,23 +62,31 @@ function Panel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function bugun(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function ProductionPlan() {
+export function ProductionPlan({
+  urunler,
+  depolar,
+  musteriler,
+  parcalar,
+  malzemeler,
+}: {
+  urunler: Urun[];
+  depolar: Depo[];
+  musteriler: MusteriSecim[];
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
   const router = useRouter();
   const modeller = React.useMemo(
     () => urunler.filter((u) => u.parcalar && u.parcalar.length > 0),
-    [],
+    [urunler],
   );
   const urunMap = React.useMemo(
     () => new Map(urunler.map((u) => [u.id, u])),
-    [],
+    [urunler],
   );
   const aktifDepolar = React.useMemo(
     () => depolar.filter((d) => d.durum === "Aktif"),
-    [],
+    [depolar],
   );
 
   const [neden, setNeden] = React.useState<Neden>("stok");
@@ -105,7 +112,7 @@ export function ProductionPlan() {
       }
     }
     if (birlesik.length === 0) return null;
-    return malzemeYeterlilik(birlesik, PARCALAR, MALZEMELER);
+    return malzemeYeterlilik(birlesik, parcalar, malzemeler);
   }, [secimler, urunMap]);
 
   // Boş bir satır ekle (model henüz seçilmedi).
@@ -140,7 +147,7 @@ export function ProductionPlan() {
       parcaId: p.parcaId,
       miktar: p.miktar * a,
     }));
-    return malzemeYeterlilik(satir, PARCALAR, MALZEMELER).yeterli
+    return malzemeYeterlilik(satir, parcalar, malzemeler).yeterli
       ? "yeterli"
       : "eksik";
   }
@@ -204,7 +211,9 @@ export function ProductionPlan() {
         ? "Stok yetersiz — yalnız taslak kaydedebilirsiniz"
         : null;
 
-  function olustur(durum: "Üretimde" | "Planlandı") {
+  const [kaydediliyor, setKaydediliyor] = React.useState(false);
+
+  async function olustur(durum: "Üretimde" | "Planlandı") {
     const gecerli = secimler
       .map((s) => ({ u: urunMap.get(s.urunId), adet: Number(s.adet) }))
       .filter((s) => s.u && s.adet >= 1);
@@ -212,28 +221,37 @@ export function ProductionPlan() {
       toast.error("En az bir model ve adet girin.");
       return;
     }
-    const yeniler: UretimEmri[] = gecerli.map((s, i) => ({
-      id: `UE-${4000 + uretimEmirleri.length + 1 + i}`,
-      urunId: s.u!.id,
-      urunAd: s.u!.ad,
-      adet: s.adet,
-      durum,
-      oncelik,
-      olusturma: bugun(),
-      termin: termin || undefined,
-      musteri:
-        neden === "siparis"
-          ? musteriler.find((m) => m.id === musteriId)?.ad
-          : undefined,
-      hedefDepo: neden === "stok" ? depoId ?? undefined : undefined,
-    }));
-    uretimEmirleri.unshift(...yeniler);
-    toast.success(
-      durum === "Üretimde"
-        ? `${yeniler.length} üretim emri oluşturuldu.`
-        : `${yeniler.length} taslak kaydedildi.`,
-    );
-    router.push("/uretim/emirler");
+    setKaydediliyor(true);
+    try {
+      const payload = gecerli.map((s) => ({
+        urunId: s.u!.id,
+        urunAd: s.u!.ad,
+        adet: s.adet,
+        durum,
+        oncelik,
+        termin: termin || undefined,
+        musteri:
+          neden === "siparis"
+            ? musteriler.find((m) => m.id === musteriId)?.ad
+            : undefined,
+        hedefDepo: neden === "stok" ? depoId ?? undefined : undefined,
+      }));
+      const res = await uretimEmriOlustur(payload);
+      if (!res.ok) {
+        toast.error("Kaydedilemedi. Lütfen tekrar deneyin.");
+        return;
+      }
+      toast.success(
+        durum === "Üretimde"
+          ? `${res.ids.length} üretim emri oluşturuldu.`
+          : `${res.ids.length} taslak kaydedildi.`,
+      );
+      router.push("/uretim/emirler");
+    } catch {
+      toast.error("Kaydedilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setKaydediliyor(false);
+    }
   }
 
   return (
@@ -523,13 +541,13 @@ export function ProductionPlan() {
           <Button
             variant="outline"
             onClick={() => olustur("Planlandı")}
-            disabled={!modelGecerli}
+            disabled={!modelGecerli || kaydediliyor}
           >
             <FileText className="size-4" /> Taslak Kaydet
           </Button>
           <Button
             onClick={() => olustur("Üretimde")}
-            disabled={!!gonderEngel}
+            disabled={!!gonderEngel || kaydediliyor}
             title={gonderEngel ?? undefined}
           >
             <Hammer className="size-4" /> Üretime Gönder
