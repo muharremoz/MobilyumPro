@@ -288,14 +288,16 @@ export type Depo = {
   id: string;
   ad: string;
   sehir: string;
+  kapasite: number;
+  doluluk: number;
   durum: "Aktif" | "Pasif";
 };
 
 export const depolar: Depo[] = [
-  { id: "DEP-01", ad: "Ana Depo", sehir: "İstanbul", durum: "Aktif" },
-  { id: "DEP-02", ad: "Yedek Depo", sehir: "İstanbul", durum: "Aktif" },
-  { id: "DEP-03", ad: "Showroom Merkez", sehir: "İstanbul", durum: "Aktif" },
-  { id: "DEP-04", ad: "Bursa Bölge", sehir: "Bursa", durum: "Pasif" },
+  { id: "DEP-01", ad: "Ana Depo", sehir: "İstanbul", kapasite: 5000, doluluk: 3420, durum: "Aktif" },
+  { id: "DEP-02", ad: "Yedek Depo", sehir: "İstanbul", kapasite: 2000, doluluk: 880, durum: "Aktif" },
+  { id: "DEP-03", ad: "Showroom Merkez", sehir: "İstanbul", kapasite: 300, doluluk: 215, durum: "Aktif" },
+  { id: "DEP-04", ad: "Bursa Bölge", sehir: "Bursa", kapasite: 1500, doluluk: 0, durum: "Pasif" },
 ];
 
 export const uretimEmirleri: UretimEmri[] = [

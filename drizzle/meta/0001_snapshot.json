@@ -1,0 +1,667 @@
+{
+  "id": "3f3dcca3-15e7-45ab-8a27-217d197d02fa",
+  "prevId": "13721b96-4430-4c90-905e-3a90ab85d2c2",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.depo": {
+      "name": "depo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ad": {
+          "name": "ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sehir": {
+          "name": "sehir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kapasite": {
+          "name": "kapasite",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "doluluk": {
+          "name": "doluluk",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "durum": {
+          "name": "durum",
+          "type": "durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Aktif'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.malzeme": {
+      "name": "malzeme",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ad": {
+          "name": "ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tip": {
+          "name": "tip",
+          "type": "malzeme_tipi",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "birim": {
+          "name": "birim",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stok": {
+          "name": "stok",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "birim_fiyat": {
+          "name": "birim_fiyat",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "tedarikci": {
+          "name": "tedarikci",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "durum": {
+          "name": "durum",
+          "type": "durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Aktif'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.musteri": {
+      "name": "musteri",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ad": {
+          "name": "ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sehir": {
+          "name": "sehir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.parca": {
+      "name": "parca",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ad": {
+          "name": "ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kategori": {
+          "name": "kategori",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aciklama": {
+          "name": "aciklama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "durum": {
+          "name": "durum",
+          "type": "durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Aktif'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recete_satiri": {
+      "name": "recete_satiri",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "parca_id": {
+          "name": "parca_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tip": {
+          "name": "tip",
+          "type": "recete_bilesen_tip",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "malzeme_id": {
+          "name": "malzeme_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alt_parca_id": {
+          "name": "alt_parca_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "miktar": {
+          "name": "miktar",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "recete_satiri_parca_id_parca_id_fk": {
+          "name": "recete_satiri_parca_id_parca_id_fk",
+          "tableFrom": "recete_satiri",
+          "tableTo": "parca",
+          "columnsFrom": [
+            "parca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "recete_satiri_malzeme_id_malzeme_id_fk": {
+          "name": "recete_satiri_malzeme_id_malzeme_id_fk",
+          "tableFrom": "recete_satiri",
+          "tableTo": "malzeme",
+          "columnsFrom": [
+            "malzeme_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "recete_satiri_alt_parca_id_parca_id_fk": {
+          "name": "recete_satiri_alt_parca_id_parca_id_fk",
+          "tableFrom": "recete_satiri",
+          "tableTo": "parca",
+          "columnsFrom": [
+            "alt_parca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.siparis": {
+      "name": "siparis",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "musteri_id": {
+          "name": "musteri_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "musteri_ad": {
+          "name": "musteri_ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tarih": {
+          "name": "tarih",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tutar": {
+          "name": "tutar",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "durum": {
+          "name": "durum",
+          "type": "siparis_durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Beklemede'"
+        },
+        "urun_adedi": {
+          "name": "urun_adedi",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "siparis_musteri_id_musteri_id_fk": {
+          "name": "siparis_musteri_id_musteri_id_fk",
+          "tableFrom": "siparis",
+          "tableTo": "musteri",
+          "columnsFrom": [
+            "musteri_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.uretim_emri": {
+      "name": "uretim_emri",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "urun_id": {
+          "name": "urun_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "urun_ad": {
+          "name": "urun_ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adet": {
+          "name": "adet",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "durum": {
+          "name": "durum",
+          "type": "uretim_durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Planlandı'"
+        },
+        "oncelik": {
+          "name": "oncelik",
+          "type": "uretim_oncelik",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Normal'"
+        },
+        "olusturma": {
+          "name": "olusturma",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "termin": {
+          "name": "termin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kaynak_siparis": {
+          "name": "kaynak_siparis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "musteri": {
+          "name": "musteri",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hedef_depo": {
+          "name": "hedef_depo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "not": {
+          "name": "not",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "uretim_emri_urun_id_urun_id_fk": {
+          "name": "uretim_emri_urun_id_urun_id_fk",
+          "tableFrom": "uretim_emri",
+          "tableTo": "urun",
+          "columnsFrom": [
+            "urun_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.urun": {
+      "name": "urun",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ad": {
+          "name": "ad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kategori": {
+          "name": "kategori",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fiyat": {
+          "name": "fiyat",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "stok": {
+          "name": "stok",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "durum": {
+          "name": "durum",
+          "type": "durum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Aktif'"
+        },
+        "gorsel": {
+          "name": "gorsel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.urun_parca": {
+      "name": "urun_parca",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "urun_id": {
+          "name": "urun_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parca_id": {
+          "name": "parca_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "miktar": {
+          "name": "miktar",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "urun_parca_urun_id_urun_id_fk": {
+          "name": "urun_parca_urun_id_urun_id_fk",
+          "tableFrom": "urun_parca",
+          "tableTo": "urun",
+          "columnsFrom": [
+            "urun_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "urun_parca_parca_id_parca_id_fk": {
+          "name": "urun_parca_parca_id_parca_id_fk",
+          "tableFrom": "urun_parca",
+          "tableTo": "parca",
+          "columnsFrom": [
+            "parca_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.durum": {
+      "name": "durum",
+      "schema": "public",
+      "values": [
+        "Aktif",
+        "Pasif"
+      ]
+    },
+    "public.malzeme_tipi": {
+      "name": "malzeme_tipi",
+      "schema": "public",
+      "values": [
+        "Hammadde",
+        "Yarı Mamul",
+        "Yardımcı"
+      ]
+    },
+    "public.recete_bilesen_tip": {
+      "name": "recete_bilesen_tip",
+      "schema": "public",
+      "values": [
+        "malzeme",
+        "parca"
+      ]
+    },
+    "public.siparis_durum": {
+      "name": "siparis_durum",
+      "schema": "public",
+      "values": [
+        "Beklemede",
+        "Hazırlanıyor",
+        "Kargoda",
+        "Teslim Edildi",
+        "İptal"
+      ]
+    },
+    "public.uretim_durum": {
+      "name": "uretim_durum",
+      "schema": "public",
+      "values": [
+        "Planlandı",
+        "Üretimde",
+        "Tamamlandı",
+        "İptal"
+      ]
+    },
+    "public.uretim_oncelik": {
+      "name": "uretim_oncelik",
+      "schema": "public",
+      "values": [
+        "Düşük",
+        "Normal",
+        "Yüksek",
+        "Acil"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -110,6 +110,8 @@ export const depo = pgTable("depo", {
   id: text("id").primaryKey(),
   ad: text("ad").notNull(),
   sehir: text("sehir").notNull(),
+  kapasite: integer("kapasite").notNull().default(0),
+  doluluk: integer("doluluk").notNull().default(0),
   durum: durumEnum("durum").notNull().default("Aktif"),
 });
 

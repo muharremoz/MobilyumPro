@@ -106,6 +106,8 @@ export async function getDepolar(): Promise<Depo[]> {
     id: d.id,
     ad: d.ad,
     sehir: d.sehir,
+    kapasite: d.kapasite,
+    doluluk: d.doluluk,
     durum: d.durum,
   }));
 }

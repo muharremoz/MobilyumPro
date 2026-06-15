@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { inArray, eq } from "drizzle-orm";
 
 import { db } from "./index";
-import { uretimEmri, malzeme, urun, parca, receteSatiri } from "./schema";
+import { uretimEmri, malzeme, urun, parca, receteSatiri, depo } from "./schema";
 import type {
   UretimDurum,
   UretimOncelik,
   Malzeme,
   Urun,
   Parca,
+  Depo,
 } from "../data";
 
 export type YeniUretimEmri = {
@@ -212,5 +213,57 @@ export async function parcaSil(
       ok: false,
       error: "Başka reçetede/üründe kullanılan parça silinemez.",
     };
+  }
+}
+
+/** Depo ekle/güncelle (id varsa upsert). Yeni kayıt için DEP-## kodu üretir. */
+export async function depoKaydet(
+  d: Depo,
+): Promise<{ ok: boolean; id: string }> {
+  let id = d.id;
+  if (!id) {
+    const mevcut = await db.select({ id: depo.id }).from(depo);
+    let maxNo = 0;
+    for (const r of mevcut) {
+      const m = /^DEP-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    id = `DEP-${String(maxNo + 1).padStart(2, "0")}`;
+  }
+  const row = {
+    id,
+    ad: d.ad,
+    sehir: d.sehir,
+    kapasite: d.kapasite,
+    doluluk: d.doluluk,
+    durum: d.durum,
+  };
+  await db
+    .insert(depo)
+    .values(row)
+    .onConflictDoUpdate({
+      target: depo.id,
+      set: {
+        ad: row.ad,
+        sehir: row.sehir,
+        kapasite: row.kapasite,
+        doluluk: row.doluluk,
+        durum: row.durum,
+      },
+    });
+  revalidatePath("/stok-yonetimi");
+  return { ok: true, id };
+}
+
+export async function depoSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.delete(depo).where(inArray(depo.id, ids));
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Depo silinemedi." };
   }
 }

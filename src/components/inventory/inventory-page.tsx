@@ -16,7 +16,7 @@ import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
-import type { Urun, Malzeme, Parca } from "@/lib/data";
+import type { Urun, Malzeme, Parca, Depo } from "@/lib/data";
 
 type StockKey = "durum" | "hareketler" | "depolar" | "sayim";
 const STOCK_LABEL: Record<StockKey, string> = {
@@ -51,11 +51,13 @@ export function InventoryPage({
   urunler,
   malzemeler,
   parcalar,
+  depolar,
 }: {
   initial?: Secim;
   urunler: Urun[];
   malzemeler: Malzeme[];
   parcalar: Parca[];
+  depolar: Depo[];
 }) {
   const [secim, setSecim] = React.useState<Secim>(
     initial ?? { tip: "stok", key: "durum" },
@@ -146,7 +148,9 @@ export function InventoryPage({
           <StockStatus urunler={urunler} />
         )}
         {secim.tip === "stok" && secim.key === "hareketler" && <StockMovements />}
-        {secim.tip === "stok" && secim.key === "depolar" && <Warehouses />}
+        {secim.tip === "stok" && secim.key === "depolar" && (
+          <Warehouses depolar={depolar} />
+        )}
         {secim.tip === "stok" && secim.key === "sayim" && <StockCount />}
         {secim.tip === "uretim" && secim.key === "malzemeler" && (
           <Materials malzemeler={malzemeler} />

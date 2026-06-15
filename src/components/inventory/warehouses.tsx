@@ -28,28 +28,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { Depo } from "@/lib/data";
+import { depoKaydet, depoSil } from "@/lib/db/actions";
 
-type Depo = {
-  id: string;
-  ad: string;
-  sehir: string;
-  kapasite: number;
-  doluluk: number;
-  durum: "Aktif" | "Pasif";
-};
-
-const ILK: Depo[] = [
-  { id: "DEP-01", ad: "Ana Depo", sehir: "İstanbul", kapasite: 5000, doluluk: 3420, durum: "Aktif" },
-  { id: "DEP-02", ad: "Yedek Depo", sehir: "İstanbul", kapasite: 2000, doluluk: 880, durum: "Aktif" },
-  { id: "DEP-03", ad: "Showroom Merkez", sehir: "İstanbul", kapasite: 300, doluluk: 215, durum: "Aktif" },
-  { id: "DEP-04", ad: "Bursa Bölge", sehir: "Bursa", kapasite: 1500, doluluk: 0, durum: "Pasif" },
-];
-
-export function Warehouses() {
-  const [liste, setListe] = React.useState<Depo[]>(ILK);
+export function Warehouses({ depolar }: { depolar: Depo[] }) {
+  const [liste, setListe] = React.useState<Depo[]>(depolar);
   const [arama, setArama] = React.useState("");
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Depo | null>(null);
+
+  React.useEffect(() => setListe(depolar), [depolar]);
 
   const filtreli = liste.filter(
     (d) =>
@@ -57,20 +45,42 @@ export function Warehouses() {
       d.sehir.toLowerCase().includes(arama.toLowerCase()),
   );
 
-  function kaydet(d: Depo) {
+  async function kaydet(d: Depo) {
+    const yeni = !d.id;
+    const gecici: Depo = yeni ? { ...d, id: `DEP-yeni-${Date.now()}` } : d;
+    const onceki = liste;
     setListe((l) => {
-      const i = l.findIndex((x) => x.id === d.id);
+      const i = l.findIndex((x) => x.id === gecici.id);
       if (i >= 0) {
         const n = [...l];
-        n[i] = d;
+        n[i] = gecici;
         return n;
       }
-      return [d, ...l];
+      return [gecici, ...l];
     });
+    const sonuc = await depoKaydet(yeni ? { ...d, id: "" } : d);
+    if (!sonuc.ok) {
+      setListe(onceki);
+      toast.error("Depo kaydedilemedi");
+      return;
+    }
+    if (yeni) {
+      setListe((l) =>
+        l.map((x) => (x.id === gecici.id ? { ...x, id: sonuc.id } : x)),
+      );
+    }
+    toast.success(yeni ? "Depo eklendi" : "Depo güncellendi");
   }
 
-  function sil(id: string) {
+  async function sil(id: string) {
+    const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== id));
+    const sonuc = await depoSil([id]);
+    if (!sonuc.ok) {
+      setListe(onceki);
+      toast.error(sonuc.error ?? "Depo silinemedi");
+      return;
+    }
     toast.success("Depo silindi");
   }
 
@@ -220,14 +230,13 @@ function DepoSheet({
       return;
     }
     onSave({
-      id: item?.id ?? `DEP-${Math.floor(Math.random() * 1000)}`,
+      id: item?.id ?? "",
       ad: ad.trim(),
       sehir: sehir.trim(),
       kapasite: Number(kapasite) || 0,
       doluluk: item?.doluluk ?? 0,
       durum,
     });
-    toast.success(item ? "Depo güncellendi" : "Depo eklendi");
     onOpenChange(false);
   }
 

@@ -1,17 +1,24 @@
 import { InventoryPage } from "@/components/inventory/inventory-page";
-import { getUrunler, getMalzemeler, getParcalar } from "@/lib/db/queries";
+import {
+  getUrunler,
+  getMalzemeler,
+  getParcalar,
+  getDepolar,
+} from "@/lib/db/queries";
 
 export default async function StokYonetimiPage() {
-  const [urunler, malzemeler, parcalar] = await Promise.all([
+  const [urunler, malzemeler, parcalar, depolar] = await Promise.all([
     getUrunler(),
     getMalzemeler(),
     getParcalar(),
+    getDepolar(),
   ]);
   return (
     <InventoryPage
       urunler={urunler}
       malzemeler={malzemeler}
       parcalar={parcalar}
+      depolar={depolar}
     />
   );
 }

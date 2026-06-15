@@ -15,7 +15,15 @@
 
 # next.js
 /.next/
+.next/
 /out/
+
+# turbo
+.turbo/
+
+# monorepo build/workspace outputs (not part of this app's source)
+/apps/
+/packages/
 
 # production
 /build
