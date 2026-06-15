@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/table";
 import { ProductSheet } from "@/components/products/product-sheet";
 import { formatTL, type Urun } from "@/lib/data";
+import { urunKaydet, urunSil } from "@/lib/db/actions";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -145,27 +146,35 @@ export function ProductsTable({
     });
   }
 
-  function sil(ids: string[]) {
+  async function sil(ids: string[]) {
+    const kaldirilan = liste.filter((u) => ids.includes(u.id));
     setListe((l) => l.filter((u) => !ids.includes(u.id)));
     setSecili((s) => {
       const n = new Set(s);
       ids.forEach((id) => n.delete(id));
       return n;
     });
-    toast.success(`${ids.length} ürün silindi`);
+    const res = await urunSil(ids);
+    if (res.ok) {
+      toast.success(`${ids.length} ürün silindi`);
+    } else {
+      setListe((l) => [...kaldirilan, ...l]);
+      toast.error(res.error ?? "Silinemedi.");
+    }
   }
 
-  function kopyala(u: Urun) {
+  async function kopyala(u: Urun) {
     const kopya: Urun = {
       ...u,
       id: `URN-${Math.floor(1000 + Math.random() * 9000)}`,
       ad: `${u.ad} (kopya)`,
     };
     setListe((l) => [kopya, ...l]);
+    await urunKaydet(kopya);
     toast.success("Ürün kopyalandı");
   }
 
-  function kaydet(u: Urun) {
+  async function kaydet(u: Urun) {
     setListe((l) => {
       const i = l.findIndex((x) => x.id === u.id);
       if (i >= 0) {
@@ -175,6 +184,7 @@ export function ProductsTable({
       }
       return [u, ...l];
     });
+    await urunKaydet(u);
   }
 
   const sortIkon = (key: SortKey) =>

@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { inArray } from "drizzle-orm";
 
 import { db } from "./index";
-import { uretimEmri } from "./schema";
-import type { UretimDurum, UretimOncelik } from "../data";
+import { uretimEmri, malzeme, urun } from "./schema";
+import type { UretimDurum, UretimOncelik, Malzeme, Urun } from "../data";
 
 export type YeniUretimEmri = {
   urunId: string;
@@ -55,4 +56,94 @@ export async function uretimEmriOlustur(
   revalidatePath("/uretim/emirler");
 
   return { ok: true, ids: rows.map((r) => r.id) };
+}
+
+/** Malzeme ekle/güncelle (id varsa upsert). */
+export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
+  const row = {
+    id: m.id,
+    ad: m.ad,
+    tip: m.tip,
+    birim: m.birim,
+    stok: String(m.stok),
+    birimFiyat: String(m.birimFiyat),
+    tedarikci: m.tedarikci ?? null,
+    durum: m.durum,
+  };
+  await db
+    .insert(malzeme)
+    .values(row)
+    .onConflictDoUpdate({
+      target: malzeme.id,
+      set: {
+        ad: row.ad,
+        tip: row.tip,
+        birim: row.birim,
+        stok: row.stok,
+        birimFiyat: row.birimFiyat,
+        tedarikci: row.tedarikci,
+        durum: row.durum,
+      },
+    });
+  revalidatePath("/stok-yonetimi");
+  return { ok: true };
+}
+
+export async function malzemeSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.delete(malzeme).where(inArray(malzeme.id, ids));
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Reçetede kullanılan malzeme silinemez." };
+  }
+}
+
+/** Ürün ekle/güncelle (düz alanlar; BOM/urun_parca'ya dokunmaz). */
+export async function urunKaydet(u: Urun): Promise<{ ok: boolean }> {
+  const row = {
+    id: u.id,
+    ad: u.ad,
+    kategori: u.kategori,
+    fiyat: String(u.fiyat),
+    stok: u.stok,
+    durum: u.durum,
+    gorsel: u.gorsel ?? null,
+  };
+  await db
+    .insert(urun)
+    .values(row)
+    .onConflictDoUpdate({
+      target: urun.id,
+      set: {
+        ad: row.ad,
+        kategori: row.kategori,
+        fiyat: row.fiyat,
+        stok: row.stok,
+        durum: row.durum,
+        gorsel: row.gorsel,
+      },
+    });
+  revalidatePath("/urunler");
+  revalidatePath("/stok-yonetimi");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function urunSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.delete(urun).where(inArray(urun.id, ids));
+    revalidatePath("/urunler");
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Üretim emri olan ürün silinemez." };
+  }
 }

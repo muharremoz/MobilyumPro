@@ -48,6 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, type Malzeme, type MalzemeTipi } from "@/lib/data";
+import { malzemeKaydet, malzemeSil } from "@/lib/db/actions";
 
 const TIPLER: MalzemeTipi[] = ["Hammadde", "Yarı Mamul", "Yardımcı"];
 const BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
@@ -123,25 +124,33 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
       return n;
     });
   }
-  function sil(ids: string[]) {
+  async function sil(ids: string[]) {
+    const kaldirilan = liste.filter((m) => ids.includes(m.id));
     setListe((l) => l.filter((m) => !ids.includes(m.id)));
     setSecili((s) => {
       const n = new Set(s);
       ids.forEach((id) => n.delete(id));
       return n;
     });
-    toast.success(`${ids.length} malzeme silindi`);
+    const res = await malzemeSil(ids);
+    if (res.ok) {
+      toast.success(`${ids.length} malzeme silindi`);
+    } else {
+      setListe((l) => [...kaldirilan, ...l]);
+      toast.error(res.error ?? "Silinemedi.");
+    }
   }
-  function kopyala(m: Malzeme) {
+  async function kopyala(m: Malzeme) {
     const k: Malzeme = {
       ...m,
       id: `MLZ-${Math.floor(1000 + Math.random() * 9000)}`,
       ad: `${m.ad} (kopya)`,
     };
     setListe((l) => [k, ...l]);
+    await malzemeKaydet(k);
     toast.success("Malzeme kopyalandı");
   }
-  function kaydet(m: Malzeme) {
+  async function kaydet(m: Malzeme) {
     setListe((l) => {
       const i = l.findIndex((x) => x.id === m.id);
       if (i >= 0) {
@@ -151,6 +160,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
       }
       return [m, ...l];
     });
+    await malzemeKaydet(m);
   }
 
   const sortIkon = (k: SortKey) =>
