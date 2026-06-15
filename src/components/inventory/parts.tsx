@@ -53,6 +53,7 @@ import {
   type ReceteSatiri,
 } from "@/lib/data";
 import { flattenParca } from "@/lib/bom";
+import { parcaKaydet, parcaSil } from "@/lib/db/actions";
 
 const KATEGORILER: ParcaKategori[] = [
   "Karyola",
@@ -143,16 +144,23 @@ export function Parts({
       return n;
     });
   }
-  function sil(ids: string[]) {
+  async function sil(ids: string[]) {
+    const kaldirilan = liste.filter((p) => ids.includes(p.id));
     setListe((l) => l.filter((p) => !ids.includes(p.id)));
     setSecili((s) => {
       const n = new Set(s);
       ids.forEach((id) => n.delete(id));
       return n;
     });
-    toast.success(`${ids.length} parça silindi`);
+    const res = await parcaSil(ids);
+    if (res.ok) {
+      toast.success(`${ids.length} parça silindi`);
+    } else {
+      setListe((l) => [...kaldirilan, ...l]);
+      toast.error(res.error ?? "Silinemedi.");
+    }
   }
-  function kopyala(p: Parca) {
+  async function kopyala(p: Parca) {
     const k: Parca = {
       ...p,
       id: `PRC-${Math.floor(2000 + Math.random() * 8000)}`,
@@ -160,9 +168,10 @@ export function Parts({
       recete: [...p.recete],
     };
     setListe((l) => [k, ...l]);
+    await parcaKaydet(k);
     toast.success("Parça kopyalandı");
   }
-  function kaydet(p: Parca) {
+  async function kaydet(p: Parca) {
     setListe((l) => {
       const i = l.findIndex((x) => x.id === p.id);
       if (i >= 0) {
@@ -172,6 +181,7 @@ export function Parts({
       }
       return [p, ...l];
     });
+    await parcaKaydet(p);
   }
 
   const sortIkon = (k: SortKey) =>

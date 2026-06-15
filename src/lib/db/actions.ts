@@ -1,11 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 
 import { db } from "./index";
-import { uretimEmri, malzeme, urun } from "./schema";
-import type { UretimDurum, UretimOncelik, Malzeme, Urun } from "../data";
+import { uretimEmri, malzeme, urun, parca, receteSatiri } from "./schema";
+import type {
+  UretimDurum,
+  UretimOncelik,
+  Malzeme,
+  Urun,
+  Parca,
+} from "../data";
 
 export type YeniUretimEmri = {
   urunId: string;
@@ -145,5 +151,66 @@ export async function urunSil(
     return { ok: true };
   } catch {
     return { ok: false, error: "Üretim emri olan ürün silinemez." };
+  }
+}
+
+/** Parça ekle/güncelle + reçetesini (recete_satiri) yeniden yaz (transaction). */
+export async function parcaKaydet(
+  p: Parca,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(parca)
+        .values({
+          id: p.id,
+          ad: p.ad,
+          kategori: p.kategori,
+          aciklama: p.aciklama ?? null,
+          durum: p.durum,
+        })
+        .onConflictDoUpdate({
+          target: parca.id,
+          set: {
+            ad: p.ad,
+            kategori: p.kategori,
+            aciklama: p.aciklama ?? null,
+            durum: p.durum,
+          },
+        });
+
+      // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
+      await tx.delete(receteSatiri).where(eq(receteSatiri.parcaId, p.id));
+      const satirlar = p.recete.map((r) => ({
+        parcaId: p.id,
+        tip: r.bilesen.tip,
+        malzemeId: r.bilesen.tip === "malzeme" ? r.bilesen.ref : null,
+        altParcaId: r.bilesen.tip === "parca" ? r.bilesen.ref : null,
+        miktar: String(r.miktar),
+      }));
+      if (satirlar.length) await tx.insert(receteSatiri).values(satirlar);
+    });
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/uretim/recete");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Parça kaydedilemedi." };
+  }
+}
+
+export async function parcaSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.delete(parca).where(inArray(parca.id, ids));
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/uretim/recete");
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      error: "Başka reçetede/üründe kullanılan parça silinemez.",
+    };
   }
 }
