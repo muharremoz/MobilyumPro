@@ -24,6 +24,13 @@ export type Kategori =
   | "Çalışma"
   | "Aksesuar";
 
+export type UrunVaryant = {
+  id: string;
+  renk?: string;
+  kumas?: string;
+  ekFiyat?: number;
+};
+
 export type Urun = {
   id: string;
   ad: string;
@@ -34,6 +41,18 @@ export type Urun = {
   gorsel?: string;
   /** Model (ürün) parçalı ise BOM için kullanılan parça satırları. */
   parcalar?: ParcaSatiri[];
+  /** Üretici markası (Tanımlamalar → Markalar). */
+  marka?: string;
+  /** Barkod (kod farklı kullanılabilir). */
+  barkod?: string;
+  /** Birim ağırlık, kg. */
+  agirlik?: number;
+  /** Kritik stok eşiği; bunun altına düşünce uyarı. */
+  minStok?: number;
+  /** Görsel galerisi (URL'ler). İlk öğe ana görsel sayılır. */
+  gorseller?: string[];
+  /** Renk / Kumaş varyantları (her satır bir kombinasyon). */
+  varyantlar?: UrunVaryant[];
 };
 
 // Reçete bileşeni — malzeme veya başka parça (alt-parça).
@@ -61,6 +80,133 @@ export type Parca = {
   durum: "Aktif" | "Pasif";
   recete: ReceteSatiri[];
 };
+
+// Stok hareketleri — model (ürün) veya malzeme için.
+export type StokHareketTuru = "Giriş" | "Çıkış" | "Transfer";
+export type StokHareketRef =
+  | { tip: "urun"; id: string }
+  | { tip: "malzeme"; id: string };
+export type StokHareket = {
+  id: string;
+  tarih: string;
+  tur: StokHareketTuru;
+  ref: StokHareketRef;
+  miktar: number;
+  birim: string; // ürünler için "adet", malzemeler kendi birimi
+  depo: string;
+  aciklama: string;
+};
+
+export const stokHareketleri: StokHareket[] = [
+  // Ürün hareketleri
+  { id: "SH-1010", tarih: "2026-06-05", tur: "Giriş", ref: { tip: "urun", id: "URN-1001" }, miktar: 4, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+  { id: "SH-1009", tarih: "2026-06-05", tur: "Çıkış", ref: { tip: "urun", id: "URN-1005" }, miktar: 2, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5021" },
+  { id: "SH-1008", tarih: "2026-06-04", tur: "Transfer", ref: { tip: "urun", id: "URN-1006" }, miktar: 1, birim: "adet", depo: "Ana Depo → Showroom", aciklama: "Sergileme" },
+  { id: "SH-1007", tarih: "2026-06-04", tur: "Çıkış", ref: { tip: "urun", id: "URN-1007" }, miktar: 3, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5019" },
+  { id: "SH-1006", tarih: "2026-06-03", tur: "Giriş", ref: { tip: "urun", id: "URN-1009" }, miktar: 10, birim: "adet", depo: "Yedek Depo", aciklama: "Tedarikçi alımı" },
+  { id: "SH-1005", tarih: "2026-06-02", tur: "Çıkış", ref: { tip: "urun", id: "URN-1008" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Hasarlı iade" },
+  { id: "SH-1004", tarih: "2026-06-02", tur: "Transfer", ref: { tip: "urun", id: "URN-1010" }, miktar: 2, birim: "adet", depo: "Yedek Depo → Ana Depo", aciklama: "Bölgesel sevkiyat" },
+  { id: "SH-1003", tarih: "2026-06-01", tur: "Giriş", ref: { tip: "urun", id: "URN-1004" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+  { id: "SH-0999", tarih: "2026-05-28", tur: "Çıkış", ref: { tip: "urun", id: "URN-1001" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5012" },
+  { id: "SH-0995", tarih: "2026-05-22", tur: "Giriş", ref: { tip: "urun", id: "URN-1001" }, miktar: 6, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+
+  // Malzeme hareketleri
+  { id: "SH-2010", tarih: "2026-06-05", tur: "Giriş", ref: { tip: "malzeme", id: "MLZ-1001" }, miktar: 80, birim: "m²", depo: "Ana Depo", aciklama: "Kastamonu Entegre - Fatura #4521" },
+  { id: "SH-2009", tarih: "2026-06-05", tur: "Çıkış", ref: { tip: "malzeme", id: "MLZ-1001" }, miktar: 12, birim: "m²", depo: "Ana Depo", aciklama: "Üretim emri ÜRT-302" },
+  { id: "SH-2008", tarih: "2026-06-04", tur: "Çıkış", ref: { tip: "malzeme", id: "MLZ-1007" }, miktar: 240, birim: "adet", depo: "Ana Depo", aciklama: "Üretim emri ÜRT-301" },
+  { id: "SH-2007", tarih: "2026-06-03", tur: "Giriş", ref: { tip: "malzeme", id: "MLZ-1003" }, miktar: 120, birim: "m", depo: "Yedek Depo", aciklama: "Boyteks - Fatura #2210" },
+  { id: "SH-2006", tarih: "2026-06-02", tur: "Çıkış", ref: { tip: "malzeme", id: "MLZ-1003" }, miktar: 18, birim: "m", depo: "Yedek Depo", aciklama: "Üretim emri ÜRT-298" },
+  { id: "SH-2005", tarih: "2026-06-01", tur: "Giriş", ref: { tip: "malzeme", id: "MLZ-1007" }, miktar: 3000, birim: "adet", depo: "Ana Depo", aciklama: "Norm Cıvata - Fatura #889" },
+  { id: "SH-2004", tarih: "2026-05-30", tur: "Çıkış", ref: { tip: "malzeme", id: "MLZ-1002" }, miktar: 2.5, birim: "m³", depo: "Ana Depo", aciklama: "Üretim emri ÜRT-295" },
+  { id: "SH-2003", tarih: "2026-05-28", tur: "Transfer", ref: { tip: "malzeme", id: "MLZ-1001" }, miktar: 30, birim: "m²", depo: "Ana Depo → Yedek Depo", aciklama: "Stok dağıtımı" },
+  { id: "SH-2002", tarih: "2026-05-25", tur: "Çıkış", ref: { tip: "malzeme", id: "MLZ-1001" }, miktar: 22, birim: "m²", depo: "Ana Depo", aciklama: "Üretim emri ÜRT-290" },
+];
+
+// Cari hesap (müşteri/tedarikçi) — Cari Yönetimi modülü.
+export type CariTip = "Müşteri" | "Tedarikçi" | "Her İkisi";
+export type CariSinifi = "Bireysel" | "Kurumsal";
+export type ParaBirimi = "TL" | "USD" | "EUR";
+
+export type Cari = {
+  id: string;
+  ad: string;
+  tip: CariTip;
+  sinif: CariSinifi;
+  vergiNo?: string;
+  vergiDairesi?: string;
+  telefon?: string;
+  email?: string;
+  adres?: string;
+  sehir?: string;
+  /** Bakiye: pozitif = bizden alacaklı, negatif = bize borçlu. */
+  bakiye: number;
+  paraBirimi: ParaBirimi;
+  durum: "Aktif" | "Pasif";
+  not?: string;
+};
+
+export const cariler: Cari[] = [
+  { id: "CARI-1001", ad: "Ayşe Demir", tip: "Müşteri", sinif: "Bireysel", telefon: "0532 111 22 33", email: "ayse.demir@mail.com", sehir: "İstanbul", bakiye: -12500, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1002", ad: "Mehmet Kaya", tip: "Müşteri", sinif: "Bireysel", telefon: "0532 222 33 44", email: "mehmet.kaya@mail.com", sehir: "Ankara", bakiye: 0, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1003", ad: "Mobilyum Ticaret Ltd. Şti.", tip: "Müşteri", sinif: "Kurumsal", vergiNo: "1234567890", vergiDairesi: "Beşiktaş", telefon: "0212 333 44 55", email: "info@mobilyumtic.com", sehir: "İstanbul", bakiye: -56750, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1004", ad: "Kastamonu Entegre", tip: "Tedarikçi", sinif: "Kurumsal", vergiNo: "9876543210", vergiDairesi: "Kastamonu", telefon: "0366 444 55 66", email: "satis@kentegre.com", sehir: "Kastamonu", bakiye: 184200, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1005", ad: "Boyteks A.Ş.", tip: "Tedarikçi", sinif: "Kurumsal", vergiNo: "4567891230", vergiDairesi: "Bursa", telefon: "0224 555 66 77", email: "tekstil@boyteks.com", sehir: "Bursa", bakiye: 92400, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1006", ad: "Samet Kalıp", tip: "Tedarikçi", sinif: "Kurumsal", vergiNo: "7891234560", vergiDairesi: "Kayseri", telefon: "0352 666 77 88", email: "info@samet.com", sehir: "Kayseri", bakiye: 18750, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1007", ad: "Akdeniz Mobilya Bayi", tip: "Her İkisi", sinif: "Kurumsal", vergiNo: "3216549870", vergiDairesi: "Antalya", telefon: "0242 777 88 99", email: "info@akdenizmob.com", sehir: "Antalya", bakiye: -33800, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1008", ad: "Zeynep Şahin", tip: "Müşteri", sinif: "Bireysel", telefon: "0532 555 66 77", email: "zeynep.sahin@mail.com", sehir: "İzmir", bakiye: 0, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1009", ad: "Can Yıldız", tip: "Müşteri", sinif: "Bireysel", telefon: "0532 888 99 00", email: "can.yildiz@mail.com", sehir: "Bursa", bakiye: -2400, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1010", ad: "Hayat Ahşap San.", tip: "Tedarikçi", sinif: "Kurumsal", vergiNo: "1597534862", vergiDairesi: "Düzce", telefon: "0380 999 00 11", email: "siparis@hayatahsap.com", sehir: "Düzce", bakiye: 67200, paraBirimi: "TL", durum: "Aktif" },
+  { id: "CARI-1011", ad: "Tunçer Akaryakıt", tip: "Tedarikçi", sinif: "Kurumsal", vergiNo: "7531596482", telefon: "0212 000 11 22", sehir: "İstanbul", bakiye: 0, paraBirimi: "TL", durum: "Pasif" },
+  { id: "CARI-1012", ad: "Burak Öztürk", tip: "Müşteri", sinif: "Bireysel", telefon: "0532 100 20 30", email: "burak.ozturk@mail.com", sehir: "Adana", bakiye: -5400, paraBirimi: "TL", durum: "Aktif" },
+];
+
+// Cari işlemleri — tahsilat/ödeme/borç/alacak hareketleri.
+export type CariIslemTuru = "Tahsilat" | "Ödeme" | "Borç" | "Alacak";
+export type CariIslem = {
+  id: string;
+  cariId: string;
+  tarih: string;
+  tur: CariIslemTuru;
+  tutar: number;
+  belge?: string;
+  aciklama: string;
+};
+
+export const cariIslemleri: CariIslem[] = [
+  // Ayşe Demir (Müşteri) - mevcut bakiye -12.500
+  { id: "CI-3001", cariId: "CARI-1001", tarih: "2026-04-12", tur: "Borç", tutar: 24000, belge: "FAT-2026-118", aciklama: "Milano 3+2 koltuk takımı satışı" },
+  { id: "CI-3002", cariId: "CARI-1001", tarih: "2026-04-28", tur: "Tahsilat", tutar: 6000, belge: "DK-2026-045", aciklama: "Peşinat" },
+  { id: "CI-3003", cariId: "CARI-1001", tarih: "2026-05-15", tur: "Tahsilat", tutar: 5500, belge: "DK-2026-061", aciklama: "İkinci taksit" },
+
+  // Mobilyum Ticaret (Müşteri) - mevcut bakiye -56.750
+  { id: "CI-3010", cariId: "CARI-1003", tarih: "2026-03-05", tur: "Borç", tutar: 42000, belge: "FAT-2026-094", aciklama: "Toplu sipariş" },
+  { id: "CI-3011", cariId: "CARI-1003", tarih: "2026-04-08", tur: "Tahsilat", tutar: 20000, belge: "DK-2026-038", aciklama: "Banka havalesi" },
+  { id: "CI-3012", cariId: "CARI-1003", tarih: "2026-05-22", tur: "Borç", tutar: 38000, belge: "FAT-2026-135", aciklama: "Showroom takımları" },
+  { id: "CI-3013", cariId: "CARI-1003", tarih: "2026-06-01", tur: "Tahsilat", tutar: 3250, belge: "DK-2026-058", aciklama: "Kısmi tahsilat" },
+
+  // Kastamonu Entegre (Tedarikçi) - mevcut bakiye 184.200
+  { id: "CI-3020", cariId: "CARI-1004", tarih: "2026-04-02", tur: "Alacak", tutar: 95000, belge: "AF-2026-211", aciklama: "MDF Levha alımı" },
+  { id: "CI-3021", cariId: "CARI-1004", tarih: "2026-04-30", tur: "Ödeme", tutar: 60000, belge: "DK-O-2026-072", aciklama: "Banka havalesi" },
+  { id: "CI-3022", cariId: "CARI-1004", tarih: "2026-05-18", tur: "Alacak", tutar: 110000, belge: "AF-2026-256", aciklama: "Kontrplak alımı" },
+  { id: "CI-3023", cariId: "CARI-1004", tarih: "2026-05-30", tur: "Ödeme", tutar: 40000, belge: "DK-O-2026-098", aciklama: "Vade ödemesi" },
+  { id: "CI-3024", cariId: "CARI-1004", tarih: "2026-06-05", tur: "Alacak", tutar: 79200, belge: "AF-2026-289", aciklama: "Cila alımı" },
+
+  // Akdeniz Mobilya Bayi (Her İkisi) - bakiye -33.800
+  { id: "CI-3040", cariId: "CARI-1007", tarih: "2026-05-10", tur: "Borç", tutar: 48000, belge: "FAT-2026-128", aciklama: "Bayi siparişi" },
+  { id: "CI-3041", cariId: "CARI-1007", tarih: "2026-05-25", tur: "Tahsilat", tutar: 14200, belge: "DK-2026-051", aciklama: "Peşinat" },
+];
+
+// Ürün form alanları için referans listeler (Tanımlamalar modülünden gelecek
+// gerçek listenin yerine geçici mock).
+export const markaList = [
+  "Milano",
+  "Roma",
+  "Nordic",
+  "Comfort",
+  "Elegance",
+];
+export const renkList = ["Antrasit", "Krem", "Kahve", "Bej", "Gri"];
+export const kumasList = ["Keten", "Kadife", "Deri", "Pamuk", "Nubuk"];
 
 export type SiparisDurum =
   | "Beklemede"

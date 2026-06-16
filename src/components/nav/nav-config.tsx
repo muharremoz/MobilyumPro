@@ -37,6 +37,11 @@ import { ChartColumnIncreasingIcon } from "@/components/ui/icons/chart-column-in
 import { ChartSplineIcon } from "@/components/ui/icons/chart-spline";
 import { HandCoinsIcon } from "@/components/ui/icons/hand-coins";
 import { FileChartLineIcon } from "@/components/ui/icons/file-chart-line";
+import { HistoryIcon } from "@/components/ui/icons/history";
+import { FolderTreeIcon } from "@/components/ui/icons/folder-tree";
+import { FrameIcon } from "@/components/ui/icons/frame";
+import { ScanTextIcon } from "@/components/ui/icons/scan-text";
+import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 
 // Tüm pqoqubbw ikonları aynı imperative handle'ı paylaşır.
 export type AnimatedIconHandle = {
@@ -47,7 +52,13 @@ export type AnimatedIcon = React.ForwardRefExoticComponent<
   { size?: number; className?: string } & React.RefAttributes<AnimatedIconHandle>
 >;
 
-export type SubItem = { label: string; href: string; icon: AnimatedIcon };
+export type SubItem = {
+  label: string;
+  href: string;
+  icon: AnimatedIcon;
+  /** Bu öğenin hemen üstünde gösterilecek küçük grup başlığı (opsiyonel). */
+  groupHeader?: string;
+};
 
 export type Section = {
   id: string;
@@ -77,7 +88,19 @@ export const sections: Section[] = [
     RailIcon: I(BoxesIcon),
     items: [
       { label: "Ürünler", href: "/urunler", icon: I(RockingChairIcon) },
-      { label: "Stok Yönetimi", href: "/stok-yonetimi", icon: I(BoxesIcon) },
+      { groupHeader: "Stok", label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
+      { label: "Stok Takip", href: "/stok-yonetimi?bolum=takip", icon: I(ActivityIcon) },
+      { label: "Stok Hareketleri", href: "/stok-yonetimi?bolum=hareketler", icon: I(HistoryIcon) },
+      { label: "Depolar", href: "/stok-yonetimi?bolum=depolar", icon: I(BlocksIcon) },
+      { label: "Sayım", href: "/stok-yonetimi?bolum=sayim", icon: I(ClipboardCheckIcon) },
+      { groupHeader: "Üretim", label: "Malzemeler", href: "/stok-yonetimi?bolum=malzemeler", icon: I(LayersIcon) },
+      { label: "Parçalar", href: "/stok-yonetimi?bolum=parcalar", icon: I(CpuIcon) },
+      { groupHeader: "Tanımlamalar", label: "Kategoriler", href: "/stok-yonetimi?bolum=kategoriler", icon: I(FolderTreeIcon) },
+      { label: "Markalar", href: "/stok-yonetimi?bolum=markalar", icon: I(BadgePercentIcon) },
+      { label: "Koleksiyonlar", href: "/stok-yonetimi?bolum=koleksiyonlar", icon: I(FrameIcon) },
+      { label: "Renkler", href: "/stok-yonetimi?bolum=renkler", icon: I(ChartPieIcon) },
+      { label: "Kumaşlar", href: "/stok-yonetimi?bolum=kumaslar", icon: I(SlidersHorizontalIcon) },
+      { label: "Birimler", href: "/stok-yonetimi?bolum=birimler", icon: I(ScanTextIcon) },
     ],
   },
   {
@@ -180,11 +203,11 @@ export const sections: Section[] = [
   },
   {
     id: "cari",
-    label: "Cari Hareketler",
+    label: "Cari Yönetimi",
     RailIcon: I(WalletIcon),
     items: [
-      { label: "Cariler", href: "/musteriler", icon: I(UsersIcon) },
-      { label: "Tahsilatlar", href: "#", icon: I(HandCoinsIcon) },
+      { label: "Cari Hesaplar", href: "/cari", icon: I(UsersIcon) },
+      { groupHeader: "Hareketler", label: "Tahsilatlar", href: "#", icon: I(HandCoinsIcon) },
       { label: "Ödemeler", href: "#", icon: I(WalletIcon) },
       { label: "Ekstre", href: "#", icon: I(FileChartLineIcon) },
     ],

@@ -249,10 +249,10 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow>
               <TableHead className="w-10">
                 <Checkbox
                   checked={tumuSecili}

@@ -107,10 +107,10 @@ export function Warehouses({ depolar }: { depolar: Depo[] }) {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow>
               <TableHead>Kod</TableHead>
               <TableHead>Depo</TableHead>
               <TableHead>Şehir</TableHead>

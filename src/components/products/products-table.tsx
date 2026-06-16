@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Plus,
@@ -37,7 +39,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ProductSheet } from "@/components/products/product-sheet";
 import { formatTL, type Urun } from "@/lib/data";
 import { urunKaydet, urunSil } from "@/lib/db/actions";
 
@@ -83,9 +84,7 @@ export function ProductsTable({
   });
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
-
-  const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [duzenlenen, setDuzenlenen] = React.useState<Urun | null>(null);
+  const router = useRouter();
 
   // Filtre + sıralama
   const filtreli = React.useMemo(() => {
@@ -174,19 +173,6 @@ export function ProductsTable({
     toast.success("Ürün kopyalandı");
   }
 
-  async function kaydet(u: Urun) {
-    setListe((l) => {
-      const i = l.findIndex((x) => x.id === u.id);
-      if (i >= 0) {
-        const n = [...l];
-        n[i] = u;
-        return n;
-      }
-      return [u, ...l];
-    });
-    await urunKaydet(u);
-  }
-
   const sortIkon = (key: SortKey) =>
     sort.key !== key ? (
       <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
@@ -249,10 +235,8 @@ export function ProductsTable({
         </div>
         <Button
           className="ml-auto"
-          onClick={() => {
-            setDuzenlenen(null);
-            setSheetOpen(true);
-          }}
+          nativeButton={false}
+          render={<Link href="/urunler/yeni" />}
         >
           <Plus className="size-4" /> Yeni Ürün
         </Button>
@@ -277,10 +261,10 @@ export function ProductsTable({
       )}
 
       {/* Tablo */}
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow>
               <TableHead className="w-10">
                 <Checkbox
                   checked={tumuSecili}
@@ -308,10 +292,7 @@ export function ProductsTable({
                 key={u.id}
                 data-state={secili.has(u.id) ? "selected" : undefined}
                 className="cursor-pointer"
-                onClick={() => {
-                  setDuzenlenen(u);
-                  setSheetOpen(true);
-                }}
+                onClick={() => router.push(`/urunler/${u.id}`)}
               >
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -347,10 +328,7 @@ export function ProductsTable({
                     />
                     <DropdownMenuContent align="end" className="w-40">
                       <DropdownMenuItem
-                        onClick={() => {
-                          setDuzenlenen(u);
-                          setSheetOpen(true);
-                        }}
+                        onClick={() => router.push(`/urunler/${u.id}`)}
                       >
                         <Pencil className="mr-2 size-4" /> Düzenle
                       </DropdownMenuItem>
@@ -413,13 +391,6 @@ export function ProductsTable({
           </Button>
         </div>
       </div>
-
-      <ProductSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        product={duzenlenen}
-        onSave={kaydet}
-      />
     </div>
   );
 }

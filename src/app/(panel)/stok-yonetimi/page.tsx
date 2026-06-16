@@ -6,7 +6,12 @@ import {
   getDepolar,
 } from "@/lib/db/queries";
 
-export default async function StokYonetimiPage() {
+export default async function StokYonetimiPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bolum?: string }>;
+}) {
+  const { bolum = "durum" } = await searchParams;
   const [urunler, malzemeler, parcalar, depolar] = await Promise.all([
     getUrunler(),
     getMalzemeler(),
@@ -15,6 +20,7 @@ export default async function StokYonetimiPage() {
   ]);
   return (
     <InventoryPage
+      bolum={bolum}
       urunler={urunler}
       malzemeler={malzemeler}
       parcalar={parcalar}

@@ -85,10 +85,10 @@ export function StockCount() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-hidden rounded-md border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow>
               <TableHead>
                 <span className="inline-flex items-center gap-1.5">
                   <ClipboardList className="size-3.5 text-muted-foreground" />
