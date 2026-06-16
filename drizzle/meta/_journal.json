@@ -15,6 +15,13 @@
       "when": 1781536971623,
       "tag": "0001_nice_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781594005313,
+      "tag": "0002_fixed_prima",
+      "breakpoints": true
     }
   ]
 }

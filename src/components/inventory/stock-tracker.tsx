@@ -30,11 +30,10 @@ import {
 } from "@/components/ui/table";
 import {
   formatTarih,
-  malzemeler,
-  stokHareketleri,
-  urunler,
   type StokHareket,
   type StokHareketTuru,
+  type Urun,
+  type Malzeme,
 } from "@/lib/data";
 
 type Tip = "Model" | "Malzeme";
@@ -51,7 +50,15 @@ const TUR_ICON: Record<StokHareketTuru, React.ReactNode> = {
   Transfer: <Repeat className="size-3.5" />,
 };
 
-export function StockTracker() {
+export function StockTracker({
+  hareketler: tumHareketler,
+  urunler,
+  malzemeler,
+}: {
+  hareketler: StokHareket[];
+  urunler: Urun[];
+  malzemeler: Malzeme[];
+}) {
   const [tip, setTip] = React.useState<Tip>("Model");
   const [secimId, setSecimId] = React.useState<string | null>(null);
 
@@ -75,7 +82,7 @@ export function StockTracker() {
   const hareketler: (StokHareket & { bakiye: number })[] = React.useMemo(() => {
     if (!secimId) return [];
     const refTip = tip === "Model" ? "urun" : "malzeme";
-    const eskiYeni = stokHareketleri
+    const eskiYeni = tumHareketler
       .filter((h) => h.ref.tip === refTip && h.ref.id === secimId)
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
     const netDelta = eskiYeni.reduce((t, h) => {

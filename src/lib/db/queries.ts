@@ -1,4 +1,5 @@
 import "server-only";
+import { eq } from "drizzle-orm";
 
 import { db } from "./index";
 import {
@@ -11,9 +12,13 @@ import {
   musteri,
   siparis,
   uretimEmri,
+  cari,
+  cariIslem,
+  stokHareket,
 } from "./schema";
 import type {
   Urun,
+  UrunVaryant,
   Parca,
   Malzeme,
   Depo,
@@ -27,6 +32,14 @@ import type {
   UretimEmri,
   UretimDurum,
   UretimOncelik,
+  Cari,
+  CariTip,
+  CariSinifi,
+  ParaBirimi,
+  CariIslem,
+  CariIslemTuru,
+  StokHareket,
+  StokHareketTuru,
 } from "../data";
 
 /**
@@ -55,6 +68,12 @@ export async function getUrunler(): Promise<Urun[]> {
     durum: u.durum,
     gorsel: u.gorsel ?? undefined,
     parcalar: bomByUrun.get(u.id),
+    marka: u.marka ?? undefined,
+    barkod: u.barkod ?? undefined,
+    agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
+    minStok: u.minStok ?? undefined,
+    gorseller: u.gorseller ?? undefined,
+    varyantlar: (u.varyantlar as UrunVaryant[] | null) ?? undefined,
   }));
 }
 
@@ -110,6 +129,72 @@ export async function getDepolar(): Promise<Depo[]> {
     doluluk: d.doluluk,
     durum: d.durum,
   }));
+}
+
+function mapCari(c: typeof cari.$inferSelect): Cari {
+  return {
+    id: c.id,
+    ad: c.ad,
+    tip: c.tip as CariTip,
+    sinif: c.sinif as CariSinifi,
+    vergiNo: c.vergiNo ?? undefined,
+    vergiDairesi: c.vergiDairesi ?? undefined,
+    telefon: c.telefon ?? undefined,
+    email: c.email ?? undefined,
+    adres: c.adres ?? undefined,
+    sehir: c.sehir ?? undefined,
+    bakiye: Number(c.bakiye),
+    paraBirimi: c.paraBirimi as ParaBirimi,
+    durum: c.durum,
+    not: c.not ?? undefined,
+  };
+}
+
+export async function getCariler(): Promise<Cari[]> {
+  const rows = await db.select().from(cari);
+  return rows.map(mapCari);
+}
+
+export async function getCari(id: string): Promise<Cari | null> {
+  const rows = await db.select().from(cari).where(eq(cari.id, id)).limit(1);
+  return rows[0] ? mapCari(rows[0]) : null;
+}
+
+export async function getCariIslemleri(cariId: string): Promise<CariIslem[]> {
+  const rows = await db
+    .select()
+    .from(cariIslem)
+    .where(eq(cariIslem.cariId, cariId));
+  return rows
+    .map((i) => ({
+      id: i.id,
+      cariId: i.cariId,
+      tarih: i.tarih,
+      tur: i.tur as CariIslemTuru,
+      tutar: Number(i.tutar),
+      belge: i.belge ?? undefined,
+      aciklama: i.aciklama,
+    }))
+    .sort((a, b) => b.tarih.localeCompare(a.tarih));
+}
+
+export async function getStokHareketleri(): Promise<StokHareket[]> {
+  const rows = await db.select().from(stokHareket);
+  return rows
+    .map((h) => ({
+      id: h.id,
+      tarih: h.tarih,
+      tur: h.tur as StokHareketTuru,
+      ref:
+        h.refTip === "urun"
+          ? ({ tip: "urun", id: h.refId } as const)
+          : ({ tip: "malzeme", id: h.refId } as const),
+      miktar: Number(h.miktar),
+      birim: h.birim,
+      depo: h.depo,
+      aciklama: h.aciklama,
+    }))
+    .sort((a, b) => b.tarih.localeCompare(a.tarih));
 }
 
 /** Üretim planlama formunun ihtiyaç duyduğu hafif müşteri görünümü. */

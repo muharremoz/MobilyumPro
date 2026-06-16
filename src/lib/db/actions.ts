@@ -4,7 +4,17 @@ import { revalidatePath } from "next/cache";
 import { inArray, eq } from "drizzle-orm";
 
 import { db } from "./index";
-import { uretimEmri, malzeme, urun, parca, receteSatiri, depo } from "./schema";
+import {
+  uretimEmri,
+  malzeme,
+  urun,
+  parca,
+  receteSatiri,
+  urunParca,
+  depo,
+  cari,
+  cariIslem,
+} from "./schema";
 import type {
   UretimDurum,
   UretimOncelik,
@@ -12,6 +22,9 @@ import type {
   Urun,
   Parca,
   Depo,
+  Cari,
+  CariIslem,
+  CariIslemTuru,
 } from "../data";
 
 export type YeniUretimEmri = {
@@ -109,35 +122,67 @@ export async function malzemeSil(
   }
 }
 
-/** Ürün ekle/güncelle (düz alanlar; BOM/urun_parca'ya dokunmaz). */
-export async function urunKaydet(u: Urun): Promise<{ ok: boolean }> {
+/** Ürün ekle/güncelle (düz alanlar + BOM/urun_parca). Yeni kayıtta URN-#### üretir. */
+export async function urunKaydet(u: Urun): Promise<{ ok: boolean; id: string }> {
+  let id = u.id;
+  if (!id) {
+    const mevcut = await db.select({ id: urun.id }).from(urun);
+    let maxNo = 1000;
+    for (const r of mevcut) {
+      const m = /^URN-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    id = `URN-${maxNo + 1}`;
+  }
   const row = {
-    id: u.id,
+    id,
     ad: u.ad,
     kategori: u.kategori,
     fiyat: String(u.fiyat),
     stok: u.stok,
     durum: u.durum,
     gorsel: u.gorsel ?? null,
+    marka: u.marka ?? null,
+    barkod: u.barkod ?? null,
+    agirlik: u.agirlik != null ? String(u.agirlik) : null,
+    minStok: u.minStok ?? null,
+    gorseller: u.gorseller ?? null,
+    varyantlar: u.varyantlar ?? null,
   };
-  await db
-    .insert(urun)
-    .values(row)
-    .onConflictDoUpdate({
-      target: urun.id,
-      set: {
-        ad: row.ad,
-        kategori: row.kategori,
-        fiyat: row.fiyat,
-        stok: row.stok,
-        durum: row.durum,
-        gorsel: row.gorsel,
-      },
-    });
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(urun)
+      .values(row)
+      .onConflictDoUpdate({
+        target: urun.id,
+        set: {
+          ad: row.ad,
+          kategori: row.kategori,
+          fiyat: row.fiyat,
+          stok: row.stok,
+          durum: row.durum,
+          gorsel: row.gorsel,
+          marka: row.marka,
+          barkod: row.barkod,
+          agirlik: row.agirlik,
+          minStok: row.minStok,
+          gorseller: row.gorseller,
+          varyantlar: row.varyantlar,
+        },
+      });
+
+    // BOM'u tamamen yeniden yaz (geçerli parcaId'leri olan satırlar).
+    await tx.delete(urunParca).where(eq(urunParca.urunId, id));
+    const bom = (u.parcalar ?? [])
+      .filter((p) => p.parcaId)
+      .map((p) => ({ urunId: id, parcaId: p.parcaId, miktar: String(p.miktar) }));
+    if (bom.length) await tx.insert(urunParca).values(bom);
+  });
+
   revalidatePath("/urunler");
   revalidatePath("/stok-yonetimi");
   revalidatePath("/");
-  return { ok: true };
+  return { ok: true, id };
 }
 
 export async function urunSil(
@@ -265,5 +310,131 @@ export async function depoSil(
     return { ok: true };
   } catch {
     return { ok: false, error: "Depo silinemedi." };
+  }
+}
+
+/** Bir işlemin cari bakiyesine etkisi. Pozitif bakiye = cari bizden alacaklı. */
+function bakiyeEtkisi(tur: CariIslemTuru, tutar: number): number {
+  switch (tur) {
+    case "Borç":
+      return -tutar; // cari bize borçlandı
+    case "Tahsilat":
+      return +tutar; // borç tahsil edildi
+    case "Alacak":
+      return +tutar; // biz cari'ye borçlandık
+    case "Ödeme":
+      return -tutar; // ödeme yaptık
+  }
+}
+
+/** Cari ekle/güncelle (id varsa upsert). Yeni kayıtta CARI-#### üretir. */
+export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> {
+  let id = c.id;
+  if (!id) {
+    const mevcut = await db.select({ id: cari.id }).from(cari);
+    let maxNo = 1000;
+    for (const r of mevcut) {
+      const m = /^CARI-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    id = `CARI-${maxNo + 1}`;
+  }
+  const row = {
+    id,
+    ad: c.ad,
+    tip: c.tip,
+    sinif: c.sinif,
+    vergiNo: c.vergiNo ?? null,
+    vergiDairesi: c.vergiDairesi ?? null,
+    telefon: c.telefon ?? null,
+    email: c.email ?? null,
+    adres: c.adres ?? null,
+    sehir: c.sehir ?? null,
+    bakiye: String(c.bakiye),
+    paraBirimi: c.paraBirimi,
+    durum: c.durum,
+    not: c.not ?? null,
+  };
+  await db
+    .insert(cari)
+    .values(row)
+    .onConflictDoUpdate({
+      target: cari.id,
+      set: {
+        ad: row.ad,
+        tip: row.tip,
+        sinif: row.sinif,
+        vergiNo: row.vergiNo,
+        vergiDairesi: row.vergiDairesi,
+        telefon: row.telefon,
+        email: row.email,
+        adres: row.adres,
+        sehir: row.sehir,
+        // bakiye'yi düz kaydette değiştirmiyoruz (işlemler yönetir) — yeni kayıtta 0.
+        paraBirimi: row.paraBirimi,
+        durum: row.durum,
+        not: row.not,
+      },
+    });
+  revalidatePath("/cari");
+  return { ok: true, id };
+}
+
+export async function cariSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    // cari_islem cascade ile silinir.
+    await db.delete(cari).where(inArray(cari.id, ids));
+    revalidatePath("/cari");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Cari silinemedi." };
+  }
+}
+
+/** Cariye işlem ekle (insert) ve cari bakiyesini güncelle. CI-#### üretir. */
+export async function cariIslemEkle(
+  cariId: string,
+  yeni: Omit<CariIslem, "id" | "cariId">,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const mevcut = await db.select({ id: cariIslem.id }).from(cariIslem);
+    let maxNo = 3000;
+    for (const r of mevcut) {
+      const m = /^CI-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    const id = `CI-${maxNo + 1}`;
+
+    await db.transaction(async (tx) => {
+      await tx.insert(cariIslem).values({
+        id,
+        cariId,
+        tarih: yeni.tarih,
+        tur: yeni.tur,
+        tutar: String(yeni.tutar),
+        belge: yeni.belge ?? null,
+        aciklama: yeni.aciklama,
+      });
+      const [c] = await tx
+        .select({ bakiye: cari.bakiye })
+        .from(cari)
+        .where(eq(cari.id, cariId))
+        .limit(1);
+      const yeniBakiye =
+        Number(c?.bakiye ?? 0) + bakiyeEtkisi(yeni.tur, yeni.tutar);
+      await tx
+        .update(cari)
+        .set({ bakiye: String(yeniBakiye) })
+        .where(eq(cari.id, cariId));
+    });
+
+    revalidatePath("/cari");
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true, id };
+  } catch {
+    return { ok: false, error: "İşlem eklenemedi." };
   }
 }

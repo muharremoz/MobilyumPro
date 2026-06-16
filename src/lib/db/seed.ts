@@ -10,6 +10,9 @@ import {
   musteri,
   siparis,
   uretimEmri,
+  cari,
+  cariIslem,
+  stokHareket,
 } from "./schema";
 import {
   urunler,
@@ -19,6 +22,9 @@ import {
   musteriler,
   siparisler,
   uretimEmirleri,
+  cariler,
+  cariIslemleri,
+  stokHareketleri,
 } from "../data";
 
 /**
@@ -38,6 +44,9 @@ async function seed() {
   await db.delete(malzeme);
   await db.delete(musteri);
   await db.delete(depo);
+  await db.delete(cariIslem);
+  await db.delete(cari);
+  await db.delete(stokHareket);
 
   // Bağımsız tablolar
   await db.insert(depo).values(
@@ -45,6 +54,8 @@ async function seed() {
       id: d.id,
       ad: d.ad,
       sehir: d.sehir,
+      kapasite: d.kapasite,
+      doluluk: d.doluluk,
       durum: d.durum,
     })),
   );
@@ -90,6 +101,12 @@ async function seed() {
       stok: u.stok,
       durum: u.durum,
       gorsel: u.gorsel ?? null,
+      marka: u.marka ?? null,
+      barkod: u.barkod ?? null,
+      agirlik: u.agirlik != null ? String(u.agirlik) : null,
+      minStok: u.minStok ?? null,
+      gorseller: u.gorseller ?? null,
+      varyantlar: u.varyantlar ?? null,
     })),
   );
 
@@ -147,11 +164,60 @@ async function seed() {
     })),
   );
 
+  // Cari hesaplar + işlemleri
+  await db.insert(cari).values(
+    cariler.map((c) => ({
+      id: c.id,
+      ad: c.ad,
+      tip: c.tip,
+      sinif: c.sinif,
+      vergiNo: c.vergiNo ?? null,
+      vergiDairesi: c.vergiDairesi ?? null,
+      telefon: c.telefon ?? null,
+      email: c.email ?? null,
+      adres: c.adres ?? null,
+      sehir: c.sehir ?? null,
+      bakiye: String(c.bakiye),
+      paraBirimi: c.paraBirimi,
+      durum: c.durum,
+      not: c.not ?? null,
+    })),
+  );
+
+  if (cariIslemleri.length)
+    await db.insert(cariIslem).values(
+      cariIslemleri.map((i) => ({
+        id: i.id,
+        cariId: i.cariId,
+        tarih: i.tarih,
+        tur: i.tur,
+        tutar: String(i.tutar),
+        belge: i.belge ?? null,
+        aciklama: i.aciklama,
+      })),
+    );
+
+  // Stok hareketleri
+  await db.insert(stokHareket).values(
+    stokHareketleri.map((h) => ({
+      id: h.id,
+      tarih: h.tarih,
+      tur: h.tur,
+      refTip: h.ref.tip,
+      refId: h.ref.id,
+      miktar: String(h.miktar),
+      birim: h.birim,
+      depo: h.depo,
+      aciklama: h.aciklama,
+    })),
+  );
+
   console.log("Seed tamam ✓");
   console.log(
     `  ${depolar.length} depo · ${musteriler.length} müşteri · ${malzemeler.length} malzeme · ` +
       `${parcalar.length} parça · ${urunler.length} ürün · ${receteRows.length} reçete satırı · ` +
-      `${urunParcaRows.length} ürün-parça · ${siparisler.length} sipariş · ${uretimEmirleri.length} üretim emri`,
+      `${urunParcaRows.length} ürün-parça · ${siparisler.length} sipariş · ${uretimEmirleri.length} üretim emri · ` +
+      `${cariler.length} cari · ${cariIslemleri.length} cari işlem · ${stokHareketleri.length} stok hareketi`,
   );
 }
 

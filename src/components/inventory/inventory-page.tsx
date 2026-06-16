@@ -11,7 +11,7 @@ import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
-import type { Urun, Malzeme, Parca, Depo } from "@/lib/data";
+import type { Urun, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
   "kategoriler",
@@ -28,16 +28,32 @@ export function InventoryPage({
   malzemeler,
   parcalar,
   depolar,
+  hareketler,
 }: {
   bolum: string;
   urunler: Urun[];
   malzemeler: Malzeme[];
   parcalar: Parca[];
   depolar: Depo[];
+  hareketler: StokHareket[];
 }) {
   // Stok bölümleri
-  if (bolum === "takip") return <StockTracker />;
-  if (bolum === "hareketler") return <StockMovements />;
+  if (bolum === "takip")
+    return (
+      <StockTracker
+        hareketler={hareketler}
+        urunler={urunler}
+        malzemeler={malzemeler}
+      />
+    );
+  if (bolum === "hareketler")
+    return (
+      <StockMovements
+        hareketler={hareketler}
+        urunler={urunler}
+        malzemeler={malzemeler}
+      />
+    );
   if (bolum === "depolar") return <Warehouses depolar={depolar} />;
   if (bolum === "sayim") return <StockCount />;
 

@@ -48,7 +48,6 @@ import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
 import {
-  cariIslemleri as TUM_ISLEMLER,
   formatTL,
   formatTarih,
   type Cari,
@@ -58,6 +57,7 @@ import {
   type CariTip,
   type ParaBirimi,
 } from "@/lib/data";
+import { cariKaydet, cariIslemEkle } from "@/lib/db/actions";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi"];
 const SINIFLAR: CariSinifi[] = ["Bireysel", "Kurumsal"];
@@ -128,7 +128,10 @@ const bos: Form = {
 
 type Tab = "islemler" | "bilgiler";
 
-export function CariFormPage({ cari }: { cari?: Cari } = {}) {
+export function CariFormPage({
+  cari,
+  islemler: islemlerProp = [],
+}: { cari?: Cari; islemler?: CariIslem[] } = {}) {
   const router = useRouter();
   const duzenleme = !!cari;
   const baslangic: Form = cari
@@ -153,10 +156,9 @@ export function CariFormPage({ cari }: { cari?: Cari } = {}) {
   const [tab, setTab] = React.useState<Tab>(duzenleme ? "islemler" : "bilgiler");
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
-  // Mevcut cari'nin işlemleri (state — kullanıcı yeni işlem ekleyebilir)
-  const [islemler, setIslemler] = React.useState<CariIslem[]>(
-    cari ? TUM_ISLEMLER.filter((i) => i.cariId === cari.id) : [],
-  );
+  // Mevcut cari'nin işlemleri (DB'den prop olarak gelir; refresh ile senkron)
+  const [islemler, setIslemler] = React.useState<CariIslem[]>(islemlerProp);
+  React.useEffect(() => setIslemler(islemlerProp), [islemlerProp]);
 
   const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -210,7 +212,7 @@ export function CariFormPage({ cari }: { cari?: Cari } = {}) {
     return { tahsilat, odeme, borc, alacak };
   }, [islemler]);
 
-  function kaydet() {
+  async function kaydet() {
     if (!form.ad.trim()) {
       toast.error("Ad / Unvan gerekli");
       setTab("bilgiler");
@@ -221,21 +223,40 @@ export function CariFormPage({ cari }: { cari?: Cari } = {}) {
       setTab("bilgiler");
       return;
     }
-    toast.success(
-      duzenleme ? "Cari güncellendi (demo)" : "Cari eklendi (demo)",
-    );
+    const yeniCari: Cari = {
+      id: form.id,
+      ad: form.ad.trim(),
+      tip: form.tip,
+      sinif: form.sinif,
+      vergiNo: form.vergiNo.trim() || undefined,
+      vergiDairesi: form.vergiDairesi.trim() || undefined,
+      telefon: form.telefon.trim() || undefined,
+      email: form.email.trim() || undefined,
+      adres: form.adres.trim() || undefined,
+      sehir: form.sehir.trim() || undefined,
+      bakiye: cari?.bakiye ?? 0,
+      paraBirimi: form.paraBirimi,
+      durum: form.durum,
+      not: form.not.trim() || undefined,
+    };
+    const res = await cariKaydet(yeniCari);
+    if (!res.ok) {
+      toast.error("Cari kaydedilemedi");
+      return;
+    }
+    toast.success(duzenleme ? "Cari güncellendi" : "Cari eklendi");
     router.push("/cari");
   }
 
-  function islemEkle(yeni: Omit<CariIslem, "id" | "cariId">) {
+  async function islemEkle(yeni: Omit<CariIslem, "id" | "cariId">) {
     if (!cari) return;
-    const islem: CariIslem = {
-      id: `CI-${Math.floor(3000 + Math.random() * 7000)}`,
-      cariId: cari.id,
-      ...yeni,
-    };
-    setIslemler((arr) => [islem, ...arr]);
+    const res = await cariIslemEkle(cari.id, yeni);
+    if (!res.ok) {
+      toast.error(res.error ?? "İşlem eklenemedi");
+      return;
+    }
     toast.success("İşlem eklendi");
+    router.refresh();
   }
 
   return (

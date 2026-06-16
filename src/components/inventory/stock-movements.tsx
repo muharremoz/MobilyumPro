@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/table";
 import {
   formatTarih,
-  malzemeler,
-  stokHareketleri,
-  urunler,
+  type StokHareket,
   type StokHareketTuru,
+  type Urun,
+  type Malzeme,
 } from "@/lib/data";
 
 const TUR_RENK: Record<StokHareketTuru, string> = {
@@ -34,16 +34,25 @@ const TUR_ICON: Record<StokHareketTuru, React.ReactNode> = {
   Transfer: <Repeat className="size-3.5" />,
 };
 
-function refAd(ref: { tip: "urun" | "malzeme"; id: string }) {
-  if (ref.tip === "urun") return urunler.find((u) => u.id === ref.id)?.ad ?? ref.id;
-  return malzemeler.find((m) => m.id === ref.id)?.ad ?? ref.id;
-}
-
-export function StockMovements() {
+export function StockMovements({
+  hareketler,
+  urunler,
+  malzemeler,
+}: {
+  hareketler: StokHareket[];
+  urunler: Urun[];
+  malzemeler: Malzeme[];
+}) {
   const [arama, setArama] = React.useState("");
   const [tur, setTur] = React.useState("Tümü");
 
-  const filtreli = stokHareketleri.filter((h) => {
+  const refAd = (ref: { tip: "urun" | "malzeme"; id: string }) => {
+    if (ref.tip === "urun")
+      return urunler.find((u) => u.id === ref.id)?.ad ?? ref.id;
+    return malzemeler.find((m) => m.id === ref.id)?.ad ?? ref.id;
+  };
+
+  const filtreli = hareketler.filter((h) => {
     const q = arama.toLowerCase();
     const ad = refAd(h.ref).toLowerCase();
     const ara = ad.includes(q) || h.id.toLowerCase().includes(q);

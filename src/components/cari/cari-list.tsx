@@ -38,12 +38,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  cariler as ILK,
-  formatTL,
-  type Cari,
-  type CariTip,
-} from "@/lib/data";
+import { formatTL, type Cari, type CariTip } from "@/lib/data";
+import { cariSil } from "@/lib/db/actions";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi"];
 const TIP_RENK: Record<CariTip, string> = {
@@ -54,9 +50,10 @@ const TIP_RENK: Record<CariTip, string> = {
 const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "tip" | "sehir" | "bakiye" | "durum";
 
-export function CariList() {
+export function CariList({ cariler }: { cariler: Cari[] }) {
   const router = useRouter();
-  const [liste, setListe] = React.useState<Cari[]>(ILK);
+  const [liste, setListe] = React.useState<Cari[]>(cariler);
+  React.useEffect(() => setListe(cariler), [cariler]);
   const [arama, setArama] = React.useState("");
   const [tip, setTip] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -120,14 +117,21 @@ export function CariList() {
       return n;
     });
   }
-  function sil(ids: string[]) {
+  async function sil(ids: string[]) {
+    const onceki = liste;
     setListe((l) => l.filter((c) => !ids.includes(c.id)));
     setSecili((s) => {
       const n = new Set(s);
       ids.forEach((id) => n.delete(id));
       return n;
     });
-    toast.success(`${ids.length} cari hesap silindi`);
+    const res = await cariSil(ids);
+    if (res.ok) {
+      toast.success(`${ids.length} cari hesap silindi`);
+    } else {
+      setListe(onceki);
+      toast.error(res.error ?? "Silinemedi.");
+    }
   }
 
   const sortIkon = (k: SortKey) =>

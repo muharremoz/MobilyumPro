@@ -6,6 +6,7 @@ import {
   numeric,
   date,
   serial,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -45,6 +46,28 @@ export const uretimOncelikEnum = pgEnum("uretim_oncelik", [
   "Yüksek",
   "Acil",
 ]);
+export const cariTipEnum = pgEnum("cari_tip", [
+  "Müşteri",
+  "Tedarikçi",
+  "Her İkisi",
+]);
+export const cariSinifEnum = pgEnum("cari_sinif", ["Bireysel", "Kurumsal"]);
+export const paraBirimiEnum = pgEnum("para_birimi", ["TL", "USD", "EUR"]);
+export const cariIslemTuruEnum = pgEnum("cari_islem_turu", [
+  "Tahsilat",
+  "Ödeme",
+  "Borç",
+  "Alacak",
+]);
+export const stokHareketTuruEnum = pgEnum("stok_hareket_turu", [
+  "Giriş",
+  "Çıkış",
+  "Transfer",
+]);
+export const stokHareketRefEnum = pgEnum("stok_hareket_ref", [
+  "urun",
+  "malzeme",
+]);
 
 const para = (name: string) => numeric(name, { precision: 14, scale: 2 });
 const miktarTip = (name: string) => numeric(name, { precision: 14, scale: 3 });
@@ -58,6 +81,14 @@ export const urun = pgTable("urun", {
   stok: integer("stok").notNull().default(0),
   durum: durumEnum("durum").notNull().default("Aktif"),
   gorsel: text("gorsel"),
+  marka: text("marka"),
+  barkod: text("barkod"),
+  agirlik: miktarTip("agirlik"),
+  minStok: integer("min_stok"),
+  gorseller: text("gorseller").array(),
+  varyantlar: jsonb("varyantlar").$type<
+    { id: string; renk?: string; kumas?: string; ekFiyat?: number }[]
+  >(),
 });
 
 // ── Parça (BOM kataloğu) ────────────────────────────────────────────────
@@ -150,6 +181,51 @@ export const uretimEmri = pgTable("uretim_emri", {
   musteri: text("musteri"),
   hedefDepo: text("hedef_depo"),
   not: text("not"),
+});
+
+// ── Cari (müşteri/tedarikçi hesabı) ─────────────────────────────────────
+export const cari = pgTable("cari", {
+  id: text("id").primaryKey(),
+  ad: text("ad").notNull(),
+  tip: cariTipEnum("tip").notNull(),
+  sinif: cariSinifEnum("sinif").notNull(),
+  vergiNo: text("vergi_no"),
+  vergiDairesi: text("vergi_dairesi"),
+  telefon: text("telefon"),
+  email: text("email"),
+  adres: text("adres"),
+  sehir: text("sehir"),
+  // Pozitif = cari bizden alacaklı, negatif = bize borçlu.
+  bakiye: para("bakiye").notNull().default("0"),
+  paraBirimi: paraBirimiEnum("para_birimi").notNull().default("TL"),
+  durum: durumEnum("durum").notNull().default("Aktif"),
+  not: text("not"),
+});
+
+// ── Cari işlem (tahsilat/ödeme/borç/alacak) ─────────────────────────────
+export const cariIslem = pgTable("cari_islem", {
+  id: text("id").primaryKey(),
+  cariId: text("cari_id")
+    .notNull()
+    .references(() => cari.id, { onDelete: "cascade" }),
+  tarih: date("tarih").notNull(),
+  tur: cariIslemTuruEnum("tur").notNull(),
+  tutar: para("tutar").notNull(),
+  belge: text("belge"),
+  aciklama: text("aciklama").notNull(),
+});
+
+// ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
+export const stokHareket = pgTable("stok_hareket", {
+  id: text("id").primaryKey(),
+  tarih: date("tarih").notNull(),
+  tur: stokHareketTuruEnum("tur").notNull(),
+  refTip: stokHareketRefEnum("ref_tip").notNull(),
+  refId: text("ref_id").notNull(),
+  miktar: miktarTip("miktar").notNull(),
+  birim: text("birim").notNull(),
+  depo: text("depo").notNull(),
+  aciklama: text("aciklama").notNull(),
 });
 
 // ── Tipler (sorgu sonuçları için) ───────────────────────────────────────

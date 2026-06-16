@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { CariFormPage } from "@/components/cari/cari-form-page";
-import { cariler } from "@/lib/data";
+import { getCari, getCariIslemleri } from "@/lib/db/queries";
 
 export default async function CariDuzenleRoute({
   params,
@@ -11,7 +11,10 @@ export default async function CariDuzenleRoute({
   const { id } = await params;
   // "yeni" zaten ayrı route — buraya düşmemesi gerek ama emniyet için.
   if (id === "yeni") notFound();
-  const cari = cariler.find((c) => c.id === id);
+  const [cari, islemler] = await Promise.all([
+    getCari(id),
+    getCariIslemleri(id),
+  ]);
   if (!cari) notFound();
-  return <CariFormPage cari={cari} />;
+  return <CariFormPage cari={cari} islemler={islemler} />;
 }

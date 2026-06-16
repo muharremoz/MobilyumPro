@@ -51,6 +51,7 @@ import {
   type UrunVaryant,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci } from "@/lib/bom";
+import { urunKaydet } from "@/lib/db/actions";
 
 const KATEGORILER: Kategori[] = [
   "Oturma Grubu",
@@ -127,12 +128,37 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
   const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  function kaydet() {
+  async function kaydet() {
     if (!form.ad.trim()) {
       toast.error("Ürün adı gerekli");
       return;
     }
-    toast.success(duzenleme ? "Ürün güncellendi (demo)" : "Ürün eklendi (demo)");
+    if (!form.kategori.trim()) {
+      toast.error("Kategori gerekli");
+      return;
+    }
+    const u: Urun = {
+      id: form.id,
+      ad: form.ad.trim(),
+      kategori: form.kategori as Kategori,
+      fiyat: Number(form.fiyat) || 0,
+      stok: Number(form.stok) || 0,
+      durum: form.durum,
+      gorsel: gorseller[0] ?? undefined,
+      gorseller: gorseller.length ? gorseller : undefined,
+      parcalar: urunParcalar.filter((p) => p.parcaId),
+      marka: form.marka.trim() || undefined,
+      barkod: form.barkod.trim() || undefined,
+      agirlik: form.agirlik ? Number(form.agirlik) : undefined,
+      minStok: form.minStok ? Number(form.minStok) : undefined,
+      varyantlar: varyantlar.length ? varyantlar : undefined,
+    };
+    const res = await urunKaydet(u);
+    if (!res.ok) {
+      toast.error("Ürün kaydedilemedi");
+      return;
+    }
+    toast.success(duzenleme ? "Ürün güncellendi" : "Ürün eklendi");
     router.push("/urunler");
   }
 

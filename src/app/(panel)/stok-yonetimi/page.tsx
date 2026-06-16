@@ -4,6 +4,7 @@ import {
   getMalzemeler,
   getParcalar,
   getDepolar,
+  getStokHareketleri,
 } from "@/lib/db/queries";
 
 export default async function StokYonetimiPage({
@@ -12,12 +13,14 @@ export default async function StokYonetimiPage({
   searchParams: Promise<{ bolum?: string }>;
 }) {
   const { bolum = "durum" } = await searchParams;
-  const [urunler, malzemeler, parcalar, depolar] = await Promise.all([
-    getUrunler(),
-    getMalzemeler(),
-    getParcalar(),
-    getDepolar(),
-  ]);
+  const [urunler, malzemeler, parcalar, depolar, hareketler] =
+    await Promise.all([
+      getUrunler(),
+      getMalzemeler(),
+      getParcalar(),
+      getDepolar(),
+      getStokHareketleri(),
+    ]);
   return (
     <InventoryPage
       bolum={bolum}
@@ -25,6 +28,7 @@ export default async function StokYonetimiPage({
       malzemeler={malzemeler}
       parcalar={parcalar}
       depolar={depolar}
+      hareketler={hareketler}
     />
   );
 }
