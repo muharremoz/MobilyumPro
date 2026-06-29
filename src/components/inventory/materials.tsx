@@ -36,7 +36,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -330,7 +329,6 @@ export function Materials() {
                       <DropdownMenuItem onClick={() => kopyala(m)}>
                         <Plus className="mr-2 size-4" /> Kopyala
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => sil([m.id])}

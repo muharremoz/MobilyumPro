@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 
-import { NewProductPage } from "@/components/products/new-product-page";
+import { ProductDetailPage } from "@/components/products/product-detail-page";
 import { urunler } from "@/lib/data";
 
-export default async function UrunDuzenleRoute({
+export default async function UrunDetayRoute({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -11,5 +11,5 @@ export default async function UrunDuzenleRoute({
   const { id } = await params;
   const product = urunler.find((u) => u.id === id);
   if (!product) notFound();
-  return <NewProductPage product={product} />;
+  return <ProductDetailPage product={product} />;
 }

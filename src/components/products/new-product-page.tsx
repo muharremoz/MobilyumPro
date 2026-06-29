@@ -28,6 +28,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -670,37 +671,28 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
 
       {/* Yeni kategori tanımlama modalı */}
       <Dialog open={katOpen} onOpenChange={setKatOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="gap-1 border-white bg-[#f5f5f5] p-2 sm:max-w-sm"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-          }}
-        >
-          <div className="rounded-md border bg-card p-4">
-            <DialogHeader className="mb-3">
-              <DialogTitle>Yeni Kategori</DialogTitle>
-            </DialogHeader>
-            <IconInput
-              label="Kategori Adı"
-              icon={FolderOpenIcon}
-              placeholder="Örn. Bahçe Mobilyası"
-              value={yeniKat}
-              autoFocus
-              onChange={(e) => setYeniKat(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  kategoriEkle();
-                }
-              }}
-            />
-          </div>
-          <div className="flex flex-row justify-end gap-2 rounded-md border bg-card p-2">
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Kategori</DialogTitle>
+          </DialogHeader>
+          <IconInput
+            label="Kategori Adı"
+            icon={FolderOpenIcon}
+            placeholder="Örn. Bahçe Mobilyası"
+            value={yeniKat}
+            autoFocus
+            onChange={(e) => setYeniKat(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                kategoriEkle();
+              }
+            }}
+          />
+          <DialogFooter>
             <DialogClose render={<Button variant="outline">İptal</Button>} />
             <Button onClick={kategoriEkle}>Ekle</Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

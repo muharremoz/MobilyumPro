@@ -46,19 +46,10 @@ type Secim = { id: number; urunId: string; adet: string };
 
 const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 
-// Proje standardı "nested" desen: bej dokulu dış panel + beyaz iç kart.
-const dokuStyle: React.CSSProperties = {
-  backgroundImage:
-    "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-};
-
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <section
-      className="rounded-xl border border-white bg-[#f5f5f5] p-1.5 shadow-sm"
-      style={dokuStyle}
-    >
-      <div className="rounded-lg border bg-card p-3.5">{children}</div>
+    <section className="rounded-lg border bg-card p-3.5 shadow-sm">
+      {children}
     </section>
   );
 }

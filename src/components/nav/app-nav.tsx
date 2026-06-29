@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Sofa, LogOut, User, Settings } from "lucide-react";
+import { LogOut, User, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -92,7 +92,8 @@ function RailButton({
             onClick={() => onSelect(section)}
             className={cn(
               "flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
-              (active || open) && "bg-sidebar-accent text-foreground",
+              (active || open) &&
+                "bg-sidebar-border text-foreground hover:bg-sidebar-border",
             )}
           >
             <RailIcon ref={ref} size={18} />
@@ -151,23 +152,37 @@ function RailUser() {
 function PanelItem({
   item,
   active,
+  index,
   onNavigate,
 }: {
   item: SubItem;
   active: boolean;
+  index: number;
   onNavigate: () => void;
 }) {
   const ref = React.useRef<AnimatedIconHandle>(null);
   const { icon: Icon } = item;
   const yakinda = item.href === "#";
+  // Panel açılışında sırayla (stagger) içeri kayma animasyonu.
+  const animasyon =
+    "animate-in fade-in slide-in-from-left-3 duration-300 fill-mode-backwards ease-out";
+  const gecikme = { animationDelay: `${index * 35}ms` };
   return (
     <>
       {item.groupHeader && (
-        <li className="mt-2 px-2.5 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0">
+        <li
+          className={cn(
+            "mt-2 px-2.5 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0",
+            animasyon,
+          )}
+          style={gecikme}
+        >
           {item.groupHeader}
         </li>
       )}
       <li
+        className={animasyon}
+        style={gecikme}
         onMouseEnter={() => ref.current?.startAnimation()}
         onMouseLeave={() => ref.current?.stopAnimation()}
       >
@@ -227,14 +242,19 @@ function AppNavInner() {
 
   return (
     <TooltipProvider delay={200}>
-      {/* Rail — her zaman görünür */}
-      <nav className="relative z-30 flex h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-2.5">
+      {/* Rail — her zaman görünür, #FAFAFA zemine yüzer */}
+      <nav className="relative z-30 flex h-full w-12 shrink-0 flex-col items-center gap-1 py-1">
         <Link
           href="/"
           aria-label="MobilyumPro"
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+          className="flex size-8 items-center justify-center overflow-hidden rounded-full border bg-card"
         >
-          <Sofa className="h-4 w-4" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.jpg"
+            alt="MobilyumPro"
+            className="size-full object-cover"
+          />
         </Link>
 
         <div className="mt-3 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -264,11 +284,13 @@ function AppNavInner() {
         </div>
       </nav>
 
-      {/* Panel: rail'in içinden çıkar, içeriği sağa iter (push) */}
+      {/* Panel: rail yanında yüzen rounded kart olarak açılır */}
       <div
         className={cn(
-          "relative z-10 h-full shrink-0 overflow-hidden bg-[#f4efe9] transition-[width] duration-200 ease-out",
-          acikBolum?.items ? "w-[220px] border-r" : "w-0",
+          "relative z-10 h-full shrink-0 overflow-hidden transition-[width,margin] duration-200 ease-out",
+          acikBolum?.items
+            ? "ml-2.5 w-[220px] rounded-[10px] border bg-card"
+            : "ml-0 w-0",
         )}
       >
         {acikBolum?.items && (
@@ -278,11 +300,12 @@ function AppNavInner() {
             </div>
             <Separator />
             <nav className="flex-1 overflow-auto p-2">
-              <ul className="flex flex-col gap-0.5">
-                {acikBolum.items.map((it) => (
+              <ul key={acikBolum.id} className="flex flex-col gap-0.5">
+                {acikBolum.items.map((it, i) => (
                   <PanelItem
                     key={it.label}
                     item={it}
+                    index={i}
                     active={ogeAktif(it.href)}
                     onNavigate={() => setOpenId(null)}
                   />

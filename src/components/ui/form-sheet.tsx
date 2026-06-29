@@ -15,9 +15,8 @@ import {
 } from "@/components/ui/sheet";
 
 /**
- * Projenin standart sheet kabuğu (tanımlama/detay işlemleri için).
- * Nested tasarım: bej dış alan (#f5f5f5 + diagonal doku, beyaz kenarlık)
- * → beyaz kayan form kartı → sabit beyaz footer (İptal/Kaydet).
+ * Standart sheet kabuğu (tanımlama/detay işlemleri için) — orijinal shadcn Sheet.
+ * Üstte başlık (ikon + kapatma butonu yerleşik), kayan içerik, altta border'lı footer.
  * Form alanları için: IconInput, AnimatedField, SearchSelect, Switch toggle kullan.
  */
 export function FormSheet({
@@ -57,13 +56,9 @@ export function FormSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
-        className="flex w-full flex-col gap-0.5 border-white bg-[#f5f5f5] p-2 sm:max-w-md"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-        }}
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
       >
-        <SheetHeader className="flex h-9 flex-row items-center gap-2 px-3 py-0">
+        <SheetHeader className="flex flex-row items-center gap-2 border-b p-4 pr-12">
           {Icon && (
             <Icon ref={iconRef} size={18} className="text-muted-foreground" />
           )}
@@ -71,16 +66,13 @@ export function FormSheet({
         </SheetHeader>
 
         <div
-          className={cn(
-            "min-h-0 flex-1 overflow-auto rounded-md border bg-card p-3.5",
-            contentClassName,
-          )}
+          className={cn("min-h-0 flex-1 overflow-auto p-4", contentClassName)}
         >
           {children}
         </div>
 
         {footer ?? (
-          <SheetFooter className="mt-1 flex-row justify-end gap-2 rounded-md border bg-card p-2">
+          <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
             <SheetClose render={<Button variant="outline">{cancelLabel}</Button>} />
             {onSave && <Button onClick={onSave}>{saveLabel}</Button>}
           </SheetFooter>

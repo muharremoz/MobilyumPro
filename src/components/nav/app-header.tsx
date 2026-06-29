@@ -6,14 +6,31 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { sections, bottomSections } from "@/components/nav/nav-config";
+import {
+  sections,
+  bottomSections,
+  type AnimatedIcon,
+} from "@/components/nav/nav-config";
+import { urunler } from "@/lib/data";
 
 type Crumb = { label: string; href?: string };
+type CrumbSonuc = { crumbs: Crumb[]; Icon?: AnimatedIcon; meta?: string };
+
+/** Bir href'e karşılık gelen nav ikonunu bulur (alt menü veya bölüm rail ikonu). */
+function iconForHref(href: string): AnimatedIcon | undefined {
+  const base = href.split("?")[0];
+  for (const s of [...sections, ...bottomSections]) {
+    const it = s.items?.find((i) => i.href.split("?")[0] === base);
+    if (it) return it.icon;
+    if (s.href && s.href.split("?")[0] === base) return s.RailIcon;
+  }
+  return undefined;
+}
 
 function getCrumbs(
   pathname: string,
   search: URLSearchParams,
-): Crumb[] {
+): CrumbSonuc {
   // Bir SubItem'ın href'i (path?query) tam eşleşiyor mu?
   const fullMatch = (href: string) => {
     const [path, query] = href.split("?");
@@ -29,64 +46,106 @@ function getCrumbs(
 
   // Nav'da olmayan özel sayfalar
   if (pathname.startsWith("/uretim/plan")) {
-    return [{ label: "Üretim Takibi" }, { label: "Üretim Planla" }];
+    return {
+      crumbs: [{ label: "Üretim Takibi" }, { label: "Üretim Planla" }],
+      Icon: iconForHref("/uretim/recete"),
+    };
   }
   if (pathname === "/urunler/yeni") {
-    return [
-      { label: "Stok Yönetimi" },
-      { label: "Ürünler", href: "/urunler" },
-      { label: "Yeni Ürün" },
-    ];
+    return {
+      crumbs: [
+        { label: "Stok Yönetimi" },
+        { label: "Ürünler", href: "/urunler" },
+        { label: "Yeni Ürün" },
+      ],
+      Icon: iconForHref("/urunler"),
+    };
+  }
+  if (/^\/urunler\/[^/]+\/duzenle$/.test(pathname)) {
+    const id = pathname.split("/")[2];
+    const urun = urunler.find((u) => u.id === id);
+    return {
+      crumbs: [
+        { label: "Stok Yönetimi" },
+        { label: "Ürünler", href: "/urunler" },
+        { label: urun?.ad ?? "Ürün", href: `/urunler/${id}` },
+        { label: "Düzenle" },
+      ],
+      Icon: iconForHref("/urunler"),
+    };
   }
   if (/^\/urunler\/[^/]+$/.test(pathname)) {
-    return [
-      { label: "Stok Yönetimi" },
-      { label: "Ürünler", href: "/urunler" },
-      { label: "Ürünü Düzenle" },
-    ];
+    const id = pathname.split("/")[2];
+    const urun = urunler.find((u) => u.id === id);
+    return {
+      crumbs: [
+        { label: "Stok Yönetimi" },
+        { label: "Ürünler", href: "/urunler" },
+        { label: urun?.ad ?? "Ürün" },
+      ],
+      Icon: iconForHref("/urunler"),
+      meta: urun?.id,
+    };
   }
   if (pathname === "/cari/yeni") {
-    return [
-      { label: "Cari Yönetimi" },
-      { label: "Cari Hesaplar", href: "/cari" },
-      { label: "Yeni Cari" },
-    ];
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Cari Hesaplar", href: "/cari" },
+        { label: "Yeni Cari" },
+      ],
+      Icon: iconForHref("/cari"),
+    };
   }
   if (/^\/cari\/[^/]+$/.test(pathname)) {
-    return [
-      { label: "Cari Yönetimi" },
-      { label: "Cari Hesaplar", href: "/cari" },
-      { label: "Cari Düzenle" },
-    ];
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Cari Hesaplar", href: "/cari" },
+        { label: "Cari Düzenle" },
+      ],
+      Icon: iconForHref("/cari"),
+    };
   }
 
   for (const s of [...sections, ...bottomSections]) {
     const exact = s.items?.find((i) => i.href !== "#" && fullMatch(i.href));
-    if (exact) return [{ label: s.label }, { label: exact.label }];
+    if (exact)
+      return {
+        crumbs: [{ label: s.label }, { label: exact.label }],
+        Icon: exact.icon,
+      };
     // Aynı path'te query yoksa veya başka querylik öğelere düşmemiş — path eşleşeni kullan
     const pathOnly = s.items?.find((i) => {
       if (i.href === "#") return false;
       const [p] = i.href.split("?");
       return p !== "/" ? pathname.startsWith(p) : pathname === "/";
     });
-    if (pathOnly) return [{ label: s.label }, { label: pathOnly.label }];
+    if (pathOnly)
+      return {
+        crumbs: [{ label: s.label }, { label: pathOnly.label }],
+        Icon: pathOnly.icon,
+      };
     if (s.href && s.href !== "#") {
       const [p] = s.href.split("?");
       if (p === "/" ? pathname === "/" : pathname.startsWith(p)) {
-        return [{ label: s.label }];
+        return { crumbs: [{ label: s.label }], Icon: s.RailIcon };
       }
     }
   }
-  return [{ label: "Genel Bakış" }];
+  return { crumbs: [{ label: "Genel Bakış" }], Icon: sections[0]?.RailIcon };
 }
 
 function AppHeaderInner() {
   const pathname = usePathname();
   const search = useSearchParams();
-  const crumbs = getCrumbs(pathname, search);
+  const { crumbs, Icon, meta } = getCrumbs(pathname, search);
 
   return (
     <header className="flex h-10 shrink-0 items-center gap-2 border-b px-4 md:px-6">
+      {Icon && (
+        <Icon size={16} className="shrink-0 text-foreground" />
+      )}
       <nav className="flex items-center gap-1.5 text-sm">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
@@ -116,6 +175,11 @@ function AppHeaderInner() {
             </span>
           );
         })}
+        {meta && (
+          <span className="ml-1.5 rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+            {meta}
+          </span>
+        )}
       </nav>
 
       <div className="ml-auto flex items-center gap-1">

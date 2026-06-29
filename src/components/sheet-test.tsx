@@ -29,19 +29,13 @@ export function SheetTest() {
   return (
     <Sheet>
       <SheetTrigger render={<Button variant="outline">Sheet Test</Button>} />
-      <SheetContent
-        className="flex w-full flex-col gap-0.5 border-white bg-[#f5f5f5] p-2 sm:max-w-md"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-        }}
-      >
-        <SheetHeader className="flex h-9 flex-row items-center gap-2 px-3 py-0">
+      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+        <SheetHeader className="flex flex-row items-center gap-2 border-b p-4 pr-12">
           <RockingChairIcon size={18} className="text-muted-foreground" />
           <SheetTitle>Yeni Kayıt</SheetTitle>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-auto rounded-md border bg-card p-3.5">
+        <div className="min-h-0 flex-1 overflow-auto p-4">
           <div className="grid gap-2.5">
             <IconInput label="Ürün Adı" icon={RockingChairIcon} placeholder="Örn. Milano Koltuk Takımı" />
             <IconInput label="Kod" icon={ScanTextIcon} placeholder="URN-0000" />
@@ -104,7 +98,7 @@ export function SheetTest() {
           </div>
         </div>
 
-        <SheetFooter className="mt-1 flex-row justify-end gap-2 rounded-md border bg-card p-2">
+        <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
           <SheetClose render={<Button variant="outline">İptal</Button>} />
           <SheetClose
             render={

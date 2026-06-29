@@ -17,7 +17,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -156,7 +155,6 @@ export function Warehouses() {
                         >
                           <Pencil className="mr-2 size-4" /> Düzenle
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem variant="destructive" onClick={() => sil(d.id)}>
                           <Trash2 className="mr-2 size-4" /> Sil
                         </DropdownMenuItem>

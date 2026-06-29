@@ -10,12 +10,15 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
 /**
- * Projenin standart onay (alert) dialog'u — FormSheet ile aynı nested dil:
- * bej dış alan (#f5f5f5 + diagonal doku + beyaz kenarlık) → beyaz içerik kartı → beyaz footer.
+ * Standart onay (alert) dialog'u — orijinal shadcn AlertDialog tasarımı.
+ * İkon, shadcn'in media slotunda (sol üstte kutu içinde) gösterilir.
  */
 export function ConfirmDialog({
   open,
@@ -46,35 +49,23 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        className="grid gap-1 border-white bg-[#f5f5f5] p-2 ring-0 sm:max-w-sm"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-        }}
-      >
-        <div className="flex items-start gap-3 rounded-md border bg-card p-4">
+      <AlertDialogContent>
+        <AlertDialogHeader>
           {Icon && (
-            <span
+            <AlertDialogMedia
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-full",
-                destructive
-                  ? "bg-rose-100 text-rose-600"
-                  : "bg-muted text-foreground",
+                destructive && "bg-destructive/10 text-destructive",
               )}
             >
-              <Icon ref={iconRef} size={18} />
-            </span>
+              <Icon ref={iconRef} size={20} />
+            </AlertDialogMedia>
           )}
-          <div className="grid gap-1">
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            {description && (
-              <AlertDialogDescription>{description}</AlertDialogDescription>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-row justify-end gap-2 rounded-md border bg-card p-2">
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          {description && (
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          )}
+        </AlertDialogHeader>
+        <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             variant={destructive ? "destructive" : "default"}
@@ -82,7 +73,7 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </AlertDialogAction>
-        </div>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
