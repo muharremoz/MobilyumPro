@@ -5,9 +5,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Projenin standart nested kart kabuğu: dış bej alan (#f5f5f5 + diagonal doku
- * + beyaz kenarlık) → içeride beyaz içerik kartı.
- * FormSheet / ConfirmDialog ile aynı dili kart yüzeylerine taşır.
+ * Standart kart kabuğu — sade shadcn kartı (border + bg-card).
+ * (Eski nested bej tasarımdan vazgeçildi; API geriye dönük uyumlu kaldı.)
  */
 export function NestedCard({
   className,
@@ -19,19 +18,10 @@ export function NestedCard({
 }) {
   return (
     <div
-      className={cn(
-        "rounded-lg border-white bg-[#f5f5f5] p-1.5",
-        className,
-      )}
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)",
-      }}
+      className={cn("rounded-lg border bg-card", className, innerClassName)}
       {...props}
     >
-      <div className={cn("rounded-md border bg-card", innerClassName)}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

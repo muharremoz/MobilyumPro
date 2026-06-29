@@ -15,6 +15,23 @@ import {
   Pencil,
   Copy,
   Trash2,
+  ExternalLink,
+  History,
+  Layers,
+  ShoppingCart,
+  Power,
+  Boxes,
+  Banknote,
+  Hammer,
+  Hash,
+  Type,
+  Link2,
+  CopyPlus,
+  Download,
+  FolderInput,
+  Tags,
+  Star,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,9 +45,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuGroup,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Table,
   TableBody,
@@ -173,6 +202,33 @@ export function ProductsTable({
     toast.success("Ürün kopyalandı");
   }
 
+  // Context menü yardımcıları
+  function panoyaKopyala(text: string, etiket: string) {
+    navigator.clipboard?.writeText(text);
+    toast.success(`${etiket} kopyalandı`);
+  }
+  function durumDegistir(u: Urun) {
+    setListe((l) =>
+      l.map((x) =>
+        x.id === u.id
+          ? { ...x, durum: x.durum === "Aktif" ? "Pasif" : "Aktif" }
+          : x,
+      ),
+    );
+    toast.success(
+      `${u.ad} ${u.durum === "Aktif" ? "pasif" : "aktif"} yapıldı`,
+    );
+  }
+  function kategoriyeTasi(u: Urun, k: string) {
+    setListe((l) =>
+      l.map((x) =>
+        x.id === u.id ? { ...x, kategori: k as Urun["kategori"] } : x,
+      ),
+    );
+    toast.success(`"${k}" kategorisine taşındı`);
+  }
+  const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
+
   const sortIkon = (key: SortKey) =>
     sort.key !== key ? (
       <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
@@ -288,12 +344,16 @@ export function ProductsTable({
           </TableHeader>
           <TableBody>
             {sayfalik.map((u) => (
-              <TableRow
-                key={u.id}
-                data-state={secili.has(u.id) ? "selected" : undefined}
-                className="cursor-pointer"
-                onClick={() => router.push(`/urunler/${u.id}`)}
-              >
+              <ContextMenu key={u.id}>
+                <ContextMenuTrigger
+                  render={
+                    <TableRow
+                      data-state={secili.has(u.id) ? "selected" : undefined}
+                      className="cursor-pointer"
+                      onClick={() => router.push(`/urunler/${u.id}`)}
+                    />
+                  }
+                >
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={secili.has(u.id)}
@@ -328,14 +388,13 @@ export function ProductsTable({
                     />
                     <DropdownMenuContent align="end" className="w-40">
                       <DropdownMenuItem
-                        onClick={() => router.push(`/urunler/${u.id}`)}
+                        onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
                       >
                         <Pencil className="mr-2 size-4" /> Düzenle
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => kopyala(u)}>
                         <Copy className="mr-2 size-4" /> Kopyala
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => sil([u.id])}
@@ -345,7 +404,133 @@ export function ProductsTable({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-              </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-56">
+                  {/* Görüntüle / Navigasyon */}
+                  <ContextMenuGroup>
+                    <ContextMenuLabel>Görüntüle</ContextMenuLabel>
+                    <ContextMenuItem
+                      onClick={() => router.push(`/urunler/${u.id}`)}
+                    >
+                      <ExternalLink className="mr-2 size-4" /> Detayı Aç
+                      <ContextMenuShortcut>⏎</ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
+                    >
+                      <Pencil className="mr-2 size-4" /> Düzenle
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() =>
+                        router.push("/stok-yonetimi?bolum=takip")
+                      }
+                    >
+                      <History className="mr-2 size-4" /> Stok Hareketleri
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => router.push("/uretim/recete")}
+                    >
+                      <Layers className="mr-2 size-4" /> Üretim Reçetesi
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => router.push("/siparisler")}>
+                      <ShoppingCart className="mr-2 size-4" /> Siparişlerde Göster
+                    </ContextMenuItem>
+                  </ContextMenuGroup>
+
+                  <ContextMenuSeparator />
+
+                  {/* Hızlı işlemler */}
+                  <ContextMenuGroup>
+                    <ContextMenuLabel>Hızlı İşlem</ContextMenuLabel>
+                    <ContextMenuItem onClick={() => durumDegistir(u)}>
+                      <Power className="mr-2 size-4" />
+                      {u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Stok düzelt")}>
+                      <Boxes className="mr-2 size-4" /> Stok Düzelt
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Fiyat güncelle")}>
+                      <Banknote className="mr-2 size-4" /> Fiyat Güncelle
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Üretime gönder")}>
+                      <Hammer className="mr-2 size-4" /> Üretime Gönder
+                    </ContextMenuItem>
+                  </ContextMenuGroup>
+
+                  <ContextMenuSeparator />
+
+                  {/* Kopyala / Aktar */}
+                  <ContextMenuGroup>
+                    <ContextMenuLabel>Kopyala / Aktar</ContextMenuLabel>
+                    <ContextMenuItem
+                      onClick={() => panoyaKopyala(u.id, "Kod")}
+                    >
+                      <Hash className="mr-2 size-4" /> Kodu Kopyala
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => panoyaKopyala(u.ad, "Ad")}
+                    >
+                      <Type className="mr-2 size-4" /> Adı Kopyala
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() =>
+                        panoyaKopyala(
+                          `${window.location.origin}/urunler/${u.id}`,
+                          "Bağlantı",
+                        )
+                      }
+                    >
+                      <Link2 className="mr-2 size-4" /> Bağlantıyı Kopyala
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => kopyala(u)}>
+                      <CopyPlus className="mr-2 size-4" /> Çoğalt
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Dışa aktar")}>
+                      <Download className="mr-2 size-4" /> Dışa Aktar
+                    </ContextMenuItem>
+                  </ContextMenuGroup>
+
+                  <ContextMenuSeparator />
+
+                  {/* Düzenleme yardımcıları */}
+                  <ContextMenuGroup>
+                    <ContextMenuLabel>Düzenle</ContextMenuLabel>
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>
+                        <FolderInput className="mr-2 size-4" /> Kategoriye Taşı
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent>
+                        {KATEGORILER.map((k) => (
+                          <ContextMenuItem
+                            key={k}
+                            onClick={() => kategoriyeTasi(u, k)}
+                          >
+                            {k}
+                          </ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                    <ContextMenuItem onClick={() => yakinda("Etiket ekle")}>
+                      <Tags className="mr-2 size-4" /> Etiket Ekle
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Favorile")}>
+                      <Star className="mr-2 size-4" /> Favorile
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => yakinda("Arşivle")}>
+                      <Archive className="mr-2 size-4" /> Arşivle
+                    </ContextMenuItem>
+                  </ContextMenuGroup>
+
+                  <ContextMenuSeparator />
+
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => sil([u.id])}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Sil
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

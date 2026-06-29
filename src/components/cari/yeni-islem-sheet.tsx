@@ -47,9 +47,6 @@ const TURLER: TurAyari[] = [
   },
 ];
 
-const TUR_NESTED_BG =
-  "repeating-linear-gradient(45deg, rgba(91,79,65,0.035) 0px, rgba(91,79,65,0.035) 1px, transparent 1px, transparent 4px)";
-
 export function YeniIslemSheet({
   open,
   onOpenChange,
@@ -106,7 +103,7 @@ export function YeniIslemSheet({
       icon={CartIcon}
       footer={
         secilen ? (
-          <SheetFooter className="mt-1 flex-row items-center gap-2 rounded-md border bg-card p-2">
+          <SheetFooter className="flex-row items-center gap-2 border-t p-4">
             <Button
               variant="ghost"
               size="sm"
@@ -121,7 +118,7 @@ export function YeniIslemSheet({
             </div>
           </SheetFooter>
         ) : (
-          <SheetFooter className="mt-1 flex-row justify-end gap-2 rounded-md border bg-card p-2">
+          <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
             <SheetClose render={<Button variant="outline">Kapat</Button>} />
           </SheetFooter>
         )
@@ -139,16 +136,13 @@ export function YeniIslemSheet({
                 key={t.tur}
                 type="button"
                 onClick={() => setSecilen(t.tur)}
-                className="group cursor-pointer rounded-lg border-white bg-[#f5f5f5] p-1.5 text-left transition-opacity hover:opacity-95"
-                style={{ backgroundImage: TUR_NESTED_BG }}
+                className="cursor-pointer rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
               >
-                <div className="rounded-md border bg-card p-3 transition-colors group-hover:bg-muted/40">
-                  <div className="text-sm font-semibold text-foreground">
-                    {t.baslik}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {t.aciklama}
-                  </div>
+                <div className="text-sm font-semibold text-foreground">
+                  {t.baslik}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t.aciklama}
                 </div>
               </button>
             ))}
@@ -157,19 +151,14 @@ export function YeniIslemSheet({
       ) : (
         // ─── Adım 2: Form ────────────────────────────────────────
         <div className="grid gap-3">
-          {/* Seçili tür rozet — nested kart stili */}
+          {/* Seçili tür rozeti */}
           {secilenAyar && (
-            <div
-              className="rounded-lg border-white bg-[#f5f5f5] p-1.5"
-              style={{ backgroundImage: TUR_NESTED_BG }}
-            >
-              <div className="rounded-md border bg-card p-2.5">
-                <div className="text-sm font-semibold text-foreground">
-                  {secilenAyar.baslik}
-                </div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  {secilenAyar.aciklama}
-                </div>
+            <div className="rounded-lg border bg-muted/40 p-2.5">
+              <div className="text-sm font-semibold text-foreground">
+                {secilenAyar.baslik}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {secilenAyar.aciklama}
               </div>
             </div>
           )}

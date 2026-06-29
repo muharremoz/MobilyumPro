@@ -39,52 +39,52 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: 5px;
-  --radius-md: 5px;
-  --radius-lg: 5px;
-  --radius-xl: 5px;
-  --radius-2xl: 5px;
-  --radius-3xl: 5px;
-  --radius-4xl: 5px;
+  --radius-sm: 10px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-2xl: 10px;
+  --radius-3xl: 10px;
+  --radius-4xl: 10px;
 }
 
 :root {
-  /* Sıcak nötr palet: #F9F8F6 · #EFE9E3 · #D9CFC7 · #C9B59C */
-  --background: #f9f8f6;
-  --foreground: #2a2520;
+  /* Klasik shadcn nötr palet — zemin #FAFAFA, primary siyah, gri tonlar */
+  --background: #fafafa;
+  --foreground: oklch(0.145 0 0);
   --card: #ffffff;
-  --card-foreground: #2a2520;
+  --card-foreground: oklch(0.145 0 0);
   --popover: #ffffff;
-  --popover-foreground: #2a2520;
-  /* Vurgu/marka: tan — üzerine koyu metin */
-  --primary: #c9b59c;
-  --primary-foreground: #2a2520;
-  --secondary: #efe9e3;
-  --secondary-foreground: #2a2520;
-  --muted: #efe9e3;
-  --muted-foreground: #8a7d6e;
-  --accent: #efe9e3;
-  --accent-foreground: #2a2520;
+  --popover-foreground: oklch(0.145 0 0);
+  /* Primary: siyaha yakın koyu nötr */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #e6ded4;
-  --input: #e6ded4;
-  --ring: #c9b59c;
-  /* Sıcak ton grafik renkleri */
-  --chart-1: #c9b59c;
-  --chart-2: #d9cfc7;
-  --chart-3: #a8927a;
-  --chart-4: #8a7d6e;
-  --chart-5: #6f6355;
-  --radius: 5px;
-  /* Rail + panel: açık bej (#EFE9E3), aktif/hover bir tık koyu (#D9CFC7) */
-  --sidebar: #efe9e3;
-  --sidebar-foreground: #2a2520;
-  --sidebar-primary: #c9b59c;
-  --sidebar-primary-foreground: #2a2520;
-  --sidebar-accent: #d9cfc7;
-  --sidebar-accent-foreground: #2a2520;
-  --sidebar-border: #d9cfc7;
-  --sidebar-ring: #c9b59c;
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 10px;
+  /* Gri ton grafik renkleri */
+  --chart-1: oklch(0.205 0 0);
+  --chart-2: oklch(0.439 0 0);
+  --chart-3: oklch(0.556 0 0);
+  --chart-4: oklch(0.708 0 0);
+  --chart-5: oklch(0.87 0 0);
+  /* Rail + panel: nötr gri tonlar */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
@@ -138,15 +138,4 @@
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
-}
-
-/* Sonner toast: sheet ile aynı nested doku (bej + ince diagonal çizgiler) */
-.cn-toast {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(91, 79, 65, 0.035) 0px,
-    rgba(91, 79, 65, 0.035) 1px,
-    transparent 1px,
-    transparent 4px
-  );
 }

@@ -27,7 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -307,7 +306,6 @@ export function CariList({ cariler }: { cariler: Cari[] }) {
                       >
                         <Pencil className="mr-2 size-4" /> Düzenle
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
                         onClick={() => sil([c.id])}

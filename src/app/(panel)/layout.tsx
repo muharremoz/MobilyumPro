@@ -7,11 +7,11 @@ export default function PanelLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex h-svh overflow-hidden bg-background">
+    <div className="relative flex h-svh overflow-hidden bg-background p-2.5">
       <AppNav />
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="ml-2.5 flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border bg-card shadow-sm">
         <AppHeader />
-        <div className="flex-1 overflow-auto px-4 pt-4 pb-6 md:px-6">
+        <div className="flex-1 overflow-auto p-3">
           {children}
         </div>
       </main>
