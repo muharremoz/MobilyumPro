@@ -11,7 +11,6 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
   Pencil,
   Copy,
   Trash2,
@@ -48,12 +47,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -492,7 +485,6 @@ export function ProductsTable({
                 Stok
               </SortBaslik>
               <SortBaslik k="durum">Durum</SortBaslik>
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -553,33 +545,6 @@ export function ProductsTable({
                       {u.durum}
                     </Badge>
                   </button>
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
-                      >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => kopyala(u)}>
-                        <Copy className="mr-2 size-4" /> Kopyala
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil([u.id])}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </TableCell>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-56">
@@ -712,7 +677,7 @@ export function ProductsTable({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Sonuç bulunamadı.
