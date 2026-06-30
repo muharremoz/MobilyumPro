@@ -108,14 +108,21 @@ function getCrumbs(
     };
   }
 
-  for (const s of [...sections, ...bottomSections]) {
+  const tumBolumler = [...sections, ...bottomSections];
+
+  // 1) Önce TÜM bölümlerde tam (path+query) eşleşmeyi ara — aynı path'i paylaşan
+  //    bölümlerde doğru olanı bulmak için (ör. /stok-yonetimi?bolum=...).
+  for (const s of tumBolumler) {
     const exact = s.items?.find((i) => i.href !== "#" && fullMatch(i.href));
     if (exact)
       return {
         crumbs: [{ label: s.label }, { label: exact.label }],
         Icon: exact.icon,
       };
-    // Aynı path'te query yoksa veya başka querylik öğelere düşmemiş — path eşleşeni kullan
+  }
+
+  // 2) Tam eşleşme yoksa path eşleşmesine düş.
+  for (const s of tumBolumler) {
     const pathOnly = s.items?.find((i) => {
       if (i.href === "#") return false;
       const [p] = i.href.split("?");

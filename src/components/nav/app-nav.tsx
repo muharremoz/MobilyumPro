@@ -46,21 +46,13 @@ function useAktif() {
     }
     return true;
   };
-  // Bölüm aktifliği: bölümün href'i veya alt öğelerinden biri (yalnızca path).
-  const bolumPathAktif = (href: string) => {
-    const [p] = href.split("?");
-    if (p === "/") return pathname === "/";
-    return pathname.startsWith(p);
-  };
-
   return {
     pathname,
+    // Bölüm aktifliği query-duyarlı: aynı path'i (ör. /stok-yonetimi) paylaşan
+    // bölümlerden yalnızca eşleşen bölüm aktif olur.
     bolumAktif: (s: Section) => {
-      if (s.href && s.href !== "#") return bolumPathAktif(s.href);
-      return (
-        s.items?.some((it) => it.href !== "#" && bolumPathAktif(it.href)) ??
-        false
-      );
+      if (s.href && s.href !== "#") return eslesir(s.href);
+      return s.items?.some((it) => it.href !== "#" && eslesir(it.href)) ?? false;
     },
     ogeAktif: (href: string) => href !== "#" && eslesir(href),
   };
