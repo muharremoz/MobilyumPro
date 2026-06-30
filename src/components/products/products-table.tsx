@@ -308,26 +308,28 @@ export function ProductsTable({
             <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
               Sırala
             </p>
-            <button
-              type="button"
-              className={ogeCls(sort.key === k && sort.dir === "asc")}
-              onClick={() => setSort({ key: k, dir: "asc" })}
-            >
-              <ArrowUpNarrowWide className="size-4" /> Artan
-              {sort.key === k && sort.dir === "asc" && (
-                <Check className="ml-auto size-4" />
-              )}
-            </button>
-            <button
-              type="button"
-              className={ogeCls(sort.key === k && sort.dir === "desc")}
-              onClick={() => setSort({ key: k, dir: "desc" })}
-            >
-              <ArrowDownWideNarrow className="size-4" /> Azalan
-              {sort.key === k && sort.dir === "desc" && (
-                <Check className="ml-auto size-4" />
-              )}
-            </button>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "asc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "asc" })}
+              >
+                <ArrowUpNarrowWide className="size-4" /> Artan
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "desc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "desc" })}
+              >
+                <ArrowDownWideNarrow className="size-4" /> Azalan
+              </button>
+            </div>
 
             <div className="my-1.5 h-px bg-border" />
 
