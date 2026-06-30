@@ -365,17 +365,41 @@ export function ProductsTable({
                   {u.id}
                 </TableCell>
                 <TableCell className="font-medium">{u.ad}</TableCell>
-                <TableCell>{u.kategori}</TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setKategori((k) =>
+                        k === u.kategori ? "Tümü" : u.kategori,
+                      )
+                    }
+                    title="Bu kategoriye göre filtrele"
+                    className="-mx-1 cursor-pointer rounded-[5px] px-1 transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {u.kategori}
+                  </button>
+                </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatTL(u.fiyat)}
                 </TableCell>
                 <TableCell className="text-right">
                   <StokHucre stok={u.stok} />
                 </TableCell>
-                <TableCell>
-                  <Badge variant={u.durum === "Aktif" ? "default" : "secondary"}>
-                    {u.durum}
-                  </Badge>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDurum((d) => (d === u.durum ? "Tümü" : u.durum))
+                    }
+                    title="Bu duruma göre filtrele"
+                    className="cursor-pointer"
+                  >
+                    <Badge
+                      variant={u.durum === "Aktif" ? "default" : "secondary"}
+                    >
+                      {u.durum}
+                    </Badge>
+                  </button>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
