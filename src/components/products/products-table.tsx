@@ -32,6 +32,9 @@ import {
   Tags,
   Star,
   Archive,
+  Check,
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,6 +44,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchSelect } from "@/components/ui/search-select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,6 +115,11 @@ export function ProductsTable({
   const [arama, setArama] = React.useState("");
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
+  // Sütun başlığı popover'larından gelen kolon-bazlı filtreler
+  const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
+  const [sayiFiltre, setSayiFiltre] = React.useState<
+    Record<"fiyat" | "stok", { min: string; max: string }>
+  >({ fiyat: { min: "", max: "" }, stok: { min: "", max: "" } });
   const [sort, setSort] = React.useState<{ key: SortKey; dir: SortDir }>({
     key: "id",
     dir: "asc",
@@ -118,11 +131,17 @@ export function ProductsTable({
   // Filtre + sıralama
   const filtreli = React.useMemo(() => {
     const q = arama.toLowerCase();
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((u) => {
       const ara = u.ad.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
       const kat = kategori === "Tümü" || u.kategori === kategori;
       const dur = durum === "Tümü" || u.durum === durum;
-      return ara && kat && dur;
+      const kod = u.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
+      const ad = u.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
+      const fiy = arada(u.fiyat, sayiFiltre.fiyat.min, sayiFiltre.fiyat.max);
+      const stk = arada(u.stok, sayiFiltre.stok.min, sayiFiltre.stok.max);
+      return ara && kat && dur && kod && ad && fiy && stk;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -131,12 +150,12 @@ export function ProductsTable({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, kategori, durum, sort]);
+  }, [liste, arama, kategori, durum, metinFiltre, sayiFiltre, sort]);
 
   // Filtre değişince sayfayı başa al
   React.useEffect(() => {
     setSayfa(1);
-  }, [arama, kategori, durum]);
+  }, [arama, kategori, durum, metinFiltre, sayiFiltre]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -148,14 +167,6 @@ export function ProductsTable({
   const sayfaIds = sayfalik.map((u) => u.id);
   const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
-
-  function sortla(key: SortKey) {
-    setSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" },
-    );
-  }
 
   function secimDegis(id: string, deger: boolean) {
     setSecili((s) => {
@@ -238,6 +249,34 @@ export function ProductsTable({
       <ChevronDown className="size-3.5" />
     );
 
+  const kolonFiltreAktif = (k: SortKey) => {
+    if (k === "kategori") return kategori !== "Tümü";
+    if (k === "durum") return durum !== "Tümü";
+    if (k === "id") return metinFiltre.id !== "";
+    if (k === "ad") return metinFiltre.ad !== "";
+    if (k === "fiyat")
+      return sayiFiltre.fiyat.min !== "" || sayiFiltre.fiyat.max !== "";
+    if (k === "stok")
+      return sayiFiltre.stok.min !== "" || sayiFiltre.stok.max !== "";
+    return false;
+  };
+  const kolonFiltreTemizle = (k: SortKey) => {
+    if (k === "kategori") setKategori("Tümü");
+    else if (k === "durum") setDurum("Tümü");
+    else if (k === "id") setMetinFiltre((f) => ({ ...f, id: "" }));
+    else if (k === "ad") setMetinFiltre((f) => ({ ...f, ad: "" }));
+    else if (k === "fiyat")
+      setSayiFiltre((f) => ({ ...f, fiyat: { min: "", max: "" } }));
+    else if (k === "stok")
+      setSayiFiltre((f) => ({ ...f, stok: { min: "", max: "" } }));
+  };
+
+  const ogeCls = (secili: boolean) =>
+    cn(
+      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+      secili && "bg-accent/60 font-medium",
+    );
+
   const SortBaslik = ({
     k,
     children,
@@ -246,18 +285,150 @@ export function ProductsTable({
     k: SortKey;
     children: React.ReactNode;
     className?: string;
-  }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => sortla(k)}
-        className="inline-flex items-center gap-1 hover:text-foreground"
-      >
-        {children}
-        {sortIkon(k)}
-      </button>
-    </TableHead>
-  );
+  }) => {
+    const aktif = kolonFiltreAktif(k);
+    const sagda = className?.includes("text-right");
+    return (
+      <TableHead className={className}>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 hover:text-foreground",
+                  sagda && "flex-row-reverse",
+                )}
+              >
+                {children}
+                {sortIkon(k)}
+                {aktif && (
+                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                )}
+              </button>
+            }
+          />
+          <PopoverContent
+            align={sagda ? "end" : "start"}
+            className="w-56 gap-0 p-1.5 text-left"
+          >
+            {/* Sıralama */}
+            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Sırala
+            </p>
+            <button
+              type="button"
+              className={ogeCls(sort.key === k && sort.dir === "asc")}
+              onClick={() => setSort({ key: k, dir: "asc" })}
+            >
+              <ArrowUpNarrowWide className="size-4" /> Artan
+              {sort.key === k && sort.dir === "asc" && (
+                <Check className="ml-auto size-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              className={ogeCls(sort.key === k && sort.dir === "desc")}
+              onClick={() => setSort({ key: k, dir: "desc" })}
+            >
+              <ArrowDownWideNarrow className="size-4" /> Azalan
+              {sort.key === k && sort.dir === "desc" && (
+                <Check className="ml-auto size-4" />
+              )}
+            </button>
+
+            <div className="my-1.5 h-px bg-border" />
+
+            {/* Filtre — sütun tipine göre */}
+            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Filtre
+            </p>
+
+            {(k === "kategori" || k === "durum") && (
+              <div className="grid max-h-56 gap-0.5 overflow-auto">
+                {(k === "kategori"
+                  ? ["Tümü", ...KATEGORILER]
+                  : ["Tümü", "Aktif", "Pasif"]
+                ).map((v) => {
+                  const seciliDeger = k === "kategori" ? kategori : durum;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      className={ogeCls(seciliDeger === v)}
+                      onClick={() =>
+                        k === "kategori" ? setKategori(v) : setDurum(v)
+                      }
+                    >
+                      {v}
+                      {seciliDeger === v && (
+                        <Check className="ml-auto size-4" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {(k === "id" || k === "ad") && (
+              <Input
+                autoFocus
+                placeholder="İçeren metin..."
+                value={metinFiltre[k]}
+                onChange={(e) =>
+                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
+                }
+                className="h-8"
+              />
+            )}
+
+            {(k === "fiyat" || k === "stok") && (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={sayiFiltre[k].min}
+                  onChange={(e) =>
+                    setSayiFiltre((f) => ({
+                      ...f,
+                      [k]: { ...f[k], min: e.target.value },
+                    }))
+                  }
+                  className="h-8"
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={sayiFiltre[k].max}
+                  onChange={(e) =>
+                    setSayiFiltre((f) => ({
+                      ...f,
+                      [k]: { ...f[k], max: e.target.value },
+                    }))
+                  }
+                  className="h-8"
+                />
+              </div>
+            )}
+
+            {aktif && (
+              <>
+                <div className="my-1.5 h-px bg-border" />
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                  onClick={() => kolonFiltreTemizle(k)}
+                >
+                  <Trash2 className="size-3.5" /> Filtreyi temizle
+                </button>
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
