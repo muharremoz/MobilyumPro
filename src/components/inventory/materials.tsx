@@ -24,6 +24,14 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { LayersIcon } from "@/components/ui/icons/layers";
@@ -433,6 +441,15 @@ function MaterialSheet({
   const [yeniTipMod, setYeniTipMod] = React.useState(false);
   const [yeniTip, setYeniTip] = React.useState("");
 
+  function tipKaydet() {
+    const ad = yeniTip.trim();
+    if (!ad) return;
+    onTipEkle(ad);
+    setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
+    setYeniTip("");
+    setYeniTipMod(false);
+  }
+
   React.useEffect(() => {
     if (!open) {
       setYeniTipMod(false);
@@ -522,59 +539,17 @@ function MaterialSheet({
         />
         <div className="grid grid-cols-2 gap-2.5">
           <AnimatedField label="Tip" icon={FolderOpenIcon}>
-            {yeniTipMod ? (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  autoFocus
-                  placeholder="Yeni tip adı"
-                  value={yeniTip}
-                  onChange={(e) => setYeniTip(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const ad = yeniTip.trim();
-                      if (!ad) return;
-                      onTipEkle(ad);
-                      setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
-                      setYeniTip("");
-                      setYeniTipMod(false);
-                    } else if (e.key === "Escape") {
-                      setYeniTip("");
-                      setYeniTipMod(false);
-                    }
-                  }}
-                  className="h-9"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  className="size-9 shrink-0"
-                  aria-label="Ekle"
-                  onClick={() => {
-                    const ad = yeniTip.trim();
-                    if (!ad) return;
-                    onTipEkle(ad);
-                    setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
-                    setYeniTip("");
-                    setYeniTipMod(false);
-                  }}
-                >
-                  <Check className="size-4" />
-                </Button>
-              </div>
-            ) : (
-              <SearchSelect
-                items={tipler}
-                value={form.tip}
-                onValueChange={(v) => setForm((f) => ({ ...f, tip: (v as MalzemeTipi) ?? "Hammadde" }))}
-                placeholder="Tip"
-                addLabel="Yeni tip ekle"
-                onAdd={() => {
-                  setYeniTip("");
-                  setYeniTipMod(true);
-                }}
-              />
-            )}
+            <SearchSelect
+              items={tipler}
+              value={form.tip}
+              onValueChange={(v) => setForm((f) => ({ ...f, tip: (v as MalzemeTipi) ?? "Hammadde" }))}
+              placeholder="Tip"
+              addLabel="Yeni tip ekle"
+              onAdd={() => {
+                setYeniTip("");
+                setYeniTipMod(true);
+              }}
+            />
           </AnimatedField>
           <AnimatedField label="Birim" icon={BoxesIcon}>
             <SearchSelect
@@ -653,6 +628,40 @@ function MaterialSheet({
           </span>
         </div>
       </div>
+
+      <Dialog open={yeniTipMod} onOpenChange={setYeniTipMod}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-1.5">
+              <FolderOpenIcon size={16} className="text-muted-foreground" />
+              Yeni Tip
+            </DialogTitle>
+            <DialogDescription>
+              Malzeme tipi ekleyin; eklenince otomatik seçilir.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Örn. Sarf Malzeme"
+            value={yeniTip}
+            onChange={(e) => setYeniTip(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                tipKaydet();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniTipMod(false)}>
+              İptal
+            </Button>
+            <Button onClick={tipKaydet} disabled={!yeniTip.trim()}>
+              <Check className="size-4" /> Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FormSheet>
   );
 }
