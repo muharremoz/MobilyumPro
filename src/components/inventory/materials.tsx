@@ -12,6 +12,7 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,11 +52,12 @@ import { malzemeKaydet, malzemeSil } from "@/lib/db/actions";
 
 const TIPLER: MalzemeTipi[] = ["Hammadde", "Yarı Mamul", "Yardımcı"];
 const BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
-const TIP_RENK: Record<MalzemeTipi, string> = {
+const TIP_RENK: Record<string, string> = {
   Hammadde: "bg-blue-100 text-blue-800",
   "Yarı Mamul": "bg-violet-100 text-violet-800",
   Yardımcı: "bg-amber-100 text-amber-800",
 };
+const TIP_RENK_VARSAYILAN = "bg-slate-100 text-slate-700";
 const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "tip" | "birim" | "stok" | "birimFiyat" | "durum";
 
@@ -72,6 +74,13 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Malzeme | null>(null);
+  const [tipler, setTipler] = React.useState<string[]>(TIPLER);
+
+  function tipEkle(t: string) {
+    const ad = t.trim();
+    if (!ad) return;
+    setTipler((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
+  }
 
   React.useEffect(() => setSayfa(1), [arama, tip, durum]);
 
@@ -206,7 +215,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
         </div>
         <div className="w-40">
           <SearchSelect
-            items={["Tümü", ...TIPLER]}
+            items={["Tümü", ...tipler]}
             value={tip}
             onValueChange={(v) => setTip(v ?? "Tümü")}
             placeholder="Tip"
@@ -297,7 +306,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
                 </TableCell>
                 <TableCell className="font-medium">{m.ad}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={TIP_RENK[m.tip]}>
+                  <Badge variant="secondary" className={TIP_RENK[m.tip] ?? TIP_RENK_VARSAYILAN}>
                     {m.tip}
                   </Badge>
                 </TableCell>
@@ -398,6 +407,8 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         item={duzenlenen}
+        tipler={tipler}
+        onTipEkle={tipEkle}
         onSave={kaydet}
       />
     </div>
@@ -408,13 +419,26 @@ function MaterialSheet({
   open,
   onOpenChange,
   item,
+  tipler,
+  onTipEkle,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   item: Malzeme | null;
+  tipler: string[];
+  onTipEkle: (t: string) => void;
   onSave: (m: Malzeme) => void;
 }) {
+  const [yeniTipMod, setYeniTipMod] = React.useState(false);
+  const [yeniTip, setYeniTip] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open) {
+      setYeniTipMod(false);
+      setYeniTip("");
+    }
+  }, [open]);
   const [form, setForm] = React.useState({
     id: "",
     ad: "",
@@ -498,12 +522,59 @@ function MaterialSheet({
         />
         <div className="grid grid-cols-2 gap-2.5">
           <AnimatedField label="Tip" icon={FolderOpenIcon}>
-            <SearchSelect
-              items={TIPLER}
-              value={form.tip}
-              onValueChange={(v) => setForm((f) => ({ ...f, tip: (v as MalzemeTipi) ?? "Hammadde" }))}
-              placeholder="Tip"
-            />
+            {yeniTipMod ? (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  autoFocus
+                  placeholder="Yeni tip adı"
+                  value={yeniTip}
+                  onChange={(e) => setYeniTip(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const ad = yeniTip.trim();
+                      if (!ad) return;
+                      onTipEkle(ad);
+                      setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
+                      setYeniTip("");
+                      setYeniTipMod(false);
+                    } else if (e.key === "Escape") {
+                      setYeniTip("");
+                      setYeniTipMod(false);
+                    }
+                  }}
+                  className="h-9"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  aria-label="Ekle"
+                  onClick={() => {
+                    const ad = yeniTip.trim();
+                    if (!ad) return;
+                    onTipEkle(ad);
+                    setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
+                    setYeniTip("");
+                    setYeniTipMod(false);
+                  }}
+                >
+                  <Check className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <SearchSelect
+                items={tipler}
+                value={form.tip}
+                onValueChange={(v) => setForm((f) => ({ ...f, tip: (v as MalzemeTipi) ?? "Hammadde" }))}
+                placeholder="Tip"
+                addLabel="Yeni tip ekle"
+                onAdd={() => {
+                  setYeniTip("");
+                  setYeniTipMod(true);
+                }}
+              />
+            )}
           </AnimatedField>
           <AnimatedField label="Birim" icon={BoxesIcon}>
             <SearchSelect
