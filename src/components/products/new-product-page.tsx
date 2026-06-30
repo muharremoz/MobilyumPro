@@ -48,11 +48,11 @@ import {
   kumasList,
   type Kategori,
   type ParcaSatiri,
-  type Urun,
-  type UrunVaryant,
+  type Model,
+  type ModelVaryant,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci } from "@/lib/bom";
-import { urunKaydet } from "@/lib/db/actions";
+import { modelKaydet } from "@/lib/db/actions";
 
 const KATEGORILER: Kategori[] = [
   "Oturma Grubu",
@@ -90,7 +90,7 @@ const bos: Form = {
   aciklama: "",
 };
 
-export function NewProductPage({ product }: { product?: Urun } = {}) {
+export function NewProductPage({ product }: { product?: Model } = {}) {
   const router = useRouter();
   const duzenleme = !!product;
   const baslangic: Form = product
@@ -121,7 +121,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
     product?.gorseller ? [...product.gorseller] : product?.gorsel ? [product.gorsel] : [],
   );
   const [yeniGorsel, setYeniGorsel] = React.useState("");
-  const [varyantlar, setVaryantlar] = React.useState<UrunVaryant[]>(
+  const [varyantlar, setVaryantlar] = React.useState<ModelVaryant[]>(
     product?.varyantlar ? [...product.varyantlar] : [],
   );
   const durumRef = React.useRef<AnimatedIconHandle>(null);
@@ -138,7 +138,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
       toast.error("Kategori gerekli");
       return;
     }
-    const u: Urun = {
+    const u: Model = {
       id: form.id,
       ad: form.ad.trim(),
       kategori: form.kategori as Kategori,
@@ -154,7 +154,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
       minStok: form.minStok ? Number(form.minStok) : undefined,
       varyantlar: varyantlar.length ? varyantlar : undefined,
     };
-    const res = await urunKaydet(u);
+    const res = await modelKaydet(u);
     if (!res.ok) {
       toast.error("Model kaydedilemedi");
       return;
@@ -215,7 +215,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
       { id: `VRY-${Date.now()}-${v.length}`, renk: "", kumas: "", ekFiyat: 0 },
     ]);
   }
-  function varyantGuncelle(i: number, alan: Partial<UrunVaryant>) {
+  function varyantGuncelle(i: number, alan: Partial<ModelVaryant>) {
     setVaryantlar((v) => v.map((x, j) => (j === i ? { ...x, ...alan } : x)));
   }
   function varyantSil(i: number) {

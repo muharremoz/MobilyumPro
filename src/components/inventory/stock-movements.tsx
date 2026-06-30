@@ -18,7 +18,7 @@ import {
   formatTarih,
   type StokHareket,
   type StokHareketTuru,
-  type Urun,
+  type Model,
   type Malzeme,
 } from "@/lib/data";
 
@@ -40,14 +40,14 @@ export function StockMovements({
   malzemeler,
 }: {
   hareketler: StokHareket[];
-  urunler: Urun[];
+  urunler: Model[];
   malzemeler: Malzeme[];
 }) {
   const [arama, setArama] = React.useState("");
   const [tur, setTur] = React.useState("Tümü");
 
-  const refAd = (ref: { tip: "urun" | "malzeme"; id: string }) => {
-    if (ref.tip === "urun")
+  const refAd = (ref: { tip: "model" | "malzeme"; id: string }) => {
+    if (ref.tip === "model")
       return urunler.find((u) => u.id === ref.id)?.ad ?? ref.id;
     return malzemeler.find((m) => m.id === ref.id)?.ad ?? ref.id;
   };
@@ -116,7 +116,7 @@ export function StockMovements({
                 <TableCell className="font-medium">
                   {refAd(h.ref)}
                   <span className="ml-2 text-[10px] text-muted-foreground/70">
-                    {h.ref.tip === "urun" ? "Model" : "Malzeme"}
+                    {h.ref.tip === "model" ? "Model" : "Malzeme"}
                   </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">

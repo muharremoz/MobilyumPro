@@ -11,7 +11,7 @@ import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
-import type { Urun, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
+import type { Model, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
   "kategoriler",
@@ -31,7 +31,7 @@ export function InventoryPage({
   hareketler,
 }: {
   bolum: string;
-  urunler: Urun[];
+  urunler: Model[];
   malzemeler: Malzeme[];
   parcalar: Parca[];
   depolar: Depo[];

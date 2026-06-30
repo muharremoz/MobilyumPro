@@ -1,6 +1,6 @@
 import { ProductionPlan } from "@/components/production/production-plan";
 import {
-  getUrunler,
+  getModeller,
   getParcalar,
   getMalzemeler,
   getDepolar,
@@ -10,7 +10,7 @@ import {
 export default async function UretimPlanRoute() {
   const [urunler, parcalar, malzemeler, depolar, musteriler] =
     await Promise.all([
-      getUrunler(),
+      getModeller(),
       getParcalar(),
       getMalzemeler(),
       getDepolar(),

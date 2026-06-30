@@ -3,11 +3,11 @@ import { eq } from "drizzle-orm";
 
 import { db } from "./index";
 import {
-  urun,
+  model,
   parca,
   malzeme,
   receteSatiri,
-  urunParca,
+  modelParca,
   depo,
   musteri,
   siparis,
@@ -17,8 +17,8 @@ import {
   stokHareket,
 } from "./schema";
 import type {
-  Urun,
-  UrunVaryant,
+  Model,
+  ModelVaryant,
   Parca,
   Malzeme,
   Depo,
@@ -48,16 +48,16 @@ import type {
  * ve bom.ts değişmeden çalışır.
  */
 
-export async function getUrunler(): Promise<Urun[]> {
+export async function getModeller(): Promise<Model[]> {
   const [urunRows, upRows] = await Promise.all([
-    db.select().from(urun),
-    db.select().from(urunParca),
+    db.select().from(model),
+    db.select().from(modelParca),
   ]);
   const bomByUrun = new Map<string, { parcaId: string; miktar: number }[]>();
   for (const r of upRows) {
-    const arr = bomByUrun.get(r.urunId) ?? [];
+    const arr = bomByUrun.get(r.modelId) ?? [];
     arr.push({ parcaId: r.parcaId, miktar: Number(r.miktar) });
-    bomByUrun.set(r.urunId, arr);
+    bomByUrun.set(r.modelId, arr);
   }
   return urunRows.map((u) => ({
     id: u.id,
@@ -73,7 +73,7 @@ export async function getUrunler(): Promise<Urun[]> {
     agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
     minStok: u.minStok ?? undefined,
     gorseller: u.gorseller ?? undefined,
-    varyantlar: (u.varyantlar as UrunVaryant[] | null) ?? undefined,
+    varyantlar: (u.varyantlar as ModelVaryant[] | null) ?? undefined,
   }));
 }
 
@@ -186,8 +186,8 @@ export async function getStokHareketleri(): Promise<StokHareket[]> {
       tarih: h.tarih,
       tur: h.tur as StokHareketTuru,
       ref:
-        h.refTip === "urun"
-          ? ({ tip: "urun", id: h.refId } as const)
+        h.refTip === "model"
+          ? ({ tip: "model", id: h.refId } as const)
           : ({ tip: "malzeme", id: h.refId } as const),
       miktar: Number(h.miktar),
       birim: h.birim,
@@ -262,7 +262,7 @@ export type DashboardOzet = {
 
 export async function getDashboardOzet(): Promise<DashboardOzet> {
   const [urunRows, siparisRows, musteriRows] = await Promise.all([
-    db.select().from(urun),
+    db.select().from(model),
     db.select().from(siparis),
     db.select().from(musteri),
   ]);
@@ -283,8 +283,8 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
   const sirali = rows.sort((a, b) => b.id.localeCompare(a.id));
   return sirali.map((e) => ({
     id: e.id,
-    urunId: e.urunId,
-    urunAd: e.urunAd,
+    urunId: e.modelId,
+    urunAd: e.modelAd,
     adet: e.adet,
     durum: e.durum as UretimDurum,
     oncelik: (e.oncelik ?? undefined) as UretimOncelik | undefined,

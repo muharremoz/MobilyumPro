@@ -24,14 +24,14 @@ export type Kategori =
   | "Çalışma"
   | "Aksesuar";
 
-export type UrunVaryant = {
+export type ModelVaryant = {
   id: string;
   renk?: string;
   kumas?: string;
   ekFiyat?: number;
 };
 
-export type Urun = {
+export type Model = {
   id: string;
   ad: string;
   kategori: Kategori;
@@ -52,7 +52,7 @@ export type Urun = {
   /** Görsel galerisi (URL'ler). İlk öğe ana görsel sayılır. */
   gorseller?: string[];
   /** Renk / Kumaş varyantları (her satır bir kombinasyon). */
-  varyantlar?: UrunVaryant[];
+  varyantlar?: ModelVaryant[];
 };
 
 // Reçete bileşeni — malzeme veya başka parça (alt-parça).
@@ -84,7 +84,7 @@ export type Parca = {
 // Stok hareketleri — model (ürün) veya malzeme için.
 export type StokHareketTuru = "Giriş" | "Çıkış" | "Transfer";
 export type StokHareketRef =
-  | { tip: "urun"; id: string }
+  | { tip: "model"; id: string }
   | { tip: "malzeme"; id: string };
 export type StokHareket = {
   id: string;
@@ -99,16 +99,16 @@ export type StokHareket = {
 
 export const stokHareketleri: StokHareket[] = [
   // Ürün hareketleri
-  { id: "SH-1010", tarih: "2026-06-05", tur: "Giriş", ref: { tip: "urun", id: "URN-1001" }, miktar: 4, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
-  { id: "SH-1009", tarih: "2026-06-05", tur: "Çıkış", ref: { tip: "urun", id: "URN-1005" }, miktar: 2, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5021" },
-  { id: "SH-1008", tarih: "2026-06-04", tur: "Transfer", ref: { tip: "urun", id: "URN-1006" }, miktar: 1, birim: "adet", depo: "Ana Depo → Showroom", aciklama: "Sergileme" },
-  { id: "SH-1007", tarih: "2026-06-04", tur: "Çıkış", ref: { tip: "urun", id: "URN-1007" }, miktar: 3, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5019" },
-  { id: "SH-1006", tarih: "2026-06-03", tur: "Giriş", ref: { tip: "urun", id: "URN-1009" }, miktar: 10, birim: "adet", depo: "Yedek Depo", aciklama: "Tedarikçi alımı" },
-  { id: "SH-1005", tarih: "2026-06-02", tur: "Çıkış", ref: { tip: "urun", id: "URN-1008" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Hasarlı iade" },
-  { id: "SH-1004", tarih: "2026-06-02", tur: "Transfer", ref: { tip: "urun", id: "URN-1010" }, miktar: 2, birim: "adet", depo: "Yedek Depo → Ana Depo", aciklama: "Bölgesel sevkiyat" },
-  { id: "SH-1003", tarih: "2026-06-01", tur: "Giriş", ref: { tip: "urun", id: "URN-1004" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
-  { id: "SH-0999", tarih: "2026-05-28", tur: "Çıkış", ref: { tip: "urun", id: "URN-1001" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5012" },
-  { id: "SH-0995", tarih: "2026-05-22", tur: "Giriş", ref: { tip: "urun", id: "URN-1001" }, miktar: 6, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+  { id: "SH-1010", tarih: "2026-06-05", tur: "Giriş", ref: { tip: "model", id: "URN-1001" }, miktar: 4, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+  { id: "SH-1009", tarih: "2026-06-05", tur: "Çıkış", ref: { tip: "model", id: "URN-1005" }, miktar: 2, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5021" },
+  { id: "SH-1008", tarih: "2026-06-04", tur: "Transfer", ref: { tip: "model", id: "URN-1006" }, miktar: 1, birim: "adet", depo: "Ana Depo → Showroom", aciklama: "Sergileme" },
+  { id: "SH-1007", tarih: "2026-06-04", tur: "Çıkış", ref: { tip: "model", id: "URN-1007" }, miktar: 3, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5019" },
+  { id: "SH-1006", tarih: "2026-06-03", tur: "Giriş", ref: { tip: "model", id: "URN-1009" }, miktar: 10, birim: "adet", depo: "Yedek Depo", aciklama: "Tedarikçi alımı" },
+  { id: "SH-1005", tarih: "2026-06-02", tur: "Çıkış", ref: { tip: "model", id: "URN-1008" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Hasarlı iade" },
+  { id: "SH-1004", tarih: "2026-06-02", tur: "Transfer", ref: { tip: "model", id: "URN-1010" }, miktar: 2, birim: "adet", depo: "Yedek Depo → Ana Depo", aciklama: "Bölgesel sevkiyat" },
+  { id: "SH-1003", tarih: "2026-06-01", tur: "Giriş", ref: { tip: "model", id: "URN-1004" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
+  { id: "SH-0999", tarih: "2026-05-28", tur: "Çıkış", ref: { tip: "model", id: "URN-1001" }, miktar: 1, birim: "adet", depo: "Ana Depo", aciklama: "Sipariş SIP-5012" },
+  { id: "SH-0995", tarih: "2026-05-22", tur: "Giriş", ref: { tip: "model", id: "URN-1001" }, miktar: 6, birim: "adet", depo: "Ana Depo", aciklama: "Üretimden giriş" },
 
   // Malzeme hareketleri
   { id: "SH-2010", tarih: "2026-06-05", tur: "Giriş", ref: { tip: "malzeme", id: "MLZ-1001" }, miktar: 80, birim: "m²", depo: "Ana Depo", aciklama: "Kastamonu Entegre - Fatura #4521" },
@@ -233,7 +233,7 @@ export type Musteri = {
   toplamHarcama: Para;
 };
 
-export const urunler: Urun[] = [
+export const urunler: Model[] = [
   { id: "URN-1001", ad: "Milano 3+2 Koltuk Takımı", kategori: "Oturma Grubu", fiyat: 42500, stok: 12, durum: "Aktif" },
   { id: "URN-1002", ad: "Roma Yemek Masası 6 Kişilik", kategori: "Yemek Odası", fiyat: 18900, stok: 7, durum: "Aktif" },
   { id: "URN-1003", ad: "Loft Çalışma Masası", kategori: "Çalışma", fiyat: 6450, stok: 0, durum: "Pasif" },

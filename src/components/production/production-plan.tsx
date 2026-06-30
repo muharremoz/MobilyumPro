@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import {
   formatTL,
-  type Urun,
+  type Model,
   type Depo,
   type Parca,
   type Malzeme,
@@ -60,7 +60,7 @@ export function ProductionPlan({
   parcalar,
   malzemeler,
 }: {
-  urunler: Urun[];
+  urunler: Model[];
   depolar: Depo[];
   musteriler: MusteriSecim[];
   parcalar: Parca[];

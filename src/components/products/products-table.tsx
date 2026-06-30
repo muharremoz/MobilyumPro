@@ -68,8 +68,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTL, type Urun } from "@/lib/data";
-import { urunKaydet, urunSil } from "@/lib/db/actions";
+import { formatTL, type Model } from "@/lib/data";
+import { modelKaydet, modelSil } from "@/lib/db/actions";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -100,10 +100,10 @@ export function ProductsTable({
   urunler,
   initialKategori,
 }: {
-  urunler: Urun[];
+  urunler: Model[];
   initialKategori?: string;
 }) {
-  const [liste, setListe] = React.useState<Urun[]>(urunler);
+  const [liste, setListe] = React.useState<Model[]>(urunler);
   const [arama, setArama] = React.useState("");
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -185,7 +185,7 @@ export function ProductsTable({
       ids.forEach((id) => n.delete(id));
       return n;
     });
-    const res = await urunSil(ids);
+    const res = await modelSil(ids);
     if (res.ok) {
       toast.success(`${ids.length} model silindi`);
     } else {
@@ -194,14 +194,14 @@ export function ProductsTable({
     }
   }
 
-  async function kopyala(u: Urun) {
-    const kopya: Urun = {
+  async function kopyala(u: Model) {
+    const kopya: Model = {
       ...u,
       id: `URN-${Math.floor(1000 + Math.random() * 9000)}`,
       ad: `${u.ad} (kopya)`,
     };
     setListe((l) => [kopya, ...l]);
-    await urunKaydet(kopya);
+    await modelKaydet(kopya);
     toast.success("Model kopyalandı");
   }
 
@@ -210,7 +210,7 @@ export function ProductsTable({
     navigator.clipboard?.writeText(text);
     toast.success(`${etiket} kopyalandı`);
   }
-  function durumDegistir(u: Urun) {
+  function durumDegistir(u: Model) {
     setListe((l) =>
       l.map((x) =>
         x.id === u.id
@@ -222,10 +222,10 @@ export function ProductsTable({
       `${u.ad} ${u.durum === "Aktif" ? "pasif" : "aktif"} yapıldı`,
     );
   }
-  function kategoriyeTasi(u: Urun, k: string) {
+  function kategoriyeTasi(u: Model, k: string) {
     setListe((l) =>
       l.map((x) =>
-        x.id === u.id ? { ...x, kategori: k as Urun["kategori"] } : x,
+        x.id === u.id ? { ...x, kategori: k as Model["kategori"] } : x,
       ),
     );
     toast.success(`"${k}" kategorisine taşındı`);

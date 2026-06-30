@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type Urun, type Parca, type Malzeme } from "@/lib/data";
+import { type Model, type Parca, type Malzeme } from "@/lib/data";
 import { flattenParca, modelMalzemeIhtiyaci } from "@/lib/bom";
 
 export function RecipePage({
@@ -31,7 +31,7 @@ export function RecipePage({
   parcalar,
   malzemeler,
 }: {
-  urunler: Urun[];
+  urunler: Model[];
   parcalar: Parca[];
   malzemeler: Malzeme[];
 }) {
@@ -44,7 +44,7 @@ export function RecipePage({
   );
   const [adet, setAdet] = React.useState("1");
 
-  const model: Urun | undefined = modeller.find((m) => m.id === modelId);
+  const model: Model | undefined = modeller.find((m) => m.id === modelId);
   const carpan = Math.max(1, Number(adet) || 1);
 
   // Çarpılmış parça satırları (üretilecek adet kadar).

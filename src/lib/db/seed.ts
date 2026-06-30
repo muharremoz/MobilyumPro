@@ -1,11 +1,11 @@
 import "dotenv/config";
 import { db } from "./index";
 import {
-  urun,
+  model,
   parca,
   malzeme,
   receteSatiri,
-  urunParca,
+  modelParca,
   depo,
   musteri,
   siparis,
@@ -37,9 +37,9 @@ async function seed() {
   // FK-güvenli sırada temizle (alt tablolar önce)
   await db.delete(uretimEmri);
   await db.delete(siparis);
-  await db.delete(urunParca);
+  await db.delete(modelParca);
   await db.delete(receteSatiri);
-  await db.delete(urun);
+  await db.delete(model);
   await db.delete(parca);
   await db.delete(malzeme);
   await db.delete(musteri);
@@ -92,7 +92,7 @@ async function seed() {
     })),
   );
 
-  await db.insert(urun).values(
+  await db.insert(model).values(
     urunler.map((u) => ({
       id: u.id,
       ad: u.ad,
@@ -123,14 +123,14 @@ async function seed() {
   if (receteRows.length) await db.insert(receteSatiri).values(receteRows);
 
   // Ürün-parça (model BOM)
-  const urunParcaRows = urunler.flatMap((u) =>
+  const modelParcaRows = urunler.flatMap((u) =>
     (u.parcalar ?? []).map((ps) => ({
-      urunId: u.id,
+      modelId: u.id,
       parcaId: ps.parcaId,
       miktar: String(ps.miktar),
     })),
   );
-  if (urunParcaRows.length) await db.insert(urunParca).values(urunParcaRows);
+  if (modelParcaRows.length) await db.insert(modelParca).values(modelParcaRows);
 
   // Siparişler (müşteri adından id eşle)
   const musteriByAd = new Map(musteriler.map((m) => [m.ad, m.id]));
@@ -150,8 +150,8 @@ async function seed() {
   await db.insert(uretimEmri).values(
     uretimEmirleri.map((e) => ({
       id: e.id,
-      urunId: e.urunId,
-      urunAd: e.urunAd,
+      modelId: e.urunId,
+      modelAd: e.urunAd,
       adet: e.adet,
       durum: e.durum,
       oncelik: e.oncelik ?? "Normal",
@@ -216,7 +216,7 @@ async function seed() {
   console.log(
     `  ${depolar.length} depo · ${musteriler.length} müşteri · ${malzemeler.length} malzeme · ` +
       `${parcalar.length} parça · ${urunler.length} ürün · ${receteRows.length} reçete satırı · ` +
-      `${urunParcaRows.length} ürün-parça · ${siparisler.length} sipariş · ${uretimEmirleri.length} üretim emri · ` +
+      `${modelParcaRows.length} ürün-parça · ${siparisler.length} sipariş · ${uretimEmirleri.length} üretim emri · ` +
       `${cariler.length} cari · ${cariIslemleri.length} cari işlem · ${stokHareketleri.length} stok hareketi`,
   );
 }

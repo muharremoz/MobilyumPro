@@ -65,15 +65,15 @@ export const stokHareketTuruEnum = pgEnum("stok_hareket_turu", [
   "Transfer",
 ]);
 export const stokHareketRefEnum = pgEnum("stok_hareket_ref", [
-  "urun",
+  "model",
   "malzeme",
 ]);
 
 const para = (name: string) => numeric(name, { precision: 14, scale: 2 });
 const miktarTip = (name: string) => numeric(name, { precision: 14, scale: 3 });
 
-// ── Ürün (model) ────────────────────────────────────────────────────────
-export const urun = pgTable("urun", {
+// ── Model (eski: ürün) ──────────────────────────────────────────────────
+export const model = pgTable("model", {
   id: text("id").primaryKey(),
   ad: text("ad").notNull(),
   kategori: text("kategori").notNull(),
@@ -124,12 +124,12 @@ export const receteSatiri = pgTable("recete_satiri", {
   miktar: miktarTip("miktar").notNull(),
 });
 
-// ── Ürün-Parça (modelin BOM bağlantısı) ─────────────────────────────────
-export const urunParca = pgTable("urun_parca", {
+// ── Model-Parça (modelin BOM bağlantısı) ────────────────────────────────
+export const modelParca = pgTable("model_parca", {
   id: serial("id").primaryKey(),
-  urunId: text("urun_id")
+  modelId: text("model_id")
     .notNull()
-    .references(() => urun.id, { onDelete: "cascade" }),
+    .references(() => model.id, { onDelete: "cascade" }),
   parcaId: text("parca_id")
     .notNull()
     .references(() => parca.id),
@@ -168,10 +168,10 @@ export const siparis = pgTable("siparis", {
 // ── Üretim emri ─────────────────────────────────────────────────────────
 export const uretimEmri = pgTable("uretim_emri", {
   id: text("id").primaryKey(),
-  urunId: text("urun_id")
+  modelId: text("model_id")
     .notNull()
-    .references(() => urun.id),
-  urunAd: text("urun_ad").notNull(),
+    .references(() => model.id),
+  modelAd: text("model_ad").notNull(),
   adet: integer("adet").notNull().default(1),
   durum: uretimDurumEnum("durum").notNull().default("Planlandı"),
   oncelik: uretimOncelikEnum("oncelik").default("Normal"),
@@ -229,7 +229,7 @@ export const stokHareket = pgTable("stok_hareket", {
 });
 
 // ── Tipler (sorgu sonuçları için) ───────────────────────────────────────
-export type UrunRow = typeof urun.$inferSelect;
+export type ModelRow = typeof model.$inferSelect;
 export type ParcaRow = typeof parca.$inferSelect;
 export type MalzemeRow = typeof malzeme.$inferSelect;
 export type DepoRow = typeof depo.$inferSelect;

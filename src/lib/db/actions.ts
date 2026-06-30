@@ -7,10 +7,10 @@ import { db } from "./index";
 import {
   uretimEmri,
   malzeme,
-  urun,
+  model,
   parca,
   receteSatiri,
-  urunParca,
+  modelParca,
   depo,
   cari,
   cariIslem,
@@ -19,7 +19,7 @@ import type {
   UretimDurum,
   UretimOncelik,
   Malzeme,
-  Urun,
+  Model,
   Parca,
   Depo,
   Cari,
@@ -60,8 +60,8 @@ export async function uretimEmriOlustur(
   const tarih = bugun();
   const rows = yeniler.map((y, i) => ({
     id: `UE-${maxNo + 1 + i}`,
-    urunId: y.urunId,
-    urunAd: y.urunAd,
+    modelId: y.urunId,
+    modelAd: y.urunAd,
     adet: y.adet,
     durum: y.durum,
     oncelik: y.oncelik ?? "Normal",
@@ -123,10 +123,10 @@ export async function malzemeSil(
 }
 
 /** Ürün ekle/güncelle (düz alanlar + BOM/urun_parca). Yeni kayıtta URN-#### üretir. */
-export async function urunKaydet(u: Urun): Promise<{ ok: boolean; id: string }> {
+export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }> {
   let id = u.id;
   if (!id) {
-    const mevcut = await db.select({ id: urun.id }).from(urun);
+    const mevcut = await db.select({ id: model.id }).from(model);
     let maxNo = 1000;
     for (const r of mevcut) {
       const m = /^URN-(\d+)$/.exec(r.id);
@@ -151,10 +151,10 @@ export async function urunKaydet(u: Urun): Promise<{ ok: boolean; id: string }> 
   };
   await db.transaction(async (tx) => {
     await tx
-      .insert(urun)
+      .insert(model)
       .values(row)
       .onConflictDoUpdate({
-        target: urun.id,
+        target: model.id,
         set: {
           ad: row.ad,
           kategori: row.kategori,
@@ -172,11 +172,11 @@ export async function urunKaydet(u: Urun): Promise<{ ok: boolean; id: string }> 
       });
 
     // BOM'u tamamen yeniden yaz (geçerli parcaId'leri olan satırlar).
-    await tx.delete(urunParca).where(eq(urunParca.urunId, id));
+    await tx.delete(modelParca).where(eq(modelParca.modelId, id));
     const bom = (u.parcalar ?? [])
       .filter((p) => p.parcaId)
-      .map((p) => ({ urunId: id, parcaId: p.parcaId, miktar: String(p.miktar) }));
-    if (bom.length) await tx.insert(urunParca).values(bom);
+      .map((p) => ({ modelId: id, parcaId: p.parcaId, miktar: String(p.miktar) }));
+    if (bom.length) await tx.insert(modelParca).values(bom);
   });
 
   revalidatePath("/urunler");
@@ -185,12 +185,12 @@ export async function urunKaydet(u: Urun): Promise<{ ok: boolean; id: string }> 
   return { ok: true, id };
 }
 
-export async function urunSil(
+export async function modelSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.delete(urun).where(inArray(urun.id, ids));
+    await db.delete(model).where(inArray(model.id, ids));
     revalidatePath("/urunler");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/");

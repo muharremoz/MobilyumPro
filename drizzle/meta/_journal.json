@@ -22,6 +22,13 @@
       "when": 1781594005313,
       "tag": "0002_fixed_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781600000000,
+      "tag": "0003_urun_to_model",
+      "breakpoints": true
     }
   ]
 }

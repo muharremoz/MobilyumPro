@@ -1,5 +1,5 @@
 import { ProductsTable } from "@/components/products/products-table";
-import { getUrunler } from "@/lib/db/queries";
+import { getModeller } from "@/lib/db/queries";
 
 export default async function UrunlerPage({
   searchParams,
@@ -7,7 +7,7 @@ export default async function UrunlerPage({
   searchParams: Promise<{ kategori?: string }>;
 }) {
   const { kategori = "Tümü" } = await searchParams;
-  const urunler = await getUrunler();
+  const urunler = await getModeller();
   return (
     <ProductsTable
       key={kategori}

@@ -33,7 +33,7 @@ import {
   malzemeler as TUM_MALZEMELER,
   stokHareketleri,
   type StokHareketTuru,
-  type Urun,
+  type Model,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci, flattenParca } from "@/lib/bom";
 
@@ -58,7 +58,7 @@ const SEKMELER: { key: Tab; etiket: string }[] = [
   { key: "varyant", etiket: "Varyant & Maliyet" },
 ];
 
-export function ProductDetailPage({ product }: { product: Urun }) {
+export function ProductDetailPage({ product }: { product: Model }) {
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>("genel");
   const aktif = product.durum === "Aktif";
@@ -271,7 +271,7 @@ function BilgiSatiri({
 }
 
 /* ── Genel ───────────────────────────────────────────────────── */
-function GenelTab({ product }: { product: Urun }) {
+function GenelTab({ product }: { product: Model }) {
   return (
     <Kart baslik="Genel Bilgiler">
       <div className="grid gap-x-8 sm:grid-cols-2">
@@ -289,7 +289,7 @@ function GenelTab({ product }: { product: Urun }) {
 }
 
 /* ── Detay Bilgiler ──────────────────────────────────────────── */
-function DetayTab({ product }: { product: Urun }) {
+function DetayTab({ product }: { product: Model }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <Kart baslik="Ölçü & Fiziksel">
@@ -318,7 +318,7 @@ function DetayTab({ product }: { product: Urun }) {
 }
 
 /* ── Entegrasyon Kodları ─────────────────────────────────────── */
-function EntegrasyonTab({ product }: { product: Urun }) {
+function EntegrasyonTab({ product }: { product: Model }) {
   const numara = product.id.replace(/\D/g, "") || "0000";
   const platformlar = [
     { ad: "Trendyol", on: "TY", aktif: true },
@@ -373,7 +373,7 @@ function EntegrasyonTab({ product }: { product: Urun }) {
 }
 
 /* ── Model Ağacı (Reçete / BOM) ───────────────────────────────── */
-function UrunAgaciTab({ product }: { product: Urun }) {
+function UrunAgaciTab({ product }: { product: Model }) {
   const parcaSatirlari = product.parcalar ?? [];
   const ihtiyac = React.useMemo(
     () => modelMalzemeIhtiyaci(parcaSatirlari, TUM_PARCALAR, TUM_MALZEMELER),
@@ -460,7 +460,7 @@ function UrunAgaciTab({ product }: { product: Urun }) {
 }
 
 /* ── Resimler ────────────────────────────────────────────────── */
-function ResimlerTab({ product }: { product: Urun }) {
+function ResimlerTab({ product }: { product: Model }) {
   const gorseller = product.gorseller ?? [];
   return (
     <Kart
@@ -499,7 +499,7 @@ function ResimlerTab({ product }: { product: Urun }) {
 }
 
 /* ── Kullanıldığı Reçeteler (ters BOM) ───────────────────────── */
-function KullanimTab({ product }: { product: Urun }) {
+function KullanimTab({ product }: { product: Model }) {
   // Bu modeli bileşen olarak içeren parçaları ara (ters arama).
   const kullananlar = TUM_PARCALAR.filter((p) =>
     p.recete.some((s) => s.bilesen.ref === product.id),
@@ -544,10 +544,10 @@ const TUR_IKON: Record<StokHareketTuru, React.ReactNode> = {
 const turDelta = (t: StokHareketTuru, m: number) =>
   t === "Giriş" ? m : t === "Çıkış" ? -m : 0;
 
-function StokAnalizTab({ product }: { product: Urun }) {
+function StokAnalizTab({ product }: { product: Model }) {
   const hareketler = React.useMemo(() => {
     const arr = stokHareketleri
-      .filter((h) => h.ref.tip === "urun" && h.ref.id === product.id)
+      .filter((h) => h.ref.tip === "model" && h.ref.id === product.id)
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
     const net = arr.reduce((s, h) => s + turDelta(h.tur, h.miktar), 0);
     let bakiye = product.stok - net;
@@ -688,7 +688,7 @@ function Ozet({
 }
 
 /* ── Varyant & Maliyet ───────────────────────────────────────── */
-function VaryantMaliyetTab({ product }: { product: Urun }) {
+function VaryantMaliyetTab({ product }: { product: Model }) {
   const varyantlar = product.varyantlar ?? [];
   const ihtiyac = modelMalzemeIhtiyaci(
     product.parcalar ?? [],

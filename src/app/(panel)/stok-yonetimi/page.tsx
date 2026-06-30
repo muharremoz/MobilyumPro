@@ -1,6 +1,6 @@
 import { InventoryPage } from "@/components/inventory/inventory-page";
 import {
-  getUrunler,
+  getModeller,
   getMalzemeler,
   getParcalar,
   getDepolar,
@@ -15,7 +15,7 @@ export default async function StokYonetimiPage({
   const { bolum = "durum" } = await searchParams;
   const [urunler, malzemeler, parcalar, depolar, hareketler] =
     await Promise.all([
-      getUrunler(),
+      getModeller(),
       getMalzemeler(),
       getParcalar(),
       getDepolar(),

@@ -29,7 +29,7 @@ import {
   malzemeler as TUM_MALZEMELER,
   type Kategori,
   type ParcaSatiri,
-  type Urun,
+  type Model,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci } from "@/lib/bom";
 import { cn } from "@/lib/utils";
@@ -79,8 +79,8 @@ export function ProductSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product: Urun | null;
-  onSave: (urun: Urun) => void;
+  product: Model | null;
+  onSave: (urun: Model) => void;
 }) {
   const [form, setForm] = React.useState<Form>(bos);
   const [kategoriler, setKategoriler] = React.useState<string[]>([
@@ -121,7 +121,7 @@ export function ProductSheet({
       toast.error("Model adı gerekli");
       return;
     }
-    const urun: Urun = {
+    const urun: Model = {
       id: form.id.trim() || `URN-${Math.floor(1000 + Math.random() * 9000)}`,
       ad: form.ad.trim(),
       kategori: (form.kategori || "Aksesuar") as Kategori,

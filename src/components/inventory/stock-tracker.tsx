@@ -32,7 +32,7 @@ import {
   formatTarih,
   type StokHareket,
   type StokHareketTuru,
-  type Urun,
+  type Model,
   type Malzeme,
 } from "@/lib/data";
 
@@ -56,7 +56,7 @@ export function StockTracker({
   malzemeler,
 }: {
   hareketler: StokHareket[];
-  urunler: Urun[];
+  urunler: Model[];
   malzemeler: Malzeme[];
 }) {
   const [tip, setTip] = React.useState<Tip>("Model");
@@ -81,7 +81,7 @@ export function StockTracker({
   // o anki bakiyesini hesaplıyoruz. (Transfer net stoğu değiştirmez.)
   const hareketler: (StokHareket & { bakiye: number })[] = React.useMemo(() => {
     if (!secimId) return [];
-    const refTip = tip === "Model" ? "urun" : "malzeme";
+    const refTip = tip === "Model" ? "model" : "malzeme";
     const eskiYeni = tumHareketler
       .filter((h) => h.ref.tip === refTip && h.ref.id === secimId)
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
