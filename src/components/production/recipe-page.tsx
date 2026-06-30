@@ -93,7 +93,7 @@ export function RecipePage({
   if (modeller.length === 0) {
     return (
       <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-        Henüz parçalı (BOM'u olan) model yok. Önce Ürünler sayfasından bir
+        Henüz parçalı (BOM'u olan) model yok. Önce Modeller sayfasından bir
         modele parça ekleyin.
       </div>
     );

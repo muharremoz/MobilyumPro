@@ -118,7 +118,7 @@ export function ProductSheet({
 
   function kaydet() {
     if (!form.ad.trim()) {
-      toast.error("Ürün adı gerekli");
+      toast.error("Model adı gerekli");
       return;
     }
     const urun: Urun = {
@@ -131,7 +131,7 @@ export function ProductSheet({
       parcalar: urunParcalar.length > 0 ? urunParcalar : undefined,
     };
     onSave(urun);
-    toast.success(duzenleme ? "Ürün güncellendi" : "Ürün eklendi");
+    toast.success(duzenleme ? "Model güncellendi" : "Model eklendi");
     onOpenChange(false);
   }
 
@@ -184,7 +184,7 @@ export function ProductSheet({
     <FormSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={duzenleme ? "Ürünü Düzenle" : "Yeni Ürün"}
+      title={duzenleme ? "Modeli Düzenle" : "Yeni Model"}
       icon={RockingChairIcon}
       onSave={kaydet}
       contentClassName="p-0"
@@ -222,7 +222,7 @@ export function ProductSheet({
       {tab === "bilgi" && (
       <div className="grid gap-2.5">
         <IconInput
-          label="Ürün Adı"
+          label="Model Adı"
           icon={RockingChairIcon}
           placeholder="Örn. Milano Koltuk Takımı"
           value={form.ad}

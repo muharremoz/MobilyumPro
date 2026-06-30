@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       icon: ShoppingCart,
     },
     {
-      baslik: "Ürünler",
+      baslik: "Modeller",
       deger: ozet.urunSayisi.toString(),
       alt: "Katalogda",
       icon: Sofa,
@@ -97,9 +97,9 @@ export default async function DashboardPage() {
           <CardContent className="flex items-center gap-3 py-4">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
             <p className="text-sm">
-              <span className="font-medium">{ozet.kritikStok}</span> ürün kritik
+              <span className="font-medium">{ozet.kritikStok}</span> model kritik
               stokta,{" "}
-              <span className="font-medium">{ozet.tukenenStok}</span> ürün tükendi.
+              <span className="font-medium">{ozet.tukenenStok}</span> model tükendi.
             </p>
             <Button
               variant="outline"

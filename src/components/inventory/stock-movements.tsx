@@ -66,7 +66,7 @@ export function StockMovements({
         <div className="relative min-w-56 flex-1">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Hareket, ürün veya malzeme ara..."
+            placeholder="Hareket, model veya malzeme ara..."
             value={arama}
             onChange={(e) => setArama(e.target.value)}
             className="h-9 pl-9"
@@ -116,7 +116,7 @@ export function StockMovements({
                 <TableCell className="font-medium">
                   {refAd(h.ref)}
                   <span className="ml-2 text-[10px] text-muted-foreground/70">
-                    {h.ref.tip === "urun" ? "Ürün" : "Malzeme"}
+                    {h.ref.tip === "urun" ? "Model" : "Malzeme"}
                   </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">

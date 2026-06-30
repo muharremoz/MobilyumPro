@@ -55,8 +55,8 @@ function getCrumbs(
     return {
       crumbs: [
         { label: "Stok Yönetimi" },
-        { label: "Ürünler", href: "/urunler" },
-        { label: "Yeni Ürün" },
+        { label: "Modeller", href: "/urunler" },
+        { label: "Yeni Model" },
       ],
       Icon: iconForHref("/urunler"),
     };
@@ -67,8 +67,8 @@ function getCrumbs(
     return {
       crumbs: [
         { label: "Stok Yönetimi" },
-        { label: "Ürünler", href: "/urunler" },
-        { label: urun?.ad ?? "Ürün", href: `/urunler/${id}` },
+        { label: "Modeller", href: "/urunler" },
+        { label: urun?.ad ?? "Model", href: `/urunler/${id}` },
         { label: "Düzenle" },
       ],
       Icon: iconForHref("/urunler"),
@@ -80,8 +80,8 @@ function getCrumbs(
     return {
       crumbs: [
         { label: "Stok Yönetimi" },
-        { label: "Ürünler", href: "/urunler" },
-        { label: urun?.ad ?? "Ürün" },
+        { label: "Modeller", href: "/urunler" },
+        { label: urun?.ad ?? "Model" },
       ],
       Icon: iconForHref("/urunler"),
       meta: urun?.id,

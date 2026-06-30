@@ -37,7 +37,7 @@ export function SheetTest() {
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <div className="grid gap-2.5">
-            <IconInput label="Ürün Adı" icon={RockingChairIcon} placeholder="Örn. Milano Koltuk Takımı" />
+            <IconInput label="Model Adı" icon={RockingChairIcon} placeholder="Örn. Milano Koltuk Takımı" />
             <IconInput label="Kod" icon={ScanTextIcon} placeholder="URN-0000" />
 
             {/* Kategori — select, etiket yanında animasyonlu ikon */}

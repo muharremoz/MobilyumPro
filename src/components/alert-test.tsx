@@ -18,8 +18,8 @@ export function AlertTest() {
         open={open}
         onOpenChange={setOpen}
         icon={CircleHelpIcon}
-        title="Ürünü silmek istiyor musun?"
-        description="Bu işlem geri alınamaz. Ürün kalıcı olarak silinecek."
+        title="Modeli silmek istiyor musun?"
+        description="Bu işlem geri alınamaz. Model kalıcı olarak silinecek."
         destructive
         confirmLabel="Evet, Sil"
         onConfirm={() => {

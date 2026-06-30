@@ -169,7 +169,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <NavItem
                 item={{
-                  baslik: "Ürünler",
+                  baslik: "Modeller",
                   href: "/urunler",
                   Icon: RockingChairIcon as AnimatedIcon,
                 }}

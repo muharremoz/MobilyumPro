@@ -61,7 +61,7 @@ export const TABS: Record<TabKey, { label: string; tekil: string }> = {
 
 // Sol menü grupları (alt menü).
 export const MENU: { label: string; keys: TabKey[] }[] = [
-  { label: "Ürün", keys: ["kategoriler", "markalar", "koleksiyonlar"] },
+  { label: "Model", keys: ["kategoriler", "markalar", "koleksiyonlar"] },
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
 ];
 

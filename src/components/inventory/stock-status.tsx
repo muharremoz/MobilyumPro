@@ -80,7 +80,7 @@ export function StockStatus({ urunler }: { urunler: Urun[] }) {
         <div className="relative min-w-56 flex-1">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Ürün veya kod ara..."
+            placeholder="Model veya kod ara..."
             value={arama}
             onChange={(e) => setArama(e.target.value)}
             className="h-9 pl-9"
@@ -101,7 +101,7 @@ export function StockStatus({ urunler }: { urunler: Urun[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Kod</TableHead>
-              <TableHead>Ürün</TableHead>
+              <TableHead>Model</TableHead>
               <TableHead>Kategori</TableHead>
               <TableHead className="text-right">Stok</TableHead>
               <TableHead>Durum</TableHead>
@@ -144,7 +144,7 @@ export function StockStatus({ urunler }: { urunler: Urun[] }) {
         </Table>
       </div>
       <span className="text-sm text-muted-foreground">
-        {filtreli.length} ürün
+        {filtreli.length} model
       </span>
     </div>
   );

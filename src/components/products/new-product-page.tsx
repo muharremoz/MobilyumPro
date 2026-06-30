@@ -131,7 +131,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
 
   async function kaydet() {
     if (!form.ad.trim()) {
-      toast.error("Ürün adı gerekli");
+      toast.error("Model adı gerekli");
       return;
     }
     if (!form.kategori.trim()) {
@@ -156,10 +156,10 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
     };
     const res = await urunKaydet(u);
     if (!res.ok) {
-      toast.error("Ürün kaydedilemedi");
+      toast.error("Model kaydedilemedi");
       return;
     }
-    toast.success(duzenleme ? "Ürün güncellendi" : "Ürün eklendi");
+    toast.success(duzenleme ? "Model güncellendi" : "Model eklendi");
     router.push("/urunler");
   }
 
@@ -243,7 +243,7 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
           <ArrowLeft className="size-4" />
         </Button>
         <h1 className="text-xl font-semibold">
-          {duzenleme ? "Ürünü Düzenle" : "Yeni Ürün"}
+          {duzenleme ? "Modeli Düzenle" : "Yeni Model"}
         </h1>
         {duzenleme && product?.id && (
           <span className="font-mono text-xs text-muted-foreground">
@@ -263,11 +263,11 @@ export function NewProductPage({ product }: { product?: Urun } = {}) {
         <div className="lg:col-span-2">
           <div className="rounded-md border bg-card">
             <div className="border-b px-4 py-2.5">
-              <span className="text-sm font-medium">Ürün Bilgileri</span>
+              <span className="text-sm font-medium">Model Bilgileri</span>
             </div>
             <div className="grid gap-3 p-4">
               <IconInput
-                label="Ürün Adı"
+                label="Model Adı"
                 icon={RockingChairIcon}
                 placeholder="Örn. Milano Koltuk Takımı"
                 value={form.ad}

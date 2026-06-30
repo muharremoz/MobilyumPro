@@ -51,7 +51,7 @@ const SEKMELER: { key: Tab; etiket: string }[] = [
   { key: "genel", etiket: "Genel" },
   { key: "detay", etiket: "Detay Bilgiler" },
   { key: "entegrasyon", etiket: "Entegrasyon Kodları" },
-  { key: "agac", etiket: "Ürün Ağacı" },
+  { key: "agac", etiket: "Model Ağacı" },
   { key: "resimler", etiket: "Resimler" },
   { key: "kullanim", etiket: "Kullanıldığı Reçeteler" },
   { key: "analiz", etiket: "Stok Analiz" },
@@ -275,8 +275,8 @@ function GenelTab({ product }: { product: Urun }) {
   return (
     <Kart baslik="Genel Bilgiler">
       <div className="grid gap-x-8 sm:grid-cols-2">
-        <BilgiSatiri etiket="Ürün Adı" deger={product.ad} />
-        <BilgiSatiri etiket="Ürün Kodu" deger={product.id} />
+        <BilgiSatiri etiket="Model Adı" deger={product.ad} />
+        <BilgiSatiri etiket="Model Kodu" deger={product.id} />
         <BilgiSatiri etiket="Kategori" deger={product.kategori} />
         <BilgiSatiri etiket="Marka" deger={product.marka ?? "—"} />
         <BilgiSatiri etiket="Barkod" deger={product.barkod ?? "—"} />
@@ -372,7 +372,7 @@ function EntegrasyonTab({ product }: { product: Urun }) {
   );
 }
 
-/* ── Ürün Ağacı (Reçete / BOM) ───────────────────────────────── */
+/* ── Model Ağacı (Reçete / BOM) ───────────────────────────────── */
 function UrunAgaciTab({ product }: { product: Urun }) {
   const parcaSatirlari = product.parcalar ?? [];
   const ihtiyac = React.useMemo(
@@ -384,7 +384,7 @@ function UrunAgaciTab({ product }: { product: Urun }) {
   if (parcaSatirlari.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
-        Bu ürünün ağacı (reçetesi) tanımlı değil. Parça eklemek için ürünü
+        Bu modelin ağacı (reçetesi) tanımlı değil. Parça eklemek için modeli
         düzenleyin.
       </div>
     );
@@ -464,7 +464,7 @@ function ResimlerTab({ product }: { product: Urun }) {
   const gorseller = product.gorseller ?? [];
   return (
     <Kart
-      baslik="Ürün Resimleri"
+      baslik="Model Resimleri"
       sag={
         <span className="text-xs text-muted-foreground">
           {gorseller.length} görsel
@@ -500,7 +500,7 @@ function ResimlerTab({ product }: { product: Urun }) {
 
 /* ── Kullanıldığı Reçeteler (ters BOM) ───────────────────────── */
 function KullanimTab({ product }: { product: Urun }) {
-  // Bu ürünü bileşen olarak içeren parçaları ara (ters arama).
+  // Bu modeli bileşen olarak içeren parçaları ara (ters arama).
   const kullananlar = TUM_PARCALAR.filter((p) =>
     p.recete.some((s) => s.bilesen.ref === product.id),
   );
@@ -523,7 +523,7 @@ function KullanimTab({ product }: { product: Urun }) {
         </div>
       ) : (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Bu ürün, başka bir reçetede bileşen olarak kullanılmıyor.
+          Bu model, başka bir reçetede bileşen olarak kullanılmıyor.
         </p>
       )}
     </Kart>
@@ -652,7 +652,7 @@ function StokAnalizTab({ product }: { product: Urun }) {
                   colSpan={7}
                   className="h-20 text-center text-muted-foreground"
                 >
-                  Bu ürün için kayıtlı hareket yok.
+                  Bu model için kayıtlı hareket yok.
                 </TableCell>
               </TableRow>
             )}
@@ -768,7 +768,7 @@ function VaryantMaliyetTab({ product }: { product: Urun }) {
           <div className="grid gap-1">
             <BilgiSatiri etiket="Satış Fiyatı" deger={formatTL(product.fiyat)} />
             <p className="pt-2 text-xs text-muted-foreground">
-              Malzeme maliyeti için ürünün reçetesi (parçaları) tanımlı olmalı.
+              Malzeme maliyeti için modelin reçetesi (parçaları) tanımlı olmalı.
             </p>
           </div>
         )}

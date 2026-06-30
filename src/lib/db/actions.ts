@@ -196,7 +196,7 @@ export async function urunSil(
     revalidatePath("/");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Üretim emri olan ürün silinemez." };
+    return { ok: false, error: "Üretim emri olan model silinemez." };
   }
 }
 
@@ -256,7 +256,7 @@ export async function parcaSil(
   } catch {
     return {
       ok: false,
-      error: "Başka reçetede/üründe kullanılan parça silinemez.",
+      error: "Başka reçetede/modelde kullanılan parça silinemez.",
     };
   }
 }

@@ -87,7 +87,7 @@ export const sections: Section[] = [
     label: "Stok Yönetimi",
     RailIcon: I(BoxesIcon),
     items: [
-      { label: "Ürünler", href: "/urunler", icon: I(RockingChairIcon) },
+      { label: "Modeller", href: "/urunler", icon: I(RockingChairIcon) },
       { groupHeader: "Stok", label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
       { label: "Stok Takip", href: "/stok-yonetimi?bolum=takip", icon: I(ActivityIcon) },
       { label: "Stok Hareketleri", href: "/stok-yonetimi?bolum=hareketler", icon: I(HistoryIcon) },
@@ -174,7 +174,7 @@ export const sections: Section[] = [
     RailIcon: I(TurkishLiraIcon),
     items: [
       { label: "Maliyet Analizi", href: "#", icon: I(ChartLineIcon) },
-      { label: "Ürün Maliyetleri", href: "#", icon: I(TurkishLiraIcon) },
+      { label: "Model Maliyetleri", href: "#", icon: I(TurkishLiraIcon) },
       { label: "Gider Merkezleri", href: "#", icon: I(BlocksIcon) },
       { label: "Fiyatlandırma", href: "#", icon: I(BadgePercentIcon) },
     ],

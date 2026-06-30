@@ -187,7 +187,7 @@ export function ProductsTable({
     });
     const res = await urunSil(ids);
     if (res.ok) {
-      toast.success(`${ids.length} ürün silindi`);
+      toast.success(`${ids.length} model silindi`);
     } else {
       setListe((l) => [...kaldirilan, ...l]);
       toast.error(res.error ?? "Silinemedi.");
@@ -202,7 +202,7 @@ export function ProductsTable({
     };
     setListe((l) => [kopya, ...l]);
     await urunKaydet(kopya);
-    toast.success("Ürün kopyalandı");
+    toast.success("Model kopyalandı");
   }
 
   // Context menü yardımcıları
@@ -431,7 +431,7 @@ export function ProductsTable({
         <div className="relative min-w-56 flex-1">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Ürün veya kod ara..."
+            placeholder="Model veya kod ara..."
             value={arama}
             onChange={(e) => setArama(e.target.value)}
             className="h-9 pl-9"
@@ -442,14 +442,14 @@ export function ProductsTable({
           nativeButton={false}
           render={<Link href="/urunler/yeni" />}
         >
-          <Plus className="size-4" /> Yeni Ürün
+          <Plus className="size-4" /> Yeni Model
         </Button>
       </div>
 
       {/* Toplu işlem çubuğu */}
       {secili.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
-          <span className="font-medium">{secili.size} ürün seçili</span>
+          <span className="font-medium">{secili.size} model seçili</span>
           <Button
             variant="outline"
             size="sm"
@@ -478,7 +478,7 @@ export function ProductsTable({
                 />
               </TableHead>
               <SortBaslik k="id">Kod</SortBaslik>
-              <SortBaslik k="ad">Ürün</SortBaslik>
+              <SortBaslik k="ad">Model</SortBaslik>
               <SortBaslik k="kategori">Kategori</SortBaslik>
               <SortBaslik k="fiyat" className="text-right">
                 Fiyat
@@ -693,7 +693,7 @@ export function ProductsTable({
       {/* Sayfalama */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          {filtreli.length} ürün
+          {filtreli.length} model
           {secili.size > 0 ? ` · ${secili.size} seçili` : ""}
         </span>
         <div className="flex items-center gap-2">
