@@ -43,7 +43,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SearchSelect } from "@/components/ui/search-select";
 import {
   Popover,
   PopoverContent,
@@ -441,23 +440,6 @@ export function ProductsTable({
             value={arama}
             onChange={(e) => setArama(e.target.value)}
             className="h-9 pl-9"
-          />
-        </div>
-        <div className="w-44">
-          <SearchSelect
-            items={["Tümü", ...KATEGORILER]}
-            value={kategori}
-            onValueChange={(v) => setKategori(v ?? "Tümü")}
-            placeholder="Kategori"
-            searchPlaceholder="Kategori ara..."
-          />
-        </div>
-        <div className="w-36">
-          <SearchSelect
-            items={["Tümü", "Aktif", "Pasif"]}
-            value={durum}
-            onValueChange={(v) => setDurum(v ?? "Tümü")}
-            placeholder="Durum"
           />
         </div>
         <Button
