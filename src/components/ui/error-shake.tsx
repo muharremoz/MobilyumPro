@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
  *   // geçersiz submit'te: setNonce(n => n + 1)  → hatalı alanlar sallanır
  *
  * `error` doluyken border destructive'e döner ve mesaj görünür; error
- * temizlenince --revert-dur ile nötrüne söner. Mesaj absolute konumlanır,
- * akışta yer kaplamaz (form ritmi bozulmaz).
+ * temizlenince --revert-dur ile nötrüne söner. Mesaj absolute konumlanır
+ * (alanın üstünde, sağa yaslı — etiketle aynı satır), akışta yer kaplamaz.
  */
 export function ErrorShakeField({
   error,
@@ -65,7 +65,7 @@ export function ErrorShakeField({
       >
         {children}
       </div>
-      <p className="t-error-msg pointer-events-none absolute top-full left-0 mt-1 text-xs text-destructive">
+      <p className="t-error-msg pointer-events-none absolute right-0 bottom-full mb-1.5 text-right text-xs text-destructive">
         {error ?? sonMesaj}
       </p>
     </div>
