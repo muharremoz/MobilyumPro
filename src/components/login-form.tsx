@@ -52,21 +52,19 @@ export function LoginForm({
           />
         </Field>
         <Field>
-          <div className="flex items-center">
-            <FieldLabel htmlFor="password">Şifre</FieldLabel>
-            <a
-              href="#"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              Şifrenizi mi unuttunuz?
-            </a>
-          </div>
+          <FieldLabel htmlFor="password">Şifre</FieldLabel>
           <Input id="password" type="password" className="h-10" required />
         </Field>
         <Field>
           <Button type="submit" className="h-10">
             Giriş Yap
           </Button>
+          <a
+            href="#"
+            className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Şifrenizi mi unuttunuz?
+          </a>
         </Field>
       </FieldGroup>
     </form>

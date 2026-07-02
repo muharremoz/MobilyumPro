@@ -25,6 +25,9 @@ export default async function LoginPage() {
             <LoginForm veritabanlari={veritabanlari} />
           </div>
         </div>
+        <p className="text-center text-xs text-muted-foreground md:text-left">
+          © {new Date().getFullYear()} MobilyumPro · Mobilya Yönetim Paneli
+        </p>
       </div>
       <div className="relative hidden overflow-hidden bg-white lg:block">
         <HexagonPattern
