@@ -1,6 +1,7 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
 
 import { LoginForm } from "@/components/login-form"
+import { LoginUpdates } from "@/components/login-updates"
 import { HexagonPattern } from "@/components/ui/hexagon-pattern"
 import { getVeritabanlari } from "@/lib/db/queries"
 
@@ -35,6 +36,9 @@ export default async function LoginPage() {
           gap={6}
           className="fill-gray-400/15 stroke-gray-400/35 [mask-image:radial-gradient(ellipse_at_center,white,transparent_95%)]"
         />
+        <div className="absolute inset-0 flex items-center justify-center p-10">
+          <LoginUpdates />
+        </div>
       </div>
     </div>
   )

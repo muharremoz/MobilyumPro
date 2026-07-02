@@ -63,7 +63,7 @@ export function LoginForm({
       onSubmit={onSubmit}
       {...props}
     >
-      <FieldGroup>
+      <FieldGroup className="gap-4">
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Hesabınıza giriş yapın</h1>
           <p className="text-sm text-balance text-muted-foreground">
