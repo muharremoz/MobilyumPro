@@ -1,8 +1,11 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
+import { Great_Vibes } from "next/font/google"
 
-import { AppleHelloEffectEnglish } from "@/components/apple-hello-effect-english"
 import { LoginForm } from "@/components/login-form"
+import { MerhabaEffect } from "@/components/merhaba-effect"
 import { HexagonPattern } from "@/components/ui/hexagon-pattern"
+
+const elYazisi = Great_Vibes({ weight: "400", subsets: ["latin"] })
 import { getVeritabanlari } from "@/lib/db/queries"
 
 // Veritabanı listesi her istekte sunucudan okunur (build'de donmasın).
@@ -34,10 +37,12 @@ export default async function LoginPage() {
         <HexagonPattern
           radius={32}
           gap={6}
-          className="fill-gray-400/25 stroke-gray-500/50 [mask-image:radial-gradient(ellipse_at_center,white,transparent_95%)]"
+          className="fill-gray-400/15 stroke-gray-400/35 [mask-image:radial-gradient(ellipse_at_center,white,transparent_95%)]"
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <AppleHelloEffectEnglish className="h-24 text-neutral-800" />
+          <MerhabaEffect
+            className={`${elYazisi.className} text-8xl text-neutral-800`}
+          />
         </div>
       </div>
     </div>
