@@ -274,6 +274,30 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
   };
 }
 
+/** Kullanıcı listesi görünümü (şifre hash'i asla dışarı çıkmaz). */
+export type KullaniciGorunum = {
+  id: string;
+  kullaniciAdi: string;
+  adSoyad: string;
+  email?: string;
+  rol: string;
+  durum: Durum;
+  olusturma: string;
+};
+
+export async function getKullanicilar(): Promise<KullaniciGorunum[]> {
+  const rows = await db.kullanici.findMany({ orderBy: { id: "asc" } });
+  return rows.map((k) => ({
+    id: k.id,
+    kullaniciAdi: k.kullaniciAdi,
+    adSoyad: k.adSoyad,
+    email: k.email ?? undefined,
+    rol: k.rol,
+    durum: k.durum as Durum,
+    olusturma: tarihStr(k.olusturma),
+  }));
+}
+
 /** Sunucudaki kullanıcı veritabanları (login formundaki seçim için). */
 export async function getVeritabanlari(): Promise<string[]> {
   const rows = await db.$queryRaw<{ name: string }[]>`

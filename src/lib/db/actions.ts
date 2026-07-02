@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
+import { sifreHashle } from "./sifre";
 import type {
   UretimDurum,
   UretimOncelik,
@@ -255,6 +256,79 @@ export async function depoSil(
     return { ok: true };
   } catch {
     return { ok: false, error: "Depo silinemedi." };
+  }
+}
+
+// ── Kullanıcı yönetimi ──────────────────────────────────────────────────
+
+export type KullaniciKayit = {
+  id?: string;
+  adSoyad: string;
+  kullaniciAdi: string;
+  email?: string;
+  rol: string;
+  durum: "Aktif" | "Pasif";
+  /** Yeni kayıtta zorunlu; düzenlemede boş bırakılırsa şifre değişmez. */
+  sifre?: string;
+};
+
+/** Kullanıcı ekle/güncelle. Yeni kayıtta USR-#### üretir, şifreyi hash'ler. */
+export async function kullaniciKaydet(
+  k: KullaniciKayit,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    let id = k.id;
+    if (!id) {
+      if (!k.sifre) return { ok: false, error: "Şifre zorunludur." };
+      const mevcut = await db.kullanici.findMany({ select: { id: true } });
+      let maxNo = 1000;
+      for (const r of mevcut) {
+        const m = /^USR-(\d+)$/.exec(r.id);
+        if (m) maxNo = Math.max(maxNo, Number(m[1]));
+      }
+      id = `USR-${maxNo + 1}`;
+    }
+    const ortak = {
+      kullaniciAdi: k.kullaniciAdi.trim(),
+      adSoyad: k.adSoyad.trim(),
+      email: k.email?.trim() || null,
+      rol: k.rol,
+      durum: k.durum,
+    };
+    await db.kullanici.upsert({
+      where: { id },
+      create: {
+        id,
+        ...ortak,
+        sifreHash: sifreHashle(k.sifre!),
+        olusturma: tarihDate(new Date().toISOString().slice(0, 10)),
+      },
+      update: {
+        ...ortak,
+        // Şifre yalnızca yeni bir değer girildiyse güncellenir.
+        ...(k.sifre ? { sifreHash: sifreHashle(k.sifre) } : {}),
+      },
+    });
+    revalidatePath("/kullanicilar");
+    return { ok: true, id };
+  } catch (e) {
+    // Prisma P2002: unique ihlali (kullanici_adi)
+    if ((e as { code?: string })?.code === "P2002")
+      return { ok: false, error: "Bu kullanıcı adı zaten kullanılıyor." };
+    return { ok: false, error: "Kullanıcı kaydedilemedi." };
+  }
+}
+
+export async function kullaniciSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.kullanici.deleteMany({ where: { id: { in: ids } } });
+    revalidatePath("/kullanicilar");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Kullanıcı silinemedi." };
   }
 }
 

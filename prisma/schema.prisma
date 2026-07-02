@@ -195,6 +195,21 @@ model CariIslem {
   @@map("cari_islem")
 }
 
+// ── Kullanıcı (giriş + yetkilendirme) ───────────────────────────────────
+model Kullanici {
+  id           String   @id
+  kullaniciAdi String   @unique @map("kullanici_adi")
+  adSoyad      String   @map("ad_soyad")
+  email        String?
+  // scrypt: "salt:hash" (hex) — düz şifre asla saklanmaz.
+  sifreHash    String   @map("sifre_hash")
+  rol          String   @default("Kullanıcı")
+  durum        String   @default("Aktif")
+  olusturma    DateTime @db.Date
+
+  @@map("kullanici")
+}
+
 // ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
 model StokHareket {
   id       String   @id
