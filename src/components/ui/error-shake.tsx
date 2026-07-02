@@ -9,29 +9,29 @@ import { cn } from "@/lib/utils";
  * .t-input-wrap / .t-input / .t-error-msg kurallarıyla çalışır).
  *
  * Kullanım:
- *   const ref = React.useRef<ErrorShakeHandle>(null);
- *   <ErrorShakeField ref={ref} error={hata}>
+ *   const [nonce, setNonce] = React.useState(0);
+ *   <ErrorShakeField error={hata} shakeNonce={nonce}>
  *     <Input ... />
  *   </ErrorShakeField>
- *   // geçersiz submit'te: ref.current?.shake()
+ *   // geçersiz submit'te: setNonce(n => n + 1)  → hatalı alanlar sallanır
  *
- * `error` doluyken border destructive'e döner ve mesaj görünür;
- * error temizlenince --revert-dur ile nötrüne söner.
+ * `error` doluyken border destructive'e döner ve mesaj görünür; error
+ * temizlenince --revert-dur ile nötrüne söner. Mesaj absolute konumlanır,
+ * akışta yer kaplamaz (form ritmi bozulmaz).
  */
-export type ErrorShakeHandle = { shake: () => void };
-
 export function ErrorShakeField({
-  ref,
   error,
+  shakeNonce = 0,
   children,
   className,
 }: {
-  ref?: React.Ref<ErrorShakeHandle>;
   error?: string | null;
+  /** Her artışta (error doluysa) shake yeniden tetiklenir. */
+  shakeNonce?: number;
   children: React.ReactNode;
   className?: string;
 }) {
-  const kutu = React.useRef<HTMLDivElement>(null);
+  const [sallaniyor, setSallaniyor] = React.useState(false);
 
   // Hata temizlendiğinde mesaj, fade-out bitene dek boyalı kalsın diye
   // son mesajı sakla (görünürlüğü .is-error yönetir).
@@ -40,28 +40,32 @@ export function ErrorShakeField({
     if (error) setSonMesaj(error);
   }, [error]);
 
-  React.useImperativeHandle(ref, () => ({
-    shake() {
-      const el = kutu.current;
-      if (!el) return;
-      el.classList.remove("is-shaking");
-      void el.offsetWidth; // reflow: animasyonu baştan başlat
-      el.classList.add("is-shaking");
-    },
-  }));
+  // is-shaking'i state ile yönet: sınıfı düşür → bir frame bekle → geri tak.
+  // (classList ile eklemek işe yaramaz; React render'ı className'i ezer.)
+  React.useEffect(() => {
+    if (!error) return;
+    setSallaniyor(false);
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setSallaniyor(true)),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [error, shakeNonce]);
 
   return (
     <div
-      className={cn(
-        "t-input-wrap flex flex-col gap-1.5",
-        error && "is-error",
-        className,
-      )}
+      className={cn("t-input-wrap relative", error && "is-error", className)}
     >
-      <div ref={kutu} className={cn("t-input", error && "is-error")}>
+      <div
+        className={cn(
+          "t-input",
+          error && "is-error",
+          sallaniyor && "is-shaking",
+        )}
+        onAnimationEnd={() => setSallaniyor(false)}
+      >
         {children}
       </div>
-      <p className="t-error-msg min-h-4 text-xs text-destructive">
+      <p className="t-error-msg pointer-events-none absolute top-full left-0 mt-1 text-xs text-destructive">
         {error ?? sonMesaj}
       </p>
     </div>

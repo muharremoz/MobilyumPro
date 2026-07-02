@@ -4,10 +4,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  ErrorShakeField,
-  type ErrorShakeHandle,
-} from "@/components/ui/error-shake"
+import { ErrorShakeField } from "@/components/ui/error-shake"
 import {
   Field,
   FieldGroup,
@@ -31,10 +28,7 @@ export function LoginForm({
     veritabanlari[0] ?? null,
   )
   const [hatalar, setHatalar] = React.useState<Hatalar>({})
-
-  const veritabaniRef = React.useRef<ErrorShakeHandle>(null)
-  const kullaniciRef = React.useRef<ErrorShakeHandle>(null)
-  const sifreRef = React.useRef<ErrorShakeHandle>(null)
+  const [shakeNonce, setShakeNonce] = React.useState(0)
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -52,9 +46,7 @@ export function LoginForm({
 
     setHatalar(yeni)
     if (Object.keys(yeni).length > 0) {
-      if (yeni.veritabani) veritabaniRef.current?.shake()
-      if (yeni.kullanici) kullaniciRef.current?.shake()
-      if (yeni.sifre) sifreRef.current?.shake()
+      setShakeNonce((n) => n + 1)
       // --revert-hold sonrasında hata durumu nötrüne döner.
       clearTimeout(revertTimer.current)
       revertTimer.current = setTimeout(() => setHatalar({}), 3000)
@@ -80,7 +72,7 @@ export function LoginForm({
         </div>
         <Field>
           <FieldLabel htmlFor="veritabani">Veritabanı</FieldLabel>
-          <ErrorShakeField ref={veritabaniRef} error={hatalar.veritabani}>
+          <ErrorShakeField error={hatalar.veritabani} shakeNonce={shakeNonce}>
             <SearchSelect
               items={veritabanlari}
               value={veritabani}
@@ -94,7 +86,7 @@ export function LoginForm({
         </Field>
         <Field>
           <FieldLabel htmlFor="kullanici">Kullanıcı</FieldLabel>
-          <ErrorShakeField ref={kullaniciRef} error={hatalar.kullanici}>
+          <ErrorShakeField error={hatalar.kullanici} shakeNonce={shakeNonce}>
             <Input
               id="kullanici"
               name="kullanici"
@@ -106,7 +98,7 @@ export function LoginForm({
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Şifre</FieldLabel>
-          <ErrorShakeField ref={sifreRef} error={hatalar.sifre}>
+          <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
             <Input id="password" name="sifre" type="password" className="h-10" />
           </ErrorShakeField>
         </Field>
