@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  MoreHorizontal,
   Pencil,
   Trash2,
   ChevronUp,
@@ -14,6 +13,8 @@ import {
   ArrowDownWideNarrow,
   Check,
   Wand2,
+  Copy,
+  Power,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,11 +45,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Popover,
   PopoverContent,
@@ -77,8 +78,8 @@ const ROL_RENK: Record<string, string> = {
   Görüntüleyici: "bg-slate-100 text-slate-700",
 };
 const SAYFA_BOYUT = 8;
-type SortKey = "id" | "adSoyad" | "kullaniciAdi" | "email" | "rol" | "durum" | "olusturma";
-type MetinKolon = "id" | "adSoyad" | "kullaniciAdi" | "email";
+type SortKey = "adSoyad" | "email" | "telefon" | "departman" | "rol" | "durum";
+type MetinKolon = "adSoyad" | "email" | "telefon";
 
 export function KullanicilarTable({
   kullanicilar,
@@ -92,11 +93,12 @@ export function KullanicilarTable({
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
     Record<MetinKolon, string>
-  >({ id: "", adSoyad: "", kullaniciAdi: "", email: "" });
+  >({ adSoyad: "", email: "", telefon: "" });
   const [rol, setRol] = React.useState("Tümü");
+  const [departman, setDepartman] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
-    { key: "id", dir: "asc" },
+    { key: "adSoyad", dir: "asc" },
   );
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
@@ -129,19 +131,19 @@ export function KullanicilarTable({
     }
   }
 
-  React.useEffect(() => setSayfa(1), [metinFiltre, rol, durum]);
+  React.useEffect(() => setSayfa(1), [metinFiltre, rol, departman, durum]);
 
   const filtreli = React.useMemo(() => {
     const arr = liste.filter((k) => {
       const metin = (Object.keys(metinFiltre) as MetinKolon[]).every((kol) => {
         const q = metinFiltre[kol].toLowerCase();
         if (!q) return true;
-        const deger = kol === "email" ? (k.email ?? "") : k[kol];
-        return deger.toLowerCase().includes(q);
+        return (k[kol] ?? "").toLowerCase().includes(q);
       });
       const r = rol === "Tümü" || k.rol === rol;
+      const dep = departman === "Tümü" || k.departman === departman;
       const d = durum === "Tümü" || k.durum === durum;
-      return metin && r && d;
+      return metin && r && dep && d;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort(
@@ -151,7 +153,7 @@ export function KullanicilarTable({
           "tr",
         ) * yon,
     );
-  }, [liste, metinFiltre, rol, durum, sort]);
+  }, [liste, metinFiltre, rol, departman, durum, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -229,6 +231,24 @@ export function KullanicilarTable({
     return true;
   }
 
+  async function durumDegistir(k: KullaniciGorunum) {
+    const yeniDurum = k.durum === "Aktif" ? ("Pasif" as const) : ("Aktif" as const);
+    await kaydet({
+      id: k.id,
+      adSoyad: k.adSoyad,
+      email: k.email,
+      telefon: k.telefon,
+      departman: k.departman,
+      rol: k.rol,
+      durum: yeniDurum,
+    });
+  }
+
+  function panoyaKopyala(deger: string, etiket: string) {
+    navigator.clipboard.writeText(deger);
+    toast.success(`${etiket} kopyalandı`);
+  }
+
   const sortIkon = (k: SortKey) =>
     sort.key !== k ? (
       <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
@@ -240,15 +260,15 @@ export function KullanicilarTable({
 
   const kolonFiltreAktif = (k: SortKey) => {
     if (k === "rol") return rol !== "Tümü";
+    if (k === "departman") return departman !== "Tümü";
     if (k === "durum") return durum !== "Tümü";
-    if (k === "olusturma") return false;
     return metinFiltre[k as MetinKolon] !== "";
   };
   const kolonFiltreTemizle = (k: SortKey) => {
     if (k === "rol") setRol("Tümü");
+    else if (k === "departman") setDepartman("Tümü");
     else if (k === "durum") setDurum("Tümü");
-    else if (k !== "olusturma")
-      setMetinFiltre((f) => ({ ...f, [k]: "" }));
+    else setMetinFiltre((f) => ({ ...f, [k]: "" }));
   };
 
   const ogeCls = (seciliMi: boolean) =>
@@ -312,64 +332,64 @@ export function KullanicilarTable({
               </button>
             </div>
 
-            {k !== "olusturma" && (
+            <div className="my-1.5 h-px bg-border" />
+            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Filtre
+            </p>
+
+            {(k === "rol" || k === "departman" || k === "durum") && (
+              <div className="grid max-h-56 gap-0.5 overflow-auto">
+                {(k === "rol"
+                  ? ["Tümü", ...roller]
+                  : k === "departman"
+                    ? ["Tümü", ...departmanlar]
+                    : ["Tümü", "Aktif", "Pasif"]
+                ).map((v) => {
+                  const seciliDeger =
+                    k === "rol" ? rol : k === "departman" ? departman : durum;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      className={ogeCls(seciliDeger === v)}
+                      onClick={() =>
+                        k === "rol"
+                          ? setRol(v)
+                          : k === "departman"
+                            ? setDepartman(v)
+                            : setDurum(v)
+                      }
+                    >
+                      {v}
+                      {seciliDeger === v && <Check className="ml-auto size-4" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {(k === "adSoyad" || k === "email" || k === "telefon") && (
+              <Input
+                autoFocus
+                placeholder="İçeren metin..."
+                value={metinFiltre[k]}
+                onChange={(e) =>
+                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
+                }
+                className="h-8"
+              />
+            )}
+
+            {aktif && (
               <>
                 <div className="my-1.5 h-px bg-border" />
-                <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  Filtre
-                </p>
-
-                {(k === "rol" || k === "durum") && (
-                  <div className="grid max-h-56 gap-0.5 overflow-auto">
-                    {(k === "rol"
-                      ? ["Tümü", ...roller]
-                      : ["Tümü", "Aktif", "Pasif"]
-                    ).map((v) => {
-                      const seciliDeger = k === "rol" ? rol : durum;
-                      return (
-                        <button
-                          key={v}
-                          type="button"
-                          className={ogeCls(seciliDeger === v)}
-                          onClick={() => (k === "rol" ? setRol(v) : setDurum(v))}
-                        >
-                          {v}
-                          {seciliDeger === v && (
-                            <Check className="ml-auto size-4" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {(k === "id" ||
-                  k === "adSoyad" ||
-                  k === "kullaniciAdi" ||
-                  k === "email") && (
-                  <Input
-                    autoFocus
-                    placeholder="İçeren metin..."
-                    value={metinFiltre[k]}
-                    onChange={(e) =>
-                      setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
-                    }
-                    className="h-8"
-                  />
-                )}
-
-                {aktif && (
-                  <>
-                    <div className="my-1.5 h-px bg-border" />
-                    <button
-                      type="button"
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
-                      onClick={() => kolonFiltreTemizle(k)}
-                    >
-                      <Trash2 className="size-3.5" /> Filtreyi temizle
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                  onClick={() => kolonFiltreTemizle(k)}
+                >
+                  <Trash2 className="size-3.5" /> Filtreyi temizle
+                </button>
               </>
             )}
           </PopoverContent>
@@ -423,93 +443,102 @@ export function KullanicilarTable({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              <SortBaslik k="id">Kod</SortBaslik>
               <SortBaslik k="adSoyad">Ad Soyad</SortBaslik>
-              <SortBaslik k="kullaniciAdi">Kullanıcı Adı</SortBaslik>
               <SortBaslik k="email">E-posta</SortBaslik>
+              <SortBaslik k="telefon">Telefon</SortBaslik>
+              <SortBaslik k="departman">Departman</SortBaslik>
               <SortBaslik k="rol">Rol</SortBaslik>
               <SortBaslik k="durum">Durum</SortBaslik>
-              <SortBaslik k="olusturma">Oluşturma</SortBaslik>
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {sayfalik.map((k) => (
-              <TableRow
-                key={k.id}
-                data-state={secili.has(k.id) ? "selected" : undefined}
-                className="cursor-pointer"
-                onClick={() => {
-                  setDuzenlenen(k);
-                  setSheetOpen(true);
-                }}
-              >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={secili.has(k.id)}
-                    onCheckedChange={(v) => secimDegis(k.id, v === true)}
-                    aria-label={`${k.adSoyad} seç`}
-                  />
-                </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {k.id}
-                </TableCell>
-                <TableCell className="font-medium">{k.adSoyad}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {k.kullaniciAdi}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {k.email ?? "—"}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={cn(ROL_RENK[k.rol] ?? "bg-slate-100 text-slate-700")}
-                  >
-                    {k.rol}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={k.durum === "Aktif" ? "default" : "secondary"}>
-                    {k.durum}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">
-                  {k.olusturma}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
+              <ContextMenu key={k.id}>
+                <ContextMenuTrigger
+                  render={
+                    <TableRow
+                      data-state={secili.has(k.id) ? "selected" : undefined}
+                      className="cursor-pointer"
+                      onClick={() => {
+                        setDuzenlenen(k);
+                        setSheetOpen(true);
+                      }}
                     />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setDuzenlenen(k);
-                          setSheetOpen(true);
-                        }}
-                      >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil([k.id])}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                  }
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={secili.has(k.id)}
+                      onCheckedChange={(v) => secimDegis(k.id, v === true)}
+                      aria-label={`${k.adSoyad} seç`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{k.adSoyad}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {k.email ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {k.telefon ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {k.departman ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        ROL_RENK[k.rol] ?? "bg-slate-100 text-slate-700",
+                      )}
+                    >
+                      {k.rol}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={k.durum === "Aktif" ? "default" : "secondary"}
+                    >
+                      {k.durum}
+                    </Badge>
+                  </TableCell>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-52">
+                  <ContextMenuItem
+                    onClick={() => {
+                      setDuzenlenen(k);
+                      setSheetOpen(true);
+                    }}
+                  >
+                    <Pencil className="mr-2 size-4" /> Düzenle
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => durumDegistir(k)}>
+                    <Power className="mr-2 size-4" />
+                    {k.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => panoyaKopyala(k.kullaniciAdi, "Kullanıcı adı")}
+                  >
+                    <Copy className="mr-2 size-4" /> Kullanıcı Adını Kopyala
+                  </ContextMenuItem>
+                  {k.email && (
+                    <ContextMenuItem
+                      onClick={() => panoyaKopyala(k.email!, "E-posta")}
+                    >
+                      <Copy className="mr-2 size-4" /> E-postayı Kopyala
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => sil([k.id])}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Sil
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Kullanıcı bulunamadı.
