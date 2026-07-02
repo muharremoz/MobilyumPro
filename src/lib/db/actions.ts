@@ -276,6 +276,25 @@ export async function rolEkle(
   }
 }
 
+/** Bir kullanıcının tek modül yetkisini ayarlar (anında kaydetme). */
+export async function kullaniciYetkiSet(
+  kullaniciId: string,
+  modul: string,
+  erisim: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.kullaniciYetki.upsert({
+      where: { kullaniciId_modul: { kullaniciId, modul } },
+      create: { kullaniciId, modul, erisim },
+      update: { erisim },
+    });
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Yetki kaydedilemedi." };
+  }
+}
+
 /** Bir rolün tüm modül yetkilerini kaydeder (sil + yeniden yaz). */
 export async function rolYetkiKaydet(
   rolAd: string,

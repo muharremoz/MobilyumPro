@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Pencil,
   Trash2,
@@ -421,15 +422,25 @@ export function KullanicilarTable({
         {/* Liste başlığı */}
         <div className="flex items-center justify-between gap-3 border-b px-3 py-1.5">
           <h2 className="text-sm font-semibold">Kullanıcılar</h2>
-          <Button
-            size="sm"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
-            Yeni Kullanıcı
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/kullanicilar/yetkiler" />}
+            >
+              Yetkilendirmeler
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setDuzenlenen(null);
+                setSheetOpen(true);
+              }}
+            >
+              Yeni Kullanıcı
+            </Button>
+          </div>
         </div>
 
         <Table>

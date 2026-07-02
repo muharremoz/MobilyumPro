@@ -1,24 +1,21 @@
-import { KullaniciYonetimi } from "@/components/users/kullanici-yonetimi";
+import { KullanicilarTable } from "@/components/users/kullanicilar-table";
 import {
   getDepartmanlar,
   getKullanicilar,
   getRoller,
-  getRolYetkileri,
 } from "@/lib/db/queries";
 
 export default async function KullanicilarPage() {
-  const [kullanicilar, roller, departmanlar, yetkiler] = await Promise.all([
+  const [kullanicilar, roller, departmanlar] = await Promise.all([
     getKullanicilar(),
     getRoller(),
     getDepartmanlar(),
-    getRolYetkileri(),
   ]);
   return (
-    <KullaniciYonetimi
+    <KullanicilarTable
       kullanicilar={kullanicilar}
       roller={roller}
       departmanlar={departmanlar}
-      yetkiler={yetkiler}
     />
   );
 }
