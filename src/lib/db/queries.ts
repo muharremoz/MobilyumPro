@@ -1,21 +1,6 @@
 import "server-only";
-import { eq } from "drizzle-orm";
 
-import { db } from "./index";
-import {
-  model,
-  parca,
-  malzeme,
-  receteSatiri,
-  modelParca,
-  depo,
-  musteri,
-  siparis,
-  uretimEmri,
-  cari,
-  cariIslem,
-  stokHareket,
-} from "./schema";
+import { db, tarihStr } from "./index";
 import type {
   Model,
   ModelVaryant,
@@ -42,16 +27,28 @@ import type {
   StokHareketTuru,
 } from "../data";
 
+type Durum = "Aktif" | "Pasif";
+
 /**
- * Server-only veri erişim katmanı. DB satırlarını (numeric → string gelir)
- * uygulamadaki domain tiplerine (data.ts) map'ler; böylece mevcut bileşenler
- * ve bom.ts değişmeden çalışır.
+ * Server-only veri erişim katmanı. DB satırlarını (Decimal → number,
+ * DATE → "YYYY-AA-GG" string, JSON string → dizi/nesne) uygulamadaki domain
+ * tiplerine (data.ts) map'ler; böylece mevcut bileşenler ve bom.ts değişmeden
+ * çalışır.
  */
+
+function parseJson<T>(s: string | null): T | undefined {
+  if (!s) return undefined;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function getModeller(): Promise<Model[]> {
   const [urunRows, upRows] = await Promise.all([
-    db.select().from(model),
-    db.select().from(modelParca),
+    db.model.findMany(),
+    db.modelParca.findMany(),
   ]);
   const bomByUrun = new Map<string, { parcaId: string; miktar: number }[]>();
   for (const r of upRows) {
@@ -65,22 +62,22 @@ export async function getModeller(): Promise<Model[]> {
     kategori: u.kategori as Kategori,
     fiyat: Number(u.fiyat),
     stok: u.stok,
-    durum: u.durum,
+    durum: u.durum as Durum,
     gorsel: u.gorsel ?? undefined,
     parcalar: bomByUrun.get(u.id),
     marka: u.marka ?? undefined,
     barkod: u.barkod ?? undefined,
     agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
     minStok: u.minStok ?? undefined,
-    gorseller: u.gorseller ?? undefined,
-    varyantlar: (u.varyantlar as ModelVaryant[] | null) ?? undefined,
+    gorseller: parseJson<string[]>(u.gorsellerJson),
+    varyantlar: parseJson<ModelVaryant[]>(u.varyantlarJson),
   }));
 }
 
 export async function getParcalar(): Promise<Parca[]> {
   const [parcaRows, receteRows] = await Promise.all([
-    db.select().from(parca),
-    db.select().from(receteSatiri),
+    db.parca.findMany(),
+    db.receteSatiri.findMany(),
   ]);
   const receteByParca = new Map<string, ReceteSatiri[]>();
   for (const r of receteRows) {
@@ -100,13 +97,13 @@ export async function getParcalar(): Promise<Parca[]> {
     ad: p.ad,
     kategori: p.kategori as ParcaKategori,
     aciklama: p.aciklama ?? undefined,
-    durum: p.durum,
+    durum: p.durum as Durum,
     recete: receteByParca.get(p.id) ?? [],
   }));
 }
 
 export async function getMalzemeler(): Promise<Malzeme[]> {
-  const rows = await db.select().from(malzeme);
+  const rows = await db.malzeme.findMany();
   return rows.map((m) => ({
     id: m.id,
     ad: m.ad,
@@ -115,23 +112,25 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
     stok: Number(m.stok),
     birimFiyat: Number(m.birimFiyat),
     tedarikci: m.tedarikci ?? undefined,
-    durum: m.durum,
+    durum: m.durum as Durum,
   }));
 }
 
 export async function getDepolar(): Promise<Depo[]> {
-  const rows = await db.select().from(depo);
+  const rows = await db.depo.findMany();
   return rows.map((d) => ({
     id: d.id,
     ad: d.ad,
     sehir: d.sehir,
     kapasite: d.kapasite,
     doluluk: d.doluluk,
-    durum: d.durum,
+    durum: d.durum as Durum,
   }));
 }
 
-function mapCari(c: typeof cari.$inferSelect): Cari {
+type CariRow = Awaited<ReturnType<typeof db.cari.findMany>>[number];
+
+function mapCari(c: CariRow): Cari {
   return {
     id: c.id,
     ad: c.ad,
@@ -145,31 +144,28 @@ function mapCari(c: typeof cari.$inferSelect): Cari {
     sehir: c.sehir ?? undefined,
     bakiye: Number(c.bakiye),
     paraBirimi: c.paraBirimi as ParaBirimi,
-    durum: c.durum,
+    durum: c.durum as Durum,
     not: c.not ?? undefined,
   };
 }
 
 export async function getCariler(): Promise<Cari[]> {
-  const rows = await db.select().from(cari);
+  const rows = await db.cari.findMany();
   return rows.map(mapCari);
 }
 
 export async function getCari(id: string): Promise<Cari | null> {
-  const rows = await db.select().from(cari).where(eq(cari.id, id)).limit(1);
-  return rows[0] ? mapCari(rows[0]) : null;
+  const row = await db.cari.findUnique({ where: { id } });
+  return row ? mapCari(row) : null;
 }
 
 export async function getCariIslemleri(cariId: string): Promise<CariIslem[]> {
-  const rows = await db
-    .select()
-    .from(cariIslem)
-    .where(eq(cariIslem.cariId, cariId));
+  const rows = await db.cariIslem.findMany({ where: { cariId } });
   return rows
     .map((i) => ({
       id: i.id,
       cariId: i.cariId,
-      tarih: i.tarih,
+      tarih: tarihStr(i.tarih),
       tur: i.tur as CariIslemTuru,
       tutar: Number(i.tutar),
       belge: i.belge ?? undefined,
@@ -179,11 +175,11 @@ export async function getCariIslemleri(cariId: string): Promise<CariIslem[]> {
 }
 
 export async function getStokHareketleri(): Promise<StokHareket[]> {
-  const rows = await db.select().from(stokHareket);
+  const rows = await db.stokHareket.findMany();
   return rows
     .map((h) => ({
       id: h.id,
-      tarih: h.tarih,
+      tarih: tarihStr(h.tarih),
       tur: h.tur as StokHareketTuru,
       ref:
         h.refTip === "model"
@@ -201,7 +197,7 @@ export async function getStokHareketleri(): Promise<StokHareket[]> {
 export type MusteriSecim = { id: string; ad: string; sehir: string };
 
 export async function getMusteriler(): Promise<MusteriSecim[]> {
-  const rows = await db.select().from(musteri);
+  const rows = await db.musteri.findMany();
   return rows.map((m) => ({
     id: m.id,
     ad: m.ad,
@@ -210,12 +206,12 @@ export async function getMusteriler(): Promise<MusteriSecim[]> {
 }
 
 export async function getSiparisler(): Promise<Siparis[]> {
-  const rows = await db.select().from(siparis);
+  const rows = await db.siparis.findMany();
   return rows
     .map((s) => ({
       id: s.id,
       musteri: s.musteriAd,
-      tarih: s.tarih,
+      tarih: tarihStr(s.tarih),
       tutar: Number(s.tutar),
       durum: s.durum as SiparisDurum,
       urunAdedi: s.urunAdedi,
@@ -226,8 +222,8 @@ export async function getSiparisler(): Promise<Siparis[]> {
 /** Müşteriler + sipariş bazlı türetilmiş özet (siparişSayisi, toplamHarcama). */
 export async function getMusterilerDetay(): Promise<Musteri[]> {
   const [musteriRows, siparisRows] = await Promise.all([
-    db.select().from(musteri),
-    db.select().from(siparis),
+    db.musteri.findMany(),
+    db.siparis.findMany(),
   ]);
   const adet = new Map<string, number>();
   const harcama = new Map<string, number>();
@@ -261,10 +257,10 @@ export type DashboardOzet = {
 };
 
 export async function getDashboardOzet(): Promise<DashboardOzet> {
-  const [urunRows, siparisRows, musteriRows] = await Promise.all([
-    db.select().from(model),
-    db.select().from(siparis),
-    db.select().from(musteri),
+  const [urunRows, siparisRows, musteriSayisi] = await Promise.all([
+    db.model.findMany(),
+    db.siparis.findMany(),
+    db.musteri.count(),
   ]);
   return {
     toplamCiro: siparisRows
@@ -272,14 +268,14 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
       .reduce((t, s) => t + Number(s.tutar), 0),
     siparisSayisi: siparisRows.length,
     urunSayisi: urunRows.length,
-    musteriSayisi: musteriRows.length,
+    musteriSayisi,
     kritikStok: urunRows.filter((u) => u.stok > 0 && u.stok <= 5).length,
     tukenenStok: urunRows.filter((u) => u.stok === 0).length,
   };
 }
 
 export async function getUretimEmirleri(): Promise<UretimEmri[]> {
-  const rows = await db.select().from(uretimEmri);
+  const rows = await db.uretimEmri.findMany();
   const sirali = rows.sort((a, b) => b.id.localeCompare(a.id));
   return sirali.map((e) => ({
     id: e.id,
@@ -288,8 +284,8 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
     adet: e.adet,
     durum: e.durum as UretimDurum,
     oncelik: (e.oncelik ?? undefined) as UretimOncelik | undefined,
-    olusturma: e.olusturma,
-    termin: e.termin ?? undefined,
+    olusturma: tarihStr(e.olusturma),
+    termin: e.termin ? tarihStr(e.termin) : undefined,
     kaynakSiparis: e.kaynakSiparis ?? undefined,
     musteri: e.musteri ?? undefined,
     hedefDepo: e.hedefDepo ?? undefined,

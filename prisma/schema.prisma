@@ -1,0 +1,211 @@
+// MobilyumPro veritabanı şeması (SQL Server + Prisma).
+// Alan adları uygulamadaki domain modeliyle (Türkçe) birebir tutulur.
+// ID'ler insan-okunur kodlar (URN-1001, MLZ-1001 ...).
+//
+// Not: SQL Server'da Postgres'teki enum/array/jsonb yok:
+//  - enum'lar   → String (uygulama katmanı domain tipleriyle daraltır)
+//  - text[]     → JSON string (gorsellerJson)
+//  - jsonb      → JSON string (varyantlarJson)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// ── Model (eski: ürün) ──────────────────────────────────────────────────
+model Model {
+  id            String  @id @map("id")
+  ad            String
+  kategori      String
+  fiyat         Decimal @default(0) @db.Decimal(14, 2)
+  stok          Int     @default(0)
+  durum         String  @default("Aktif")
+  gorsel        String? @db.NVarChar(Max)
+  marka         String?
+  barkod        String?
+  agirlik       Decimal? @db.Decimal(14, 3)
+  minStok       Int?    @map("min_stok")
+  gorsellerJson String? @map("gorseller") @db.NVarChar(Max)
+  varyantlarJson String? @map("varyantlar") @db.NVarChar(Max)
+
+  parcalar      ModelParca[]
+  uretimEmirleri UretimEmri[]
+
+  @@map("model")
+}
+
+// ── Parça (BOM kataloğu) ────────────────────────────────────────────────
+model Parca {
+  id       String  @id
+  ad       String
+  kategori String
+  aciklama String? @db.NVarChar(Max)
+  durum    String  @default("Aktif")
+
+  recete       ReceteSatiri[] @relation("ParcaRecete")
+  altParcaOlan ReceteSatiri[] @relation("AltParca")
+  modeller     ModelParca[]
+
+  @@map("parca")
+}
+
+// ── Malzeme (hammadde / yarı mamul / yardımcı) ──────────────────────────
+model Malzeme {
+  id         String  @id
+  ad         String
+  tip        String
+  birim      String
+  stok       Decimal @default(0) @db.Decimal(14, 3)
+  birimFiyat Decimal @default(0) @map("birim_fiyat") @db.Decimal(14, 2)
+  tedarikci  String?
+  durum      String  @default("Aktif")
+
+  receteSatirlari ReceteSatiri[]
+
+  @@map("malzeme")
+}
+
+// ── Reçete satırı (parçanın bileşenleri: malzeme veya alt-parça) ────────
+model ReceteSatiri {
+  id         Int     @id @default(autoincrement())
+  parcaId    String  @map("parca_id")
+  tip        String
+  malzemeId  String? @map("malzeme_id")
+  altParcaId String? @map("alt_parca_id")
+  miktar     Decimal @db.Decimal(14, 3)
+
+  parca    Parca    @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  malzeme  Malzeme? @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  altParca Parca?   @relation("AltParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("recete_satiri")
+}
+
+// ── Model-Parça (modelin BOM bağlantısı) ────────────────────────────────
+model ModelParca {
+  id      Int     @id @default(autoincrement())
+  modelId String  @map("model_id")
+  parcaId String  @map("parca_id")
+  miktar  Decimal @db.Decimal(14, 3)
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parca Parca @relation(fields: [parcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("model_parca")
+}
+
+// ── Depo ────────────────────────────────────────────────────────────────
+model Depo {
+  id       String @id
+  ad       String
+  sehir    String
+  kapasite Int    @default(0)
+  doluluk  Int    @default(0)
+  durum    String @default("Aktif")
+
+  @@map("depo")
+}
+
+// ── Müşteri ─────────────────────────────────────────────────────────────
+model Musteri {
+  id    String  @id
+  ad    String
+  email String?
+  sehir String?
+
+  siparisler Siparis[]
+
+  @@map("musteri")
+}
+
+// ── Sipariş ─────────────────────────────────────────────────────────────
+model Siparis {
+  id        String   @id
+  musteriId String?  @map("musteri_id")
+  musteriAd String   @map("musteri_ad") // anlık ad (görüntü/tarihsel)
+  tarih     DateTime @db.Date
+  tutar     Decimal  @default(0) @db.Decimal(14, 2)
+  durum     String   @default("Beklemede")
+  urunAdedi Int      @default(1) @map("urun_adedi")
+
+  musteri Musteri? @relation(fields: [musteriId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("siparis")
+}
+
+// ── Üretim emri ─────────────────────────────────────────────────────────
+model UretimEmri {
+  id            String    @id
+  modelId       String    @map("model_id")
+  modelAd       String    @map("model_ad")
+  adet          Int       @default(1)
+  durum         String    @default("Planlandı")
+  oncelik       String?   @default("Normal")
+  olusturma     DateTime  @db.Date
+  termin        DateTime? @db.Date
+  kaynakSiparis String?   @map("kaynak_siparis")
+  musteri       String?
+  hedefDepo     String?   @map("hedef_depo")
+  not           String?   @db.NVarChar(Max)
+
+  model Model @relation(fields: [modelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("uretim_emri")
+}
+
+// ── Cari (müşteri/tedarikçi hesabı) ─────────────────────────────────────
+model Cari {
+  id           String  @id
+  ad           String
+  tip          String
+  sinif        String
+  vergiNo      String? @map("vergi_no")
+  vergiDairesi String? @map("vergi_dairesi")
+  telefon      String?
+  email        String?
+  adres        String? @db.NVarChar(Max)
+  sehir        String?
+  // Pozitif = cari bizden alacaklı, negatif = bize borçlu.
+  bakiye       Decimal @default(0) @db.Decimal(14, 2)
+  paraBirimi   String  @default("TL") @map("para_birimi")
+  durum        String  @default("Aktif")
+  not          String? @db.NVarChar(Max)
+
+  islemler CariIslem[]
+
+  @@map("cari")
+}
+
+// ── Cari işlem (tahsilat/ödeme/borç/alacak) ─────────────────────────────
+model CariIslem {
+  id       String   @id
+  cariId   String   @map("cari_id")
+  tarih    DateTime @db.Date
+  tur      String
+  tutar    Decimal  @db.Decimal(14, 2)
+  belge    String?
+  aciklama String   @db.NVarChar(Max)
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_islem")
+}
+
+// ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
+model StokHareket {
+  id       String   @id
+  tarih    DateTime @db.Date
+  tur      String
+  refTip   String   @map("ref_tip")
+  refId    String   @map("ref_id")
+  miktar   Decimal  @db.Decimal(14, 3)
+  birim    String
+  depo     String
+  aciklama String   @db.NVarChar(Max)
+
+  @@map("stok_hareket")
+}

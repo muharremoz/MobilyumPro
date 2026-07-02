@@ -1,20 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inArray, eq } from "drizzle-orm";
 
-import { db } from "./index";
-import {
-  uretimEmri,
-  malzeme,
-  model,
-  parca,
-  receteSatiri,
-  modelParca,
-  depo,
-  cari,
-  cariIslem,
-} from "./schema";
+import { db, tarihDate } from "./index";
 import type {
   UretimDurum,
   UretimOncelik,
@@ -50,7 +38,7 @@ export async function uretimEmriOlustur(
   if (yeniler.length === 0) return { ok: false, ids: [] };
 
   // Mevcut en yüksek UE-#### kodundan devam et.
-  const mevcut = await db.select({ id: uretimEmri.id }).from(uretimEmri);
+  const mevcut = await db.uretimEmri.findMany({ select: { id: true } });
   let maxNo = 4000;
   for (const r of mevcut) {
     const m = /^UE-(\d+)$/.exec(r.id);
@@ -65,14 +53,14 @@ export async function uretimEmriOlustur(
     adet: y.adet,
     durum: y.durum,
     oncelik: y.oncelik ?? "Normal",
-    olusturma: tarih,
-    termin: y.termin ?? null,
+    olusturma: tarihDate(tarih),
+    termin: y.termin ? tarihDate(y.termin) : null,
     musteri: y.musteri ?? null,
     hedefDepo: y.hedefDepo ?? null,
     not: y.not ?? null,
   }));
 
-  await db.insert(uretimEmri).values(rows);
+  await db.uretimEmri.createMany({ data: rows });
   revalidatePath("/uretim/emirler");
 
   return { ok: true, ids: rows.map((r) => r.id) };
@@ -80,31 +68,20 @@ export async function uretimEmriOlustur(
 
 /** Malzeme ekle/güncelle (id varsa upsert). */
 export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
-  const row = {
-    id: m.id,
+  const veri = {
     ad: m.ad,
     tip: m.tip,
     birim: m.birim,
-    stok: String(m.stok),
-    birimFiyat: String(m.birimFiyat),
+    stok: m.stok,
+    birimFiyat: m.birimFiyat,
     tedarikci: m.tedarikci ?? null,
     durum: m.durum,
   };
-  await db
-    .insert(malzeme)
-    .values(row)
-    .onConflictDoUpdate({
-      target: malzeme.id,
-      set: {
-        ad: row.ad,
-        tip: row.tip,
-        birim: row.birim,
-        stok: row.stok,
-        birimFiyat: row.birimFiyat,
-        tedarikci: row.tedarikci,
-        durum: row.durum,
-      },
-    });
+  await db.malzeme.upsert({
+    where: { id: m.id },
+    create: { id: m.id, ...veri },
+    update: veri,
+  });
   revalidatePath("/stok-yonetimi");
   return { ok: true };
 }
@@ -114,7 +91,7 @@ export async function malzemeSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.delete(malzeme).where(inArray(malzeme.id, ids));
+    await db.malzeme.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     return { ok: true };
   } catch {
@@ -126,7 +103,7 @@ export async function malzemeSil(
 export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }> {
   let id = u.id;
   if (!id) {
-    const mevcut = await db.select({ id: model.id }).from(model);
+    const mevcut = await db.model.findMany({ select: { id: true } });
     let maxNo = 1000;
     for (const r of mevcut) {
       const m = /^URN-(\d+)$/.exec(r.id);
@@ -134,49 +111,33 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
     }
     id = `URN-${maxNo + 1}`;
   }
-  const row = {
-    id,
+  const veri = {
     ad: u.ad,
     kategori: u.kategori,
-    fiyat: String(u.fiyat),
+    fiyat: u.fiyat,
     stok: u.stok,
     durum: u.durum,
     gorsel: u.gorsel ?? null,
     marka: u.marka ?? null,
     barkod: u.barkod ?? null,
-    agirlik: u.agirlik != null ? String(u.agirlik) : null,
+    agirlik: u.agirlik ?? null,
     minStok: u.minStok ?? null,
-    gorseller: u.gorseller ?? null,
-    varyantlar: u.varyantlar ?? null,
+    gorsellerJson: u.gorseller ? JSON.stringify(u.gorseller) : null,
+    varyantlarJson: u.varyantlar ? JSON.stringify(u.varyantlar) : null,
   };
-  await db.transaction(async (tx) => {
-    await tx
-      .insert(model)
-      .values(row)
-      .onConflictDoUpdate({
-        target: model.id,
-        set: {
-          ad: row.ad,
-          kategori: row.kategori,
-          fiyat: row.fiyat,
-          stok: row.stok,
-          durum: row.durum,
-          gorsel: row.gorsel,
-          marka: row.marka,
-          barkod: row.barkod,
-          agirlik: row.agirlik,
-          minStok: row.minStok,
-          gorseller: row.gorseller,
-          varyantlar: row.varyantlar,
-        },
-      });
+  await db.$transaction(async (tx) => {
+    await tx.model.upsert({
+      where: { id },
+      create: { id, ...veri },
+      update: veri,
+    });
 
     // BOM'u tamamen yeniden yaz (geçerli parcaId'leri olan satırlar).
-    await tx.delete(modelParca).where(eq(modelParca.modelId, id));
+    await tx.modelParca.deleteMany({ where: { modelId: id } });
     const bom = (u.parcalar ?? [])
       .filter((p) => p.parcaId)
-      .map((p) => ({ modelId: id, parcaId: p.parcaId, miktar: String(p.miktar) }));
-    if (bom.length) await tx.insert(modelParca).values(bom);
+      .map((p) => ({ modelId: id, parcaId: p.parcaId, miktar: p.miktar }));
+    if (bom.length) await tx.modelParca.createMany({ data: bom });
   });
 
   revalidatePath("/urunler");
@@ -190,7 +151,7 @@ export async function modelSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.delete(model).where(inArray(model.id, ids));
+    await db.model.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/urunler");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/");
@@ -205,36 +166,29 @@ export async function parcaKaydet(
   p: Parca,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .insert(parca)
-        .values({
-          id: p.id,
-          ad: p.ad,
-          kategori: p.kategori,
-          aciklama: p.aciklama ?? null,
-          durum: p.durum,
-        })
-        .onConflictDoUpdate({
-          target: parca.id,
-          set: {
-            ad: p.ad,
-            kategori: p.kategori,
-            aciklama: p.aciklama ?? null,
-            durum: p.durum,
-          },
-        });
+    await db.$transaction(async (tx) => {
+      const veri = {
+        ad: p.ad,
+        kategori: p.kategori,
+        aciklama: p.aciklama ?? null,
+        durum: p.durum,
+      };
+      await tx.parca.upsert({
+        where: { id: p.id },
+        create: { id: p.id, ...veri },
+        update: veri,
+      });
 
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
-      await tx.delete(receteSatiri).where(eq(receteSatiri.parcaId, p.id));
+      await tx.receteSatiri.deleteMany({ where: { parcaId: p.id } });
       const satirlar = p.recete.map((r) => ({
         parcaId: p.id,
         tip: r.bilesen.tip,
         malzemeId: r.bilesen.tip === "malzeme" ? r.bilesen.ref : null,
         altParcaId: r.bilesen.tip === "parca" ? r.bilesen.ref : null,
-        miktar: String(r.miktar),
+        miktar: r.miktar,
       }));
-      if (satirlar.length) await tx.insert(receteSatiri).values(satirlar);
+      if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
     });
     revalidatePath("/stok-yonetimi");
     revalidatePath("/uretim/recete");
@@ -249,7 +203,7 @@ export async function parcaSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.delete(parca).where(inArray(parca.id, ids));
+    await db.parca.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     revalidatePath("/uretim/recete");
     return { ok: true };
@@ -267,7 +221,7 @@ export async function depoKaydet(
 ): Promise<{ ok: boolean; id: string }> {
   let id = d.id;
   if (!id) {
-    const mevcut = await db.select({ id: depo.id }).from(depo);
+    const mevcut = await db.depo.findMany({ select: { id: true } });
     let maxNo = 0;
     for (const r of mevcut) {
       const m = /^DEP-(\d+)$/.exec(r.id);
@@ -275,27 +229,18 @@ export async function depoKaydet(
     }
     id = `DEP-${String(maxNo + 1).padStart(2, "0")}`;
   }
-  const row = {
-    id,
+  const veri = {
     ad: d.ad,
     sehir: d.sehir,
     kapasite: d.kapasite,
     doluluk: d.doluluk,
     durum: d.durum,
   };
-  await db
-    .insert(depo)
-    .values(row)
-    .onConflictDoUpdate({
-      target: depo.id,
-      set: {
-        ad: row.ad,
-        sehir: row.sehir,
-        kapasite: row.kapasite,
-        doluluk: row.doluluk,
-        durum: row.durum,
-      },
-    });
+  await db.depo.upsert({
+    where: { id },
+    create: { id, ...veri },
+    update: veri,
+  });
   revalidatePath("/stok-yonetimi");
   return { ok: true, id };
 }
@@ -305,7 +250,7 @@ export async function depoSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.delete(depo).where(inArray(depo.id, ids));
+    await db.depo.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     return { ok: true };
   } catch {
@@ -331,7 +276,7 @@ function bakiyeEtkisi(tur: CariIslemTuru, tutar: number): number {
 export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> {
   let id = c.id;
   if (!id) {
-    const mevcut = await db.select({ id: cari.id }).from(cari);
+    const mevcut = await db.cari.findMany({ select: { id: true } });
     let maxNo = 1000;
     for (const r of mevcut) {
       const m = /^CARI-(\d+)$/.exec(r.id);
@@ -339,8 +284,7 @@ export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> 
     }
     id = `CARI-${maxNo + 1}`;
   }
-  const row = {
-    id,
+  const ortak = {
     ad: c.ad,
     tip: c.tip,
     sinif: c.sinif,
@@ -350,32 +294,16 @@ export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> 
     email: c.email ?? null,
     adres: c.adres ?? null,
     sehir: c.sehir ?? null,
-    bakiye: String(c.bakiye),
     paraBirimi: c.paraBirimi,
     durum: c.durum,
     not: c.not ?? null,
   };
-  await db
-    .insert(cari)
-    .values(row)
-    .onConflictDoUpdate({
-      target: cari.id,
-      set: {
-        ad: row.ad,
-        tip: row.tip,
-        sinif: row.sinif,
-        vergiNo: row.vergiNo,
-        vergiDairesi: row.vergiDairesi,
-        telefon: row.telefon,
-        email: row.email,
-        adres: row.adres,
-        sehir: row.sehir,
-        // bakiye'yi düz kaydette değiştirmiyoruz (işlemler yönetir) — yeni kayıtta 0.
-        paraBirimi: row.paraBirimi,
-        durum: row.durum,
-        not: row.not,
-      },
-    });
+  await db.cari.upsert({
+    where: { id },
+    create: { id, ...ortak, bakiye: c.bakiye },
+    // bakiye'yi düz kaydette değiştirmiyoruz (işlemler yönetir) — yeni kayıtta 0.
+    update: ortak,
+  });
   revalidatePath("/cari");
   return { ok: true, id };
 }
@@ -386,7 +314,7 @@ export async function cariSil(
   if (ids.length === 0) return { ok: false };
   try {
     // cari_islem cascade ile silinir.
-    await db.delete(cari).where(inArray(cari.id, ids));
+    await db.cari.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/cari");
     return { ok: true };
   } catch {
@@ -400,7 +328,7 @@ export async function cariIslemEkle(
   yeni: Omit<CariIslem, "id" | "cariId">,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
-    const mevcut = await db.select({ id: cariIslem.id }).from(cariIslem);
+    const mevcut = await db.cariIslem.findMany({ select: { id: true } });
     let maxNo = 3000;
     for (const r of mevcut) {
       const m = /^CI-(\d+)$/.exec(r.id);
@@ -408,27 +336,28 @@ export async function cariIslemEkle(
     }
     const id = `CI-${maxNo + 1}`;
 
-    await db.transaction(async (tx) => {
-      await tx.insert(cariIslem).values({
-        id,
-        cariId,
-        tarih: yeni.tarih,
-        tur: yeni.tur,
-        tutar: String(yeni.tutar),
-        belge: yeni.belge ?? null,
-        aciklama: yeni.aciklama,
+    await db.$transaction(async (tx) => {
+      await tx.cariIslem.create({
+        data: {
+          id,
+          cariId,
+          tarih: tarihDate(yeni.tarih),
+          tur: yeni.tur,
+          tutar: yeni.tutar,
+          belge: yeni.belge ?? null,
+          aciklama: yeni.aciklama,
+        },
       });
-      const [c] = await tx
-        .select({ bakiye: cari.bakiye })
-        .from(cari)
-        .where(eq(cari.id, cariId))
-        .limit(1);
+      const c = await tx.cari.findUnique({
+        where: { id: cariId },
+        select: { bakiye: true },
+      });
       const yeniBakiye =
         Number(c?.bakiye ?? 0) + bakiyeEtkisi(yeni.tur, yeni.tutar);
-      await tx
-        .update(cari)
-        .set({ bakiye: String(yeniBakiye) })
-        .where(eq(cari.id, cariId));
+      await tx.cari.update({
+        where: { id: cariId },
+        data: { bakiye: yeniBakiye },
+      });
     });
 
     revalidatePath("/cari");

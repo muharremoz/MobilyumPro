@@ -1,26 +1,26 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-
-import * as schema from "./schema";
+import { PrismaClient } from "@prisma/client";
 
 /**
- * Tek Postgres bağlantı havuzu (LAN sunucusunda app ile aynı makinede çalışır).
- * Dev'de sıcak yeniden yüklemelerde havuzu tekrar oluşturmamak için global'de tutulur.
+ * Tek Prisma client örneği (LAN sunucusunda app ile aynı makinede çalışan
+ * SQL Server'a bağlanır). Dev'de sıcak yeniden yüklemelerde client'ı tekrar
+ * oluşturmamak için global'de tutulur.
  */
 const globalForDb = globalThis as unknown as {
-  __mobilyumPool?: Pool;
+  __mobilyumPrisma?: PrismaClient;
 };
 
-const pool =
-  globalForDb.__mobilyumPool ??
-  new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 10,
-  });
+export const db = globalForDb.__mobilyumPrisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.__mobilyumPool = pool;
+  globalForDb.__mobilyumPrisma = db;
 }
 
-export const db = drizzle(pool, { schema });
-export { schema };
+/** DB'deki DATE kolonunu uygulamanın kullandığı "YYYY-AA-GG" string'ine çevirir. */
+export function tarihStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** "YYYY-AA-GG" string'ini DATE kolonuna yazılacak Date'e çevirir (UTC gece yarısı). */
+export function tarihDate(s: string): Date {
+  return new Date(`${s}T00:00:00.000Z`);
+}
