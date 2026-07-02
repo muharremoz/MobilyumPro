@@ -200,7 +200,23 @@ model Rol {
   id Int    @id @default(autoincrement())
   ad String @unique
 
+  yetkiler RolYetki[]
+
   @@map("rol")
+}
+
+// ── Rol yetkisi (modül bazında erişim seviyesi) ─────────────────────────
+model RolYetki {
+  id     Int    @id @default(autoincrement())
+  rolAd  String @map("rol_ad")
+  modul  String
+  // "Yok" | "Görüntüleme" | "Tam"
+  erisim String @default("Yok")
+
+  rol Rol @relation(fields: [rolAd], references: [ad], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([rolAd, modul])
+  @@map("rol_yetki")
 }
 
 // ── Departman ───────────────────────────────────────────────────────────

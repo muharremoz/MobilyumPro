@@ -286,6 +286,18 @@ export async function getDepartmanlar(): Promise<string[]> {
   return rows.map((d) => d.ad);
 }
 
+/** Tüm rollerin yetki matrisi: rolAd → (modulId → erisim). */
+export async function getRolYetkileri(): Promise<
+  import("../yetki").YetkiMatrisi
+> {
+  const rows = await db.rolYetki.findMany();
+  const matris: import("../yetki").YetkiMatrisi = {};
+  for (const r of rows) {
+    (matris[r.rolAd] ??= {})[r.modul] = r.erisim as import("../yetki").Erisim;
+  }
+  return matris;
+}
+
 /** Kullanıcı listesi görünümü (şifre hash'i asla dışarı çıkmaz). */
 export type KullaniciGorunum = {
   id: string;

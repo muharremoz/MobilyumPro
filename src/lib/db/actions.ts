@@ -276,6 +276,29 @@ export async function rolEkle(
   }
 }
 
+/** Bir rolün tüm modül yetkilerini kaydeder (sil + yeniden yaz). */
+export async function rolYetkiKaydet(
+  rolAd: string,
+  yetkiler: Record<string, string>,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!rolAd.trim()) return { ok: false, error: "Rol seçilmedi." };
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.rolYetki.deleteMany({ where: { rolAd } });
+      const rows = Object.entries(yetkiler).map(([modul, erisim]) => ({
+        rolAd,
+        modul,
+        erisim,
+      }));
+      if (rows.length) await tx.rolYetki.createMany({ data: rows });
+    });
+    revalidatePath("/kullanicilar");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Yetkiler kaydedilemedi." };
+  }
+}
+
 /** Yeni departman tanımı ekler (varsa sessizce geçer). */
 export async function departmanEkle(
   ad: string,
