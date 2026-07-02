@@ -491,8 +491,12 @@ export function KullanicilarTable({
                   <TableCell className="text-muted-foreground tabular-nums">
                     {k.telefon ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {k.departman ?? "—"}
+                  <TableCell>
+                    {k.departman ? (
+                      <Badge variant="secondary">{k.departman}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge

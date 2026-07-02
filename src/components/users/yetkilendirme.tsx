@@ -169,16 +169,16 @@ export function Yetkilendirme({
         {/* Sağ: modül kartları */}
         <div className="min-w-0 flex-1">
           {secili ? (
-            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="divide-y overflow-hidden rounded-md border bg-card">
               {MODULLER.map((m) => {
                 const deger = matris[secili.id]?.[m.id] ?? "Yok";
                 return (
                   <div
                     key={m.id}
-                    className="rounded-md border bg-card p-3"
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"
                   >
                     <p className="text-sm font-medium">{m.label}</p>
-                    <div className="mt-2.5 flex flex-col gap-1">
+                    <div className="flex rounded-lg border border-input p-0.5">
                       {ERISIMLER.slice()
                         .reverse() // Tam → Görüntüleme → Yok sırası
                         .map((e) => {
@@ -189,27 +189,16 @@ export function Yetkilendirme({
                               type="button"
                               onClick={() => erisimSec(m.id, e)}
                               className={cn(
-                                "flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs font-medium transition-colors",
+                                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                                 aktif
                                   ? e === "Tam"
-                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    ? "bg-emerald-100 text-emerald-700"
                                     : e === "Görüntüleme"
-                                      ? "border-blue-300 bg-blue-50 text-blue-700"
-                                      : "border-rose-300 bg-rose-50 text-rose-700"
-                                  : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-rose-100 text-rose-700"
+                                  : "text-muted-foreground hover:text-foreground",
                               )}
                             >
-                              <span
-                                className={cn(
-                                  "size-2 rounded-full",
-                                  e === "Tam"
-                                    ? "bg-emerald-500"
-                                    : e === "Görüntüleme"
-                                      ? "bg-blue-500"
-                                      : "bg-rose-500",
-                                  !aktif && "opacity-30",
-                                )}
-                              />
                               {ERISIM_ETIKET[e]}
                             </button>
                           );
