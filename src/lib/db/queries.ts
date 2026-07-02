@@ -274,6 +274,13 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
   };
 }
 
+/** Sunucudaki kullanıcı veritabanları (login formundaki seçim için). */
+export async function getVeritabanlari(): Promise<string[]> {
+  const rows = await db.$queryRaw<{ name: string }[]>`
+    SELECT name FROM sys.databases WHERE database_id > 4 ORDER BY name`;
+  return rows.map((r) => r.name);
+}
+
 export async function getUretimEmirleri(): Promise<UretimEmri[]> {
   const rows = await db.uretimEmri.findMany();
   const sirali = rows.sort((a, b) => b.id.localeCompare(a.id));

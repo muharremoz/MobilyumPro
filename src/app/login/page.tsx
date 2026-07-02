@@ -1,9 +1,13 @@
-"use client"
-
-import { LoginForm } from "@/components/login-form"
 import { GalleryVerticalEndIcon } from "lucide-react"
 
-export default function LoginPage() {
+import { LoginForm } from "@/components/login-form"
+import { getVeritabanlari } from "@/lib/db/queries"
+
+// Veritabanı listesi her istekte sunucudan okunur (build'de donmasın).
+export const dynamic = "force-dynamic"
+
+export default async function LoginPage() {
+  const veritabanlari = await getVeritabanlari()
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
@@ -17,7 +21,7 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            <LoginForm veritabanlari={veritabanlari} />
           </div>
         </div>
       </div>
