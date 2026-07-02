@@ -10,13 +10,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { SearchSelect } from "@/components/ui/search-select"
 
 export function LoginForm({
   veritabanlari,
@@ -37,18 +31,15 @@ export function LoginForm({
         </div>
         <Field>
           <FieldLabel htmlFor="veritabani">Veritabanı</FieldLabel>
-          <Select value={veritabani} onValueChange={setVeritabani}>
-            <SelectTrigger id="veritabani" className="w-full">
-              <SelectValue placeholder="Veritabanı seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {veritabanlari.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchSelect
+            items={veritabanlari}
+            value={veritabani}
+            onValueChange={setVeritabani}
+            placeholder="Veritabanı seçin"
+            searchPlaceholder="Veritabanı ara..."
+            emptyText="Veritabanı bulunamadı"
+            className="h-8"
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor="kullanici">Kullanıcı</FieldLabel>
