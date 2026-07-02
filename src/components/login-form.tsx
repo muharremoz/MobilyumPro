@@ -38,12 +38,18 @@ export function LoginForm({
             placeholder="Veritabanı seçin"
             searchPlaceholder="Veritabanı ara..."
             emptyText="Veritabanı bulunamadı"
-            className="h-8"
+            className="h-10"
           />
         </Field>
         <Field>
           <FieldLabel htmlFor="kullanici">Kullanıcı</FieldLabel>
-          <Input id="kullanici" type="text" placeholder="kullanıcı adı" required />
+          <Input
+            id="kullanici"
+            type="text"
+            placeholder="kullanıcı adı"
+            className="h-10"
+            required
+          />
         </Field>
         <Field>
           <div className="flex items-center">
@@ -55,10 +61,12 @@ export function LoginForm({
               Şifrenizi mi unuttunuz?
             </a>
           </div>
-          <Input id="password" type="password" required />
+          <Input id="password" type="password" className="h-10" required />
         </Field>
         <Field>
-          <Button type="submit">Giriş Yap</Button>
+          <Button type="submit" className="h-10">
+            Giriş Yap
+          </Button>
         </Field>
       </FieldGroup>
     </form>
