@@ -280,6 +280,8 @@ export type KullaniciGorunum = {
   kullaniciAdi: string;
   adSoyad: string;
   email?: string;
+  telefon?: string;
+  departman?: string;
   rol: string;
   durum: Durum;
   olusturma: string;
@@ -292,6 +294,8 @@ export async function getKullanicilar(): Promise<KullaniciGorunum[]> {
     kullaniciAdi: k.kullaniciAdi,
     adSoyad: k.adSoyad,
     email: k.email ?? undefined,
+    telefon: k.telefon ?? undefined,
+    departman: k.departman ?? undefined,
     rol: k.rol,
     durum: k.durum as Durum,
     olusturma: tarihStr(k.olusturma),

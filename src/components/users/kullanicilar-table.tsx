@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import {
-  Search,
-  Plus,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -12,6 +10,10 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
+  Check,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,22 +23,37 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
+import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { ErrorShakeField } from "@/components/ui/error-shake";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
-import { UsersIcon } from "@/components/ui/icons/users";
 import { UsersRoundIcon } from "@/components/ui/icons/users-round";
 import { SendIcon } from "@/components/ui/icons/send";
+import { PhoneIcon } from "@/components/ui/icons/phone";
+import { FolderTreeIcon } from "@/components/ui/icons/folder-tree";
 import { ShieldCheckIcon } from "@/components/ui/icons/shield-check";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -53,6 +70,7 @@ import {
 } from "@/lib/db/actions";
 
 export const ROLLER = ["Yönetici", "Kullanıcı", "Görüntüleyici"] as const;
+const DEPARTMANLAR = ["Muhasebe", "Depo", "Üretim", "Sevkiyat"];
 
 const ROL_RENK: Record<string, string> = {
   Yönetici: "bg-violet-100 text-violet-800",
@@ -60,7 +78,8 @@ const ROL_RENK: Record<string, string> = {
   Görüntüleyici: "bg-slate-100 text-slate-700",
 };
 const SAYFA_BOYUT = 8;
-type SortKey = "id" | "adSoyad" | "kullaniciAdi" | "rol" | "durum" | "olusturma";
+type SortKey = "id" | "adSoyad" | "kullaniciAdi" | "email" | "rol" | "durum" | "olusturma";
+type MetinKolon = "id" | "adSoyad" | "kullaniciAdi" | "email";
 
 export function KullanicilarTable({
   kullanicilar,
@@ -68,7 +87,9 @@ export function KullanicilarTable({
   kullanicilar: KullaniciGorunum[];
 }) {
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
-  const [arama, setArama] = React.useState("");
+  const [metinFiltre, setMetinFiltre] = React.useState<
+    Record<MetinKolon, string>
+  >({ id: "", adSoyad: "", kullaniciAdi: "", email: "" });
   const [rol, setRol] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
@@ -80,26 +101,41 @@ export function KullanicilarTable({
   const [duzenlenen, setDuzenlenen] = React.useState<KullaniciGorunum | null>(
     null,
   );
+  const [departmanlar, setDepartmanlar] = React.useState<string[]>(() => {
+    const s = new Set(DEPARTMANLAR);
+    kullanicilar.forEach((k) => k.departman && s.add(k.departman));
+    return [...s];
+  });
 
-  React.useEffect(() => setSayfa(1), [arama, rol, durum]);
+  function departmanEkle(d: string) {
+    const ad = d.trim();
+    if (!ad) return;
+    setDepartmanlar((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
+  }
+
+  React.useEffect(() => setSayfa(1), [metinFiltre, rol, durum]);
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
     const arr = liste.filter((k) => {
-      const ara =
-        k.adSoyad.toLowerCase().includes(q) ||
-        k.kullaniciAdi.toLowerCase().includes(q) ||
-        (k.email ?? "").toLowerCase().includes(q) ||
-        k.id.toLowerCase().includes(q);
+      const metin = (Object.keys(metinFiltre) as MetinKolon[]).every((kol) => {
+        const q = metinFiltre[kol].toLowerCase();
+        if (!q) return true;
+        const deger = kol === "email" ? (k.email ?? "") : k[kol];
+        return deger.toLowerCase().includes(q);
+      });
       const r = rol === "Tümü" || k.rol === rol;
       const d = durum === "Tümü" || k.durum === durum;
-      return ara && r && d;
+      return metin && r && d;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
-    return [...arr].sort((a, b) =>
-      String(a[sort.key]).localeCompare(String(b[sort.key]), "tr") * yon,
+    return [...arr].sort(
+      (a, b) =>
+        String(a[sort.key] ?? "").localeCompare(
+          String(b[sort.key] ?? ""),
+          "tr",
+        ) * yon,
     );
-  }, [liste, arama, rol, durum, sort]);
+  }, [liste, metinFiltre, rol, durum, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -112,13 +148,6 @@ export function KullanicilarTable({
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
-  function sortla(k: SortKey) {
-    setSort((s) =>
-      s.key === k
-        ? { key: k, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key: k, dir: "asc" },
-    );
-  }
   function secimDegis(id: string, v: boolean) {
     setSecili((s) => {
       const n = new Set(s);
@@ -160,9 +189,11 @@ export function KullanicilarTable({
     const id = res.id!;
     const gorunum: KullaniciGorunum = {
       id,
-      kullaniciAdi: kayit.kullaniciAdi.trim(),
+      kullaniciAdi: res.kullaniciAdi ?? "",
       adSoyad: kayit.adSoyad.trim(),
       email: kayit.email?.trim() || undefined,
+      telefon: kayit.telefon?.trim() || undefined,
+      departman: kayit.departman?.trim() || undefined,
       rol: kayit.rol,
       durum: kayit.durum,
       olusturma:
@@ -190,6 +221,26 @@ export function KullanicilarTable({
     ) : (
       <ChevronDown className="size-3.5" />
     );
+
+  const kolonFiltreAktif = (k: SortKey) => {
+    if (k === "rol") return rol !== "Tümü";
+    if (k === "durum") return durum !== "Tümü";
+    if (k === "olusturma") return false;
+    return metinFiltre[k as MetinKolon] !== "";
+  };
+  const kolonFiltreTemizle = (k: SortKey) => {
+    if (k === "rol") setRol("Tümü");
+    else if (k === "durum") setDurum("Tümü");
+    else if (k !== "olusturma")
+      setMetinFiltre((f) => ({ ...f, [k]: "" }));
+  };
+
+  const ogeCls = (seciliMi: boolean) =>
+    cn(
+      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+      seciliMi && "bg-accent/60 font-medium",
+    );
+
   const SortBaslik = ({
     k,
     children,
@@ -198,59 +249,121 @@ export function KullanicilarTable({
     k: SortKey;
     children: React.ReactNode;
     className?: string;
-  }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => sortla(k)}
-        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-      >
-        {children}
-        {sortIkon(k)}
-      </button>
-    </TableHead>
-  );
+  }) => {
+    const aktif = kolonFiltreAktif(k);
+    return (
+      <TableHead className={className}>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
+              >
+                {children}
+                {sortIkon(k)}
+                {aktif && (
+                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                )}
+              </button>
+            }
+          />
+          <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
+            {/* Sıralama */}
+            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Sırala
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "asc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "asc" })}
+              >
+                <ArrowUpNarrowWide className="size-4" /> Artan
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "desc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "desc" })}
+              >
+                <ArrowDownWideNarrow className="size-4" /> Azalan
+              </button>
+            </div>
+
+            {k !== "olusturma" && (
+              <>
+                <div className="my-1.5 h-px bg-border" />
+                <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Filtre
+                </p>
+
+                {(k === "rol" || k === "durum") && (
+                  <div className="grid max-h-56 gap-0.5 overflow-auto">
+                    {(k === "rol"
+                      ? ["Tümü", ...ROLLER]
+                      : ["Tümü", "Aktif", "Pasif"]
+                    ).map((v) => {
+                      const seciliDeger = k === "rol" ? rol : durum;
+                      return (
+                        <button
+                          key={v}
+                          type="button"
+                          className={ogeCls(seciliDeger === v)}
+                          onClick={() => (k === "rol" ? setRol(v) : setDurum(v))}
+                        >
+                          {v}
+                          {seciliDeger === v && (
+                            <Check className="ml-auto size-4" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {(k === "id" ||
+                  k === "adSoyad" ||
+                  k === "kullaniciAdi" ||
+                  k === "email") && (
+                  <Input
+                    autoFocus
+                    placeholder="İçeren metin..."
+                    value={metinFiltre[k]}
+                    onChange={(e) =>
+                      setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
+                    }
+                    className="h-8"
+                  />
+                )}
+
+                {aktif && (
+                  <>
+                    <div className="my-1.5 h-px bg-border" />
+                    <button
+                      type="button"
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                      onClick={() => kolonFiltreTemizle(k)}
+                    >
+                      <Trash2 className="size-3.5" /> Filtreyi temizle
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Araç çubuğu */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Ad, kullanıcı adı veya e-posta ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <div className="w-40">
-          <SearchSelect
-            items={["Tümü", ...ROLLER]}
-            value={rol}
-            onValueChange={(v) => setRol(v ?? "Tümü")}
-            placeholder="Rol"
-          />
-        </div>
-        <div className="w-36">
-          <SearchSelect
-            items={["Tümü", "Aktif", "Pasif"]}
-            value={durum}
-            onValueChange={(v) => setDurum(v ?? "Tümü")}
-            placeholder="Durum"
-          />
-        </div>
-        <Button
-          className="ml-auto"
-          onClick={() => {
-            setDuzenlenen(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="size-4" /> Yeni Kullanıcı
-        </Button>
-      </div>
-
       {secili.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span className="font-medium">{secili.size} seçili</span>
@@ -269,6 +382,20 @@ export function KullanicilarTable({
       )}
 
       <div className="overflow-hidden rounded-md border bg-card">
+        {/* Liste başlığı */}
+        <div className="flex items-center justify-between gap-3 border-b px-3 py-1.5">
+          <h2 className="text-sm font-semibold">Kullanıcılar</h2>
+          <Button
+            size="sm"
+            onClick={() => {
+              setDuzenlenen(null);
+              setSheetOpen(true);
+            }}
+          >
+            Yeni Kullanıcı
+          </Button>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -283,7 +410,7 @@ export function KullanicilarTable({
               <SortBaslik k="id">Kod</SortBaslik>
               <SortBaslik k="adSoyad">Ad Soyad</SortBaslik>
               <SortBaslik k="kullaniciAdi">Kullanıcı Adı</SortBaslik>
-              <TableHead>E-posta</TableHead>
+              <SortBaslik k="email">E-posta</SortBaslik>
               <SortBaslik k="rol">Rol</SortBaslik>
               <SortBaslik k="durum">Durum</SortBaslik>
               <SortBaslik k="olusturma">Oluşturma</SortBaslik>
@@ -411,6 +538,8 @@ export function KullanicilarTable({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         item={duzenlenen}
+        departmanlar={departmanlar}
+        onDepartmanEkle={departmanEkle}
         onSave={kaydet}
       />
     </div>
@@ -419,26 +548,42 @@ export function KullanicilarTable({
 
 type SheetHatalar = {
   adSoyad?: string;
-  kullaniciAdi?: string;
   sifre?: string;
   sifreTekrar?: string;
 };
+
+/** 8 karakter: hece-hece okunur, klavyede yazması kolay ama tahmin etmesi zor.
+ *  Karışan karakterler yok (l/I/1, o/O/0). Örn: "Kemuta47" */
+function sifreUret(): string {
+  const sessiz = "bcdfghjkmnprstvyz";
+  const sesli = "aeu";
+  const sec = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const hece = () => sec(sessiz) + sec(sesli);
+  const govde = hece() + hece() + hece(); // 6 harf
+  const rakam = String(Math.floor(Math.random() * 90) + 10); // 2 rakam (10-99)
+  return govde[0].toUpperCase() + govde.slice(1) + rakam;
+}
 
 function KullaniciSheet({
   open,
   onOpenChange,
   item,
+  departmanlar,
+  onDepartmanEkle,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   item: KullaniciGorunum | null;
+  departmanlar: string[];
+  onDepartmanEkle: (d: string) => void;
   onSave: (k: KullaniciKayit) => Promise<boolean>;
 }) {
   const [form, setForm] = React.useState({
     adSoyad: "",
-    kullaniciAdi: "",
     email: "",
+    telefon: "",
+    departman: "",
     rol: "Kullanıcı" as string,
     sifre: "",
     sifreTekrar: "",
@@ -446,17 +591,26 @@ function KullaniciSheet({
   });
   const [hatalar, setHatalar] = React.useState<SheetHatalar>({});
   const [shakeNonce, setShakeNonce] = React.useState(0);
+  const [sifreGoster, setSifreGoster] = React.useState(false);
+  const [yeniDepMod, setYeniDepMod] = React.useState(false);
+  const [yeniDep, setYeniDep] = React.useState("");
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setYeniDepMod(false);
+      setYeniDep("");
+      return;
+    }
     setHatalar({});
+    setSifreGoster(false);
     if (item) {
       setForm({
         adSoyad: item.adSoyad,
-        kullaniciAdi: item.kullaniciAdi,
         email: item.email ?? "",
+        telefon: item.telefon ?? "",
+        departman: item.departman ?? "",
         rol: item.rol,
         sifre: "",
         sifreTekrar: "",
@@ -465,8 +619,9 @@ function KullaniciSheet({
     } else {
       setForm({
         adSoyad: "",
-        kullaniciAdi: "",
         email: "",
+        telefon: "",
+        departman: "",
         rol: "Kullanıcı",
         sifre: "",
         sifreTekrar: "",
@@ -475,11 +630,24 @@ function KullaniciSheet({
     }
   }, [open, item]);
 
+  function depKaydet() {
+    const ad = yeniDep.trim();
+    if (!ad) return;
+    onDepartmanEkle(ad);
+    setForm((f) => ({ ...f, departman: ad })); // eklenen otomatik seçilir
+    setYeniDep("");
+    setYeniDepMod(false);
+  }
+
+  function sifreDoldur() {
+    const s = sifreUret();
+    setForm((f) => ({ ...f, sifre: s, sifreTekrar: s }));
+    setSifreGoster(true);
+  }
+
   async function kaydet() {
     const yeni: SheetHatalar = {};
     if (!form.adSoyad.trim()) yeni.adSoyad = "Ad soyad zorunludur.";
-    if (!form.kullaniciAdi.trim())
-      yeni.kullaniciAdi = "Kullanıcı adı zorunludur.";
     if (!item && !form.sifre) yeni.sifre = "Şifre zorunludur.";
     if (form.sifre && form.sifre.length < 6)
       yeni.sifre = "Şifre en az 6 karakter olmalı.";
@@ -497,8 +665,9 @@ function KullaniciSheet({
     const ok = await onSave({
       id: item?.id,
       adSoyad: form.adSoyad,
-      kullaniciAdi: form.kullaniciAdi,
       email: form.email.trim() || undefined,
+      telefon: form.telefon.trim() || undefined,
+      departman: form.departman || undefined,
       rol: form.rol,
       durum: form.durum,
       sifre: form.sifre || undefined,
@@ -524,18 +693,6 @@ function KullaniciSheet({
             onChange={(e) => setForm((f) => ({ ...f, adSoyad: e.target.value }))}
           />
         </ErrorShakeField>
-        <ErrorShakeField error={hatalar.kullaniciAdi} shakeNonce={shakeNonce}>
-          <IconInput
-            label="Kullanıcı Adı"
-            icon={UsersIcon}
-            placeholder="örn. ahmet"
-            autoComplete="off"
-            value={form.kullaniciAdi}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, kullaniciAdi: e.target.value }))
-            }
-          />
-        </ErrorShakeField>
         <IconInput
           label="E-posta"
           icon={SendIcon}
@@ -544,20 +701,45 @@ function KullaniciSheet({
           value={form.email}
           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
         />
-        <AnimatedField label="Rol" icon={ShieldCheckIcon}>
-          <SearchSelect
-            items={[...ROLLER]}
-            value={form.rol}
-            onValueChange={(v) => setForm((f) => ({ ...f, rol: v ?? "Kullanıcı" }))}
-            placeholder="Rol"
-          />
-        </AnimatedField>
+        <IconInput
+          label="Telefon"
+          icon={PhoneIcon}
+          type="tel"
+          placeholder="0500 000 00 00"
+          value={form.telefon}
+          onChange={(e) => setForm((f) => ({ ...f, telefon: e.target.value }))}
+        />
+        <div className="grid grid-cols-2 gap-2.5">
+          <AnimatedField label="Rol" icon={ShieldCheckIcon}>
+            <SearchSelect
+              items={[...ROLLER]}
+              value={form.rol}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, rol: v ?? "Kullanıcı" }))
+              }
+              placeholder="Rol"
+            />
+          </AnimatedField>
+          <AnimatedField label="Departman" icon={FolderTreeIcon}>
+            <SearchSelect
+              items={departmanlar}
+              value={form.departman || null}
+              onValueChange={(v) => setForm((f) => ({ ...f, departman: v ?? "" }))}
+              placeholder="Departman"
+              addLabel="Yeni ekle"
+              onAdd={() => {
+                setYeniDep("");
+                setYeniDepMod(true);
+              }}
+            />
+          </AnimatedField>
+        </div>
         <div className="grid grid-cols-2 gap-2.5">
           <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
             <IconInput
               label={item ? "Yeni Şifre" : "Şifre"}
               icon={ScanTextIcon}
-              type="password"
+              type={sifreGoster ? "text" : "password"}
               placeholder={item ? "(değiştirmek için doldur)" : "••••••"}
               autoComplete="new-password"
               value={form.sifre}
@@ -568,7 +750,7 @@ function KullaniciSheet({
             <IconInput
               label="Şifre (Tekrar)"
               icon={ScanTextIcon}
-              type="password"
+              type={sifreGoster ? "text" : "password"}
               placeholder="••••••"
               autoComplete="new-password"
               value={form.sifreTekrar}
@@ -578,29 +760,21 @@ function KullaniciSheet({
             />
           </ErrorShakeField>
         </div>
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() =>
-            setForm((f) => ({
-              ...f,
-              durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-            }))
-          }
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setForm((f) => ({
-                ...f,
-                durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-              }));
-            }
-          }}
-          onMouseEnter={() => durumRef.current?.startAnimation()}
-          onMouseLeave={() => durumRef.current?.stopAnimation()}
-          className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-center"
+          onClick={sifreDoldur}
         >
-          <span className="flex items-center gap-1.5 text-sm font-medium">
+          <Wand2 className="size-3.5" /> Şifre Oluştur
+        </Button>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5">
+          <span
+            className="flex items-center gap-1.5 text-sm font-medium"
+            onMouseEnter={() => durumRef.current?.startAnimation()}
+            onMouseLeave={() => durumRef.current?.stopAnimation()}
+          >
             <CircleCheckIcon
               ref={durumRef}
               size={15}
@@ -608,11 +782,52 @@ function KullaniciSheet({
             />
             Durum
           </span>
-          <Badge variant={form.durum === "Aktif" ? "default" : "secondary"}>
-            {form.durum}
-          </Badge>
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{form.durum}</span>
+            <Switch
+              checked={form.durum === "Aktif"}
+              onCheckedChange={(v) =>
+                setForm((f) => ({ ...f, durum: v ? "Aktif" : "Pasif" }))
+              }
+              className="data-checked:bg-emerald-600"
+            />
+          </span>
         </div>
       </div>
+
+      <Dialog open={yeniDepMod} onOpenChange={setYeniDepMod}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-1.5">
+              <FolderTreeIcon size={16} className="text-muted-foreground" />
+              Yeni Departman
+            </DialogTitle>
+            <DialogDescription>
+              Departman ekleyin; eklenince otomatik seçilir.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Örn. Satın Alma"
+            value={yeniDep}
+            onChange={(e) => setYeniDep(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                depKaydet();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniDepMod(false)}>
+              İptal
+            </Button>
+            <Button onClick={depKaydet} disabled={!yeniDep.trim()}>
+              <Check className="size-4" /> Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FormSheet>
   );
 }

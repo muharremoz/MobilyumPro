@@ -264,53 +264,88 @@ export async function depoSil(
 export type KullaniciKayit = {
   id?: string;
   adSoyad: string;
-  kullaniciAdi: string;
   email?: string;
+  telefon?: string;
+  departman?: string;
   rol: string;
   durum: "Aktif" | "Pasif";
   /** Yeni kayıtta zorunlu; düzenlemede boş bırakılırsa şifre değişmez. */
   sifre?: string;
 };
 
-/** Kullanıcı ekle/güncelle. Yeni kayıtta USR-#### üretir, şifreyi hash'ler. */
+/** Ad soyaddan giriş için kullanıcı adı üretir: "Ahmet Yılmaz" → "ahmet.yilmaz". */
+function kullaniciAdiUret(adSoyad: string): string {
+  const tr: Record<string, string> = {
+    ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u",
+    Ç: "c", Ğ: "g", İ: "i", I: "i", Ö: "o", Ş: "s", Ü: "u",
+  };
+  return adSoyad
+    .trim()
+    .replace(/[çğıöşüÇĞİIÖŞÜ]/g, (c) => tr[c] ?? c)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+}
+
+/**
+ * Kullanıcı ekle/güncelle. Yeni kayıtta USR-#### ve ad soyaddan benzersiz
+ * kullanıcı adı üretir, şifreyi hash'ler. Düzenlemede kullanıcı adı değişmez.
+ */
 export async function kullaniciKaydet(
   k: KullaniciKayit,
-): Promise<{ ok: boolean; id?: string; error?: string }> {
+): Promise<{ ok: boolean; id?: string; kullaniciAdi?: string; error?: string }> {
   try {
-    let id = k.id;
-    if (!id) {
-      if (!k.sifre) return { ok: false, error: "Şifre zorunludur." };
-      const mevcut = await db.kullanici.findMany({ select: { id: true } });
-      let maxNo = 1000;
-      for (const r of mevcut) {
-        const m = /^USR-(\d+)$/.exec(r.id);
-        if (m) maxNo = Math.max(maxNo, Number(m[1]));
-      }
-      id = `USR-${maxNo + 1}`;
-    }
     const ortak = {
-      kullaniciAdi: k.kullaniciAdi.trim(),
       adSoyad: k.adSoyad.trim(),
       email: k.email?.trim() || null,
+      telefon: k.telefon?.trim() || null,
+      departman: k.departman?.trim() || null,
       rol: k.rol,
       durum: k.durum,
     };
-    await db.kullanici.upsert({
-      where: { id },
-      create: {
+
+    if (k.id) {
+      const g = await db.kullanici.update({
+        where: { id: k.id },
+        data: {
+          ...ortak,
+          // Şifre yalnızca yeni bir değer girildiyse güncellenir.
+          ...(k.sifre ? { sifreHash: sifreHashle(k.sifre) } : {}),
+        },
+      });
+      revalidatePath("/kullanicilar");
+      return { ok: true, id: k.id, kullaniciAdi: g.kullaniciAdi };
+    }
+
+    if (!k.sifre) return { ok: false, error: "Şifre zorunludur." };
+
+    const mevcut = await db.kullanici.findMany({
+      select: { id: true, kullaniciAdi: true },
+    });
+    let maxNo = 1000;
+    for (const r of mevcut) {
+      const m = /^USR-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    const id = `USR-${maxNo + 1}`;
+
+    // Benzersiz kullanıcı adı: ahmet.yilmaz, doluysa ahmet.yilmaz2, 3...
+    const taban = kullaniciAdiUret(k.adSoyad) || "kullanici";
+    const alinmis = new Set(mevcut.map((r) => r.kullaniciAdi));
+    let kullaniciAdi = taban;
+    for (let n = 2; alinmis.has(kullaniciAdi); n++) kullaniciAdi = `${taban}${n}`;
+
+    await db.kullanici.create({
+      data: {
         id,
+        kullaniciAdi,
         ...ortak,
-        sifreHash: sifreHashle(k.sifre!),
+        sifreHash: sifreHashle(k.sifre),
         olusturma: tarihDate(new Date().toISOString().slice(0, 10)),
-      },
-      update: {
-        ...ortak,
-        // Şifre yalnızca yeni bir değer girildiyse güncellenir.
-        ...(k.sifre ? { sifreHash: sifreHashle(k.sifre) } : {}),
       },
     });
     revalidatePath("/kullanicilar");
-    return { ok: true, id };
+    return { ok: true, id, kullaniciAdi };
   } catch (e) {
     // Prisma P2002: unique ihlali (kullanici_adi)
     if ((e as { code?: string })?.code === "P2002")
