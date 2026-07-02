@@ -1,5 +1,6 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
 
+import { AppleHelloEffectEnglish } from "@/components/apple-hello-effect-english"
 import { LoginForm } from "@/components/login-form"
 import { HexagonPattern } from "@/components/ui/hexagon-pattern"
 import { getVeritabanlari } from "@/lib/db/queries"
@@ -35,6 +36,9 @@ export default async function LoginPage() {
           gap={6}
           className="fill-gray-400/25 stroke-gray-500/50 [mask-image:radial-gradient(ellipse_at_center,white,transparent_95%)]"
         />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <AppleHelloEffectEnglish className="h-24 text-neutral-800" />
+        </div>
       </div>
     </div>
   )
