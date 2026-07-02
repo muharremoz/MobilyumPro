@@ -5,12 +5,22 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
+  ErrorShakeField,
+  type ErrorShakeHandle,
+} from "@/components/ui/error-shake"
+import {
   Field,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { SearchSelect } from "@/components/ui/search-select"
+
+type Hatalar = {
+  veritabani?: string
+  kullanici?: string
+  sifre?: string
+}
 
 export function LoginForm({
   veritabanlari,
@@ -20,8 +30,47 @@ export function LoginForm({
   const [veritabani, setVeritabani] = React.useState<string | null>(
     veritabanlari[0] ?? null,
   )
+  const [hatalar, setHatalar] = React.useState<Hatalar>({})
+
+  const veritabaniRef = React.useRef<ErrorShakeHandle>(null)
+  const kullaniciRef = React.useRef<ErrorShakeHandle>(null)
+  const sifreRef = React.useRef<ErrorShakeHandle>(null)
+  const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const form = e.currentTarget
+    const kullanici = (
+      form.elements.namedItem("kullanici") as HTMLInputElement
+    ).value.trim()
+    const sifre = (form.elements.namedItem("sifre") as HTMLInputElement).value
+
+    const yeni: Hatalar = {}
+    if (!veritabani) yeni.veritabani = "Veritabanı seçin."
+    if (!kullanici) yeni.kullanici = "Kullanıcı adı zorunludur."
+    if (!sifre) yeni.sifre = "Şifre zorunludur."
+
+    setHatalar(yeni)
+    if (Object.keys(yeni).length > 0) {
+      if (yeni.veritabani) veritabaniRef.current?.shake()
+      if (yeni.kullanici) kullaniciRef.current?.shake()
+      if (yeni.sifre) sifreRef.current?.shake()
+      // --revert-hold sonrasında hata durumu nötrüne döner.
+      clearTimeout(revertTimer.current)
+      revertTimer.current = setTimeout(() => setHatalar({}), 3000)
+      return
+    }
+
+    // TODO: gerçek kimlik doğrulama (seçilen veritabanına bağlanma)
+  }
+
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <form
+      className={cn("flex flex-col gap-6", className)}
+      noValidate
+      onSubmit={onSubmit}
+      {...props}
+    >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Hesabınıza giriş yapın</h1>
@@ -31,29 +80,35 @@ export function LoginForm({
         </div>
         <Field>
           <FieldLabel htmlFor="veritabani">Veritabanı</FieldLabel>
-          <SearchSelect
-            items={veritabanlari}
-            value={veritabani}
-            onValueChange={setVeritabani}
-            placeholder="Veritabanı seçin"
-            searchPlaceholder="Veritabanı ara..."
-            emptyText="Veritabanı bulunamadı"
-            className="h-10"
-          />
+          <ErrorShakeField ref={veritabaniRef} error={hatalar.veritabani}>
+            <SearchSelect
+              items={veritabanlari}
+              value={veritabani}
+              onValueChange={setVeritabani}
+              placeholder="Veritabanı seçin"
+              searchPlaceholder="Veritabanı ara..."
+              emptyText="Veritabanı bulunamadı"
+              className="h-10"
+            />
+          </ErrorShakeField>
         </Field>
         <Field>
           <FieldLabel htmlFor="kullanici">Kullanıcı</FieldLabel>
-          <Input
-            id="kullanici"
-            type="text"
-            placeholder="kullanıcı adı"
-            className="h-10"
-            required
-          />
+          <ErrorShakeField ref={kullaniciRef} error={hatalar.kullanici}>
+            <Input
+              id="kullanici"
+              name="kullanici"
+              type="text"
+              placeholder="kullanıcı adı"
+              className="h-10"
+            />
+          </ErrorShakeField>
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Şifre</FieldLabel>
-          <Input id="password" type="password" className="h-10" required />
+          <ErrorShakeField ref={sifreRef} error={hatalar.sifre}>
+            <Input id="password" name="sifre" type="password" className="h-10" />
+          </ErrorShakeField>
         </Field>
         <Field>
           <Button type="submit" className="h-10">
