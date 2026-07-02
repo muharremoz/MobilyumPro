@@ -1,6 +1,7 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
 
 import { LoginForm } from "@/components/login-form"
+import { HexagonPattern } from "@/components/ui/hexagon-pattern"
 import { getVeritabanlari } from "@/lib/db/queries"
 
 // Veritabanı listesi her istekte sunucudan okunur (build'de donmasın).
@@ -25,11 +26,11 @@ export default async function LoginPage() {
           </div>
         </div>
       </div>
-      <div className="relative hidden bg-muted lg:block">
-        <img
-          src="/placeholder.svg"
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+      <div className="relative hidden overflow-hidden bg-white lg:block">
+        <HexagonPattern
+          radius={32}
+          gap={6}
+          className="fill-gray-300/20 stroke-gray-300/40 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]"
         />
       </div>
     </div>
