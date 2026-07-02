@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -39,11 +40,15 @@ export function SearchSelect({
   addLabel,
   onAdd,
 }: SearchSelectProps) {
+  // "Yeni ekle" tıklanınca popup'ı kapatabilmek için open kontrollü.
+  const [acik, setAcik] = React.useState(false);
   return (
     <Combobox
       items={items}
       value={value}
       onValueChange={(v) => onValueChange?.(v as string | null)}
+      open={acik}
+      onOpenChange={setAcik}
     >
       <ComboboxTrigger
         className={cn(
@@ -76,7 +81,10 @@ export function SearchSelect({
           <div className="border-t p-1">
             <button
               type="button"
-              onClick={onAdd}
+              onClick={() => {
+                setAcik(false); // popup açık kalıp modalla karışmasın
+                onAdd();
+              }}
               className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               <Plus className="size-4" />

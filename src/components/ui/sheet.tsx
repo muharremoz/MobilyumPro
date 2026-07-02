@@ -53,7 +53,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col gap-4 overflow-hidden rounded-lg border bg-popover bg-clip-padding text-sm text-popover-foreground transition-transform duration-200 ease-out data-[side=bottom]:inset-x-2 data-[side=bottom]:bottom-2 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-[calc(100%+0.75rem)] data-[side=bottom]:data-starting-style:translate-y-[calc(100%+0.75rem)] data-[side=left]:inset-y-2 data-[side=left]:left-2 data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-[calc(100%+0.75rem)] data-[side=left]:data-starting-style:-translate-x-[calc(100%+0.75rem)] data-[side=right]:inset-y-2 data-[side=right]:right-2 data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-[calc(100%+0.75rem)] data-[side=right]:data-starting-style:translate-x-[calc(100%+0.75rem)] data-[side=top]:inset-x-2 data-[side=top]:top-2 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-[calc(100%+0.75rem)] data-[side=top]:data-starting-style:-translate-y-[calc(100%+0.75rem)] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+          "fixed z-50 flex flex-col gap-4 overflow-hidden rounded-lg border border-foreground/10 bg-popover bg-clip-padding text-sm text-popover-foreground transition-transform duration-200 ease-out data-[side=bottom]:inset-x-2 data-[side=bottom]:bottom-2 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-[calc(100%+0.75rem)] data-[side=bottom]:data-starting-style:translate-y-[calc(100%+0.75rem)] data-[side=left]:inset-y-2 data-[side=left]:left-2 data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-[calc(100%+0.75rem)] data-[side=left]:data-starting-style:-translate-x-[calc(100%+0.75rem)] data-[side=right]:inset-y-2 data-[side=right]:right-2 data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-[calc(100%+0.75rem)] data-[side=right]:data-starting-style:translate-x-[calc(100%+0.75rem)] data-[side=top]:inset-x-2 data-[side=top]:top-2 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-[calc(100%+0.75rem)] data-[side=top]:data-starting-style:-translate-y-[calc(100%+0.75rem)] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
           className
         )}
         {...props}
@@ -65,7 +65,7 @@ function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2.5 right-2.5 border bg-white text-foreground shadow-sm hover:bg-white hover:shadow"
+                className="absolute top-2.5 right-2.5 border bg-white text-foreground hover:bg-white"
                 size="icon-sm"
               />
             }

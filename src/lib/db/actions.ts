@@ -261,6 +261,40 @@ export async function depoSil(
 
 // ── Kullanıcı yönetimi ──────────────────────────────────────────────────
 
+/** Yeni rol tanımı ekler (varsa sessizce geçer). */
+export async function rolEkle(
+  ad: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const isim = ad.trim();
+  if (!isim) return { ok: false, error: "Rol adı boş olamaz." };
+  try {
+    await db.rol.upsert({ where: { ad: isim }, create: { ad: isim }, update: {} });
+    revalidatePath("/kullanicilar");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Rol eklenemedi." };
+  }
+}
+
+/** Yeni departman tanımı ekler (varsa sessizce geçer). */
+export async function departmanEkle(
+  ad: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const isim = ad.trim();
+  if (!isim) return { ok: false, error: "Departman adı boş olamaz." };
+  try {
+    await db.departman.upsert({
+      where: { ad: isim },
+      create: { ad: isim },
+      update: {},
+    });
+    revalidatePath("/kullanicilar");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Departman eklenemedi." };
+  }
+}
+
 export type KullaniciKayit = {
   id?: string;
   adSoyad: string;

@@ -195,6 +195,22 @@ model CariIslem {
   @@map("cari_islem")
 }
 
+// ── Rol (yetkilendirme; kullanıcıya ad ile bağlanır) ────────────────────
+model Rol {
+  id Int    @id @default(autoincrement())
+  ad String @unique
+
+  @@map("rol")
+}
+
+// ── Departman ───────────────────────────────────────────────────────────
+model Departman {
+  id Int    @id @default(autoincrement())
+  ad String @unique
+
+  @@map("departman")
+}
+
 // ── Kullanıcı (giriş + yetkilendirme) ───────────────────────────────────
 model Kullanici {
   id           String   @id

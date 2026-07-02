@@ -274,6 +274,18 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
   };
 }
 
+/** Tanımlı roller (kullanıcı formu + filtreler için). */
+export async function getRoller(): Promise<string[]> {
+  const rows = await db.rol.findMany({ orderBy: { id: "asc" } });
+  return rows.map((r) => r.ad);
+}
+
+/** Tanımlı departmanlar. */
+export async function getDepartmanlar(): Promise<string[]> {
+  const rows = await db.departman.findMany({ orderBy: { id: "asc" } });
+  return rows.map((d) => d.ad);
+}
+
 /** Kullanıcı listesi görünümü (şifre hash'i asla dışarı çıkmaz). */
 export type KullaniciGorunum = {
   id: string;

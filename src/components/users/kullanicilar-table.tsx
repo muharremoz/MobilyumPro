@@ -66,11 +66,10 @@ import type { KullaniciGorunum } from "@/lib/db/queries";
 import {
   kullaniciKaydet,
   kullaniciSil,
+  rolEkle as rolEkleAction,
+  departmanEkle as departmanEkleAction,
   type KullaniciKayit,
 } from "@/lib/db/actions";
-
-export const ROLLER = ["Yönetici", "Kullanıcı", "Görüntüleyici"] as const;
-const DEPARTMANLAR = ["Muhasebe", "Depo", "Üretim", "Sevkiyat"];
 
 const ROL_RENK: Record<string, string> = {
   Yönetici: "bg-violet-100 text-violet-800",
@@ -83,8 +82,12 @@ type MetinKolon = "id" | "adSoyad" | "kullaniciAdi" | "email";
 
 export function KullanicilarTable({
   kullanicilar,
+  roller: rollerProp,
+  departmanlar: departmanlarProp,
 }: {
   kullanicilar: KullaniciGorunum[];
+  roller: string[];
+  departmanlar: string[];
 }) {
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
@@ -101,16 +104,29 @@ export function KullanicilarTable({
   const [duzenlenen, setDuzenlenen] = React.useState<KullaniciGorunum | null>(
     null,
   );
-  const [departmanlar, setDepartmanlar] = React.useState<string[]>(() => {
-    const s = new Set(DEPARTMANLAR);
-    kullanicilar.forEach((k) => k.departman && s.add(k.departman));
-    return [...s];
-  });
+  // Roller/departmanlar DB'den gelir; "yeni ekle" DB'ye yazar + local günceller.
+  const [departmanlar, setDepartmanlar] = React.useState<string[]>(departmanlarProp);
+  const [roller, setRoller] = React.useState<string[]>(rollerProp);
 
-  function departmanEkle(d: string) {
+  async function departmanEkle(d: string) {
     const ad = d.trim();
     if (!ad) return;
     setDepartmanlar((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
+    const res = await departmanEkleAction(ad);
+    if (!res.ok) {
+      setDepartmanlar((prev) => prev.filter((x) => x !== ad));
+      toast.error(res.error ?? "Departman eklenemedi.");
+    }
+  }
+  async function rolEkle(r: string) {
+    const ad = r.trim();
+    if (!ad) return;
+    setRoller((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
+    const res = await rolEkleAction(ad);
+    if (!res.ok) {
+      setRoller((prev) => prev.filter((x) => x !== ad));
+      toast.error(res.error ?? "Rol eklenemedi.");
+    }
   }
 
   React.useEffect(() => setSayfa(1), [metinFiltre, rol, durum]);
@@ -306,7 +322,7 @@ export function KullanicilarTable({
                 {(k === "rol" || k === "durum") && (
                   <div className="grid max-h-56 gap-0.5 overflow-auto">
                     {(k === "rol"
-                      ? ["Tümü", ...ROLLER]
+                      ? ["Tümü", ...roller]
                       : ["Tümü", "Aktif", "Pasif"]
                     ).map((v) => {
                       const seciliDeger = k === "rol" ? rol : durum;
@@ -540,6 +556,8 @@ export function KullanicilarTable({
         item={duzenlenen}
         departmanlar={departmanlar}
         onDepartmanEkle={departmanEkle}
+        roller={roller}
+        onRolEkle={rolEkle}
         onSave={kaydet}
       />
     </div>
@@ -549,7 +567,6 @@ export function KullanicilarTable({
 type SheetHatalar = {
   adSoyad?: string;
   sifre?: string;
-  sifreTekrar?: string;
 };
 
 /** 8 karakter: hece-hece okunur, klavyede yazması kolay ama tahmin etmesi zor.
@@ -570,6 +587,8 @@ function KullaniciSheet({
   item,
   departmanlar,
   onDepartmanEkle,
+  roller,
+  onRolEkle,
   onSave,
 }: {
   open: boolean;
@@ -577,6 +596,8 @@ function KullaniciSheet({
   item: KullaniciGorunum | null;
   departmanlar: string[];
   onDepartmanEkle: (d: string) => void;
+  roller: string[];
+  onRolEkle: (r: string) => void;
   onSave: (k: KullaniciKayit) => Promise<boolean>;
 }) {
   const [form, setForm] = React.useState({
@@ -586,21 +607,21 @@ function KullaniciSheet({
     departman: "",
     rol: "Kullanıcı" as string,
     sifre: "",
-    sifreTekrar: "",
     durum: "Aktif" as "Aktif" | "Pasif",
   });
   const [hatalar, setHatalar] = React.useState<SheetHatalar>({});
   const [shakeNonce, setShakeNonce] = React.useState(0);
   const [sifreGoster, setSifreGoster] = React.useState(false);
-  const [yeniDepMod, setYeniDepMod] = React.useState(false);
-  const [yeniDep, setYeniDep] = React.useState("");
+  // Sheet üstü "yeni ekle" modalı: rol veya departman için ortak.
+  const [yeniMod, setYeniMod] = React.useState<"rol" | "departman" | null>(null);
+  const [yeniAd, setYeniAd] = React.useState("");
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
   React.useEffect(() => {
     if (!open) {
-      setYeniDepMod(false);
-      setYeniDep("");
+      setYeniMod(null);
+      setYeniAd("");
       return;
     }
     setHatalar({});
@@ -613,7 +634,6 @@ function KullaniciSheet({
         departman: item.departman ?? "",
         rol: item.rol,
         sifre: "",
-        sifreTekrar: "",
         durum: item.durum,
       });
     } else {
@@ -624,24 +644,28 @@ function KullaniciSheet({
         departman: "",
         rol: "Kullanıcı",
         sifre: "",
-        sifreTekrar: "",
         durum: "Aktif",
       });
     }
   }, [open, item]);
 
-  function depKaydet() {
-    const ad = yeniDep.trim();
-    if (!ad) return;
-    onDepartmanEkle(ad);
-    setForm((f) => ({ ...f, departman: ad })); // eklenen otomatik seçilir
-    setYeniDep("");
-    setYeniDepMod(false);
+  function yeniKaydet() {
+    const ad = yeniAd.trim();
+    if (!ad || !yeniMod) return;
+    if (yeniMod === "rol") {
+      onRolEkle(ad);
+      setForm((f) => ({ ...f, rol: ad })); // eklenen otomatik seçilir
+    } else {
+      onDepartmanEkle(ad);
+      setForm((f) => ({ ...f, departman: ad }));
+    }
+    setYeniAd("");
+    setYeniMod(null);
   }
 
   function sifreDoldur() {
     const s = sifreUret();
-    setForm((f) => ({ ...f, sifre: s, sifreTekrar: s }));
+    setForm((f) => ({ ...f, sifre: s }));
     setSifreGoster(true);
   }
 
@@ -651,8 +675,6 @@ function KullaniciSheet({
     if (!item && !form.sifre) yeni.sifre = "Şifre zorunludur.";
     if (form.sifre && form.sifre.length < 6)
       yeni.sifre = "Şifre en az 6 karakter olmalı.";
-    if (form.sifre && form.sifre !== form.sifreTekrar)
-      yeni.sifreTekrar = "Şifreler eşleşmiyor.";
 
     setHatalar(yeni);
     if (Object.keys(yeni).length > 0) {
@@ -683,6 +705,14 @@ function KullaniciSheet({
       icon={UsersRoundIcon}
       onSave={kaydet}
     >
+      {/* Departman modalı açıkken sheet'i karart (dialog backdrop'ı sheet'in
+          altında kalıyor; overlay'i sheet'in kendi içine koyuyoruz). */}
+      {yeniMod && (
+        <div
+          className="absolute inset-0 z-40 bg-black/15 backdrop-blur-xs duration-100 animate-in fade-in-0"
+          onClick={() => setYeniMod(null)}
+        />
+      )}
       <div className="grid gap-2.5">
         <ErrorShakeField error={hatalar.adSoyad} shakeNonce={shakeNonce}>
           <IconInput
@@ -712,12 +742,17 @@ function KullaniciSheet({
         <div className="grid grid-cols-2 gap-2.5">
           <AnimatedField label="Rol" icon={ShieldCheckIcon}>
             <SearchSelect
-              items={[...ROLLER]}
+              items={roller}
               value={form.rol}
               onValueChange={(v) =>
                 setForm((f) => ({ ...f, rol: v ?? "Kullanıcı" }))
               }
               placeholder="Rol"
+              addLabel="Yeni ekle"
+              onAdd={() => {
+                setYeniAd("");
+                setYeniMod("rol");
+              }}
             />
           </AnimatedField>
           <AnimatedField label="Departman" icon={FolderTreeIcon}>
@@ -728,53 +763,60 @@ function KullaniciSheet({
               placeholder="Departman"
               addLabel="Yeni ekle"
               onAdd={() => {
-                setYeniDep("");
-                setYeniDepMod(true);
+                setYeniAd("");
+                setYeniMod("departman");
               }}
             />
           </AnimatedField>
         </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
+        <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
+          <div className="relative">
             <IconInput
               label={item ? "Yeni Şifre" : "Şifre"}
               icon={ScanTextIcon}
               type={sifreGoster ? "text" : "password"}
               placeholder={item ? "(değiştirmek için doldur)" : "••••••"}
               autoComplete="new-password"
+              className="pr-10"
               value={form.sifre}
               onChange={(e) => setForm((f) => ({ ...f, sifre: e.target.value }))}
             />
-          </ErrorShakeField>
-          <ErrorShakeField error={hatalar.sifreTekrar} shakeNonce={shakeNonce}>
-            <IconInput
-              label="Şifre (Tekrar)"
-              icon={ScanTextIcon}
-              type={sifreGoster ? "text" : "password"}
-              placeholder="••••••"
-              autoComplete="new-password"
-              value={form.sifreTekrar}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, sifreTekrar: e.target.value }))
-              }
-            />
-          </ErrorShakeField>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="justify-center"
-          onClick={sifreDoldur}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Şifre oluştur"
+              title="Şifre oluştur"
+              className="absolute right-1 bottom-1 text-muted-foreground hover:text-foreground"
+              onClick={sifreDoldur}
+            >
+              <Wand2 className="size-4" />
+            </Button>
+          </div>
+        </ErrorShakeField>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() =>
+            setForm((f) => ({
+              ...f,
+              durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
+            }))
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setForm((f) => ({
+                ...f,
+                durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
+              }));
+            }
+          }}
+          onMouseEnter={() => durumRef.current?.startAnimation()}
+          onMouseLeave={() => durumRef.current?.stopAnimation()}
+          className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none select-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
         >
-          <Wand2 className="size-3.5" /> Şifre Oluştur
-        </Button>
-        <div className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5">
-          <span
-            className="flex items-center gap-1.5 text-sm font-medium"
-            onMouseEnter={() => durumRef.current?.startAnimation()}
-            onMouseLeave={() => durumRef.current?.stopAnimation()}
-          >
+          <span className="flex items-center gap-1.5 text-sm font-medium">
             <CircleCheckIcon
               ref={durumRef}
               size={15}
@@ -786,44 +828,47 @@ function KullaniciSheet({
             <span className="text-xs text-muted-foreground">{form.durum}</span>
             <Switch
               checked={form.durum === "Aktif"}
-              onCheckedChange={(v) =>
-                setForm((f) => ({ ...f, durum: v ? "Aktif" : "Pasif" }))
-              }
-              className="data-checked:bg-emerald-600"
+              className="pointer-events-none data-checked:bg-emerald-600"
             />
           </span>
         </div>
       </div>
 
-      <Dialog open={yeniDepMod} onOpenChange={setYeniDepMod}>
-        <DialogContent className="sm:max-w-xs">
+      <Dialog open={yeniMod !== null} onOpenChange={(v) => !v && setYeniMod(null)}>
+        {/* Sheet'in (sağda, ~24rem) yatay ortasına hizala: 8px kenar + (384-320)/2 */}
+        <DialogContent className="sm:left-auto sm:right-10 sm:max-w-xs sm:translate-x-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-1.5">
-              <FolderTreeIcon size={16} className="text-muted-foreground" />
-              Yeni Departman
+              {yeniMod === "rol" ? (
+                <ShieldCheckIcon size={16} className="text-muted-foreground" />
+              ) : (
+                <FolderTreeIcon size={16} className="text-muted-foreground" />
+              )}
+              {yeniMod === "rol" ? "Yeni Rol" : "Yeni Departman"}
             </DialogTitle>
             <DialogDescription>
-              Departman ekleyin; eklenince otomatik seçilir.
+              {yeniMod === "rol" ? "Rol" : "Departman"} ekleyin; eklenince
+              otomatik seçilir.
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
-            placeholder="Örn. Satın Alma"
-            value={yeniDep}
-            onChange={(e) => setYeniDep(e.target.value)}
+            placeholder={yeniMod === "rol" ? "Örn. Depo Sorumlusu" : "Örn. Satın Alma"}
+            value={yeniAd}
+            onChange={(e) => setYeniAd(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                depKaydet();
+                yeniKaydet();
               }
             }}
           />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setYeniDepMod(false)}>
+          <DialogFooter className="p-2">
+            <Button size="sm" variant="outline" onClick={() => setYeniMod(null)}>
               İptal
             </Button>
-            <Button onClick={depKaydet} disabled={!yeniDep.trim()}>
-              <Check className="size-4" /> Ekle
+            <Button size="sm" onClick={yeniKaydet} disabled={!yeniAd.trim()}>
+              <Check className="size-3.5" /> Ekle
             </Button>
           </DialogFooter>
         </DialogContent>
