@@ -162,11 +162,43 @@ export async function modelSil(
   }
 }
 
-/** Parça ekle/güncelle + reçetesini (recete_satiri) yeniden yaz (transaction). */
+/** Versiyon anlık kopyasındaki satır biçimi. */
+export type ReceteSnapshotSatir = {
+  tip: "malzeme" | "parca";
+  ref: string;
+  miktar: number;
+};
+
+function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
+  return recete.map((r) => ({
+    tip: r.bilesen.tip,
+    ref: r.bilesen.ref,
+    miktar: r.miktar,
+  }));
+}
+
+/**
+ * Parça/reçete ekle-güncelle + satırları yeniden yaz (transaction).
+ * Satırlar değiştiyse recete_versiyon'a anlık kopya ekler (tam geçmiş).
+ * id boşsa PRC-#### üretir.
+ */
 export async function parcaKaydet(
-  p: Parca,
-): Promise<{ ok: boolean; error?: string }> {
+  p: Omit<Parca, "id"> & { id?: string },
+  aciklama?: string,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
+    let id = p.id;
+    if (!id) {
+      const mevcut = await db.parca.findMany({ select: { id: true } });
+      let maxNo = 2000;
+      for (const r of mevcut) {
+        const m = /^PRC-(\d+)$/.exec(r.id);
+        if (m) maxNo = Math.max(maxNo, Number(m[1]));
+      }
+      id = `PRC-${maxNo + 1}`;
+    }
+    const parcaId = id;
+
     await db.$transaction(async (tx) => {
       const veri = {
         ad: p.ad,
@@ -175,27 +207,113 @@ export async function parcaKaydet(
         durum: p.durum,
       };
       await tx.parca.upsert({
-        where: { id: p.id },
-        create: { id: p.id, ...veri },
+        where: { id: parcaId },
+        create: { id: parcaId, ...veri },
         update: veri,
       });
 
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
-      await tx.receteSatiri.deleteMany({ where: { parcaId: p.id } });
+      await tx.receteSatiri.deleteMany({ where: { parcaId } });
       const satirlar = p.recete.map((r) => ({
-        parcaId: p.id,
+        parcaId,
         tip: r.bilesen.tip,
         malzemeId: r.bilesen.tip === "malzeme" ? r.bilesen.ref : null,
         altParcaId: r.bilesen.tip === "parca" ? r.bilesen.ref : null,
         miktar: r.miktar,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
+
+      // Versiyon: son anlık kopyayla aynıysa yazma.
+      const snapshot = receteSnapshot(p.recete);
+      const son = await tx.receteVersiyon.findFirst({
+        where: { parcaId },
+        orderBy: { versiyonNo: "desc" },
+      });
+      if (!son || son.satirlarJson !== JSON.stringify(snapshot)) {
+        await tx.receteVersiyon.create({
+          data: {
+            parcaId,
+            versiyonNo: (son?.versiyonNo ?? 0) + 1,
+            aciklama: aciklama?.trim() || null,
+            satirlarJson: JSON.stringify(snapshot),
+          },
+        });
+      }
     });
     revalidatePath("/stok-yonetimi");
     revalidatePath("/uretim/recete");
-    return { ok: true };
+    return { ok: true, id: parcaId };
   } catch {
-    return { ok: false, error: "Parça kaydedilemedi." };
+    return { ok: false, error: "Reçete kaydedilemedi." };
+  }
+}
+
+/** Reçeteyi yeni bir kayıt olarak kopyalar (satırlar dahil, v1 ile başlar). */
+export async function receteKopyala(
+  kaynakId: string,
+  yeniAd: string,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const kaynak = await db.parca.findUnique({
+      where: { id: kaynakId },
+      include: { recete: true },
+    });
+    if (!kaynak) return { ok: false, error: "Kaynak reçete bulunamadı." };
+
+    const res = await parcaKaydet(
+      {
+        ad: yeniAd.trim() || `${kaynak.ad} (kopya)`,
+        kategori: kaynak.kategori as Parca["kategori"],
+        aciklama: kaynak.aciklama ?? undefined,
+        durum: kaynak.durum as "Aktif" | "Pasif",
+        recete: kaynak.recete.map((r) => ({
+          bilesen:
+            r.tip === "malzeme"
+              ? { tip: "malzeme" as const, ref: r.malzemeId! }
+              : { tip: "parca" as const, ref: r.altParcaId! },
+          miktar: Number(r.miktar),
+        })),
+      },
+      `"${kaynak.ad}" reçetesinden kopyalandı`,
+    );
+    return res;
+  } catch {
+    return { ok: false, error: "Reçete kopyalanamadı." };
+  }
+}
+
+/** Reçeteyi eski bir versiyona döndürür (geri dönüş de yeni versiyon olur). */
+export async function receteGeriYukle(
+  parcaId: string,
+  versiyonNo: number,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const [parca, versiyon] = await Promise.all([
+      db.parca.findUnique({ where: { id: parcaId } }),
+      db.receteVersiyon.findUnique({
+        where: { parcaId_versiyonNo: { parcaId, versiyonNo } },
+      }),
+    ]);
+    if (!parca || !versiyon)
+      return { ok: false, error: "Versiyon bulunamadı." };
+
+    const satirlar = JSON.parse(versiyon.satirlarJson) as ReceteSnapshotSatir[];
+    return await parcaKaydet(
+      {
+        id: parcaId,
+        ad: parca.ad,
+        kategori: parca.kategori as Parca["kategori"],
+        aciklama: parca.aciklama ?? undefined,
+        durum: parca.durum as "Aktif" | "Pasif",
+        recete: satirlar.map((s) => ({
+          bilesen: { tip: s.tip, ref: s.ref },
+          miktar: s.miktar,
+        })),
+      },
+      `v${versiyonNo} sürümüne geri dönüldü`,
+    );
+  } catch {
+    return { ok: false, error: "Geri yükleme başarısız." };
   }
 }
 

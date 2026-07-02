@@ -193,6 +193,33 @@ export async function getStokHareketleri(): Promise<StokHareket[]> {
     .sort((a, b) => b.tarih.localeCompare(a.tarih));
 }
 
+/** Reçete versiyon geçmişi görünümü. */
+export type ReceteVersiyonGorunum = {
+  versiyonNo: number;
+  tarih: string; // ISO datetime
+  aciklama?: string;
+  satirlar: { tip: "malzeme" | "parca"; ref: string; miktar: number }[];
+};
+
+/** Tüm reçetelerin versiyon geçmişi: parcaId → versiyonlar (yeni → eski). */
+export async function getReceteVersiyonlari(): Promise<
+  Record<string, ReceteVersiyonGorunum[]>
+> {
+  const rows = await db.receteVersiyon.findMany({
+    orderBy: [{ parcaId: "asc" }, { versiyonNo: "desc" }],
+  });
+  const sonuc: Record<string, ReceteVersiyonGorunum[]> = {};
+  for (const r of rows) {
+    (sonuc[r.parcaId] ??= []).push({
+      versiyonNo: r.versiyonNo,
+      tarih: r.tarih.toISOString(),
+      aciklama: r.aciklama ?? undefined,
+      satirlar: JSON.parse(r.satirlarJson),
+    });
+  }
+  return sonuc;
+}
+
 /** Üretim planlama formunun ihtiyaç duyduğu hafif müşteri görünümü. */
 export type MusteriSecim = { id: string; ad: string; sehir: string };
 

@@ -1,13 +1,24 @@
-import { RecipePage } from "@/components/production/recipe-page";
-import { getModeller, getParcalar, getMalzemeler } from "@/lib/db/queries";
+import { ReceteOlusturma } from "@/components/production/recete-olusturma";
+import {
+  getMalzemeler,
+  getModeller,
+  getParcalar,
+  getReceteVersiyonlari,
+} from "@/lib/db/queries";
 
 export default async function ReceteRoute() {
-  const [urunler, parcalar, malzemeler] = await Promise.all([
-    getModeller(),
+  const [parcalar, malzemeler, modeller, versiyonlar] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
+    getModeller(),
+    getReceteVersiyonlari(),
   ]);
   return (
-    <RecipePage urunler={urunler} parcalar={parcalar} malzemeler={malzemeler} />
+    <ReceteOlusturma
+      parcalar={parcalar}
+      malzemeler={malzemeler}
+      modeller={modeller}
+      versiyonlar={versiyonlar}
+    />
   );
 }
