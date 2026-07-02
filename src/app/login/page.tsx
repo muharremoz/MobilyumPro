@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function LoginPage() {
   const veritabanlari = await getVeritabanlari()
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
+    <div className="grid min-h-svh bg-white lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
