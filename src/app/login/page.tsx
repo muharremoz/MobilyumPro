@@ -25,7 +25,7 @@ export default async function LoginPage() {
             <LoginForm veritabanlari={veritabanlari} />
           </div>
         </div>
-        <p className="text-center text-xs text-muted-foreground md:text-left">
+        <p className="text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} MobilyumPro · Mobilya Yönetim Paneli
         </p>
       </div>
@@ -33,7 +33,7 @@ export default async function LoginPage() {
         <HexagonPattern
           radius={32}
           gap={6}
-          className="fill-gray-300/20 stroke-gray-300/40 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]"
+          className="fill-gray-400/25 stroke-gray-500/50 [mask-image:radial-gradient(ellipse_at_center,white,transparent_95%)]"
         />
       </div>
     </div>
