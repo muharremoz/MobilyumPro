@@ -44,6 +44,100 @@ function yetkiVar(y: ModulYetki | undefined): boolean {
   return !!y && (y.isList || y.isAdd || y.isUpdate || y.isDelete);
 }
 
+function bassHarfler(ad: string): string {
+  const p = ad.trim().split(/\s+/);
+  return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
+// ─── Ortak UI parçaları ───────────────────────────────────────────────────
+function Avatar({ text }: { text: string }) {
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-foreground/70">
+      {text}
+    </div>
+  );
+}
+
+function SayiRozet({ deger, toplam }: { deger: number; toplam: number }) {
+  const ton =
+    deger === 0
+      ? "bg-rose-500"
+      : deger === toplam
+        ? "bg-emerald-500"
+        : "bg-amber-500";
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+      <span className={cn("size-1.5 rounded-full", ton)} />
+      {deger}/{toplam}
+    </span>
+  );
+}
+
+/** Sol listedeki seçilebilir satır (avatar + başlık + alt başlık + rozet). */
+function SecimSatiri({
+  avatar,
+  baslik,
+  altBaslik,
+  rozet,
+  aktif,
+  onClick,
+}: {
+  avatar: React.ReactNode;
+  baslik: string;
+  altBaslik?: string;
+  rozet?: React.ReactNode;
+  aktif: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-3 rounded-lg border px-2.5 py-2 text-left transition-colors",
+        aktif
+          ? "border-border bg-muted/60"
+          : "border-transparent hover:bg-muted/40",
+      )}
+    >
+      {avatar}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">{baslik}</div>
+        {altBaslik && (
+          <div className="truncate text-xs text-muted-foreground">
+            {altBaslik}
+          </div>
+        )}
+      </div>
+      {rozet}
+    </button>
+  );
+}
+
+/** Seçili kullanıcı başlığı (sağ panelin üstünde). */
+function KullaniciBaslik({ k }: { k: KullaniciGorunum }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <Avatar text={bassHarfler(k.adSoyad)} />
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">{k.adSoyad}</div>
+        <div className="truncate text-xs text-muted-foreground">
+          {k.rol}
+          {k.departman ? ` · ${k.departman}` : ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BosDurum({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
 /** Modül × bayrak tablosu (satır=menü, kolon=bayrak). Değişince onDegis. */
 function YetkiTablosu({
   deger,
@@ -53,21 +147,25 @@ function YetkiTablosu({
   onDegis: (modul: string, yeni: ModulYetki) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border bg-card">
+    <div className="overflow-x-auto rounded-lg border bg-card">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="w-full min-w-40">Menü</TableHead>
+          <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+            <TableHead className="h-9 w-full min-w-40 text-xs font-medium text-muted-foreground">
+              Menü
+            </TableHead>
             {YETKI_BAYRAKLARI.map((b) => (
               <TableHead
                 key={b.key}
                 title={b.aciklama}
-                className="w-20 text-center whitespace-nowrap"
+                className="h-9 w-20 text-center text-xs font-medium whitespace-nowrap text-muted-foreground"
               >
                 {b.label}
               </TableHead>
             ))}
-            <TableHead className="w-20 text-center">Tümü</TableHead>
+            <TableHead className="h-9 w-20 text-center text-xs font-medium text-muted-foreground">
+              Tümü
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,12 +174,12 @@ function YetkiTablosu({
             const hepsi = y.isList && y.isAdd && y.isUpdate && y.isDelete;
             const bazi = yetkiVar(y);
             return (
-              <TableRow key={m.id}>
-                <TableCell className="font-medium">{m.label}</TableCell>
+              <TableRow key={m.id} className="border-b last:border-0">
+                <TableCell className="py-2.5 font-medium">{m.label}</TableCell>
                 {YETKI_BAYRAKLARI.map((b) => (
                   <TableCell
                     key={b.key}
-                    className="[&:has([role=checkbox])]:pr-2"
+                    className="py-2.5 [&:has([role=checkbox])]:pr-2"
                   >
                     <div className="flex justify-center">
                       <Checkbox
@@ -94,7 +192,7 @@ function YetkiTablosu({
                     </div>
                   </TableCell>
                 ))}
-                <TableCell className="[&:has([role=checkbox])]:pr-2">
+                <TableCell className="py-2.5 [&:has([role=checkbox])]:pr-2">
                   <div className="flex justify-center">
                     <Checkbox
                       checked={hepsi}
@@ -117,6 +215,15 @@ function YetkiTablosu({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/** Sol panel kabuğu: rol filtresi + kaydırılabilir liste. */
+function SolPanel({ children }: { children: React.ReactNode }) {
+  return (
+    <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-64">
+      {children}
+    </aside>
   );
 }
 
@@ -194,7 +301,6 @@ function KullaniciSekmesi({
       toast.error(res.error ?? "Set uygulanamadı.");
       return;
     }
-    // Set bayraklarını yerelde de uygula (kopya).
     setMatris((m) => {
       const kul = { ...m[secili.id] };
       for (const [modul, y] of Object.entries(set.yetkiler)) {
@@ -206,9 +312,8 @@ function KullaniciSekmesi({
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row">
-      {/* Sol: kullanıcılar */}
-      <div className="flex w-full shrink-0 flex-col gap-2 lg:w-72">
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <SolPanel>
         <SearchSelect
           items={["Tümü", ...roller]}
           value={rolFiltre}
@@ -216,80 +321,50 @@ function KullaniciSekmesi({
           placeholder="Rol filtresi"
           searchPlaceholder="Rol ara..."
         />
-        <div className="flex flex-col gap-2">
-          {filtreli.map((k) => {
-            const aktif = k.id === seciliId;
-            return (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => setSeciliId(k.id)}
-                className={cn(
-                  "cursor-pointer rounded-md border bg-card p-3 text-left transition-colors",
-                  aktif
-                    ? "border-foreground/30 ring-1 ring-foreground/20"
-                    : "hover:bg-muted/40",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium">
-                    {k.adSoyad}
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
-                      izinliSayisi(k.id) === 0
-                        ? "bg-rose-100 text-rose-700"
-                        : "bg-emerald-100 text-emerald-700",
-                    )}
-                  >
-                    {izinliSayisi(k.id)}/{MODULLER.length}
-                  </span>
-                </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {k.rol}
-                  {k.departman ? ` · ${k.departman}` : ""}
-                </p>
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-1">
+          {filtreli.map((k) => (
+            <SecimSatiri
+              key={k.id}
+              aktif={k.id === seciliId}
+              onClick={() => setSeciliId(k.id)}
+              avatar={<Avatar text={bassHarfler(k.adSoyad)} />}
+              baslik={k.adSoyad}
+              altBaslik={`${k.rol}${k.departman ? ` · ${k.departman}` : ""}`}
+              rozet={
+                <SayiRozet
+                  deger={izinliSayisi(k.id)}
+                  toplam={MODULLER.length}
+                />
+              }
+            />
+          ))}
           {filtreli.length === 0 && (
-            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-              Bu rolde kullanıcı yok.
-            </p>
+            <BosDurum>Bu rolde kullanıcı yok.</BosDurum>
           )}
         </div>
-      </div>
+      </SolPanel>
 
-      {/* Sağ: seçili kullanıcının modül × bayrak tablosu */}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
         {secili ? (
           <>
-            {setler.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  Hazır set uygula:
-                </span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <KullaniciBaslik k={secili} />
+              {setler.length > 0 && (
                 <div className="w-56">
                   <SearchSelect
                     items={setler.map((s) => s.ad)}
                     value={null}
                     onValueChange={(v) => v && setUygula(v)}
-                    placeholder="Set seç…"
+                    placeholder="Hazır set uygula…"
                     searchPlaceholder="Set ara..."
                   />
                 </div>
-              </div>
-            )}
-            <YetkiTablosu
-              deger={matris[secili.id] ?? {}}
-              onDegis={modulDegis}
-            />
+              )}
+            </div>
+            <YetkiTablosu deger={matris[secili.id] ?? {}} onDegis={modulDegis} />
           </>
         ) : (
-          <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Soldan bir kullanıcı seçin.
-          </p>
+          <BosDurum>Soldan bir kullanıcı seçin.</BosDurum>
         )}
       </div>
     </div>
@@ -325,11 +400,10 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
   );
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
-  // Prop değişince (router.refresh sonrası) seçili seti tazele.
   React.useEffect(() => {
     setTaslak((t) => {
       if (!t) return setler[0] ? setTaslagi(setler[0]) : null;
-      if (t.id == null) return t; // düzenlenen yeni set — dokunma
+      if (t.id == null) return t;
       const g = setler.find((s) => s.id === t.id);
       return g ? setTaslagi(g) : setler[0] ? setTaslagi(setler[0]) : null;
     });
@@ -373,9 +447,8 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row">
-      {/* Sol: set listesi */}
-      <div className="flex w-full shrink-0 flex-col gap-2 lg:w-72">
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <SolPanel>
         <Button
           variant="outline"
           className="justify-start"
@@ -383,41 +456,32 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
         >
           <Plus className="size-4" /> Yeni Set
         </Button>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           {setler.map((s) => {
-            const aktif = taslak?.id === s.id;
             const izinli = MODULLER.filter((m) =>
               yetkiVar(s.yetkiler[m.id]),
             ).length;
             return (
-              <button
+              <SecimSatiri
                 key={s.id}
-                type="button"
+                aktif={taslak?.id === s.id}
                 onClick={() => setTaslak(setTaslagi(s))}
-                className={cn(
-                  "flex items-center justify-between gap-2 rounded-md border bg-card p-3 text-left transition-colors",
-                  aktif
-                    ? "border-foreground/30 ring-1 ring-foreground/20"
-                    : "hover:bg-muted/40",
-                )}
-              >
-                <span className="truncate text-sm font-medium">{s.ad}</span>
-                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-                  {izinli}/{MODULLER.length}
-                </span>
-              </button>
+                avatar={<Avatar text={bassHarfler(s.ad)} />}
+                baslik={s.ad}
+                altBaslik={`${izinli} modül`}
+                rozet={<SayiRozet deger={izinli} toplam={MODULLER.length} />}
+              />
             );
           })}
           {setler.length === 0 && (
-            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+            <BosDurum>
               Henüz set yok. &quot;Yeni Set&quot; ile oluştur.
-            </p>
+            </BosDurum>
           )}
         </div>
-      </div>
+      </SolPanel>
 
-      {/* Sağ: set editörü */}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
         {taslak ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -447,9 +511,7 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
             <YetkiTablosu deger={taslak.yetkiler} onDegis={modulDegis} />
           </>
         ) : (
-          <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Bir set seçin ya da &quot;Yeni Set&quot; oluşturun.
-          </p>
+          <BosDurum>Bir set seçin ya da &quot;Yeni Set&quot; oluşturun.</BosDurum>
         )}
       </div>
     </div>
@@ -533,7 +595,6 @@ function CariErisimSekmesi({
     }
   }
 
-  // Bir kolonu (Görüntüle/İşlem Yap) tüm cariler için ayarla.
   async function kolonDegis(alan: keyof CariYetki, deger: boolean) {
     if (!secili) return;
     const onceki = matris[secili.id];
@@ -568,9 +629,8 @@ function CariErisimSekmesi({
   ] as const;
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row">
-      {/* Sol: kullanıcılar */}
-      <div className="flex w-full shrink-0 flex-col gap-2 lg:w-72">
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <SolPanel>
         <SearchSelect
           items={["Tümü", ...roller]}
           value={rolFiltre}
@@ -578,76 +638,52 @@ function CariErisimSekmesi({
           placeholder="Rol filtresi"
           searchPlaceholder="Rol ara..."
         />
-        <div className="flex flex-col gap-2">
-          {filtreliKul.map((k) => {
-            const aktif = k.id === seciliId;
-            const g = gorunurSayisi(k.id);
-            return (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => setSeciliId(k.id)}
-                className={cn(
-                  "cursor-pointer rounded-md border bg-card p-3 text-left transition-colors",
-                  aktif
-                    ? "border-foreground/30 ring-1 ring-foreground/20"
-                    : "hover:bg-muted/40",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium">
-                    {k.adSoyad}
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
-                      g === 0
-                        ? "bg-rose-100 text-rose-700"
-                        : g === cariler.length
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700",
-                    )}
-                  >
-                    {g}/{cariler.length}
-                  </span>
-                </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {k.rol}
-                  {k.departman ? ` · ${k.departman}` : ""}
-                </p>
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-1">
+          {filtreliKul.map((k) => (
+            <SecimSatiri
+              key={k.id}
+              aktif={k.id === seciliId}
+              onClick={() => setSeciliId(k.id)}
+              avatar={<Avatar text={bassHarfler(k.adSoyad)} />}
+              baslik={k.adSoyad}
+              altBaslik={`${k.rol}${k.departman ? ` · ${k.departman}` : ""}`}
+              rozet={
+                <SayiRozet deger={gorunurSayisi(k.id)} toplam={cariler.length} />
+              }
+            />
+          ))}
           {filtreliKul.length === 0 && (
-            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-              Bu rolde kullanıcı yok.
-            </p>
+            <BosDurum>Bu rolde kullanıcı yok.</BosDurum>
           )}
         </div>
-      </div>
+      </SolPanel>
 
-      {/* Sağ: cari hesap listesi (Görüntüle / İşlem Yap) */}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
         {secili ? (
           <>
-            <div className="relative min-w-56">
-              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari veya kod ara..."
-                value={arama}
-                onChange={(e) => setArama(e.target.value)}
-                className="h-9 pl-9"
-              />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <KullaniciBaslik k={secili} />
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari veya kod ara..."
+                  value={arama}
+                  onChange={(e) => setArama(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
             </div>
-            <div className="overflow-hidden rounded-md border bg-card">
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="w-full">Cari Hesap</TableHead>
+                  <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="h-9 w-full text-xs font-medium text-muted-foreground">
+                      Cari Hesap
+                    </TableHead>
                     {KOLONLAR.map(([alan, label]) => (
                       <TableHead
                         key={alan}
-                        className="w-28 text-center [&:has([role=checkbox])]:pr-2"
+                        className="h-9 w-28 text-center text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-2"
                       >
                         <div className="flex flex-col items-center gap-1">
                           <span>{label}</span>
@@ -666,8 +702,8 @@ function CariErisimSekmesi({
                   {filtreliCari.map((c) => {
                     const y = yetkiAl(secili.id, c.id);
                     return (
-                      <TableRow key={c.id}>
-                        <TableCell>
+                      <TableRow key={c.id} className="border-b last:border-0">
+                        <TableCell className="py-2.5">
                           <div className="font-medium">{c.ad}</div>
                           <div className="text-[11px] text-muted-foreground">
                             {c.id} · {c.tip}
@@ -676,7 +712,7 @@ function CariErisimSekmesi({
                         {KOLONLAR.map(([alan, label]) => (
                           <TableCell
                             key={alan}
-                            className="[&:has([role=checkbox])]:pr-2"
+                            className="py-2.5 [&:has([role=checkbox])]:pr-2"
                           >
                             <div className="flex justify-center">
                               <Checkbox
@@ -710,16 +746,20 @@ function CariErisimSekmesi({
             </span>
           </>
         ) : (
-          <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Soldan bir kullanıcı seçin.
-          </p>
+          <BosDurum>Soldan bir kullanıcı seçin.</BosDurum>
         )}
       </div>
     </div>
   );
 }
 
-// ─── Ana bileşen: sekme geçişi ────────────────────────────────────────────
+// ─── Ana bileşen: başlık + underline sekmeler ─────────────────────────────
+const SEKMELER = [
+  ["kullanici", "Kullanıcı Yetkileri"],
+  ["set", "Yetki Setleri"],
+  ["cari", "Cari Erişimi"],
+] as const;
+
 export function Yetkilendirme({
   kullanicilar,
   roller,
@@ -742,42 +782,44 @@ export function Yetkilendirme({
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          nativeButton={false}
-          render={<Link href="/kullanicilar" aria-label="Kullanıcılara dön" />}
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      {/* Başlık */}
+      <div className="flex flex-col gap-1">
+        <Link
+          href="/kullanicilar"
+          className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-base font-semibold">Yetkilendirmeler</h1>
-        <div className="ml-2 flex rounded-lg border border-input p-0.5">
-          {(
-            [
-              ["kullanici", "Kullanıcı Yetkileri"],
-              ["set", "Yetki Setleri"],
-              ["cari", "Cari Erişimi"],
-            ] as const
-          ).map(([k, label]) => (
+          <ArrowLeft className="size-3.5" /> Kullanıcılar
+        </Link>
+        <h1 className="text-xl font-semibold tracking-tight">Yetkilendirmeler</h1>
+        <p className="text-sm text-muted-foreground">
+          Kullanıcı izinlerini, hazır yetki setlerini ve cari hesap erişimini
+          tek yerden yönetin.
+        </p>
+      </div>
+
+      {/* Underline sekmeler */}
+      <div className="border-b">
+        <nav className="-mb-px flex gap-5">
+          {SEKMELER.map(([k, label]) => (
             <button
               key={k}
               type="button"
               onClick={() => setSekme(k)}
               className={cn(
-                "cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                "cursor-pointer border-b-2 px-0.5 pt-1 pb-2.5 text-sm transition-colors",
                 sekme === k
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {label}
             </button>
           ))}
-        </div>
+        </nav>
       </div>
 
+      {/* İçerik */}
       {sekme === "kullanici" && (
         <KullaniciSekmesi
           kullanicilar={kullanicilar}
