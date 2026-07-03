@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Save, Search } from "lucide-react";
+import { Plus, Trash2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -749,17 +748,6 @@ export function Yetkilendirme({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      {/* Başlık */}
-      <div className="flex flex-col gap-1">
-        <Link
-          href="/kullanicilar"
-          className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" /> Kullanıcılar
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight">Yetkilendirmeler</h1>
-      </div>
-
       {/* Underline sekmeler */}
       <div className="border-b">
         <nav className="-mb-px flex gap-5">
