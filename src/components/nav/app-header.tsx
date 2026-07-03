@@ -107,6 +107,16 @@ function getCrumbs(
       Icon: iconForHref("/cari"),
     };
   }
+  if (pathname.startsWith("/kullanicilar/yetkiler")) {
+    return {
+      crumbs: [
+        { label: "Ayarlar" },
+        { label: "Kullanıcılar & Roller", href: "/kullanicilar" },
+        { label: "Yetkilendirmeler" },
+      ],
+      Icon: iconForHref("/kullanicilar"),
+    };
+  }
 
   const tumBolumler = [...sections, ...bottomSections];
 
