@@ -44,20 +44,7 @@ function yetkiVar(y: ModulYetki | undefined): boolean {
   return !!y && (y.isList || y.isAdd || y.isUpdate || y.isDelete);
 }
 
-function bassHarfler(ad: string): string {
-  const p = ad.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
-}
-
 // ─── Ortak UI parçaları ───────────────────────────────────────────────────
-function Avatar({ text }: { text: string }) {
-  return (
-    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-foreground/70">
-      {text}
-    </div>
-  );
-}
-
 function SayiRozet({ deger, toplam }: { deger: number; toplam: number }) {
   const ton =
     deger === 0
@@ -75,14 +62,12 @@ function SayiRozet({ deger, toplam }: { deger: number; toplam: number }) {
 
 /** Sol listedeki seçilebilir satır (avatar + başlık + alt başlık + rozet). */
 function SecimSatiri({
-  avatar,
   baslik,
   altBaslik,
   rozet,
   aktif,
   onClick,
 }: {
-  avatar: React.ReactNode;
   baslik: string;
   altBaslik?: string;
   rozet?: React.ReactNode;
@@ -100,7 +85,6 @@ function SecimSatiri({
           : "border-transparent hover:bg-muted/40",
       )}
     >
-      {avatar}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{baslik}</div>
         {altBaslik && (
@@ -117,14 +101,11 @@ function SecimSatiri({
 /** Seçili kullanıcı başlığı (sağ panelin üstünde). */
 function KullaniciBaslik({ k }: { k: KullaniciGorunum }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <Avatar text={bassHarfler(k.adSoyad)} />
-      <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{k.adSoyad}</div>
-        <div className="truncate text-xs text-muted-foreground">
-          {k.rol}
-          {k.departman ? ` · ${k.departman}` : ""}
-        </div>
+    <div className="min-w-0">
+      <div className="truncate text-sm font-medium">{k.adSoyad}</div>
+      <div className="truncate text-xs text-muted-foreground">
+        {k.rol}
+        {k.departman ? ` · ${k.departman}` : ""}
       </div>
     </div>
   );
@@ -327,7 +308,6 @@ function KullaniciSekmesi({
               key={k.id}
               aktif={k.id === seciliId}
               onClick={() => setSeciliId(k.id)}
-              avatar={<Avatar text={bassHarfler(k.adSoyad)} />}
               baslik={k.adSoyad}
               altBaslik={`${k.rol}${k.departman ? ` · ${k.departman}` : ""}`}
               rozet={
@@ -466,7 +446,6 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
                 key={s.id}
                 aktif={taslak?.id === s.id}
                 onClick={() => setTaslak(setTaslagi(s))}
-                avatar={<Avatar text={bassHarfler(s.ad)} />}
                 baslik={s.ad}
                 altBaslik={`${izinli} modül`}
                 rozet={<SayiRozet deger={izinli} toplam={MODULLER.length} />}
@@ -644,7 +623,6 @@ function CariErisimSekmesi({
               key={k.id}
               aktif={k.id === seciliId}
               onClick={() => setSeciliId(k.id)}
-              avatar={<Avatar text={bassHarfler(k.adSoyad)} />}
               baslik={k.adSoyad}
               altBaslik={`${k.rol}${k.departman ? ` · ${k.departman}` : ""}`}
               rozet={
