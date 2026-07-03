@@ -17,11 +17,6 @@ export const YETKI_BAYRAKLARI = [
     aciklama: "Mevcut kaydı düzenleyebilsin mi",
   },
   { key: "isDelete", label: "Sil", aciklama: "Kayıt silebilsin mi" },
-  {
-    key: "isOrderList",
-    label: "Diğer İşlemler",
-    aciklama: "Farklı kullanıcıların işlemlerini görebilsin mi",
-  },
 ] as const;
 
 export type YetkiBayrak = (typeof YETKI_BAYRAKLARI)[number]["key"];
@@ -34,7 +29,6 @@ export const BOS_YETKI: ModulYetki = {
   isAdd: false,
   isUpdate: false,
   isDelete: false,
-  isOrderList: false,
 };
 
 export type Modul = { id: string; label: string };

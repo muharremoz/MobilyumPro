@@ -325,7 +325,6 @@ export async function getRolYetkileri(): Promise<
       isAdd: r.isAdd,
       isUpdate: r.isUpdate,
       isDelete: r.isDelete,
-      isOrderList: r.isOrderList,
     };
   }
   return matris;
@@ -343,7 +342,6 @@ export async function getKullaniciYetkileri(): Promise<
       isAdd: r.isAdd,
       isUpdate: r.isUpdate,
       isDelete: r.isDelete,
-      isOrderList: r.isOrderList,
     };
   }
   return matris;

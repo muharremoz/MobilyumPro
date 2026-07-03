@@ -29,7 +29,7 @@ import type { KullaniciGorunum } from "@/lib/db/queries";
 import { kullaniciYetkiSet } from "@/lib/db/actions";
 
 function yetkiVar(y: ModulYetki | undefined): boolean {
-  return !!y && (y.isList || y.isAdd || y.isUpdate || y.isDelete || y.isOrderList);
+  return !!y && (y.isList || y.isAdd || y.isUpdate || y.isDelete);
 }
 
 /**
@@ -117,7 +117,6 @@ export function Yetkilendirme({
       isAdd: hepsi,
       isUpdate: hepsi,
       isDelete: hepsi,
-      isOrderList: hepsi,
     };
     setMatris((m) => ({
       ...m,
@@ -226,11 +225,7 @@ export function Yetkilendirme({
                   {MODULLER.map((m) => {
                     const y = matris[secili.id]?.[m.id] ?? BOS_YETKI;
                     const hepsiSecili =
-                      y.isList &&
-                      y.isAdd &&
-                      y.isUpdate &&
-                      y.isDelete &&
-                      y.isOrderList;
+                      y.isList && y.isAdd && y.isUpdate && y.isDelete;
                     const baziSecili = yetkiVar(y);
                     return (
                       <TableRow key={m.id}>
