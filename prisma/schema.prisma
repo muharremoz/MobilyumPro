@@ -224,11 +224,15 @@ model Rol {
 
 // ── Rol yetkisi (modül bazında erişim seviyesi) ─────────────────────────
 model RolYetki {
-  id     Int    @id @default(autoincrement())
-  rolAd  String @map("rol_ad")
-  modul  String
-  // "Yok" | "Görüntüleme" | "Tam"
-  erisim String @default("Yok")
+  id    Int    @id @default(autoincrement())
+  rolAd String @map("rol_ad")
+  modul String
+  // Modül bazlı yetki bayrakları.
+  isList      Boolean @default(false) @map("is_list")
+  isAdd       Boolean @default(false) @map("is_add")
+  isUpdate    Boolean @default(false) @map("is_update")
+  isDelete    Boolean @default(false) @map("is_delete")
+  isOrderList Boolean @default(false) @map("is_order_list")
 
   rol Rol @relation(fields: [rolAd], references: [ad], onDelete: Cascade, onUpdate: NoAction)
 
@@ -249,8 +253,12 @@ model KullaniciYetki {
   id          Int    @id @default(autoincrement())
   kullaniciId String @map("kullanici_id")
   modul       String
-  // "Yok" | "Görüntüleme" | "Tam"
-  erisim      String @default("Yok")
+  // Modül bazlı yetki bayrakları.
+  isList      Boolean @default(false) @map("is_list")
+  isAdd       Boolean @default(false) @map("is_add")
+  isUpdate    Boolean @default(false) @map("is_update")
+  isDelete    Boolean @default(false) @map("is_delete")
+  isOrderList Boolean @default(false) @map("is_order_list")
 
   kullanici Kullanici @relation(fields: [kullaniciId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 

@@ -3,8 +3,39 @@
  * Modül id'leri nav-config section id'leriyle birebir (enforcement
  * middleware/nav'da bu id üzerinden yapılacak).
  */
-export const ERISIMLER = ["Yok", "Görüntüleme", "Tam"] as const;
-export type Erisim = (typeof ERISIMLER)[number];
+/** Modül başına yetki bayrakları (checkbox kolonları). */
+export const YETKI_BAYRAKLARI = [
+  {
+    key: "isList",
+    label: "Liste",
+    aciklama: "Bağlı menüde yapılan işlem listesini görsün mü",
+  },
+  { key: "isAdd", label: "Ekle", aciklama: "Yeni kayıt ekleyebilsin mi" },
+  {
+    key: "isUpdate",
+    label: "Güncelle",
+    aciklama: "Mevcut kaydı düzenleyebilsin mi",
+  },
+  { key: "isDelete", label: "Sil", aciklama: "Kayıt silebilsin mi" },
+  {
+    key: "isOrderList",
+    label: "Diğer İşlemler",
+    aciklama: "Farklı kullanıcıların işlemlerini görebilsin mi",
+  },
+] as const;
+
+export type YetkiBayrak = (typeof YETKI_BAYRAKLARI)[number]["key"];
+
+/** Bir modül için 5 bayrağın açık/kapalı durumu. */
+export type ModulYetki = Record<YetkiBayrak, boolean>;
+
+export const BOS_YETKI: ModulYetki = {
+  isList: false,
+  isAdd: false,
+  isUpdate: false,
+  isDelete: false,
+  isOrderList: false,
+};
 
 export type Modul = { id: string; label: string };
 
@@ -21,5 +52,5 @@ export const MODULLER: Modul[] = [
   { id: "ayarlar", label: "Ayarlar" },
 ];
 
-/** rolAd → (modulId → erisim). Kaydı olmayan modül "Yok" kabul edilir. */
-export type YetkiMatrisi = Record<string, Record<string, Erisim>>;
+/** özne (rolAd/kullaniciId) → (modulId → bayraklar). Kaydı olmayan modül BOS_YETKI. */
+export type YetkiMatrisi = Record<string, Record<string, ModulYetki>>;

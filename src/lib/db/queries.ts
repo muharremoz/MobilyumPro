@@ -313,27 +313,38 @@ export async function getDepartmanlar(): Promise<string[]> {
   return rows.map((d) => d.ad);
 }
 
-/** Tüm rollerin yetki matrisi: rolAd → (modulId → erisim). */
+/** Tüm rollerin yetki matrisi: rolAd → (modulId → bayraklar). */
 export async function getRolYetkileri(): Promise<
   import("../yetki").YetkiMatrisi
 > {
   const rows = await db.rolYetki.findMany();
   const matris: import("../yetki").YetkiMatrisi = {};
   for (const r of rows) {
-    (matris[r.rolAd] ??= {})[r.modul] = r.erisim as import("../yetki").Erisim;
+    (matris[r.rolAd] ??= {})[r.modul] = {
+      isList: r.isList,
+      isAdd: r.isAdd,
+      isUpdate: r.isUpdate,
+      isDelete: r.isDelete,
+      isOrderList: r.isOrderList,
+    };
   }
   return matris;
 }
 
-/** Kullanıcı bazlı yetkiler: kullaniciId → (modulId → erisim). */
+/** Kullanıcı bazlı yetkiler: kullaniciId → (modulId → bayraklar). */
 export async function getKullaniciYetkileri(): Promise<
   import("../yetki").YetkiMatrisi
 > {
   const rows = await db.kullaniciYetki.findMany();
   const matris: import("../yetki").YetkiMatrisi = {};
   for (const r of rows) {
-    (matris[r.kullaniciId] ??= {})[r.modul] =
-      r.erisim as import("../yetki").Erisim;
+    (matris[r.kullaniciId] ??= {})[r.modul] = {
+      isList: r.isList,
+      isAdd: r.isAdd,
+      isUpdate: r.isUpdate,
+      isDelete: r.isDelete,
+      isOrderList: r.isOrderList,
+    };
   }
   return matris;
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
 import { sifreHashle } from "./sifre";
+import type { ModulYetki } from "../yetki";
 import type {
   UretimDurum,
   UretimOncelik,
@@ -394,17 +395,17 @@ export async function rolEkle(
   }
 }
 
-/** Bir kullanıcının tek modül yetkisini ayarlar (anında kaydetme). */
+/** Bir kullanıcının tek modül yetki bayraklarını ayarlar (anında kaydetme). */
 export async function kullaniciYetkiSet(
   kullaniciId: string,
   modul: string,
-  erisim: string,
+  yetki: ModulYetki,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     await db.kullaniciYetki.upsert({
       where: { kullaniciId_modul: { kullaniciId, modul } },
-      create: { kullaniciId, modul, erisim },
-      update: { erisim },
+      create: { kullaniciId, modul, ...yetki },
+      update: { ...yetki },
     });
     revalidatePath("/kullanicilar/yetkiler");
     return { ok: true };
@@ -416,16 +417,16 @@ export async function kullaniciYetkiSet(
 /** Bir rolün tüm modül yetkilerini kaydeder (sil + yeniden yaz). */
 export async function rolYetkiKaydet(
   rolAd: string,
-  yetkiler: Record<string, string>,
+  yetkiler: Record<string, ModulYetki>,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!rolAd.trim()) return { ok: false, error: "Rol seçilmedi." };
   try {
     await db.$transaction(async (tx) => {
       await tx.rolYetki.deleteMany({ where: { rolAd } });
-      const rows = Object.entries(yetkiler).map(([modul, erisim]) => ({
+      const rows = Object.entries(yetkiler).map(([modul, y]) => ({
         rolAd,
         modul,
-        erisim,
+        ...y,
       }));
       if (rows.length) await tx.rolYetki.createMany({ data: rows });
     });
