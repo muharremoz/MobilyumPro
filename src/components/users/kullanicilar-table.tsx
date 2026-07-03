@@ -15,6 +15,7 @@ import {
   Check,
   Wand2,
   Copy,
+  CopyPlus,
   Power,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -248,6 +249,18 @@ export function KullanicilarTable({
   function panoyaKopyala(deger: string, etiket: string) {
     navigator.clipboard.writeText(deger);
     toast.success(`${etiket} kopyalandı`);
+  }
+
+  // Kullanıcıyı kopyala: sheet'i "(kopya)" adıyla, id'siz (yeni kayıt) açar;
+  // kullanıcı adı otomatik üretilir, şifreyi admin belirler.
+  function kopyala(k: KullaniciGorunum) {
+    setDuzenlenen({
+      ...k,
+      id: "",
+      kullaniciAdi: "",
+      adSoyad: `${k.adSoyad} (kopya)`,
+    });
+    setSheetOpen(true);
   }
 
   const sortIkon = (k: SortKey) =>
@@ -525,6 +538,9 @@ export function KullanicilarTable({
                   >
                     <Pencil className="mr-2 size-4" /> Düzenle
                   </ContextMenuItem>
+                  <ContextMenuItem onClick={() => kopyala(k)}>
+                    <CopyPlus className="mr-2 size-4" /> Kopyala
+                  </ContextMenuItem>
                   <ContextMenuItem onClick={() => durumDegistir(k)}>
                     <Power className="mr-2 size-4" />
                     {k.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
@@ -716,7 +732,7 @@ function KullaniciSheet({
   async function kaydet() {
     const yeni: SheetHatalar = {};
     if (!form.adSoyad.trim()) yeni.adSoyad = "Ad soyad zorunludur.";
-    if (!item && !form.sifre) yeni.sifre = "Şifre zorunludur.";
+    if (!item?.id && !form.sifre) yeni.sifre = "Şifre zorunludur.";
     if (form.sifre && form.sifre.length < 6)
       yeni.sifre = "Şifre en az 6 karakter olmalı.";
 
@@ -729,7 +745,7 @@ function KullaniciSheet({
     }
 
     const ok = await onSave({
-      id: item?.id,
+      id: item?.id || undefined,
       adSoyad: form.adSoyad,
       email: form.email.trim() || undefined,
       telefon: form.telefon.trim() || undefined,
@@ -745,7 +761,7 @@ function KullaniciSheet({
     <FormSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={item ? "Kullanıcıyı Düzenle" : "Yeni Kullanıcı"}
+      title={item?.id ? "Kullanıcıyı Düzenle" : "Yeni Kullanıcı"}
       icon={UsersRoundIcon}
       onSave={kaydet}
     >
@@ -816,10 +832,10 @@ function KullaniciSheet({
         <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
           <div className="relative">
             <IconInput
-              label={item ? "Yeni Şifre" : "Şifre"}
+              label={item?.id ? "Yeni Şifre" : "Şifre"}
               icon={ScanTextIcon}
               type={sifreGoster ? "text" : "password"}
-              placeholder={item ? "(değiştirmek için doldur)" : "••••••"}
+              placeholder={item?.id ? "(değiştirmek için doldur)" : "••••••"}
               autoComplete="new-password"
               className="pr-10"
               value={form.sifre}
