@@ -236,25 +236,32 @@ export function Yetkilendirme({
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.label}</TableCell>
                         {YETKI_BAYRAKLARI.map((b) => (
-                          <TableCell key={b.key} className="text-center">
-                            <Checkbox
-                              checked={y[b.key]}
-                              onCheckedChange={(v) =>
-                                bayrakDegis(m.id, b.key, v === true)
-                              }
-                              aria-label={`${m.label} — ${b.label}`}
-                            />
+                          <TableCell
+                            key={b.key}
+                            className="[&:has([role=checkbox])]:pr-2"
+                          >
+                            <div className="flex justify-center">
+                              <Checkbox
+                                checked={y[b.key]}
+                                onCheckedChange={(v) =>
+                                  bayrakDegis(m.id, b.key, v === true)
+                                }
+                                aria-label={`${m.label} — ${b.label}`}
+                              />
+                            </div>
                           </TableCell>
                         ))}
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={hepsiSecili}
-                            indeterminate={!hepsiSecili && baziSecili}
-                            onCheckedChange={(v) =>
-                              satirTopluDegis(m.id, v === true)
-                            }
-                            aria-label={`${m.label} — tümü`}
-                          />
+                        <TableCell className="[&:has([role=checkbox])]:pr-2">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={hepsiSecili}
+                              indeterminate={!hepsiSecili && baziSecili}
+                              onCheckedChange={(v) =>
+                                satirTopluDegis(m.id, v === true)
+                              }
+                              aria-label={`${m.label} — tümü`}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
