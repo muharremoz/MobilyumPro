@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { Plus, Trash2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -750,20 +751,27 @@ export function Yetkilendirme({
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       {/* Underline sekmeler */}
       <div className="border-b">
-        <nav className="-mb-px flex gap-5">
+        <nav className="relative -mb-px flex gap-5">
           {SEKMELER.map(([k, label]) => (
             <button
               key={k}
               type="button"
               onClick={() => setSekme(k)}
               className={cn(
-                "cursor-pointer border-b-2 px-0.5 pt-1 pb-2.5 text-sm transition-colors",
+                "relative cursor-pointer px-0.5 pt-1 pb-2.5 text-sm transition-colors",
                 sekme === k
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {label}
+              {sekme === k && (
+                <motion.span
+                  layoutId="yetkiTabCizgi"
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
             </button>
           ))}
         </nav>
