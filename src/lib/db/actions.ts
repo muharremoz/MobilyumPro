@@ -515,52 +515,61 @@ export async function yetkiSetiUygula(
   }
 }
 
-/** Bir kullanıcının tek bir cariye erişimini ayarlar (izinli=engeli kaldır). */
-export async function cariErisimAyarla(
+/** Bir kullanıcının bir cariye görüntüle/işlem yetkisini ayarlar.
+ *  İkisi de açıksa kayıt silinir (varsayılan tam erişim). */
+export async function cariYetkiAyarla(
   kullaniciId: string,
   cariId: string,
-  izinli: boolean,
+  goruntule: boolean,
+  islemYap: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (izinli) {
-      await db.kullaniciCariEngel.deleteMany({
-        where: { kullaniciId, cariId },
-      });
+    if (goruntule && islemYap) {
+      await db.kullaniciCariYetki.deleteMany({ where: { kullaniciId, cariId } });
     } else {
-      await db.kullaniciCariEngel.upsert({
+      await db.kullaniciCariYetki.upsert({
         where: { kullaniciId_cariId: { kullaniciId, cariId } },
-        create: { kullaniciId, cariId },
-        update: {},
+        create: { kullaniciId, cariId, goruntule, islemYap },
+        update: { goruntule, islemYap },
       });
     }
     revalidatePath("/kullanicilar/yetkiler");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Cari erişimi kaydedilemedi." };
+    return { ok: false, error: "Cari yetkisi kaydedilemedi." };
   }
 }
 
-/** Bir kullanıcının verilen carilere erişimini toplu ayarlar. */
-export async function cariErisimTopluAyarla(
+/** Birden fazla cari için görüntüle/işlem yetkisini toplu ayarlar. */
+export async function cariYetkiTopluAyarla(
   kullaniciId: string,
-  cariIds: string[],
-  izinli: boolean,
+  ogeler: { cariId: string; goruntule: boolean; islemYap: boolean }[],
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     await db.$transaction(async (tx) => {
-      await tx.kullaniciCariEngel.deleteMany({
-        where: { kullaniciId, cariId: { in: cariIds } },
-      });
-      if (!izinli && cariIds.length) {
-        await tx.kullaniciCariEngel.createMany({
-          data: cariIds.map((cariId) => ({ kullaniciId, cariId })),
-        });
+      for (const o of ogeler) {
+        if (o.goruntule && o.islemYap) {
+          await tx.kullaniciCariYetki.deleteMany({
+            where: { kullaniciId, cariId: o.cariId },
+          });
+        } else {
+          await tx.kullaniciCariYetki.upsert({
+            where: { kullaniciId_cariId: { kullaniciId, cariId: o.cariId } },
+            create: {
+              kullaniciId,
+              cariId: o.cariId,
+              goruntule: o.goruntule,
+              islemYap: o.islemYap,
+            },
+            update: { goruntule: o.goruntule, islemYap: o.islemYap },
+          });
+        }
       }
     });
     revalidatePath("/kullanicilar/yetkiler");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Cari erişimi kaydedilemedi." };
+    return { ok: false, error: "Cari yetkisi kaydedilemedi." };
   }
 }
 

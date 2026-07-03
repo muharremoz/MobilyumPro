@@ -49,6 +49,10 @@ export const MODULLER: Modul[] = [
 /** özne (rolAd/kullaniciId) → (modulId → bayraklar). Kaydı olmayan modül BOS_YETKI. */
 export type YetkiMatrisi = Record<string, Record<string, ModulYetki>>;
 
+/** Bir kullanıcının bir cariye erişim bayrakları (varsayılan ikisi de açık). */
+export type CariYetki = { goruntule: boolean; islemYap: boolean };
+export const CARI_TAM: CariYetki = { goruntule: true, islemYap: true };
+
 /** Adlandırılmış yetki seti (izin şablonu): modulId → bayraklar. */
 export type YetkiSeti = {
   id: number;

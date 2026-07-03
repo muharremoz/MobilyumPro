@@ -372,13 +372,18 @@ export async function getYetkiSetleri(): Promise<
   }));
 }
 
-/** Kullanıcı → engelli cari id listesi. Kayıt yoksa o kullanıcı tüm carilere açık. */
-export async function getKullaniciCariEngelleri(): Promise<
-  Record<string, string[]>
+/** Kullanıcı → (cariId → {goruntule, islemYap}). Kayıt yoksa o cari tam açık. */
+export async function getKullaniciCariYetkileri(): Promise<
+  Record<string, Record<string, import("../yetki").CariYetki>>
 > {
-  const rows = await db.kullaniciCariEngel.findMany();
-  const map: Record<string, string[]> = {};
-  for (const r of rows) (map[r.kullaniciId] ??= []).push(r.cariId);
+  const rows = await db.kullaniciCariYetki.findMany();
+  const map: Record<string, Record<string, import("../yetki").CariYetki>> = {};
+  for (const r of rows) {
+    (map[r.kullaniciId] ??= {})[r.cariId] = {
+      goruntule: r.goruntule,
+      islemYap: r.islemYap,
+    };
+  }
   return map;
 }
 
