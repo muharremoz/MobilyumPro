@@ -792,10 +792,6 @@ export function Yetkilendirme({
           <ArrowLeft className="size-3.5" /> Kullanıcılar
         </Link>
         <h1 className="text-xl font-semibold tracking-tight">Yetkilendirmeler</h1>
-        <p className="text-sm text-muted-foreground">
-          Kullanıcı izinlerini, hazır yetki setlerini ve cari hesap erişimini
-          tek yerden yönetin.
-        </p>
       </div>
 
       {/* Underline sekmeler */}
