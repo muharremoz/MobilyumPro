@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LogOut, User, Settings } from "lucide-react";
+import {
+  LogOut,
+  User,
+  Settings,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -31,10 +38,11 @@ import {
   type SubItem,
 } from "@/components/nav/nav-config";
 
+const DARALT_KEY = "mp_nav_daralt";
+
 function useAktif() {
   const pathname = usePathname();
   const search = useSearchParams();
-  // Hem path hem (varsa) query parametrelerini kıyaslar.
   const eslesir = (href: string) => {
     if (href === "/") return pathname === "/";
     const [p, q] = href.split("?");
@@ -48,8 +56,6 @@ function useAktif() {
   };
   return {
     pathname,
-    // Bölüm aktifliği query-duyarlı: aynı path'i (ör. /stok-yonetimi) paylaşan
-    // bölümlerden yalnızca eşleşen bölüm aktif olur.
     bolumAktif: (s: Section) => {
       if (s.href && s.href !== "#") return eslesir(s.href);
       return s.items?.some((it) => it.href !== "#" && eslesir(it.href)) ?? false;
@@ -58,60 +64,85 @@ function useAktif() {
   };
 }
 
-/** Rail'deki tek bölüm düğmesi — hover'da pqoqubbw ikonunu oynatır. */
+/** Sidebar bölüm satırı — geniş: ikon+etiket(+chevron), dar: sadece ikon (tooltip). */
 function RailButton({
   section,
   active,
   open,
+  daralt,
   onSelect,
 }: {
   section: Section;
   active: boolean;
   open: boolean;
+  daralt: boolean;
   onSelect: (s: Section) => void;
 }) {
   const ref = React.useRef<AnimatedIconHandle>(null);
   const { RailIcon } = section;
+  const altVar = !!section.items?.length;
+
+  const btn = (
+    <button
+      type="button"
+      aria-label={section.label}
+      onMouseEnter={() => ref.current?.startAnimation()}
+      onMouseLeave={() => ref.current?.stopAnimation()}
+      onClick={() => onSelect(section)}
+      className={cn(
+        "flex w-full cursor-pointer items-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
+        daralt ? "justify-center p-2" : "gap-2.5 px-2.5 py-2 text-sm",
+        (active || open) &&
+          "bg-sidebar-border text-foreground hover:bg-sidebar-border",
+      )}
+    >
+      <RailIcon ref={ref} size={18} className="shrink-0" />
+      {!daralt && (
+        <span className="flex-1 truncate text-left">{section.label}</span>
+      )}
+      {!daralt && altVar && (
+        <ChevronRight
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground/50 transition-colors",
+            open && "text-foreground",
+          )}
+        />
+      )}
+    </button>
+  );
+
+  if (!daralt) return btn;
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            aria-label={section.label}
-            onMouseEnter={() => ref.current?.startAnimation()}
-            onMouseLeave={() => ref.current?.stopAnimation()}
-            onClick={() => onSelect(section)}
-            className={cn(
-              "flex w-full cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
-              (active || open) &&
-                "bg-sidebar-border text-foreground hover:bg-sidebar-border",
-            )}
-          >
-            <RailIcon ref={ref} size={18} />
-            <span className="line-clamp-2 text-center text-[10px] leading-tight">
-              {section.label}
-            </span>
-          </button>
-        }
-      />
+      <TooltipTrigger render={btn} />
       <TooltipContent side="right">{section.label}</TooltipContent>
     </Tooltip>
   );
 }
 
-function RailUser() {
+function RailUser({ daralt }: { daralt: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
           <button
             type="button"
-            className="cursor-pointer rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              "flex w-full cursor-pointer items-center rounded-lg text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring",
+              daralt ? "justify-center p-1.5" : "gap-2.5 px-2 py-1.5",
+            )}
           >
-            <Avatar className="h-8 w-8">
+            <Avatar className="size-8 shrink-0">
               <AvatarFallback className="text-xs">MO</AvatarFallback>
             </Avatar>
+            {!daralt && (
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-medium">Muharrem Öz</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  hi@mobilyumpro.com
+                </p>
+              </div>
+            )}
           </button>
         }
       />
@@ -158,7 +189,6 @@ function PanelItem({
   const ref = React.useRef<AnimatedIconHandle>(null);
   const { icon: Icon } = item;
   const yakinda = item.href === "#";
-  // Panel açılışında sırayla (stagger) içeri kayma animasyonu.
   const animasyon =
     "animate-in fade-in slide-in-from-left-3 duration-300 fill-mode-backwards ease-out";
   const gecikme = { animationDelay: `${index * 35}ms` };
@@ -205,13 +235,27 @@ function AppNavInner() {
   const router = useRouter();
   const { pathname, bolumAktif, ogeAktif } = useAktif();
   const [openId, setOpenId] = React.useState<string | null>(null);
+  const [daralt, setDaralt] = React.useState(false);
+
+  // Daraltma durumunu localStorage'dan yükle.
+  React.useEffect(() => {
+    setDaralt(localStorage.getItem(DARALT_KEY) === "1");
+  }, []);
+
+  function daraltDegis() {
+    setDaralt((d) => {
+      const yeni = !d;
+      localStorage.setItem(DARALT_KEY, yeni ? "1" : "0");
+      if (yeni) setOpenId(null);
+      return yeni;
+    });
+  }
 
   const acikBolum = React.useMemo(
     () => [...sections, ...bottomSections].find((s) => s.id === openId) ?? null,
     [openId],
   );
 
-  // Esc ile paneli kapat.
   React.useEffect(() => {
     if (!openId) return;
     const onKey = (e: KeyboardEvent) => {
@@ -221,7 +265,6 @@ function AppNavInner() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
 
-  // Rota değişince paneli kapat.
   React.useEffect(() => {
     setOpenId(null);
   }, [pathname]);
@@ -237,49 +280,92 @@ function AppNavInner() {
 
   return (
     <TooltipProvider delay={200}>
-      {/* Rail — her zaman görünür, #FAFAFA zemine yüzer */}
-      <nav className="relative z-30 flex h-full w-20 shrink-0 flex-col items-center gap-1 py-1">
-        <Link
-          href="/"
-          aria-label="MobilyumPro"
-          className="flex size-8 items-center justify-center overflow-hidden rounded-full border bg-card"
+      {/* Sidebar */}
+      <nav
+        className={cn(
+          "relative z-30 flex h-full shrink-0 flex-col gap-1 px-2 py-2 transition-[width] duration-200 ease-out",
+          daralt ? "w-14" : "w-56",
+        )}
+      >
+        {/* Başlık: logo + marka + daralt butonu */}
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            daralt ? "flex-col" : "px-1",
+          )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.jpg"
-            alt="MobilyumPro"
-            className="size-full object-cover"
-          />
-        </Link>
+          <Link
+            href="/"
+            aria-label="MobilyumPro"
+            className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.jpg"
+              alt="MobilyumPro"
+              className="size-full object-cover"
+            />
+          </Link>
+          {!daralt && (
+            <span className="flex-1 truncate text-sm font-semibold">
+              MobilyumPro
+            </span>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={daraltDegis}
+                  aria-label={daralt ? "Genişlet" : "Daralt"}
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+                >
+                  {daralt ? (
+                    <PanelLeftOpen className="size-4" />
+                  ) : (
+                    <PanelLeftClose className="size-4" />
+                  )}
+                </button>
+              }
+            />
+            <TooltipContent side="right">
+              {daralt ? "Genişlet" : "Daralt"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
-        <div className="mt-3 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Ana bölümler */}
+        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {sections.map((s) => (
             <RailButton
               key={s.id}
               section={s}
               active={bolumAktif(s)}
               open={openId === s.id}
+              daralt={daralt}
               onSelect={handleSelect}
             />
           ))}
         </div>
 
-        <div className="flex flex-col items-center gap-1">
+        {/* Alt bölümler + kullanıcı */}
+        <div className="flex flex-col gap-0.5">
           {bottomSections.map((s) => (
             <RailButton
               key={s.id}
               section={s}
               active={bolumAktif(s)}
               open={openId === s.id}
+              daralt={daralt}
               onSelect={handleSelect}
             />
           ))}
-          <Separator className="my-1 w-6" />
-          <RailUser />
+          <Separator className="my-1" />
+          <RailUser daralt={daralt} />
         </div>
       </nav>
 
-      {/* Panel: rail yanında yüzen rounded kart olarak açılır */}
+      {/* Panel: sidebar yanında yüzen rounded kart olarak açılır */}
       <div
         className={cn(
           "relative z-10 h-full shrink-0 overflow-hidden transition-[width,margin] duration-200 ease-out",
