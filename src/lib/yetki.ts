@@ -48,3 +48,10 @@ export const MODULLER: Modul[] = [
 
 /** özne (rolAd/kullaniciId) → (modulId → bayraklar). Kaydı olmayan modül BOS_YETKI. */
 export type YetkiMatrisi = Record<string, Record<string, ModulYetki>>;
+
+/** Adlandırılmış yetki seti (izin şablonu): modulId → bayraklar. */
+export type YetkiSeti = {
+  id: number;
+  ad: string;
+  yetkiler: Record<string, ModulYetki>;
+};

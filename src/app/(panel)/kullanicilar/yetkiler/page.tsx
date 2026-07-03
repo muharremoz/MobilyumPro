@@ -4,15 +4,17 @@ import {
   getKullaniciYetkileri,
   getRoller,
   getRolYetkileri,
+  getYetkiSetleri,
 } from "@/lib/db/queries";
 
 export default async function YetkilerPage() {
-  const [kullanicilar, roller, rolYetkileri, kullaniciYetkileri] =
+  const [kullanicilar, roller, rolYetkileri, kullaniciYetkileri, setler] =
     await Promise.all([
       getKullanicilar(),
       getRoller(),
       getRolYetkileri(),
       getKullaniciYetkileri(),
+      getYetkiSetleri(),
     ]);
   return (
     <Yetkilendirme
@@ -20,6 +22,7 @@ export default async function YetkilerPage() {
       roller={roller}
       rolYetkileri={rolYetkileri}
       kullaniciYetkileri={kullaniciYetkileri}
+      setler={setler}
     />
   );
 }

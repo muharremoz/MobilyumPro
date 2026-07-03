@@ -347,6 +347,31 @@ export async function getKullaniciYetkileri(): Promise<
   return matris;
 }
 
+/** Tüm yetki setleri (izin şablonları) + detayları. */
+export async function getYetkiSetleri(): Promise<
+  import("../yetki").YetkiSeti[]
+> {
+  const rows = await db.yetkiSeti.findMany({
+    include: { detaylar: true },
+    orderBy: { ad: "asc" },
+  });
+  return rows.map((s) => ({
+    id: s.id,
+    ad: s.ad,
+    yetkiler: Object.fromEntries(
+      s.detaylar.map((d) => [
+        d.modul,
+        {
+          isList: d.isList,
+          isAdd: d.isAdd,
+          isUpdate: d.isUpdate,
+          isDelete: d.isDelete,
+        },
+      ]),
+    ),
+  }));
+}
+
 /** Kullanıcı listesi görünümü (şifre hash'i asla dışarı çıkmaz). */
 export type KullaniciGorunum = {
   id: string;

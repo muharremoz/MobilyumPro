@@ -437,6 +437,84 @@ export async function rolYetkiKaydet(
   }
 }
 
+/** Yetki setini (izin şablonu) ekle/güncelle + detaylarını yeniden yaz. */
+export async function yetkiSetiKaydet(seti: {
+  id?: number;
+  ad: string;
+  yetkiler: Record<string, ModulYetki>;
+}): Promise<{ ok: boolean; id?: number; error?: string }> {
+  const ad = seti.ad.trim();
+  if (!ad) return { ok: false, error: "Set adı gerekli." };
+  try {
+    const id = await db.$transaction(async (tx) => {
+      let setId = seti.id;
+      if (setId) {
+        await tx.yetkiSeti.update({ where: { id: setId }, data: { ad } });
+      } else {
+        const olusan = await tx.yetkiSeti.create({ data: { ad } });
+        setId = olusan.id;
+      }
+      await tx.yetkiSetiDetay.deleteMany({ where: { setId } });
+      const rows = Object.entries(seti.yetkiler).map(([modul, y]) => ({
+        setId: setId!,
+        modul,
+        ...y,
+      }));
+      if (rows.length) await tx.yetkiSetiDetay.createMany({ data: rows });
+      return setId!;
+    });
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true, id };
+  } catch {
+    return { ok: false, error: "Set kaydedilemedi (ad benzersiz olmalı)." };
+  }
+}
+
+export async function yetkiSetiSil(
+  id: number,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.yetkiSeti.delete({ where: { id } });
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Set silinemedi." };
+  }
+}
+
+/** Bir yetki setini kullanıcıya uygular (bayrakları kopyalar - snapshot). */
+export async function yetkiSetiUygula(
+  kullaniciId: string,
+  setId: number,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const set = await db.yetkiSeti.findUnique({
+      where: { id: setId },
+      include: { detaylar: true },
+    });
+    if (!set) return { ok: false, error: "Set bulunamadı." };
+    await db.$transaction(async (tx) => {
+      for (const d of set.detaylar) {
+        const y = {
+          isList: d.isList,
+          isAdd: d.isAdd,
+          isUpdate: d.isUpdate,
+          isDelete: d.isDelete,
+        };
+        await tx.kullaniciYetki.upsert({
+          where: { kullaniciId_modul: { kullaniciId, modul: d.modul } },
+          create: { kullaniciId, modul: d.modul, ...y },
+          update: y,
+        });
+      }
+    });
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Set uygulanamadı." };
+  }
+}
+
 /** Yeni departman tanımı ekler (varsa sessizce geçer). */
 export async function departmanEkle(
   ad: string,
