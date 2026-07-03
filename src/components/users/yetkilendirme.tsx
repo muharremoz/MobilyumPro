@@ -208,17 +208,17 @@ export function Yetkilendirme({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="min-w-40">Menü</TableHead>
+                    <TableHead className="w-full min-w-40">Menü</TableHead>
                     {YETKI_BAYRAKLARI.map((b) => (
                       <TableHead
                         key={b.key}
                         title={b.aciklama}
-                        className="text-center whitespace-nowrap"
+                        className="w-20 text-center whitespace-nowrap"
                       >
                         {b.label}
                       </TableHead>
                     ))}
-                    <TableHead className="w-10 text-center">Tümü</TableHead>
+                    <TableHead className="w-20 text-center">Tümü</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
