@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -27,12 +27,15 @@ import {
   type YetkiMatrisi,
   type YetkiSeti,
 } from "@/lib/yetki";
+import type { Cari } from "@/lib/data";
 import type { KullaniciGorunum } from "@/lib/db/queries";
 import {
   kullaniciYetkiSet,
   yetkiSetiKaydet,
   yetkiSetiSil,
   yetkiSetiUygula,
+  cariErisimAyarla,
+  cariErisimTopluAyarla,
 } from "@/lib/db/actions";
 
 function yetkiVar(y: ModulYetki | undefined): boolean {
@@ -451,6 +454,230 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
   );
 }
 
+// ─── Cari erişimi sekmesi (kayıt-seviyesi; varsayılan hepsi açık) ──────────
+function CariErisimSekmesi({
+  kullanicilar,
+  roller,
+  cariler,
+  engeller,
+}: {
+  kullanicilar: KullaniciGorunum[];
+  roller: string[];
+  cariler: Cari[];
+  engeller: Record<string, string[]>;
+}) {
+  const [engelMatris, setEngelMatris] = React.useState<
+    Record<string, Set<string>>
+  >(() => {
+    const m: Record<string, Set<string>> = {};
+    for (const k of kullanicilar) m[k.id] = new Set(engeller[k.id] ?? []);
+    return m;
+  });
+  const [rolFiltre, setRolFiltre] = React.useState("Tümü");
+  const [seciliId, setSeciliId] = React.useState<string | null>(
+    kullanicilar[0]?.id ?? null,
+  );
+  const [arama, setArama] = React.useState("");
+
+  const filtreliKul = kullanicilar.filter(
+    (k) => rolFiltre === "Tümü" || k.rol === rolFiltre,
+  );
+  const secili = kullanicilar.find((k) => k.id === seciliId) ?? null;
+
+  React.useEffect(() => {
+    if (!filtreliKul.some((k) => k.id === seciliId)) {
+      setSeciliId(filtreliKul[0]?.id ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolFiltre]);
+
+  const acikSayisi = (id: string) =>
+    cariler.length - (engelMatris[id]?.size ?? 0);
+
+  const filtreliCari = cariler.filter(
+    (c) =>
+      c.ad.toLowerCase().includes(arama.toLowerCase()) ||
+      c.id.toLowerCase().includes(arama.toLowerCase()),
+  );
+
+  async function toggle(cariId: string, izinli: boolean) {
+    if (!secili) return;
+    const onceki = new Set(engelMatris[secili.id] ?? []);
+    setEngelMatris((m) => {
+      const s = new Set(m[secili.id] ?? []);
+      if (izinli) s.delete(cariId);
+      else s.add(cariId);
+      return { ...m, [secili.id]: s };
+    });
+    const res = await cariErisimAyarla(secili.id, cariId, izinli);
+    if (!res.ok) {
+      setEngelMatris((m) => ({ ...m, [secili.id]: onceki }));
+      toast.error(res.error ?? "Cari erişimi kaydedilemedi.");
+    }
+  }
+
+  async function tumunuAyarla(izinli: boolean) {
+    if (!secili) return;
+    const ids = cariler.map((c) => c.id);
+    const onceki = new Set(engelMatris[secili.id] ?? []);
+    setEngelMatris((m) => ({
+      ...m,
+      [secili.id]: izinli ? new Set() : new Set(ids),
+    }));
+    const res = await cariErisimTopluAyarla(secili.id, ids, izinli);
+    if (!res.ok) {
+      setEngelMatris((m) => ({ ...m, [secili.id]: onceki }));
+      toast.error(res.error ?? "Cari erişimi kaydedilemedi.");
+    }
+  }
+
+  const engelSet = secili
+    ? (engelMatris[secili.id] ?? new Set<string>())
+    : new Set<string>();
+  const hepsiAcik = !!secili && engelSet.size === 0;
+  const baziAcik = !!secili && engelSet.size < cariler.length;
+
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row">
+      {/* Sol: kullanıcılar */}
+      <div className="flex w-full shrink-0 flex-col gap-2 lg:w-72">
+        <SearchSelect
+          items={["Tümü", ...roller]}
+          value={rolFiltre}
+          onValueChange={(v) => setRolFiltre(v ?? "Tümü")}
+          placeholder="Rol filtresi"
+          searchPlaceholder="Rol ara..."
+        />
+        <div className="flex flex-col gap-2">
+          {filtreliKul.map((k) => {
+            const aktif = k.id === seciliId;
+            const acik = acikSayisi(k.id);
+            return (
+              <button
+                key={k.id}
+                type="button"
+                onClick={() => setSeciliId(k.id)}
+                className={cn(
+                  "cursor-pointer rounded-md border bg-card p-3 text-left transition-colors",
+                  aktif
+                    ? "border-foreground/30 ring-1 ring-foreground/20"
+                    : "hover:bg-muted/40",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium">
+                    {k.adSoyad}
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
+                      acik === 0
+                        ? "bg-rose-100 text-rose-700"
+                        : acik === cariler.length
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700",
+                    )}
+                  >
+                    {acik}/{cariler.length}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {k.rol}
+                  {k.departman ? ` · ${k.departman}` : ""}
+                </p>
+              </button>
+            );
+          })}
+          {filtreliKul.length === 0 && (
+            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+              Bu rolde kullanıcı yok.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Sağ: cari hesap listesi */}
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {secili ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-56 flex-1">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari veya kod ara..."
+                  value={arama}
+                  onChange={(e) => setArama(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+                <Checkbox
+                  checked={hepsiAcik}
+                  indeterminate={!hepsiAcik && baziAcik}
+                  onCheckedChange={(v) => tumunuAyarla(v === true)}
+                  aria-label="Tümüne erişim"
+                />
+                Tümü
+              </label>
+            </div>
+            <div className="overflow-hidden rounded-md border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-full">Cari Hesap</TableHead>
+                    <TableHead className="w-24 text-center">Erişim</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtreliCari.map((c) => {
+                    const izinli = !engelSet.has(c.id);
+                    return (
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          <div className="font-medium">{c.ad}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {c.id} · {c.tip}
+                          </div>
+                        </TableCell>
+                        <TableCell className="[&:has([role=checkbox])]:pr-2">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={izinli}
+                              onCheckedChange={(v) => toggle(c.id, v === true)}
+                              aria-label={`${c.ad} erişim`}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filtreliCari.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={2}
+                        className="h-20 text-center text-muted-foreground"
+                      >
+                        Cari bulunamadı.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {acikSayisi(secili.id)}/{cariler.length} cariye erişimi var
+            </span>
+          </>
+        ) : (
+          <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
+            Soldan bir kullanıcı seçin.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Ana bileşen: sekme geçişi ────────────────────────────────────────────
 export function Yetkilendirme({
   kullanicilar,
@@ -458,14 +685,20 @@ export function Yetkilendirme({
   rolYetkileri,
   kullaniciYetkileri,
   setler,
+  cariler,
+  cariEngelleri,
 }: {
   kullanicilar: KullaniciGorunum[];
   roller: string[];
   rolYetkileri: YetkiMatrisi;
   kullaniciYetkileri: YetkiMatrisi;
   setler: YetkiSeti[];
+  cariler: Cari[];
+  cariEngelleri: Record<string, string[]>;
 }) {
-  const [sekme, setSekme] = React.useState<"kullanici" | "set">("kullanici");
+  const [sekme, setSekme] = React.useState<"kullanici" | "set" | "cari">(
+    "kullanici",
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -484,6 +717,7 @@ export function Yetkilendirme({
             [
               ["kullanici", "Kullanıcı Yetkileri"],
               ["set", "Yetki Setleri"],
+              ["cari", "Cari Erişimi"],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -503,7 +737,7 @@ export function Yetkilendirme({
         </div>
       </div>
 
-      {sekme === "kullanici" ? (
+      {sekme === "kullanici" && (
         <KullaniciSekmesi
           kullanicilar={kullanicilar}
           roller={roller}
@@ -511,8 +745,15 @@ export function Yetkilendirme({
           kullaniciYetkileri={kullaniciYetkileri}
           setler={setler}
         />
-      ) : (
-        <SetSekmesi setler={setler} />
+      )}
+      {sekme === "set" && <SetSekmesi setler={setler} />}
+      {sekme === "cari" && (
+        <CariErisimSekmesi
+          kullanicilar={kullanicilar}
+          roller={roller}
+          cariler={cariler}
+          engeller={cariEngelleri}
+        />
       )}
     </div>
   );

@@ -372,6 +372,16 @@ export async function getYetkiSetleri(): Promise<
   }));
 }
 
+/** Kullanıcı → engelli cari id listesi. Kayıt yoksa o kullanıcı tüm carilere açık. */
+export async function getKullaniciCariEngelleri(): Promise<
+  Record<string, string[]>
+> {
+  const rows = await db.kullaniciCariEngel.findMany();
+  const map: Record<string, string[]> = {};
+  for (const r of rows) (map[r.kullaniciId] ??= []).push(r.cariId);
+  return map;
+}
+
 /** Kullanıcı listesi görünümü (şifre hash'i asla dışarı çıkmaz). */
 export type KullaniciGorunum = {
   id: string;

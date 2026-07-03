@@ -515,6 +515,55 @@ export async function yetkiSetiUygula(
   }
 }
 
+/** Bir kullanıcının tek bir cariye erişimini ayarlar (izinli=engeli kaldır). */
+export async function cariErisimAyarla(
+  kullaniciId: string,
+  cariId: string,
+  izinli: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (izinli) {
+      await db.kullaniciCariEngel.deleteMany({
+        where: { kullaniciId, cariId },
+      });
+    } else {
+      await db.kullaniciCariEngel.upsert({
+        where: { kullaniciId_cariId: { kullaniciId, cariId } },
+        create: { kullaniciId, cariId },
+        update: {},
+      });
+    }
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Cari erişimi kaydedilemedi." };
+  }
+}
+
+/** Bir kullanıcının verilen carilere erişimini toplu ayarlar. */
+export async function cariErisimTopluAyarla(
+  kullaniciId: string,
+  cariIds: string[],
+  izinli: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.kullaniciCariEngel.deleteMany({
+        where: { kullaniciId, cariId: { in: cariIds } },
+      });
+      if (!izinli && cariIds.length) {
+        await tx.kullaniciCariEngel.createMany({
+          data: cariIds.map((cariId) => ({ kullaniciId, cariId })),
+        });
+      }
+    });
+    revalidatePath("/kullanicilar/yetkiler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Cari erişimi kaydedilemedi." };
+  }
+}
+
 /** Yeni departman tanımı ekler (varsa sessizce geçer). */
 export async function departmanEkle(
   ad: string,

@@ -1,6 +1,8 @@
 import { Yetkilendirme } from "@/components/users/yetkilendirme";
 import {
+  getCariler,
   getKullanicilar,
+  getKullaniciCariEngelleri,
   getKullaniciYetkileri,
   getRoller,
   getRolYetkileri,
@@ -8,14 +10,23 @@ import {
 } from "@/lib/db/queries";
 
 export default async function YetkilerPage() {
-  const [kullanicilar, roller, rolYetkileri, kullaniciYetkileri, setler] =
-    await Promise.all([
-      getKullanicilar(),
-      getRoller(),
-      getRolYetkileri(),
-      getKullaniciYetkileri(),
-      getYetkiSetleri(),
-    ]);
+  const [
+    kullanicilar,
+    roller,
+    rolYetkileri,
+    kullaniciYetkileri,
+    setler,
+    cariler,
+    cariEngelleri,
+  ] = await Promise.all([
+    getKullanicilar(),
+    getRoller(),
+    getRolYetkileri(),
+    getKullaniciYetkileri(),
+    getYetkiSetleri(),
+    getCariler(),
+    getKullaniciCariEngelleri(),
+  ]);
   return (
     <Yetkilendirme
       kullanicilar={kullanicilar}
@@ -23,6 +34,8 @@ export default async function YetkilerPage() {
       rolYetkileri={rolYetkileri}
       kullaniciYetkileri={kullaniciYetkileri}
       setler={setler}
+      cariler={cariler}
+      cariEngelleri={cariEngelleri}
     />
   );
 }
