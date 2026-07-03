@@ -655,8 +655,14 @@ function CariErisimSekmesi({
               <Table>
                 <TableHeader>
                   <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="h-9 text-xs font-medium text-muted-foreground">
+                      Kod
+                    </TableHead>
                     <TableHead className="h-9 w-full text-xs font-medium text-muted-foreground">
-                      Cari Hesap
+                      Cari Adı
+                    </TableHead>
+                    <TableHead className="h-9 text-xs font-medium whitespace-nowrap text-muted-foreground">
+                      Hesap Tipi
                     </TableHead>
                     {KOLONLAR.map(([alan, label]) => (
                       <TableHead
@@ -681,11 +687,16 @@ function CariErisimSekmesi({
                     const y = yetkiAl(secili.id, c.id);
                     return (
                       <TableRow key={c.id} className="border-b last:border-0">
-                        <TableCell className="py-2.5">
-                          <div className="font-medium">{c.ad}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            {c.id} · {c.tip}
-                          </div>
+                        <TableCell className="py-2.5 font-mono text-xs text-muted-foreground">
+                          {c.id}
+                        </TableCell>
+                        <TableCell className="py-2.5 font-medium">
+                          {c.ad}
+                        </TableCell>
+                        <TableCell className="py-2.5 whitespace-nowrap">
+                          <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                            {c.tip}
+                          </span>
                         </TableCell>
                         {KOLONLAR.map(([alan, label]) => (
                           <TableCell
@@ -709,7 +720,7 @@ function CariErisimSekmesi({
                   {filtreliCari.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={3}
+                        colSpan={5}
                         className="h-20 text-center text-muted-foreground"
                       >
                         Cari bulunamadı.
