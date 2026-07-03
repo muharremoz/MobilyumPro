@@ -627,7 +627,7 @@ function CariErisimSekmesi({
                 </div>
                 <div className="w-36 shrink-0">
                   <SearchSelect
-                    items={["Tümü", "Müşteri", "Tedarikçi", "Her İkisi"]}
+                    items={["Tümü", "Müşteri", "Tedarikçi"]}
                     value={tipFiltre}
                     onValueChange={(v) => setTipFiltre(v ?? "Tümü")}
                     placeholder="Hesap tipi"
