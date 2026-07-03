@@ -667,10 +667,10 @@ function CariErisimSekmesi({
                     {KOLONLAR.map(([alan, label]) => (
                       <TableHead
                         key={alan}
-                        className="h-9 w-28 text-center text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-2"
+                        className="w-28 py-2 text-center text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-2"
                       >
-                        <div className="flex flex-col items-center gap-1">
-                          <span>{label}</span>
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="whitespace-nowrap">{label}</span>
                           <Checkbox
                             checked={hepsi(alan)}
                             indeterminate={!hepsi(alan) && bazi(alan)}
