@@ -33,6 +33,29 @@ export async function baglantiTest(
   }
 }
 
+/** Sunucudaki veritabanlarını listeler (master'a bağlanıp sys.databases). */
+export async function veritabanlariListele(
+  b: Baglanti,
+): Promise<{ ok: boolean; liste?: string[]; error?: string }> {
+  const url = baglantiUrl({ ...sifreliBaglanti(b), database: "master" });
+  const client = new PrismaClient({ datasourceUrl: url });
+  try {
+    const rows = await client.$queryRawUnsafe<{ name: string }[]>(
+      "SELECT name FROM sys.databases WHERE name NOT IN ('tempdb','model','msdb') ORDER BY name",
+    );
+    return { ok: true, liste: rows.map((r) => r.name) };
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        (e as Error)?.message?.split("\n")[0]?.slice(0, 300) ??
+        "Veritabanları alınamadı.",
+    };
+  } finally {
+    await client.$disconnect();
+  }
+}
+
 /** DATABASE_URL'i .env'e yazar (diğer satırları korur). Etkili olması için restart gerekir. */
 export async function baglantiKaydet(
   b: Baglanti,
