@@ -37,7 +37,6 @@ import {
   yetkiSetiSil,
   yetkiSetiUygula,
   cariYetkiAyarla,
-  cariYetkiTopluAyarla,
 } from "@/lib/db/actions";
 
 function yetkiVar(y: ModulYetki | undefined): boolean {
@@ -574,34 +573,6 @@ function CariErisimSekmesi({
     }
   }
 
-  async function kolonDegis(alan: keyof CariYetki, deger: boolean) {
-    if (!secili) return;
-    const onceki = matris[secili.id];
-    const ogeler = cariler.map((c) => {
-      const y: CariYetki = { ...yetkiAl(secili.id, c.id), [alan]: deger };
-      return { cariId: c.id, goruntule: y.goruntule, islemYap: y.islemYap };
-    });
-    setMatris((m) => ({
-      ...m,
-      [secili.id]: Object.fromEntries(
-        ogeler.map((o) => [
-          o.cariId,
-          { goruntule: o.goruntule, islemYap: o.islemYap },
-        ]),
-      ),
-    }));
-    const res = await cariYetkiTopluAyarla(secili.id, ogeler);
-    if (!res.ok) {
-      setMatris((m) => ({ ...m, [secili.id]: onceki }));
-      toast.error(res.error ?? "Cari yetkisi kaydedilemedi.");
-    }
-  }
-
-  const hepsi = (alan: keyof CariYetki) =>
-    !!secili && cariler.every((c) => yetkiAl(secili.id, c.id)[alan]);
-  const bazi = (alan: keyof CariYetki) =>
-    !!secili && cariler.some((c) => yetkiAl(secili.id, c.id)[alan]);
-
   const KOLONLAR = [
     ["goruntule", "Görüntüle"],
     ["islemYap", "İşlem Yap"],
@@ -667,17 +638,9 @@ function CariErisimSekmesi({
                     {KOLONLAR.map(([alan, label]) => (
                       <TableHead
                         key={alan}
-                        className="w-28 py-2 text-center text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-2"
+                        className="h-9 w-28 text-center text-xs font-medium whitespace-nowrap text-muted-foreground"
                       >
-                        <div className="flex flex-col items-center gap-1.5">
-                          <span className="whitespace-nowrap">{label}</span>
-                          <Checkbox
-                            checked={hepsi(alan)}
-                            indeterminate={!hepsi(alan) && bazi(alan)}
-                            onCheckedChange={(v) => kolonDegis(alan, v === true)}
-                            aria-label={`Tümü ${label}`}
-                          />
-                        </div>
+                        {label}
                       </TableHead>
                     ))}
                   </TableRow>
