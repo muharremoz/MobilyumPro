@@ -525,6 +525,7 @@ function CariErisimSekmesi({
     kullanicilar[0]?.id ?? null,
   );
   const [arama, setArama] = React.useState("");
+  const [tipFiltre, setTipFiltre] = React.useState("Tümü");
 
   const filtreliKul = kullanicilar.filter(
     (k) => rolFiltre === "Tümü" || k.rol === rolFiltre,
@@ -544,11 +545,13 @@ function CariErisimSekmesi({
   const gorunurSayisi = (uid: string) =>
     cariler.filter((c) => yetkiAl(uid, c.id).goruntule).length;
 
-  const filtreliCari = cariler.filter(
-    (c) =>
-      c.ad.toLowerCase().includes(arama.toLowerCase()) ||
-      c.id.toLowerCase().includes(arama.toLowerCase()),
-  );
+  const filtreliCari = cariler.filter((c) => {
+    const q = arama.toLowerCase();
+    const eslesme =
+      c.ad.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
+    const tip = tipFiltre === "Tümü" || c.tip === tipFiltre;
+    return eslesme && tip;
+  });
 
   async function tekDegis(cariId: string, alan: keyof CariYetki, deger: boolean) {
     if (!secili) return;
@@ -612,14 +615,25 @@ function CariErisimSekmesi({
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <KullaniciBaslik k={secili} />
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Cari veya kod ara..."
-                  value={arama}
-                  onChange={(e) => setArama(e.target.value)}
-                  className="h-9 pl-9"
-                />
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <div className="relative flex-1 sm:w-56">
+                  <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari veya kod ara..."
+                    value={arama}
+                    onChange={(e) => setArama(e.target.value)}
+                    className="h-9 pl-9"
+                  />
+                </div>
+                <div className="w-36 shrink-0">
+                  <SearchSelect
+                    items={["Tümü", "Müşteri", "Tedarikçi", "Her İkisi"]}
+                    value={tipFiltre}
+                    onValueChange={(v) => setTipFiltre(v ?? "Tümü")}
+                    placeholder="Hesap tipi"
+                    searchPlaceholder="Tip ara..."
+                  />
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto rounded-lg border bg-card">
