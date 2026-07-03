@@ -83,12 +83,15 @@ function RailButton({
             onMouseLeave={() => ref.current?.stopAnimation()}
             onClick={() => onSelect(section)}
             className={cn(
-              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
+              "flex w-full cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
               (active || open) &&
                 "bg-sidebar-border text-foreground hover:bg-sidebar-border",
             )}
           >
             <RailIcon ref={ref} size={18} />
+            <span className="line-clamp-2 text-center text-[10px] leading-tight">
+              {section.label}
+            </span>
           </button>
         }
       />
@@ -235,7 +238,7 @@ function AppNavInner() {
   return (
     <TooltipProvider delay={200}>
       {/* Rail — her zaman görünür, #FAFAFA zemine yüzer */}
-      <nav className="relative z-30 flex h-full w-12 shrink-0 flex-col items-center gap-1 py-1">
+      <nav className="relative z-30 flex h-full w-20 shrink-0 flex-col items-center gap-1 py-1">
         <Link
           href="/"
           aria-label="MobilyumPro"
