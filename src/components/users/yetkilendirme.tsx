@@ -721,9 +721,9 @@ function CariErisimSekmesi({
 
 // ─── Ana bileşen: başlık + underline sekmeler ─────────────────────────────
 const SEKMELER = [
-  ["kullanici", "Kullanıcı Yetkileri"],
+  ["kullanici", "Menü İzinleri"],
+  ["cari", "Cari Hesap İzinleri"],
   ["set", "Yetki Setleri"],
-  ["cari", "Cari Erişimi"],
 ] as const;
 
 export function Yetkilendirme({
