@@ -168,8 +168,16 @@
 .t-input.is-error {
   transition: border-color var(--revert-dur, 280ms) ease-out;
 }
-.t-input.is-error,
-.t-input.is-error :where(input, [data-slot="combobox-trigger"], [data-slot="select-trigger"]) {
+/* Hata ring'i görünür kontrolün kendisine uygulanır (sarmalayıcı div'e değil —
+   div köşesiz olduğundan sivri kırmızı çerçeve çıkıyordu). Grup içindeki çıplak
+   input hariç tutulur; ring'i grup taşır (çift çerçeve olmasın). */
+.t-input.is-error
+  :where(
+    input:not([data-slot="input-group-control"]),
+    [data-slot="input-group"],
+    [data-slot="combobox-trigger"],
+    [data-slot="select-trigger"]
+  ) {
   border-color: var(--destructive);
   /* Vercel tarzı borderless kontroller ring gölgesi kullanır — hata da öyle. */
   box-shadow: 0 0 0 1px var(--destructive);

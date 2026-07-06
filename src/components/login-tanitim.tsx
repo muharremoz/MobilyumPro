@@ -1,23 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
+import { Blocks, CalendarDays, Plug } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 /**
- * Login sağ paneli — tam tasarımlı tanıtım/duyuru alanı.
- * Koyu zemin; ince çizgi ızgarası + eş merkezli halkalar, slayta göre renk
- * değiştiren ışık haleleri, hayalet slayt numarası, cam (glass) istatistik
- * kartı ve süreli ilerleme çubukları. Şimdilik mock veri.
+ * Login sağ paneli — kart destesi konsepti.
+ * Açık zemin + yumuşak renk lekeleri; duyurular üst üste bir deste halinde
+ * durur, aktif kart öne gelir (otomatik döner, karta/noktaya tıklanabilir).
+ * Şimdilik mock veri.
  */
 type Slayt = {
   etiket: string;
   baslik: string;
   aciklama: string;
-  /** Slayta özel vurgu rengi (hale + rozet noktası). */
-  renk: string;
-  istatistik: { deger: string; etiket: string };
+  renk: string; // vurgu rengi (ikon rozeti + nokta)
+  Ikon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  alt: { deger: string; etiket: string };
 };
 
 const slaytlar: Slayt[] = [
@@ -26,24 +27,27 @@ const slaytlar: Slayt[] = [
     baslik: "Logo Yazılım ile tam entegre",
     aciklama:
       "Cari hesaplar ve faturalar Logo muhasebe ile otomatik senkronize olur — çift kayıt derdi biter.",
-    renk: "#f97316", // turuncu
-    istatistik: { deger: "%80", etiket: "daha az manuel kayıt" },
+    renk: "#f97316",
+    Ikon: Plug,
+    alt: { deger: "%80", etiket: "daha az manuel kayıt" },
   },
   {
     etiket: "Entegrasyon",
     baslik: "Mikro ile veri akışı",
     aciklama:
       "Mikro kullanan bayilerinizle sipariş ve stok verisi tek tıkla karşılıklı akar.",
-    renk: "#3b82f6", // mavi
-    istatistik: { deger: "2 yön", etiket: "sipariş + stok senkronu" },
+    renk: "#3b82f6",
+    Ikon: Blocks,
+    alt: { deger: "2 yön", etiket: "sipariş + stok senkronu" },
   },
   {
     etiket: "Duyuru",
     baslik: "2027 Mobilya Fuarı'ndayız",
     aciklama:
       "MobilyumPro'yu yerinde görmek için İstanbul Mobilya Fuarı'ndaki standımıza bekleriz.",
-    renk: "#f59e0b", // amber
-    istatistik: { deger: "Salon 4", etiket: "Stant D-12 · CNR Expo" },
+    renk: "#f59e0b",
+    Ikon: CalendarDays,
+    alt: { deger: "Salon 4", etiket: "Stant D-12 · CNR Expo" },
   },
 ];
 
@@ -51,153 +55,132 @@ const SURE_MS = 6000;
 
 export function LoginTanitim({ className }: { className?: string }) {
   const [aktif, setAktif] = React.useState(0);
+  const n = slaytlar.length;
 
   React.useEffect(() => {
-    const id = setInterval(
-      () => setAktif((a) => (a + 1) % slaytlar.length),
-      SURE_MS,
-    );
+    const id = setInterval(() => setAktif((a) => (a + 1) % n), SURE_MS);
     return () => clearInterval(id);
-  }, [aktif]); // manuel seçimde sayaç baştan başlar
+  }, [aktif, n]); // manuel seçimde sayaç baştan başlar
 
-  const s = slaytlar[aktif];
+  // Destedeki sıra: 0 = önde, 1 = bir arkada, 2 = en arkada.
+  const sira = (i: number) => (i - aktif + n) % n;
 
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col justify-between overflow-hidden bg-[#141414] p-10",
+        "relative flex h-full flex-col overflow-hidden bg-[#fafafa]",
         className,
       )}
     >
-      {/* Doku: ince çizgi ızgarası (merkezden kenara doğru söner) */}
+      {/* Yumuşak renk lekeleri */}
+      <div className="pointer-events-none absolute -top-32 -right-24 size-[420px] rounded-full bg-[#f59e0b]/[0.10] blur-[100px]" />
+      <div className="pointer-events-none absolute -bottom-40 -left-28 size-[440px] rounded-full bg-[#3b82f6]/[0.09] blur-[110px]" />
+      {/* Nokta dokusu */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,white,transparent_80%)]"
+        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)]"
       />
-      {/* Eş merkezli halkalar (sağ üstte, hayalet numaranın arkasında) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -right-24"
-      >
-        {[180, 280, 380].map((cap) => (
-          <span
-            key={cap}
-            style={{ width: cap, height: cap }}
-            className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 rounded-full border border-white/[0.06]"
-          />
-        ))}
-      </div>
-
-      {/* Slayta göre renklenen ışık haleleri */}
-      <motion.div
-        animate={{ backgroundColor: s.renk }}
-        transition={{ duration: 1.2 }}
-        className="pointer-events-none absolute -top-48 -right-32 size-[520px] rounded-full opacity-[0.13] blur-[120px]"
-      />
-      <motion.div
-        animate={{ backgroundColor: s.renk }}
-        transition={{ duration: 1.2 }}
-        className="pointer-events-none absolute -bottom-56 -left-40 size-[480px] rounded-full opacity-[0.07] blur-[110px]"
-      />
-
-      {/* Hayalet slayt numarası */}
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={aktif}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-6 -translate-y-1/2 text-[200px] leading-none font-semibold tracking-tighter text-white/[0.045] select-none"
-        >
-          0{aktif + 1}
-        </motion.span>
-      </AnimatePresence>
 
       {/* Üst: marka */}
-      <div className="relative flex items-center gap-2.5">
+      <div className="relative flex items-center gap-2.5 p-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo.jpg"
           alt="MobilyumPro"
-          className="size-7 rounded-full border border-white/20"
+          className="size-7 rounded-full border"
         />
-        <span className="text-sm font-medium text-white">MobilyumPro</span>
+        <span className="text-sm font-medium text-[#171717]">MobilyumPro</span>
       </div>
 
-      {/* Alt: slayt içeriği */}
-      <div className="relative flex flex-col gap-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={aktif}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="flex flex-col items-start gap-4"
-          >
-            <span className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 py-1 text-[11px] font-medium tracking-wide text-white uppercase backdrop-blur-sm">
-              <span
-                className="size-1.5 rounded-full"
-                style={{ backgroundColor: s.renk }}
-              />
-              {s.etiket}
-            </span>
-            <h2 className="max-w-md text-4xl leading-tight font-semibold tracking-tight text-white">
-              {s.baslik}
-            </h2>
-            <p className="max-w-sm text-[15px] leading-relaxed text-white/55">
-              {s.aciklama}
-            </p>
-
-            {/* Cam istatistik kartı */}
-            <div className="mt-2 flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.05] px-5 py-3.5 backdrop-blur-sm">
-              <span className="text-2xl font-semibold tracking-tight text-white tabular-nums">
-                {s.istatistik.deger}
-              </span>
-              <span className="h-8 w-px bg-white/10" />
-              <span className="max-w-40 text-xs leading-snug text-white/55">
-                {s.istatistik.etiket}
-              </span>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* İlerleme çubukları + sayaç */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {slaytlar.map((_, i) => (
-              <button
+      {/* Orta: kart destesi */}
+      <div className="relative flex flex-1 items-center justify-center px-10">
+        <div className="relative h-96 w-full max-w-md">
+          {slaytlar.map((s, i) => {
+            const k = sira(i);
+            const onde = k === 0;
+            return (
+              <motion.button
                 key={i}
                 type="button"
-                aria-label={`Slayt ${i + 1}`}
-                onClick={() => setAktif(i)}
-                className="h-1 w-12 cursor-pointer overflow-hidden rounded-full bg-white/15"
-              >
-                {i === aktif ? (
-                  <motion.span
-                    key={aktif}
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: SURE_MS / 1000, ease: "linear" }}
-                    className="block h-full bg-white"
-                  />
-                ) : (
-                  <span
-                    className={cn(
-                      "block h-full",
-                      i < aktif ? "w-full bg-white/40" : "w-0",
-                    )}
-                  />
+                onClick={() => !onde && setAktif(i)}
+                aria-label={s.baslik}
+                animate={{
+                  y: k * -22,
+                  scale: 1 - k * 0.06,
+                  opacity: k > 2 ? 0 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                style={{ zIndex: n - k }}
+                className={cn(
+                  "absolute inset-x-0 bottom-0 flex h-[340px] flex-col gap-5 overflow-hidden rounded-xl bg-white p-9 text-left shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_2px_2px_rgba(0,0,0,0.04),0_16px_32px_-12px_rgba(0,0,0,0.12)]",
+                  onde ? "cursor-default" : "cursor-pointer",
                 )}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs text-white/40 tabular-nums">
-            0{aktif + 1} / 0{slaytlar.length}
-          </span>
+              >
+                {/* Kart içi tasarım: köşede ışık + filigran ikon */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -top-12 -left-12 size-44 rounded-full blur-3xl"
+                  style={{ backgroundColor: `${s.renk}14` }}
+                />
+                <s.Ikon
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-8 -bottom-8 size-40"
+                  style={{ color: `${s.renk}0d` }}
+                />
+
+                <div className="relative flex items-center justify-between">
+                  <span
+                    className="flex size-12 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${s.renk}1a` }}
+                  >
+                    <s.Ikon className="size-6" style={{ color: s.renk }} />
+                  </span>
+                  <span className="rounded-full bg-[#f2f2f2] px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-[#666] uppercase">
+                    {s.etiket}
+                  </span>
+                </div>
+                <div className="relative flex flex-col gap-2">
+                  <h2 className="text-2xl font-semibold tracking-tight text-[#171717]">
+                    {s.baslik}
+                  </h2>
+                  <p className="text-[15px] leading-relaxed text-muted-foreground">
+                    {s.aciklama}
+                  </p>
+                </div>
+                <div className="relative mt-auto flex items-center gap-3 border-t border-[#f2f2f2] pt-4">
+                  <span className="text-xl font-semibold tracking-tight text-[#171717] tabular-nums">
+                    {s.alt.deger}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {s.alt.etiket}
+                  </span>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
+      </div>
+
+      {/* Alt: noktalar */}
+      <div className="relative flex items-center justify-center gap-2 p-8">
+        {slaytlar.map((s, i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`Duyuru ${i + 1}`}
+            onClick={() => setAktif(i)}
+            className="flex size-4 cursor-pointer items-center justify-center"
+          >
+            <motion.span
+              animate={{
+                width: i === aktif ? 20 : 8,
+                backgroundColor: i === aktif ? s.renk : "#d4d4d4",
+              }}
+              transition={{ duration: 0.3 }}
+              className="h-2 rounded-full"
+            />
+          </button>
+        ))}
       </div>
     </div>
   );

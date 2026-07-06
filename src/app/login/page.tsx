@@ -1,5 +1,6 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
 
+import { DestekTalebi } from "@/components/destek-talebi"
 import { LoginForm } from "@/components/login-form"
 import { LoginTanitim } from "@/components/login-tanitim"
 import { getKullanicilar, getVeritabanlari } from "@/lib/db/queries"
@@ -48,6 +49,9 @@ export default async function LoginPage() {
       <div className="hidden p-4 lg:block">
         <LoginTanitim className="rounded-md" />
       </div>
+
+      {/* Sağ altta destek talebi butonu + modalı */}
+      <DestekTalebi />
     </div>
   )
 }
