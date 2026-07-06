@@ -345,7 +345,7 @@ function AppNavInner() {
             daralt ? "justify-center" : "gap-2 px-2",
           )}
         >
-          <span className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card">
+          <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.jpg"
@@ -354,7 +354,7 @@ function AppNavInner() {
             />
           </span>
           {!daralt && (
-            <span className="flex-1 truncate text-sm font-medium text-[#171717]">
+            <span className="flex-1 truncate text-[15px] font-medium text-[#171717]">
               MobilyumPro
             </span>
           )}

@@ -161,15 +161,15 @@ function AppHeaderInner() {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[#f2f2f2] bg-[#fafafa] px-4 md:px-6">
       {Icon && (
-        <Icon size={16} className="shrink-0 text-foreground" />
+        <Icon size={20} className="shrink-0 text-foreground" />
       )}
-      <nav className="flex items-center gap-1.5 text-sm">
+      <nav className="flex items-center gap-2 text-[15px]">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
           return (
-            <span key={i} className="flex items-center gap-1.5">
+            <span key={i} className="flex items-center gap-2">
               {i > 0 && (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronRight className="size-4 text-muted-foreground" />
               )}
               {!last && c.href ? (
                 <Link
@@ -193,14 +193,19 @@ function AppHeaderInner() {
           );
         })}
         {meta && (
-          <span className="ml-1.5 rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+          <span className="ml-1.5 rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
             {meta}
           </span>
         )}
       </nav>
 
       <div className="ml-auto flex items-center gap-1">
-        <Button variant="ghost" size="icon-sm" aria-label="Bildirimler">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Bildirimler"
+          className="[&_svg]:size-4.5"
+        >
           <Bell />
         </Button>
       </div>
