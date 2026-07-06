@@ -397,6 +397,8 @@ export type KullaniciGorunum = {
   departman?: string;
   rol: string;
   durum: Durum;
+  /** Geçmiş tarihe işlem girebilir mi? */
+  eskiTarihliIslem: boolean;
   olusturma: string;
 };
 
@@ -411,6 +413,7 @@ export async function getKullanicilar(): Promise<KullaniciGorunum[]> {
     departman: k.departman ?? undefined,
     rol: k.rol,
     durum: k.durum as Durum,
+    eskiTarihliIslem: k.eskiTarihliIslem,
     olusturma: tarihStr(k.olusturma),
   }));
 }

@@ -4,8 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  Plus,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -40,6 +38,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListHeader } from "@/components/ui/list-header";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -51,8 +50,6 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuGroup,
-  ContextMenuLabel,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubTrigger,
@@ -104,7 +101,6 @@ export function ProductsTable({
   initialKategori?: string;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
-  const [arama, setArama] = React.useState("");
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   // Sütun başlığı popover'larından gelen kolon-bazlı filtreler
@@ -122,18 +118,16 @@ export function ProductsTable({
 
   // Filtre + sıralama
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((u) => {
-      const ara = u.ad.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
       const kat = kategori === "Tümü" || u.kategori === kategori;
       const dur = durum === "Tümü" || u.durum === durum;
       const kod = u.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
       const ad = u.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
       const fiy = arada(u.fiyat, sayiFiltre.fiyat.min, sayiFiltre.fiyat.max);
       const stk = arada(u.stok, sayiFiltre.stok.min, sayiFiltre.stok.max);
-      return ara && kat && dur && kod && ad && fiy && stk;
+      return kat && dur && kod && ad && fiy && stk;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -142,12 +136,12 @@ export function ProductsTable({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, kategori, durum, metinFiltre, sayiFiltre, sort]);
+  }, [liste, kategori, durum, metinFiltre, sayiFiltre, sort]);
 
   // Filtre değişince sayfayı başa al
   React.useEffect(() => {
     setSayfa(1);
-  }, [arama, kategori, durum, metinFiltre, sayiFiltre]);
+  }, [kategori, durum, metinFiltre, sayiFiltre]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -426,26 +420,6 @@ export function ProductsTable({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Araç çubuğu */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Model veya kod ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <Button
-          className="ml-auto"
-          nativeButton={false}
-          render={<Link href="/urunler/yeni" />}
-        >
-          <Plus className="size-4" /> Yeni Model
-        </Button>
-      </div>
-
       {/* Toplu işlem çubuğu */}
       {secili.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
@@ -466,6 +440,11 @@ export function ProductsTable({
 
       {/* Tablo */}
       <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Modeller">
+          <Button nativeButton={false} render={<Link href="/urunler/yeni" />}>
+            Yeni Model
+          </Button>
+        </ListHeader>
         <Table>
           <TableHeader>
             <TableRow>
@@ -549,124 +528,117 @@ export function ProductsTable({
                   </button>
                 </TableCell>
                 </ContextMenuTrigger>
-                <ContextMenuContent className="w-56">
-                  {/* Görüntüle / Navigasyon */}
-                  <ContextMenuGroup>
-                    <ContextMenuLabel>Görüntüle</ContextMenuLabel>
-                    <ContextMenuItem
-                      onClick={() => router.push(`/urunler/${u.id}`)}
-                    >
-                      <ExternalLink className="mr-2 size-4" /> Detayı Aç
-                      <ContextMenuShortcut>⏎</ContextMenuShortcut>
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
-                    >
-                      <Pencil className="mr-2 size-4" /> Düzenle
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() =>
-                        router.push("/stok-yonetimi?bolum=takip")
-                      }
-                    >
-                      <History className="mr-2 size-4" /> Stok Hareketleri
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => router.push("/uretim/recete")}
-                    >
-                      <Layers className="mr-2 size-4" /> Üretim Reçetesi
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => router.push("/siparisler")}>
-                      <ShoppingCart className="mr-2 size-4" /> Siparişlerde Göster
-                    </ContextMenuItem>
-                  </ContextMenuGroup>
+                <ContextMenuContent className="w-52">
+                  {/* Sık kullanılanlar üstte; gerisi alt menülerde (hiçbir işlev eksilmedi) */}
+                  <ContextMenuItem
+                    onClick={() => router.push(`/urunler/${u.id}`)}
+                  >
+                    <ExternalLink className="mr-2 size-4" /> Detayı Aç
+                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
+                  >
+                    <Pencil className="mr-2 size-4" /> Düzenle
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => kopyala(u)}>
+                    <CopyPlus className="mr-2 size-4" /> Çoğalt
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => durumDegistir(u)}>
+                    <Power className="mr-2 size-4" />
+                    {u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
+                  </ContextMenuItem>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Hash className="mr-2 size-4" /> Kopyala
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuItem onClick={() => panoyaKopyala(u.id, "Kod")}>
+                        <Hash className="mr-2 size-4" /> Kod
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => panoyaKopyala(u.ad, "Ad")}>
+                        <Type className="mr-2 size-4" /> Ad
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() =>
+                          panoyaKopyala(
+                            `${window.location.origin}/urunler/${u.id}`,
+                            "Bağlantı",
+                          )
+                        }
+                      >
+                        <Link2 className="mr-2 size-4" /> Bağlantı
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <ExternalLink className="mr-2 size-4" /> Git
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuItem
+                        onClick={() => router.push("/stok-yonetimi?bolum=takip")}
+                      >
+                        <History className="mr-2 size-4" /> Stok Hareketleri
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => router.push("/uretim/recete")}
+                      >
+                        <Layers className="mr-2 size-4" /> Üretim Reçetesi
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => router.push("/siparisler")}>
+                        <ShoppingCart className="mr-2 size-4" /> Siparişler
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Boxes className="mr-2 size-4" /> Diğer İşlemler
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger>
+                          <FolderInput className="mr-2 size-4" /> Kategoriye Taşı
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent>
+                          {KATEGORILER.map((k) => (
+                            <ContextMenuItem
+                              key={k}
+                              onClick={() => kategoriyeTasi(u, k)}
+                            >
+                              {k}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                      <ContextMenuItem onClick={() => yakinda("Stok düzelt")}>
+                        <Boxes className="mr-2 size-4" /> Stok Düzelt
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Fiyat güncelle")}>
+                        <Banknote className="mr-2 size-4" /> Fiyat Güncelle
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Üretime gönder")}>
+                        <Hammer className="mr-2 size-4" /> Üretime Gönder
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Etiket ekle")}>
+                        <Tags className="mr-2 size-4" /> Etiket Ekle
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Favorile")}>
+                        <Star className="mr-2 size-4" /> Favorile
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Arşivle")}>
+                        <Archive className="mr-2 size-4" /> Arşivle
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => yakinda("Dışa aktar")}>
+                        <Download className="mr-2 size-4" /> Dışa Aktar
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
 
                   <ContextMenuSeparator />
-
-                  {/* Hızlı işlemler */}
-                  <ContextMenuGroup>
-                    <ContextMenuLabel>Hızlı İşlem</ContextMenuLabel>
-                    <ContextMenuItem onClick={() => durumDegistir(u)}>
-                      <Power className="mr-2 size-4" />
-                      {u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Stok düzelt")}>
-                      <Boxes className="mr-2 size-4" /> Stok Düzelt
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Fiyat güncelle")}>
-                      <Banknote className="mr-2 size-4" /> Fiyat Güncelle
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Üretime gönder")}>
-                      <Hammer className="mr-2 size-4" /> Üretime Gönder
-                    </ContextMenuItem>
-                  </ContextMenuGroup>
-
-                  <ContextMenuSeparator />
-
-                  {/* Kopyala / Aktar */}
-                  <ContextMenuGroup>
-                    <ContextMenuLabel>Kopyala / Aktar</ContextMenuLabel>
-                    <ContextMenuItem
-                      onClick={() => panoyaKopyala(u.id, "Kod")}
-                    >
-                      <Hash className="mr-2 size-4" /> Kodu Kopyala
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => panoyaKopyala(u.ad, "Ad")}
-                    >
-                      <Type className="mr-2 size-4" /> Adı Kopyala
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() =>
-                        panoyaKopyala(
-                          `${window.location.origin}/urunler/${u.id}`,
-                          "Bağlantı",
-                        )
-                      }
-                    >
-                      <Link2 className="mr-2 size-4" /> Bağlantıyı Kopyala
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => kopyala(u)}>
-                      <CopyPlus className="mr-2 size-4" /> Çoğalt
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Dışa aktar")}>
-                      <Download className="mr-2 size-4" /> Dışa Aktar
-                    </ContextMenuItem>
-                  </ContextMenuGroup>
-
-                  <ContextMenuSeparator />
-
-                  {/* Düzenleme yardımcıları */}
-                  <ContextMenuGroup>
-                    <ContextMenuLabel>Düzenle</ContextMenuLabel>
-                    <ContextMenuSub>
-                      <ContextMenuSubTrigger>
-                        <FolderInput className="mr-2 size-4" /> Kategoriye Taşı
-                      </ContextMenuSubTrigger>
-                      <ContextMenuSubContent>
-                        {KATEGORILER.map((k) => (
-                          <ContextMenuItem
-                            key={k}
-                            onClick={() => kategoriyeTasi(u, k)}
-                          >
-                            {k}
-                          </ContextMenuItem>
-                        ))}
-                      </ContextMenuSubContent>
-                    </ContextMenuSub>
-                    <ContextMenuItem onClick={() => yakinda("Etiket ekle")}>
-                      <Tags className="mr-2 size-4" /> Etiket Ekle
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Favorile")}>
-                      <Star className="mr-2 size-4" /> Favorile
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => yakinda("Arşivle")}>
-                      <Archive className="mr-2 size-4" /> Arşivle
-                    </ContextMenuItem>
-                  </ContextMenuGroup>
-
-                  <ContextMenuSeparator />
-
                   <ContextMenuItem
                     variant="destructive"
                     onClick={() => sil([u.id])}

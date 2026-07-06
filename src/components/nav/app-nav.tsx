@@ -198,16 +198,13 @@ function PanelItem({
   const gecikme = { animationDelay: `${index * 35}ms` };
   return (
     <>
-      {item.groupHeader && (
+      {/* Grup adı gösterilmez; gruplar arasına ince çizgi konur (ilk grup hariç). */}
+      {item.groupHeader && index > 0 && (
         <li
-          className={cn(
-            "mt-2 px-2.5 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0",
-            animasyon,
-          )}
+          aria-hidden="true"
+          className={cn("my-1 h-px bg-[#ebebeb]", animasyon)}
           style={gecikme}
-        >
-          {item.groupHeader}
-        </li>
+        />
       )}
       <li
         className={animasyon}
@@ -334,7 +331,7 @@ function AppNavInner() {
           kenar ortasında hover'da beliren yuvarlak daralt butonu */}
       <nav
         className={cn(
-          "group/nav relative z-30 flex h-full shrink-0 flex-col border-r border-[#ebebeb] bg-[#fafafa] px-2 py-2 transition-[width] duration-200 ease-out",
+          "group/nav relative z-30 flex h-full shrink-0 flex-col border-r border-[#ebebeb] bg-[#fafafa] px-2 pb-2 transition-[width] duration-200 ease-out",
           daralt ? "w-14" : "w-64",
         )}
       >
@@ -343,7 +340,8 @@ function AppNavInner() {
           href="/"
           aria-label="MobilyumPro"
           className={cn(
-            "flex h-9 shrink-0 items-center rounded-md transition-colors hover:bg-[#f2f2f2]",
+            // Header'la (h-14) aynı yükseklik — üst şeritler hizalı
+            "flex h-14 shrink-0 items-center rounded-md transition-colors hover:bg-[#f2f2f2]",
             daralt ? "justify-center" : "gap-2 px-2",
           )}
         >

@@ -300,6 +300,8 @@ model Kullanici {
   sifreHash    String   @map("sifre_hash")
   rol          String   @default("Kullanıcı")
   durum        String   @default("Aktif")
+  // Geçmiş tarihe işlem (kayıt) girebilme yetkisi
+  eskiTarihliIslem Boolean @default(false) @map("eski_tarihli_islem")
   olusturma    DateTime @db.Date
 
   yetkiler     KullaniciYetki[]

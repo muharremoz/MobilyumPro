@@ -600,6 +600,8 @@ export type KullaniciKayit = {
   departman?: string;
   rol: string;
   durum: "Aktif" | "Pasif";
+  /** Geçmiş tarihe işlem girebilme yetkisi. */
+  eskiTarihliIslem?: boolean;
   /** Yeni kayıtta zorunlu; düzenlemede boş bırakılırsa şifre değişmez. */
   sifre?: string;
 };
@@ -633,6 +635,7 @@ export async function kullaniciKaydet(
       departman: k.departman?.trim() || null,
       rol: k.rol,
       durum: k.durum,
+      eskiTarihliIslem: k.eskiTarihliIslem ?? false,
     };
 
     if (k.id) {

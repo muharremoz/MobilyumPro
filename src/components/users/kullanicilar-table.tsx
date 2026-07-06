@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { ListHeader } from "@/components/ui/list-header";
 import { ErrorShakeField } from "@/components/ui/error-shake";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
@@ -38,6 +39,7 @@ import { FolderTreeIcon } from "@/components/ui/icons/folder-tree";
 import { ShieldCheckIcon } from "@/components/ui/icons/shield-check";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
+import { HistoryIcon } from "@/components/ui/icons/history";
 import {
   Dialog,
   DialogContent,
@@ -216,6 +218,7 @@ export function KullanicilarTable({
       departman: kayit.departman?.trim() || undefined,
       rol: kayit.rol,
       durum: kayit.durum,
+      eskiTarihliIslem: kayit.eskiTarihliIslem ?? false,
       olusturma:
         liste.find((k) => k.id === id)?.olusturma ??
         new Date().toISOString().slice(0, 10),
@@ -432,29 +435,25 @@ export function KullanicilarTable({
       )}
 
       <div className="overflow-hidden rounded-md border bg-card">
-        {/* Liste başlığı */}
-        <div className="flex items-center justify-between gap-3 border-b px-3 py-1.5">
-          <h2 className="text-sm font-semibold">Kullanıcılar</h2>
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/kullanicilar/yetkiler" />}
-            >
-              Yetkilendirmeler
-            </Button>
-            <Button
-              onClick={() => {
-                setDuzenlenen(null);
-                setSheetOpen(true);
-              }}
-            >
-              Yeni Kullanıcı
-            </Button>
-          </div>
-        </div>
+        <ListHeader title="Kullanıcılar">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/kullanicilar/yetkiler" />}
+          >
+            Yetkilendirmeler
+          </Button>
+          <Button
+            onClick={() => {
+              setDuzenlenen(null);
+              setSheetOpen(true);
+            }}
+          >
+            Yeni Kullanıcı
+          </Button>
+        </ListHeader>
 
-        <Table className="[&_td]:h-12 [&_td]:px-3 [&_td]:text-sm [&_th]:h-10 [&_th]:px-3">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
@@ -666,6 +665,7 @@ function KullaniciSheet({
     rol: "Kullanıcı" as string,
     sifre: "",
     durum: "Aktif" as "Aktif" | "Pasif",
+    eskiTarihliIslem: false,
   });
   const [hatalar, setHatalar] = React.useState<SheetHatalar>({});
   const [shakeNonce, setShakeNonce] = React.useState(0);
@@ -675,6 +675,7 @@ function KullaniciSheet({
   const [yeniAd, setYeniAd] = React.useState("");
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
+  const eskiTarihRef = React.useRef<AnimatedIconHandle>(null);
 
   React.useEffect(() => {
     if (!open) {
@@ -693,6 +694,7 @@ function KullaniciSheet({
         rol: item.rol,
         sifre: "",
         durum: item.durum,
+        eskiTarihliIslem: item.eskiTarihliIslem,
       });
     } else {
       setForm({
@@ -703,6 +705,7 @@ function KullaniciSheet({
         rol: "Kullanıcı",
         sifre: "",
         durum: "Aktif",
+        eskiTarihliIslem: false,
       });
     }
   }, [open, item]);
@@ -750,6 +753,7 @@ function KullaniciSheet({
       departman: form.departman || undefined,
       rol: form.rol,
       durum: form.durum,
+      eskiTarihliIslem: form.eskiTarihliIslem,
       sifre: form.sifre || undefined,
     });
     if (ok) onOpenChange(false);
@@ -886,6 +890,43 @@ function KullaniciSheet({
             <span className="text-xs text-muted-foreground">{form.durum}</span>
             <Switch
               checked={form.durum === "Aktif"}
+              className="pointer-events-none data-checked:bg-emerald-600"
+            />
+          </span>
+        </div>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() =>
+            setForm((f) => ({ ...f, eskiTarihliIslem: !f.eskiTarihliIslem }))
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setForm((f) => ({
+                ...f,
+                eskiTarihliIslem: !f.eskiTarihliIslem,
+              }));
+            }
+          }}
+          onMouseEnter={() => eskiTarihRef.current?.startAnimation()}
+          onMouseLeave={() => eskiTarihRef.current?.stopAnimation()}
+          className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none select-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+        >
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <HistoryIcon
+              ref={eskiTarihRef}
+              size={15}
+              className="text-muted-foreground"
+            />
+            Eski Tarihli İşlem
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {form.eskiTarihliIslem ? "İzinli" : "Kapalı"}
+            </span>
+            <Switch
+              checked={form.eskiTarihliIslem}
               className="pointer-events-none data-checked:bg-emerald-600"
             />
           </span>

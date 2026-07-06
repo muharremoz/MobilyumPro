@@ -97,19 +97,6 @@ function SecimSatiri({
   );
 }
 
-/** Seçili kullanıcı başlığı (sağ panelin üstünde). */
-function KullaniciBaslik({ k }: { k: KullaniciGorunum }) {
-  return (
-    <div className="min-w-0">
-      <div className="truncate text-sm font-medium">{k.adSoyad}</div>
-      <div className="truncate text-xs text-muted-foreground">
-        {k.rol}
-        {k.departman ? ` · ${k.departman}` : ""}
-      </div>
-    </div>
-  );
-}
-
 function BosDurum({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -122,10 +109,17 @@ function BosDurum({ children }: { children: React.ReactNode }) {
 function YetkiTablosu({
   deger,
   onDegis,
+  arama,
 }: {
   deger: Record<string, ModulYetki>;
   onDegis: (modul: string, yeni: ModulYetki) => void;
+  /** Doluysa modüller ada göre süzülür. */
+  arama?: string;
 }) {
+  const q = (arama ?? "").trim().toLocaleLowerCase("tr");
+  const gorunurModuller = MODULLER.filter(
+    (m) => !q || m.label.toLocaleLowerCase("tr").includes(q),
+  );
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
       <Table>
@@ -149,7 +143,17 @@ function YetkiTablosu({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {MODULLER.map((m) => {
+          {gorunurModuller.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={YETKI_BAYRAKLARI.length + 2}
+                className="h-20 text-center text-muted-foreground"
+              >
+                Menü bulunamadı.
+              </TableCell>
+            </TableRow>
+          )}
+          {gorunurModuller.map((m) => {
             const y = deger[m.id] ?? BOS_YETKI;
             const hepsi = y.isList && y.isAdd && y.isUpdate && y.isDelete;
             const bazi = yetkiVar(y);
@@ -236,6 +240,7 @@ function KullaniciSekmesi({
     return m;
   });
   const [rolFiltre, setRolFiltre] = React.useState("Tümü");
+  const [modulArama, setModulArama] = React.useState("");
   const [seciliId, setSeciliId] = React.useState<string | null>(
     kullanicilar[0]?.id ?? null,
   );
@@ -326,21 +331,32 @@ function KullaniciSekmesi({
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {secili ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <KullaniciBaslik k={secili} />
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Menü ara..."
+                  value={modulArama}
+                  onChange={(e) => setModulArama(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
               {setler.length > 0 && (
-                <div className="w-56">
+                <div className="w-56 shrink-0">
                   <SearchSelect
                     items={setler.map((s) => s.ad)}
                     value={null}
                     onValueChange={(v) => v && setUygula(v)}
                     placeholder="Hazır set uygula…"
-                    searchPlaceholder="Set ara..."
                   />
                 </div>
               )}
             </div>
-            <YetkiTablosu deger={matris[secili.id] ?? {}} onDegis={modulDegis} />
+            <YetkiTablosu
+              deger={matris[secili.id] ?? {}}
+              onDegis={modulDegis}
+              arama={modulArama}
+            />
           </>
         ) : (
           <BosDurum>Soldan bir kullanıcı seçin.</BosDurum>
@@ -613,27 +629,23 @@ function CariErisimSekmesi({
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {secili ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <KullaniciBaslik k={secili} />
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <div className="relative flex-1 sm:w-56">
-                  <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari veya kod ara..."
-                    value={arama}
-                    onChange={(e) => setArama(e.target.value)}
-                    className="h-9 pl-9"
-                  />
-                </div>
-                <div className="w-36 shrink-0">
-                  <SearchSelect
-                    items={["Tümü", "Müşteri", "Tedarikçi"]}
-                    value={tipFiltre}
-                    onValueChange={(v) => setTipFiltre(v ?? "Tümü")}
-                    placeholder="Hesap tipi"
-                    searchPlaceholder="Tip ara..."
-                  />
-                </div>
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari veya kod ara..."
+                  value={arama}
+                  onChange={(e) => setArama(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="w-36 shrink-0">
+                <SearchSelect
+                  items={["Tümü", "Müşteri", "Tedarikçi"]}
+                  value={tipFiltre}
+                  onValueChange={(v) => setTipFiltre(v ?? "Tümü")}
+                  placeholder="Hesap tipi"
+                />
               </div>
             </div>
             <div className="overflow-x-auto rounded-lg border bg-card">
