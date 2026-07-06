@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AnimGuard } from "@/components/anim-guard";
 
-const inter = Inter({
+const geist = Geist({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className={`${inter.variable} h-full antialiased`}>
+    <html lang="tr" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full" suppressHydrationWarning>
         <AnimGuard />
         {children}

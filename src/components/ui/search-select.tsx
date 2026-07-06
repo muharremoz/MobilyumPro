@@ -11,8 +11,6 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxTrigger,
-  ComboboxValue,
 } from "@/components/ui/combobox";
 
 export interface SearchSelectProps {
@@ -20,6 +18,7 @@ export interface SearchSelectProps {
   value?: string | null;
   onValueChange?: (value: string | null) => void;
   placeholder?: string;
+  /** @deprecated Arama artık kontrolün kendisinde; geriye uyumluluk için tutuluyor. */
   searchPlaceholder?: string;
   emptyText?: string;
   className?: string;
@@ -28,13 +27,15 @@ export interface SearchSelectProps {
   onAdd?: () => void;
 }
 
-/** Aranabilir tek seçim: trigger normal select gibi, arama kutusu dropdown'ın içinde. */
+/**
+ * Aranabilir tek seçim — Vercel tarzı: kontrolün kendisi input, yazınca
+ * liste süzülür (dropdown içinde ayrı arama kutusu yok).
+ */
 export function SearchSelect({
   items,
   value,
   onValueChange,
   placeholder = "Seçin",
-  searchPlaceholder = "Ara...",
   emptyText = "Sonuç bulunamadı",
   className,
   addLabel,
@@ -42,6 +43,8 @@ export function SearchSelect({
 }: SearchSelectProps) {
   // "Yeni ekle" tıklanınca popup'ı kapatabilmek için open kontrollü.
   const [acik, setAcik] = React.useState(false);
+  // Popup, içteki input'a değil görünür kontrolün tamamına hizalansın.
+  const anchorRef = React.useRef<HTMLDivElement>(null);
   return (
     <Combobox
       items={items}
@@ -50,25 +53,19 @@ export function SearchSelect({
       open={acik}
       onOpenChange={setAcik}
     >
-      <ComboboxTrigger
-        className={cn(
-          "flex h-9 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-3 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-disabled:cursor-not-allowed data-disabled:opacity-50",
-          className,
-        )}
-      >
-        <ComboboxValue>
-          {(val: string | null) =>
-            val ? (
-              <span className="truncate">{val}</span>
-            ) : (
-              <span className="text-muted-foreground">{placeholder}</span>
-            )
-          }
-        </ComboboxValue>
-      </ComboboxTrigger>
+      <div ref={anchorRef}>
+        <ComboboxInput
+          placeholder={placeholder}
+          className={cn("w-full", className)}
+          onClick={() => setAcik(true)}
+        />
+      </div>
 
-      <ComboboxContent className="min-w-(--anchor-width)">
-        <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
+      <ComboboxContent
+        anchor={anchorRef}
+        sideOffset={10}
+        className="min-w-(--anchor-width)"
+      >
         <ComboboxEmpty>{emptyText}</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
@@ -85,7 +82,7 @@ export function SearchSelect({
                 setAcik(false); // popup açık kalıp modalla karışmasın
                 onAdd();
               }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-black/10"
             >
               <Plus className="size-4" />
               {addLabel ?? "Yeni ekle"}

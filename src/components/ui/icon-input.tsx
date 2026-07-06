@@ -49,7 +49,7 @@ export const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
             onBlur?.(e);
           }}
           className={cn(
-            "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
+            "h-10 w-full rounded-md border-0 bg-white bg-clip-padding px-3 text-sm shadow-[0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-all duration-200 placeholder:text-[#8f8f8f] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)] [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
             className,
           )}
           {...props}

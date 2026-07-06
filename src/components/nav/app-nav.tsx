@@ -8,8 +8,9 @@ import {
   User,
   Settings,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ArrowLeft,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,23 +91,29 @@ function RailButton({
       onMouseLeave={() => ref.current?.stopAnimation()}
       onClick={() => onSelect(section)}
       className={cn(
-        "flex w-full cursor-pointer items-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
-        daralt ? "justify-center p-2" : "gap-2.5 px-2.5 py-2 text-sm",
-        (active || open) &&
-          "bg-sidebar-border text-foreground hover:bg-sidebar-border",
+        "group/rail flex h-9 w-full shrink-0 cursor-pointer items-center rounded-md text-sm font-medium text-[#4d4d4d] transition-colors hover:bg-[#f2f2f2] hover:text-[#171717]",
+        daralt ? "justify-center" : "gap-2 px-2",
+        (active || open) && "bg-[#ebebeb] text-[#171717] hover:bg-[#ebebeb]",
       )}
     >
-      <RailIcon ref={ref} size={18} className="shrink-0" />
+      <RailIcon ref={ref} size={16} className="shrink-0" />
       {!daralt && (
         <span className="flex-1 truncate text-left">{section.label}</span>
       )}
       {!daralt && altVar && (
-        <ChevronRight
+        <span
           className={cn(
-            "size-4 shrink-0 text-muted-foreground/50 transition-colors",
-            open && "text-foreground",
+            "-mr-1 flex size-6 shrink-0 items-center justify-center rounded-md transition-colors group-hover/rail:bg-black/[0.07]",
+            open && "bg-black/[0.07]",
           )}
-        />
+        >
+          <ChevronRight
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover/rail:text-[#171717]",
+              open && "text-[#171717]",
+            )}
+          />
+        </span>
       )}
     </button>
   );
@@ -128,20 +135,17 @@ function RailUser({ daralt }: { daralt: boolean }) {
           <button
             type="button"
             className={cn(
-              "flex w-full cursor-pointer items-center rounded-lg text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring",
-              daralt ? "justify-center p-1.5" : "gap-2.5 px-2 py-1.5",
+              "flex h-9 w-full cursor-pointer items-center rounded-full text-left outline-none transition-colors hover:bg-[#f2f2f2] focus-visible:ring-2 focus-visible:ring-ring",
+              daralt ? "justify-center" : "gap-2 px-1.5",
             )}
           >
-            <Avatar className="size-8 shrink-0">
-              <AvatarFallback className="text-xs">MO</AvatarFallback>
+            <Avatar className="size-6 shrink-0">
+              <AvatarFallback className="text-[10px]">MO</AvatarFallback>
             </Avatar>
             {!daralt && (
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-sm font-medium">Muharrem Öz</p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  hi@mobilyumpro.com
-                </p>
-              </div>
+              <span className="min-w-0 flex-1 truncate text-sm text-[#171717]">
+                Muharrem Öz
+              </span>
             )}
           </button>
         }
@@ -218,8 +222,8 @@ function PanelItem({
             else onNavigate();
           }}
           className={cn(
-            "flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground",
-            active && "bg-sidebar-accent font-medium text-foreground",
+            "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-[#4d4d4d] transition-colors hover:bg-[#f2f2f2] hover:text-[#171717]",
+            active && "bg-[#ebebeb] text-[#171717] hover:bg-[#ebebeb]",
             yakinda && "text-muted-foreground/60",
           )}
         >
@@ -233,9 +237,51 @@ function PanelItem({
 
 function AppNavInner() {
   const router = useRouter();
-  const { pathname, bolumAktif, ogeAktif } = useAktif();
+  const { bolumAktif, ogeAktif } = useAktif();
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [daralt, setDaralt] = React.useState(false);
+  // Drill-in'den geri dönüşte ana menü de aynı animasyonla gelsin (ilk
+  // yüklemede oynamaz; her dönüşte key değişip animasyon yeniden tetiklenir).
+  const [donus, setDonus] = React.useState(0);
+  // Sidebar araması (Vercel "Find…") — yazınca tüm menü öğeleri süzülür.
+  const [arama, setArama] = React.useState("");
+  const aramaRef = React.useRef<HTMLInputElement>(null);
+
+  // "F" kısayolu arama alanına odaklanır (Vercel'deki gibi).
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const hedef = e.target as HTMLElement;
+      if (
+        e.key.toLowerCase() === "f" &&
+        !e.ctrlKey && !e.metaKey && !e.altKey &&
+        !/^(INPUT|TEXTAREA|SELECT)$/.test(hedef.tagName) &&
+        !hedef.isContentEditable
+      ) {
+        e.preventDefault();
+        aramaRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Arama sonuçları: tüm bölümler + alt öğeler içinde düz liste.
+  const aramaSonuclari = React.useMemo(() => {
+    const q = arama.trim().toLocaleLowerCase("tr");
+    if (!q) return null;
+    const sonuc: SubItem[] = [];
+    for (const s of [...sections, ...bottomSections]) {
+      if (s.href && s.href !== "#" && s.label.toLocaleLowerCase("tr").includes(q)) {
+        sonuc.push({ label: s.label, href: s.href, icon: s.RailIcon });
+      }
+      for (const it of s.items ?? []) {
+        if (it.href !== "#" && it.label.toLocaleLowerCase("tr").includes(q)) {
+          sonuc.push(it);
+        }
+      }
+    }
+    return sonuc;
+  }, [arama]);
 
   // Daraltma durumunu localStorage'dan yükle.
   React.useEffect(() => {
@@ -259,18 +305,22 @@ function AppNavInner() {
   React.useEffect(() => {
     if (!openId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenId(null);
+      if (e.key === "Escape") {
+        setOpenId(null);
+        setDonus((d) => d + 1);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
 
-  React.useEffect(() => {
-    setOpenId(null);
-  }, [pathname]);
-
   function handleSelect(s: Section) {
     if (s.items?.length) {
+      // Dar moddayken alt menü açılırsa sidebar'ı genişlet (drill-in sığsın).
+      if (daralt) {
+        setDaralt(false);
+        localStorage.setItem(DARALT_KEY, "0");
+      }
       setOpenId((prev) => (prev === s.id ? null : s.id));
     } else {
       setOpenId(null);
@@ -280,76 +330,163 @@ function AppNavInner() {
 
   return (
     <TooltipProvider delay={200}>
-      {/* Sidebar */}
+      {/* Sidebar — Vercel dashboard yapısı: #fafafa zemin, sağda ince çizgi,
+          kenar ortasında hover'da beliren yuvarlak daralt butonu */}
       <nav
         className={cn(
-          "relative z-30 flex h-full shrink-0 flex-col gap-1 px-2 py-2 transition-[width] duration-200 ease-out",
-          daralt ? "w-14" : "w-56",
+          "group/nav relative z-30 flex h-full shrink-0 flex-col border-r border-[#ebebeb] bg-[#fafafa] px-2 py-2 transition-[width] duration-200 ease-out",
+          daralt ? "w-14" : "w-64",
         )}
       >
-        {/* Başlık: logo + marka + daralt butonu */}
-        <div
+        {/* Başlık: logo + marka */}
+        <Link
+          href="/"
+          aria-label="MobilyumPro"
           className={cn(
-            "flex items-center gap-2",
-            daralt ? "flex-col" : "px-1",
+            "flex h-9 shrink-0 items-center rounded-md transition-colors hover:bg-[#f2f2f2]",
+            daralt ? "justify-center" : "gap-2 px-2",
           )}
         >
-          <Link
-            href="/"
-            aria-label="MobilyumPro"
-            className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card"
-          >
+          <span className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.jpg"
               alt="MobilyumPro"
               className="size-full object-cover"
             />
-          </Link>
+          </span>
           {!daralt && (
-            <span className="flex-1 truncate text-sm font-semibold">
+            <span className="flex-1 truncate text-sm font-medium text-[#171717]">
               MobilyumPro
             </span>
           )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={daraltDegis}
-                  aria-label={daralt ? "Genişlet" : "Daralt"}
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-                >
-                  {daralt ? (
-                    <PanelLeftOpen className="size-4" />
-                  ) : (
-                    <PanelLeftClose className="size-4" />
-                  )}
-                </button>
-              }
-            />
-            <TooltipContent side="right">
-              {daralt ? "Genişlet" : "Daralt"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
+        </Link>
 
-        {/* Ana bölümler */}
-        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {sections.map((s) => (
-            <RailButton
-              key={s.id}
-              section={s}
-              active={bolumAktif(s)}
-              open={openId === s.id}
-              daralt={daralt}
-              onSelect={handleSelect}
+        {/* Kenar ortasında daralt/genişlet butonu (hover'da belirir) */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                onClick={daraltDegis}
+                aria-label={daralt ? "Genişlet" : "Daralt"}
+                className="absolute top-1/2 -right-3 z-40 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-[#ebebeb] bg-white text-muted-foreground opacity-0 transition-opacity group-hover/nav:opacity-100 hover:text-foreground focus-visible:opacity-100"
+              >
+                {daralt ? (
+                  <ChevronRight className="size-3.5" />
+                ) : (
+                  <ChevronLeft className="size-3.5" />
+                )}
+              </button>
+            }
+          />
+          <TooltipContent side="right">
+            {daralt ? "Genişlet" : "Daralt"}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Arama (Vercel "Find…"): beyaz alan + ring, solda büyüteç, sağda F rozeti */}
+        {!daralt && (
+          <div className="mt-2 flex h-9 shrink-0 items-center gap-2 rounded-md bg-white bg-clip-padding pr-1.5 pl-2.5 shadow-[0_0_0_1px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-within:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)]">
+            <Search className="size-4 shrink-0 text-[#8f8f8f]" />
+            <input
+              ref={aramaRef}
+              value={arama}
+              onChange={(e) => setArama(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setArama("");
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="Ara…"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#8f8f8f]"
             />
-          ))}
+            {!arama && (
+              <kbd className="flex size-5 shrink-0 items-center justify-center rounded-[4px] bg-[#fafafa] text-xs text-[#666] shadow-[0_0_0_1px_rgba(0,0,0,0.08)]">
+                F
+              </kbd>
+            )}
+          </div>
+        )}
+
+        {/* Ana bölümler / drill-in alt menü (panel sidebar'ın yerinde açılır) */}
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {aramaSonuclari && !daralt ? (
+            <nav>
+              <ul key={arama} className="flex flex-col gap-px">
+                {aramaSonuclari.map((it, i) => (
+                  <PanelItem
+                    key={`${it.href}-${it.label}`}
+                    item={it}
+                    index={i}
+                    active={ogeAktif(it.href)}
+                    onNavigate={() => setArama("")}
+                  />
+                ))}
+                {aramaSonuclari.length === 0 && (
+                  <li className="px-2 py-3 text-sm text-[#8f8f8f]">
+                    Sonuç bulunamadı
+                  </li>
+                )}
+              </ul>
+            </nav>
+          ) : acikBolum?.items && !daralt ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenId(null);
+                  setDonus((d) => d + 1);
+                }}
+                className="flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-[#171717] transition-colors hover:bg-[#f2f2f2] animate-in fade-in slide-in-from-left-3 duration-300 ease-out"
+              >
+                <ArrowLeft className="size-4 shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate text-left">
+                  {acikBolum.label}
+                </span>
+              </button>
+              <nav>
+                <ul key={acikBolum.id} className="flex flex-col gap-px">
+                  {acikBolum.items.map((it, i) => (
+                    <PanelItem
+                      key={it.label}
+                      item={it}
+                      index={i}
+                      active={ogeAktif(it.href)}
+                      onNavigate={() => {}}
+                    />
+                  ))}
+                </ul>
+              </nav>
+            </>
+          ) : (
+            <div key={donus} className="flex flex-col gap-px">
+              {sections.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={cn(
+                    donus > 0 &&
+                      "animate-in fade-in slide-in-from-left-3 duration-300 fill-mode-backwards ease-out",
+                  )}
+                  style={donus > 0 ? { animationDelay: `${i * 35}ms` } : undefined}
+                >
+                  <RailButton
+                    section={s}
+                    active={bolumAktif(s)}
+                    open={openId === s.id}
+                    daralt={daralt}
+                    onSelect={handleSelect}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Alt bölümler + kullanıcı */}
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-px">
+          <Separator className="my-1 bg-[#ebebeb]" />
           {bottomSections.map((s) => (
             <RailButton
               key={s.id}
@@ -360,42 +497,11 @@ function AppNavInner() {
               onSelect={handleSelect}
             />
           ))}
-          <Separator className="my-1" />
+          <Separator className="my-1 bg-[#ebebeb]" />
           <RailUser daralt={daralt} />
         </div>
       </nav>
 
-      {/* Panel: sidebar yanında yüzen rounded kart olarak açılır */}
-      <div
-        className={cn(
-          "relative z-10 h-full shrink-0 overflow-hidden transition-[width,margin] duration-200 ease-out",
-          acikBolum?.items
-            ? "ml-2.5 w-[220px] rounded-[10px] border bg-card"
-            : "ml-0 w-0",
-        )}
-      >
-        {acikBolum?.items && (
-          <aside className="flex h-full w-[220px] flex-col">
-            <div className="flex h-10 shrink-0 items-center px-4">
-              <span className="text-sm font-semibold">{acikBolum.label}</span>
-            </div>
-            <Separator />
-            <nav className="flex-1 overflow-auto p-2">
-              <ul key={acikBolum.id} className="flex flex-col gap-0.5">
-                {acikBolum.items.map((it, i) => (
-                  <PanelItem
-                    key={it.label}
-                    item={it}
-                    index={i}
-                    active={ogeAktif(it.href)}
-                    onNavigate={() => setOpenId(null)}
-                  />
-                ))}
-              </ul>
-            </nav>
-          </aside>
-        )}
-      </div>
     </TooltipProvider>
   );
 }

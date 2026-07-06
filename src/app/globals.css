@@ -39,13 +39,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: 10px;
-  --radius-md: 10px;
-  --radius-lg: 10px;
-  --radius-xl: 10px;
-  --radius-2xl: 10px;
-  --radius-3xl: 10px;
-  --radius-4xl: 10px;
+  /* Vercel (Geist) radius skalası: kontroller 6px, kartlar/popup'lar 12px */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+  --radius-4xl: 32px;
 }
 
 :root {
@@ -170,6 +171,8 @@
 .t-input.is-error,
 .t-input.is-error :where(input, [data-slot="combobox-trigger"], [data-slot="select-trigger"]) {
   border-color: var(--destructive);
+  /* Vercel tarzı borderless kontroller ring gölgesi kullanır — hata da öyle. */
+  box-shadow: 0 0 0 1px var(--destructive);
 }
 
 /* Hata mesajı: gizlenirken opacity fade'i bitene dek boyalı kalır. */

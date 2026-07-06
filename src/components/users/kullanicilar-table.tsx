@@ -437,7 +437,6 @@ export function KullanicilarTable({
           <h2 className="text-sm font-semibold">Kullanıcılar</h2>
           <div className="flex items-center gap-1.5">
             <Button
-              size="sm"
               variant="outline"
               nativeButton={false}
               render={<Link href="/kullanicilar/yetkiler" />}
@@ -445,7 +444,6 @@ export function KullanicilarTable({
               Yetkilendirmeler
             </Button>
             <Button
-              size="sm"
               onClick={() => {
                 setDuzenlenen(null);
                 setSheetOpen(true);
@@ -456,7 +454,7 @@ export function KullanicilarTable({
           </div>
         </div>
 
-        <Table>
+        <Table className="[&_td]:h-12 [&_td]:px-3 [&_td]:text-sm [&_th]:h-10 [&_th]:px-3">
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
