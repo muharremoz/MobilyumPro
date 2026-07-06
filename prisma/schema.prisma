@@ -94,6 +94,8 @@ model ReceteSatiri {
   malzemeId  String? @map("malzeme_id")
   altParcaId String? @map("alt_parca_id")
   miktar     Decimal @db.Decimal(14, 3)
+  // Fire payı (%): brüt ihtiyaç = miktar × (1 + fire/100)
+  fire       Decimal @default(0) @db.Decimal(5, 2)
 
   parca    Parca    @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   malzeme  Malzeme? @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -168,6 +168,7 @@ export type ReceteSnapshotSatir = {
   tip: "malzeme" | "parca";
   ref: string;
   miktar: number;
+  fire?: number;
 };
 
 function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
@@ -175,6 +176,7 @@ function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
     tip: r.bilesen.tip,
     ref: r.bilesen.ref,
     miktar: r.miktar,
+    ...(r.fire ? { fire: r.fire } : {}),
   }));
 }
 
@@ -221,6 +223,7 @@ export async function parcaKaydet(
         malzemeId: r.bilesen.tip === "malzeme" ? r.bilesen.ref : null,
         altParcaId: r.bilesen.tip === "parca" ? r.bilesen.ref : null,
         miktar: r.miktar,
+        fire: r.fire ?? 0,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
 
@@ -273,6 +276,7 @@ export async function receteKopyala(
               ? { tip: "malzeme" as const, ref: r.malzemeId! }
               : { tip: "parca" as const, ref: r.altParcaId! },
           miktar: Number(r.miktar),
+          fire: Number(r.fire) || undefined,
         })),
       },
       `"${kaynak.ad}" reçetesinden kopyalandı`,
@@ -309,6 +313,7 @@ export async function receteGeriYukle(
         recete: satirlar.map((s) => ({
           bilesen: { tip: s.tip, ref: s.ref },
           miktar: s.miktar,
+          fire: s.fire,
         })),
       },
       `v${versiyonNo} sürümüne geri dönüldü`,

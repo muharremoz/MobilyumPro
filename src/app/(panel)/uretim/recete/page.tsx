@@ -1,24 +1,17 @@
-import { ReceteOlusturma } from "@/components/production/recete-olusturma";
-import {
-  getMalzemeler,
-  getModeller,
-  getParcalar,
-  getReceteVersiyonlari,
-} from "@/lib/db/queries";
+import { ReceteListe } from "@/components/production/recete-liste";
+import { getMalzemeler, getModeller, getParcalar } from "@/lib/db/queries";
 
 export default async function ReceteRoute() {
-  const [parcalar, malzemeler, modeller, versiyonlar] = await Promise.all([
+  const [parcalar, malzemeler, modeller] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
     getModeller(),
-    getReceteVersiyonlari(),
   ]);
   return (
-    <ReceteOlusturma
+    <ReceteListe
       parcalar={parcalar}
       malzemeler={malzemeler}
       modeller={modeller}
-      versiyonlar={versiyonlar}
     />
   );
 }

@@ -87,6 +87,7 @@ export async function getParcalar(): Promise<Parca[]> {
           ? { tip: "malzeme", ref: r.malzemeId! }
           : { tip: "parca", ref: r.altParcaId! },
       miktar: Number(r.miktar),
+      fire: Number(r.fire) || undefined,
     };
     const arr = receteByParca.get(r.parcaId) ?? [];
     arr.push(satir);
@@ -198,7 +199,12 @@ export type ReceteVersiyonGorunum = {
   versiyonNo: number;
   tarih: string; // ISO datetime
   aciklama?: string;
-  satirlar: { tip: "malzeme" | "parca"; ref: string; miktar: number }[];
+  satirlar: {
+    tip: "malzeme" | "parca";
+    ref: string;
+    miktar: number;
+    fire?: number;
+  }[];
 };
 
 /** Tüm reçetelerin versiyon geçmişi: parcaId → versiyonlar (yeni → eski). */

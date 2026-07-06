@@ -59,7 +59,12 @@ export type Model = {
 export type ReceteBilesen =
   | { tip: "malzeme"; ref: string }
   | { tip: "parca"; ref: string };
-export type ReceteSatiri = { bilesen: ReceteBilesen; miktar: number };
+export type ReceteSatiri = {
+  bilesen: ReceteBilesen;
+  miktar: number;
+  /** Fire payı (%): brüt ihtiyaç = miktar × (1 + fire/100). */
+  fire?: number;
+};
 export type ParcaSatiri = { parcaId: string; miktar: number };
 
 export type ParcaKategori =
