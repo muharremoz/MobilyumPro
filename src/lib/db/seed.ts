@@ -11,6 +11,7 @@ import {
   cariler,
   cariIslemleri,
   stokHareketleri,
+  posetler,
 } from "../data";
 
 /**
@@ -33,6 +34,8 @@ async function seed() {
   await db.cariIslem.deleteMany();
   await db.cari.deleteMany();
   await db.stokHareket.deleteMany();
+  await db.posetMalzeme.deleteMany();
+  await db.poset.deleteMany();
 
   // Bağımsız tablolar
   await db.depo.createMany({
@@ -199,12 +202,32 @@ async function seed() {
     })),
   });
 
+  // Malzeme poşetleri + içerikleri
+  await db.poset.createMany({
+    data: posetler.map((p) => ({
+      id: p.id,
+      ad: p.ad,
+      aciklama: p.aciklama ?? null,
+      durum: p.durum,
+    })),
+  });
+  const posetMalzemeRows = posetler.flatMap((p) =>
+    p.malzemeler.map((m) => ({
+      posetId: p.id,
+      malzemeId: m.malzemeId,
+      miktar: m.miktar,
+    })),
+  );
+  if (posetMalzemeRows.length)
+    await db.posetMalzeme.createMany({ data: posetMalzemeRows });
+
   console.log("Seed tamam ✓");
   console.log(
     `  ${depolar.length} depo · ${musteriler.length} müşteri · ${malzemeler.length} malzeme · ` +
       `${parcalar.length} parça · ${urunler.length} ürün · ${receteRows.length} reçete satırı · ` +
       `${modelParcaRows.length} ürün-parça · ${siparisler.length} sipariş · ${uretimEmirleri.length} üretim emri · ` +
-      `${cariler.length} cari · ${cariIslemleri.length} cari işlem · ${stokHareketleri.length} stok hareketi`,
+      `${cariler.length} cari · ${cariIslemleri.length} cari işlem · ${stokHareketleri.length} stok hareketi · ` +
+      `${posetler.length} poşet`,
   );
 }
 

@@ -434,6 +434,39 @@ export type UretimEmri = {
   not?: string;
 };
 
+// Malzeme Poşeti — bir montaj/üretim için hazır malzeme seti.
+export type PosetSatiri = { malzemeId: string; miktar: number };
+export type Poset = {
+  id: string;
+  ad: string;
+  aciklama?: string;
+  durum: "Aktif" | "Pasif";
+  malzemeler: PosetSatiri[];
+};
+
+export const posetler: Poset[] = [
+  {
+    id: "POS-01",
+    ad: "Komidin Montaj Poşeti",
+    aciklama: "2 çekmeceli komidin için bağlantı seti",
+    durum: "Aktif",
+    malzemeler: [
+      { malzemeId: "MLZ-1007", miktar: 30 },
+      { malzemeId: "MLZ-1009", miktar: 2 },
+    ],
+  },
+  {
+    id: "POS-02",
+    ad: "Gardırop Kapak Poşeti",
+    aciklama: "Menteşe + vida seti",
+    durum: "Aktif",
+    malzemeler: [
+      { malzemeId: "MLZ-1008", miktar: 12 },
+      { malzemeId: "MLZ-1007", miktar: 48 },
+    ],
+  },
+];
+
 // Depolar (üretim hedefi / stok lokasyonu).
 export type Depo = {
   id: string;

@@ -15,6 +15,7 @@ import type {
   Cari,
   CariIslem,
   CariIslemTuru,
+  Poset,
 } from "../data";
 
 export type YeniUretimEmri = {
@@ -380,6 +381,59 @@ export async function depoSil(
     return { ok: true };
   } catch {
     return { ok: false, error: "Depo silinemedi." };
+  }
+}
+
+/** Poşet ekle/güncelle + içeriğini (poset_malzeme) yeniden yaz. POS-## üretir. */
+export async function posetKaydet(
+  p: Poset,
+): Promise<{ ok: boolean; id: string; error?: string }> {
+  try {
+    let id = p.id;
+    if (!id) {
+      const mevcut = await db.poset.findMany({ select: { id: true } });
+      let maxNo = 0;
+      for (const r of mevcut) {
+        const m = /^POS-(\d+)$/.exec(r.id);
+        if (m) maxNo = Math.max(maxNo, Number(m[1]));
+      }
+      id = `POS-${String(maxNo + 1).padStart(2, "0")}`;
+    }
+    const posetId = id;
+    await db.$transaction(async (tx) => {
+      const veri = {
+        ad: p.ad,
+        aciklama: p.aciklama ?? null,
+        durum: p.durum,
+      };
+      await tx.poset.upsert({
+        where: { id: posetId },
+        create: { id: posetId, ...veri },
+        update: veri,
+      });
+      await tx.posetMalzeme.deleteMany({ where: { posetId } });
+      const rows = p.malzemeler
+        .filter((m) => m.malzemeId)
+        .map((m) => ({ posetId, malzemeId: m.malzemeId, miktar: m.miktar }));
+      if (rows.length) await tx.posetMalzeme.createMany({ data: rows });
+    });
+    revalidatePath("/uretim/poset");
+    return { ok: true, id };
+  } catch {
+    return { ok: false, id: "", error: "Poşet kaydedilemedi." };
+  }
+}
+
+export async function posetSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: false };
+  try {
+    await db.poset.deleteMany({ where: { id: { in: ids } } });
+    revalidatePath("/uretim/poset");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Poşet silinemedi." };
   }
 }
 

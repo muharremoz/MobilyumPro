@@ -326,6 +326,28 @@ model KullaniciCariYetki {
   @@map("kullanici_cari_yetki")
 }
 
+// ── Malzeme Poşeti (hazır malzeme seti) ─────────────────────────────────
+model Poset {
+  id        String         @id
+  ad        String
+  aciklama  String?
+  durum     String         @default("Aktif")
+  malzemeler PosetMalzeme[]
+
+  @@map("poset")
+}
+
+model PosetMalzeme {
+  id        Int     @id @default(autoincrement())
+  posetId   String  @map("poset_id")
+  malzemeId String  @map("malzeme_id")
+  miktar    Decimal @db.Decimal(14, 3)
+
+  poset Poset @relation(fields: [posetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("poset_malzeme")
+}
+
 // ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
 model StokHareket {
   id       String   @id

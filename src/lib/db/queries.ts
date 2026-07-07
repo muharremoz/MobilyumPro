@@ -129,6 +129,38 @@ export async function getDepolar(): Promise<Depo[]> {
   }));
 }
 
+type PosetRow = Awaited<ReturnType<typeof db.poset.findMany>>[number] & {
+  malzemeler: { malzemeId: string; miktar: unknown }[];
+};
+
+function mapPoset(p: PosetRow): import("../data").Poset {
+  return {
+    id: p.id,
+    ad: p.ad,
+    aciklama: p.aciklama ?? undefined,
+    durum: p.durum as Durum,
+    malzemeler: p.malzemeler.map((m) => ({
+      malzemeId: m.malzemeId,
+      miktar: Number(m.miktar),
+    })),
+  };
+}
+
+export async function getPosetler(): Promise<import("../data").Poset[]> {
+  const rows = await db.poset.findMany({ include: { malzemeler: true } });
+  return rows.map(mapPoset);
+}
+
+export async function getPoset(
+  id: string,
+): Promise<import("../data").Poset | null> {
+  const p = await db.poset.findUnique({
+    where: { id },
+    include: { malzemeler: true },
+  });
+  return p ? mapPoset(p) : null;
+}
+
 type CariRow = Awaited<ReturnType<typeof db.cari.findMany>>[number];
 
 function mapCari(c: CariRow): Cari {

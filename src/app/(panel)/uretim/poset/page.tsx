@@ -1,7 +1,7 @@
-import { MaterialBags } from "@/components/inventory/material-bags";
-import { getMalzemeler } from "@/lib/db/queries";
+import { PosetListe } from "@/components/production/poset-liste";
+import { getPosetler } from "@/lib/db/queries";
 
 export default async function PosetRoute() {
-  const malzemeler = await getMalzemeler();
-  return <MaterialBags malzemeler={malzemeler} />;
+  const posetler = await getPosetler();
+  return <PosetListe posetler={posetler} />;
 }
