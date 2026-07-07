@@ -1,274 +1,221 @@
 "use client";
 
 import * as React from "react";
-import { Search, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
-import { FormSheet } from "@/components/ui/form-sheet";
-import { IconInput } from "@/components/ui/icon-input";
-import { AnimatedField } from "@/components/ui/animated-field";
-import { ScanTextIcon } from "@/components/ui/icons/scan-text";
-import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
-import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { SistemParametre } from "@/lib/db/queries";
-import { parametreKaydet, parametreSil } from "@/lib/db/actions";
+  PARAMETRELER,
+  PARAMETRE_GRUPLARI,
+  type ParametreTanim,
+} from "@/lib/parametreler";
+import { parametreDegerKaydet, parametreSifirla } from "@/lib/db/actions";
 
+/**
+ * Sistem parametreleri — tanımlar kodda sabit (PARAMETRELER), kullanıcı
+ * yalnızca değeri değiştirir. Değer anında kaydedilir (metin/sayı blur'da,
+ * anahtar/seçim değişimde). Varsayılandan sapanlarda "varsayılana dön" çıkar.
+ */
 export function SistemParametreleri({
-  parametreler,
+  degerler: dbDegerler,
 }: {
-  parametreler: SistemParametre[];
+  degerler: Record<string, string>;
 }) {
-  const [liste, setListe] = React.useState<SistemParametre[]>(parametreler);
-  const [arama, setArama] = React.useState("");
-  const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [duzenlenen, setDuzenlenen] = React.useState<SistemParametre | null>(
-    null,
+  // Efektif değerler: DB override ?? varsayılan.
+  const [degerler, setDegerler] = React.useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      PARAMETRELER.map((p) => [p.anahtar, dbDegerler[p.anahtar] ?? p.varsayilan]),
+    ),
   );
+  // DB'de kaydı olan (override edilmiş) anahtarlar.
+  const [overrideler, setOverrideler] = React.useState<Set<string>>(
+    () => new Set(Object.keys(dbDegerler)),
+  );
+  const kayitli = React.useRef({ ...degerler });
 
-  React.useEffect(() => setListe(parametreler), [parametreler]);
-
-  const filtreli = liste.filter((p) => {
-    const q = arama.toLowerCase();
-    return (
-      p.anahtar.toLowerCase().includes(q) ||
-      p.deger.toLowerCase().includes(q) ||
-      (p.aciklama?.toLowerCase().includes(q) ?? false)
-    );
-  });
-
-  async function kaydet(p: SistemParametre): Promise<boolean> {
-    const res = await parametreKaydet({
-      id: p.id || undefined,
-      anahtar: p.anahtar,
-      deger: p.deger,
-      aciklama: p.aciklama,
-    });
-    if (!res.ok || !res.id) {
-      toast.error(res.error ?? "Parametre kaydedilemedi.");
-      return false;
-    }
-    const kayit = { ...p, id: res.id };
-    setListe((l) => {
-      const i = l.findIndex((x) => x.id === kayit.id);
-      if (i >= 0) {
-        const n = [...l];
-        n[i] = kayit;
-        return n;
-      }
-      return [...l, kayit].sort((a, b) => a.anahtar.localeCompare(b.anahtar));
-    });
-    toast.success(p.id ? "Parametre güncellendi" : "Parametre eklendi");
-    return true;
-  }
-
-  async function sil(id: number) {
-    const onceki = liste;
-    setListe((l) => l.filter((x) => x.id !== id));
-    const res = await parametreSil(id);
+  async function kaydet(anahtar: string, yeni: string) {
+    if (yeni === kayitli.current[anahtar]) return;
+    const onceki = kayitli.current[anahtar];
+    setDegerler((s) => ({ ...s, [anahtar]: yeni }));
+    const res = await parametreDegerKaydet(anahtar, yeni);
     if (!res.ok) {
-      setListe(onceki);
-      toast.error(res.error ?? "Parametre silinemedi.");
+      setDegerler((s) => ({ ...s, [anahtar]: onceki }));
+      toast.error(res.error ?? "Kaydedilemedi.");
       return;
     }
-    toast.success("Parametre silindi");
+    kayitli.current[anahtar] = yeni;
+    setOverrideler((s) => new Set(s).add(anahtar));
+    toast.success("Kaydedildi");
+  }
+
+  async function sifirla(tanim: ParametreTanim) {
+    const onceki = kayitli.current[tanim.anahtar];
+    setDegerler((s) => ({ ...s, [tanim.anahtar]: tanim.varsayilan }));
+    const res = await parametreSifirla(tanim.anahtar);
+    if (!res.ok) {
+      setDegerler((s) => ({ ...s, [tanim.anahtar]: onceki }));
+      toast.error(res.error ?? "Sıfırlanamadı.");
+      return;
+    }
+    kayitli.current[tanim.anahtar] = tanim.varsayilan;
+    setOverrideler((s) => {
+      const n = new Set(s);
+      n.delete(tanim.anahtar);
+      return n;
+    });
+    toast.success("Varsayılana döndürüldü");
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Sistem Parametreleri">
-          <div className="relative w-56">
-            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Anahtar veya değer ara..."
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              className="h-8 pl-8"
-            />
+    <TooltipProvider delay={200}>
+      <div className="flex flex-col gap-4">
+        {PARAMETRE_GRUPLARI.map((grup) => (
+          <div key={grup} className="overflow-hidden rounded-md border bg-card">
+            <ListHeader title={grup} />
+            <div className="divide-y">
+              {PARAMETRELER.filter((p) => p.grup === grup).map((p) => (
+                <ParametreSatiri
+                  key={p.anahtar}
+                  tanim={p}
+                  deger={degerler[p.anahtar]}
+                  override={overrideler.has(p.anahtar)}
+                  onDegis={(v) =>
+                    setDegerler((s) => ({ ...s, [p.anahtar]: v }))
+                  }
+                  onKaydet={(v) => kaydet(p.anahtar, v)}
+                  onSifirla={() => sifirla(p)}
+                />
+              ))}
+            </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
-            <Plus className="size-4" /> Yeni Parametre
-          </Button>
-        </ListHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Anahtar</TableHead>
-              <TableHead>Değer</TableHead>
-              <TableHead>Açıklama</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtreli.map((p) => (
-              <TableRow
-                key={p.id}
-                className="cursor-pointer"
-                onClick={() => {
-                  setDuzenlenen(p);
-                  setSheetOpen(true);
-                }}
-              >
-                <TableCell className="font-mono text-xs">{p.anahtar}</TableCell>
-                <TableCell className="font-medium">{p.deger}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {p.aciklama ?? "—"}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="İşlemler"
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setDuzenlenen(p);
-                          setSheetOpen(true);
-                        }}
-                      >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil(p.id)}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtreli.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  Parametre bulunamadı.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        ))}
       </div>
-
-      <span className="text-sm text-muted-foreground">
-        {filtreli.length} parametre
-      </span>
-
-      <ParametreSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        item={duzenlenen}
-        onSave={kaydet}
-      />
-    </div>
+    </TooltipProvider>
   );
 }
 
-function ParametreSheet({
-  open,
-  onOpenChange,
-  item,
-  onSave,
+function ParametreSatiri({
+  tanim,
+  deger,
+  override,
+  onDegis,
+  onKaydet,
+  onSifirla,
 }: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  item: SistemParametre | null;
-  onSave: (p: SistemParametre) => Promise<boolean>;
+  tanim: ParametreTanim;
+  deger: string;
+  override: boolean;
+  onDegis: (v: string) => void;
+  onKaydet: (v: string) => void;
+  onSifirla: () => void;
 }) {
-  const [anahtar, setAnahtar] = React.useState("");
-  const [deger, setDeger] = React.useState("");
-  const [aciklama, setAciklama] = React.useState("");
-
-  React.useEffect(() => {
-    if (!open) return;
-    setAnahtar(item?.anahtar ?? "");
-    setDeger(item?.deger ?? "");
-    setAciklama(item?.aciklama ?? "");
-  }, [open, item]);
-
-  async function kaydet() {
-    if (!anahtar.trim()) {
-      toast.error("Anahtar gerekli");
-      return;
-    }
-    const ok = await onSave({
-      id: item?.id ?? 0,
-      anahtar: anahtar.trim(),
-      deger: deger.trim(),
-      aciklama: aciklama.trim() || undefined,
-    });
-    if (ok) onOpenChange(false);
-  }
-
   return (
-    <FormSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={item ? "Parametreyi Düzenle" : "Yeni Parametre"}
-      icon={SlidersHorizontalIcon}
-      onSave={kaydet}
-    >
-      <div className="grid gap-2.5">
-        <IconInput
-          label="Anahtar"
-          icon={ScanTextIcon}
-          placeholder="Örn. varsayilan_kdv"
-          value={anahtar}
-          onChange={(e) => setAnahtar(e.target.value)}
-        />
-        <IconInput
-          label="Değer"
-          icon={SlidersHorizontalIcon}
-          placeholder="Örn. 20"
-          value={deger}
-          onChange={(e) => setDeger(e.target.value)}
-        />
-        <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
-          <textarea
-            rows={2}
-            placeholder="Bu parametre ne işe yarıyor?"
-            value={aciklama}
-            onChange={(e) => setAciklama(e.target.value)}
-            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-          />
-        </AnimatedField>
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
+      {/* Sol: etiket + açıklama */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{tanim.etiket}</p>
+          {override && (
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-amber-500"
+              title="Varsayılandan farklı"
+            />
+          )}
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {tanim.aciklama}
+        </p>
       </div>
-    </FormSheet>
+
+      {/* Sağ: değer kontrolü + varsayılana dön */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {override && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Varsayılana dön"
+                  onClick={onSifirla}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="size-3.5" />
+                </Button>
+              }
+            />
+            <TooltipContent side="top">
+              Varsayılana dön ({tanim.varsayilan})
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {tanim.tip === "boolean" && (
+          <Switch
+            checked={deger === "true"}
+            onCheckedChange={(v) => onKaydet(v === true ? "true" : "false")}
+            className="data-checked:bg-emerald-600"
+          />
+        )}
+
+        {tanim.tip === "secim" && (
+          <div className="w-40">
+            <SearchSelect
+              items={tanim.secenekler ?? []}
+              value={deger}
+              onValueChange={(v) => v && onKaydet(v)}
+              placeholder={tanim.etiket}
+            />
+          </div>
+        )}
+
+        {tanim.tip === "sayi" && (
+          <div className="relative">
+            <Input
+              type="number"
+              value={deger}
+              onChange={(e) => onDegis(e.target.value)}
+              onBlur={(e) => onKaydet(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              className={cn(
+                "h-8 w-28 text-right tabular-nums",
+                tanim.birim && "pr-11",
+              )}
+            />
+            {tanim.birim && (
+              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-muted-foreground">
+                {tanim.birim}
+              </span>
+            )}
+          </div>
+        )}
+
+        {tanim.tip === "metin" && (
+          <Input
+            value={deger}
+            onChange={(e) => onDegis(e.target.value)}
+            onBlur={(e) => onKaydet(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            className="h-8 w-56"
+          />
+        )}
+      </div>
+    </div>
   );
 }

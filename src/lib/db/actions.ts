@@ -437,42 +437,35 @@ export async function posetSil(
   }
 }
 
-/** Sistem parametresi ekle/güncelle (anahtar benzersiz). */
-export async function parametreKaydet(p: {
-  id?: number;
-  anahtar: string;
-  deger: string;
-  aciklama?: string;
-}): Promise<{ ok: boolean; id?: number; error?: string }> {
-  const anahtar = p.anahtar.trim();
-  if (!anahtar) return { ok: false, error: "Anahtar gerekli." };
+/** Sabit tanımlı sistem parametresinin değerini kaydeder (upsert). */
+export async function parametreDegerKaydet(
+  anahtar: string,
+  deger: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!anahtar.trim()) return { ok: false, error: "Anahtar gerekli." };
   try {
-    const veri = {
-      anahtar,
-      deger: p.deger,
-      aciklama: p.aciklama?.trim() || null,
-    };
-    const kayit = p.id
-      ? await db.sistemParametre.update({ where: { id: p.id }, data: veri })
-      : await db.sistemParametre.create({ data: veri });
+    await db.sistemParametre.upsert({
+      where: { anahtar },
+      create: { anahtar, deger },
+      update: { deger },
+    });
     revalidatePath("/ayarlar/parametreler");
-    return { ok: true, id: kayit.id };
-  } catch (e) {
-    if ((e as { code?: string })?.code === "P2002")
-      return { ok: false, error: "Bu anahtar zaten kayıtlı." };
+    return { ok: true };
+  } catch {
     return { ok: false, error: "Parametre kaydedilemedi." };
   }
 }
 
-export async function parametreSil(
-  id: number,
+/** Parametreyi varsayılana döndürür (DB kaydını siler). */
+export async function parametreSifirla(
+  anahtar: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await db.sistemParametre.delete({ where: { id } });
+    await db.sistemParametre.deleteMany({ where: { anahtar } });
     revalidatePath("/ayarlar/parametreler");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Parametre silinemedi." };
+    return { ok: false, error: "Parametre sıfırlanamadı." };
   }
 }
 

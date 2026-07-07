@@ -161,24 +161,13 @@ export async function getPoset(
   return p ? mapPoset(p) : null;
 }
 
-/** Sistem parametresi görünümü (anahtar-değer). */
-export type SistemParametre = {
-  id: number;
-  anahtar: string;
-  deger: string;
-  aciklama?: string;
-};
-
-export async function getSistemParametreleri(): Promise<SistemParametre[]> {
-  const rows = await db.sistemParametre.findMany({
-    orderBy: { anahtar: "asc" },
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    anahtar: r.anahtar,
-    deger: r.deger,
-    aciklama: r.aciklama ?? undefined,
-  }));
+/** DB'de override edilmiş sistem parametre değerleri: anahtar → değer.
+ *  Tanımlar kodda sabittir (src/lib/parametreler.ts); kayıt yoksa varsayılan geçerli. */
+export async function getParametreDegerleri(): Promise<
+  Record<string, string>
+> {
+  const rows = await db.sistemParametre.findMany();
+  return Object.fromEntries(rows.map((r) => [r.anahtar, r.deger]));
 }
 
 type CariRow = Awaited<ReturnType<typeof db.cari.findMany>>[number];
