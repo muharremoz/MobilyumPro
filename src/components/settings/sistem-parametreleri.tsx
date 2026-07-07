@@ -162,60 +162,58 @@ function ParametreSatiri({
           </Tooltip>
         )}
 
-        <div className="flex w-56 items-center justify-end">
-          {tanim.tip === "boolean" && (
-            <Switch
-              checked={deger === "true"}
-              onCheckedChange={(v) => onKaydet(v === true ? "true" : "false")}
-              className="data-checked:bg-emerald-600"
-            />
-          )}
+        {tanim.tip === "boolean" && (
+          <Switch
+            checked={deger === "true"}
+            onCheckedChange={(v) => onKaydet(v === true ? "true" : "false")}
+            className="data-checked:bg-emerald-600"
+          />
+        )}
 
-          {tanim.tip === "secim" && (
-            <SearchSelect
-              items={tanim.secenekler ?? []}
-              value={deger}
-              onValueChange={(v) => v && onKaydet(v)}
-              placeholder={tanim.etiket}
-              className="h-8 w-full"
-            />
-          )}
+        {tanim.tip === "secim" && (
+          <SearchSelect
+            items={tanim.secenekler ?? []}
+            value={deger}
+            onValueChange={(v) => v && onKaydet(v)}
+            placeholder={tanim.etiket}
+            className="h-8 w-36"
+          />
+        )}
 
-          {tanim.tip === "sayi" && (
-            <div className="relative w-full">
-              <Input
-                type="number"
-                value={deger}
-                onChange={(e) => onDegis(e.target.value)}
-                onBlur={(e) => onKaydet(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                }}
-                className={cn(
-                  "h-8 w-full text-right tabular-nums",
-                  tanim.birim && "pr-12",
-                )}
-              />
-              {tanim.birim && (
-                <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-                  {tanim.birim}
-                </span>
-              )}
-            </div>
-          )}
-
-          {tanim.tip === "metin" && (
+        {tanim.tip === "sayi" && (
+          <div className="relative">
             <Input
+              type="number"
               value={deger}
               onChange={(e) => onDegis(e.target.value)}
               onBlur={(e) => onKaydet(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className="h-8 w-full"
+              className={cn(
+                "h-8 w-36 text-right tabular-nums",
+                tanim.birim && "pr-11",
+              )}
             />
-          )}
-        </div>
+            {tanim.birim && (
+              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-muted-foreground">
+                {tanim.birim}
+              </span>
+            )}
+          </div>
+        )}
+
+        {tanim.tip === "metin" && (
+          <Input
+            value={deger}
+            onChange={(e) => onDegis(e.target.value)}
+            onBlur={(e) => onKaydet(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            className="h-8 w-52"
+          />
+        )}
       </div>
     </div>
   );
