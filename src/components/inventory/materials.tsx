@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Search,
   Plus,
   MoreHorizontal,
   Pencil,
@@ -128,7 +127,6 @@ export function Materials({
   yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Malzeme[]>(malzemeler);
-  const [arama, setArama] = React.useState("");
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [tip, setTip] = React.useState("Tümü");
@@ -166,16 +164,13 @@ export function Materials({
 
   React.useEffect(
     () => setSayfa(1),
-    [arama, metinFiltre, tip, birimF, durum, sayiFiltre],
+    [metinFiltre, tip, birimF, durum, sayiFiltre],
   );
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((m) => {
-      const ara =
-        m.ad.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
       const kod = m.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
       const ad = m.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
       const t = tip === "Tümü" || m.tip === tip;
@@ -187,7 +182,7 @@ export function Materials({
         sayiFiltre.birimFiyat.min,
         sayiFiltre.birimFiyat.max,
       );
-      return ara && kod && ad && t && b && d && stk && fiy;
+      return kod && ad && t && b && d && stk && fiy;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -196,7 +191,7 @@ export function Materials({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, metinFiltre, tip, birimF, durum, sayiFiltre, sort]);
+  }, [liste, metinFiltre, tip, birimF, durum, sayiFiltre, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -466,15 +461,6 @@ export function Materials({
       {/* Tablo — proje standardı liste kartı */}
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Malzemeler">
-          <div className="relative w-56">
-            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Malzeme veya kod ara..."
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              className="h-8 pl-8"
-            />
-          </div>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"
