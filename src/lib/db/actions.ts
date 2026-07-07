@@ -437,6 +437,45 @@ export async function posetSil(
   }
 }
 
+/** Sistem parametresi ekle/güncelle (anahtar benzersiz). */
+export async function parametreKaydet(p: {
+  id?: number;
+  anahtar: string;
+  deger: string;
+  aciklama?: string;
+}): Promise<{ ok: boolean; id?: number; error?: string }> {
+  const anahtar = p.anahtar.trim();
+  if (!anahtar) return { ok: false, error: "Anahtar gerekli." };
+  try {
+    const veri = {
+      anahtar,
+      deger: p.deger,
+      aciklama: p.aciklama?.trim() || null,
+    };
+    const kayit = p.id
+      ? await db.sistemParametre.update({ where: { id: p.id }, data: veri })
+      : await db.sistemParametre.create({ data: veri });
+    revalidatePath("/ayarlar/parametreler");
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2002")
+      return { ok: false, error: "Bu anahtar zaten kayıtlı." };
+    return { ok: false, error: "Parametre kaydedilemedi." };
+  }
+}
+
+export async function parametreSil(
+  id: number,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.sistemParametre.delete({ where: { id } });
+    revalidatePath("/ayarlar/parametreler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Parametre silinemedi." };
+  }
+}
+
 // ── Kullanıcı yönetimi ──────────────────────────────────────────────────
 
 /** Yeni rol tanımı ekler (varsa sessizce geçer). */

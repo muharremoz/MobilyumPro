@@ -161,6 +161,26 @@ export async function getPoset(
   return p ? mapPoset(p) : null;
 }
 
+/** Sistem parametresi görünümü (anahtar-değer). */
+export type SistemParametre = {
+  id: number;
+  anahtar: string;
+  deger: string;
+  aciklama?: string;
+};
+
+export async function getSistemParametreleri(): Promise<SistemParametre[]> {
+  const rows = await db.sistemParametre.findMany({
+    orderBy: { anahtar: "asc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    anahtar: r.anahtar,
+    deger: r.deger,
+    aciklama: r.aciklama ?? undefined,
+  }));
+}
+
 type CariRow = Awaited<ReturnType<typeof db.cari.findMany>>[number];
 
 function mapCari(c: CariRow): Cari {

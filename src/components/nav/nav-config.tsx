@@ -131,6 +131,7 @@ export const bottomSections: Section[] = [
     RailIcon: I(SettingsIcon),
     items: [
       { label: "Genel", href: "/ayarlar", icon: I(SettingsIcon) },
+      { label: "Sistem Parametreleri", href: "/ayarlar/parametreler", icon: I(SlidersHorizontalIcon) },
       { label: "Bağlantı Bilgileri", href: "/ayarlar/baglanti", icon: I(CpuIcon) },
       { label: "Kullanıcılar & Roller", href: "/kullanicilar", icon: I(ShieldCheckIcon) },
     ],

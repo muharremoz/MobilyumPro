@@ -326,6 +326,16 @@ model KullaniciCariYetki {
   @@map("kullanici_cari_yetki")
 }
 
+// ── Sistem parametresi (anahtar-değer; uygulama genel ayarları) ─────────
+model SistemParametre {
+  id       Int     @id @default(autoincrement())
+  anahtar  String  @unique
+  deger    String
+  aciklama String?
+
+  @@map("sistem_parametre")
+}
+
 // ── Malzeme Poşeti (hazır malzeme seti) ─────────────────────────────────
 model Poset {
   id        String         @id
