@@ -80,7 +80,7 @@ export function SistemParametreleri({
 
   return (
     <TooltipProvider delay={200}>
-      <div className="flex flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
         {PARAMETRE_GRUPLARI.map((grup) => (
           <div key={grup} className="overflow-hidden rounded-md border bg-card">
             <ListHeader title={grup} />
