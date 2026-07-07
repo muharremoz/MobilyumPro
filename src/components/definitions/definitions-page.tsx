@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Plus,
-  Search,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -144,7 +143,6 @@ export function DefinitionsPage({
     setTabState(k);
     onTipChange?.(k);
   };
-  const [arama, setArama] = React.useState("");
   // Kolon filtreleri (başlık popover'larından)
   const [adFiltre, setAdFiltre] = React.useState("");
   const [adetAralik, setAdetAralik] = React.useState({ min: "", max: "" });
@@ -176,17 +174,13 @@ export function DefinitionsPage({
 
   // Tip değişince filtre/seçim/sayfa sıfırla; filtre değişince sayfaya dön.
   React.useEffect(() => {
-    setArama("");
     setAdFiltre("");
     setAdetAralik({ min: "", max: "" });
     setDurum("Tümü");
     setSecili(new Set());
     setSayfa(1);
   }, [tab]);
-  React.useEffect(
-    () => setSayfa(1),
-    [arama, adFiltre, adetAralik, durum],
-  );
+  React.useEffect(() => setSayfa(1), [adFiltre, adetAralik, durum]);
 
   function grupAcKapa(label: string) {
     setAcikGrup((s) => {
@@ -198,16 +192,14 @@ export function DefinitionsPage({
   }
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
     const qAd = adFiltre.toLowerCase();
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((x) => {
-      const ara = x.ad.toLowerCase().includes(q);
       const ad = x.ad.toLowerCase().includes(qAd);
       const adet = arada(x.adet, adetAralik.min, adetAralik.max);
       const dur = durum === "Tümü" || x.durum === durum;
-      return ara && ad && adet && dur;
+      return ad && adet && dur;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -216,7 +208,7 @@ export function DefinitionsPage({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, adFiltre, adetAralik, durum, sort]);
+  }, [liste, adFiltre, adetAralik, durum, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -462,10 +454,7 @@ export function DefinitionsPage({
                       <button
                         key={k}
                         type="button"
-                        onClick={() => {
-                          setTab(k);
-                          setArama("");
-                        }}
+                        onClick={() => setTab(k)}
                         className={cn(
                           "flex cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-left text-sm transition-colors",
                           tab === k
@@ -511,15 +500,6 @@ export function DefinitionsPage({
         {/* Tablo — proje standardı liste kartı */}
         <div className="overflow-hidden rounded-md border bg-card">
           <ListHeader title={aktifTab.label}>
-            <div className="relative w-56">
-              <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={`${aktifTab.label} içinde ara...`}
-                value={arama}
-                onChange={(e) => setArama(e.target.value)}
-                className="h-8 pl-8"
-              />
-            </div>
             {yonetici && <KolonAyarButonu kolon={kolon} />}
             <Button
               size="sm"

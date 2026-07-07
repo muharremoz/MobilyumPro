@@ -3,12 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
 import {
   DropdownMenu,
@@ -31,15 +30,10 @@ import { posetSil } from "@/lib/db/actions";
 export function PosetListe({ posetler }: { posetler: Poset[] }) {
   const router = useRouter();
   const [liste, setListe] = React.useState<Poset[]>(posetler);
-  const [arama, setArama] = React.useState("");
 
   React.useEffect(() => setListe(posetler), [posetler]);
 
-  const filtreli = liste.filter(
-    (p) =>
-      p.ad.toLowerCase().includes(arama.toLowerCase()) ||
-      p.id.toLowerCase().includes(arama.toLowerCase()),
-  );
+  const filtreli = liste;
 
   async function sil(id: string) {
     const onceki = liste;
@@ -57,15 +51,6 @@ export function PosetListe({ posetler }: { posetler: Poset[] }) {
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Malzeme Poşetleri">
-          <div className="relative w-56">
-            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Poşet veya kod ara..."
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              className="h-8 pl-8"
-            />
-          </div>
           <Button
             size="sm"
             nativeButton={false}
