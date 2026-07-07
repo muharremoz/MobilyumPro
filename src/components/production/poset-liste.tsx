@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListHeader } from "@/components/ui/list-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,27 +54,26 @@ export function PosetListe({ posetler }: { posetler: Poset[] }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Poşet veya kod ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <Button
-          className="ml-auto"
-          nativeButton={false}
-          render={<Link href="/uretim/poset/yeni" />}
-        >
-          <Plus className="size-4" /> Yeni Poşet
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Malzeme Poşetleri">
+          <div className="relative w-56">
+            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Poşet veya kod ara..."
+              value={arama}
+              onChange={(e) => setArama(e.target.value)}
+              className="h-8 pl-8"
+            />
+          </div>
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/uretim/poset/yeni" />}
+          >
+            <Plus className="size-4" /> Yeni Poşet
+          </Button>
+        </ListHeader>
         <Table>
           <TableHeader>
             <TableRow>
