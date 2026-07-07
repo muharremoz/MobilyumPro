@@ -474,6 +474,7 @@ export async function parametreSifirla(
 export async function listeKolonKaydet(
   listeId: string,
   ayar: { kolonlar: string[]; kullanicilar: string[]; gizliTemel: string[] },
+  yol?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!listeId.trim()) return { ok: false, error: "Liste kimliği gerekli." };
   try {
@@ -483,7 +484,7 @@ export async function listeKolonKaydet(
       create: { listeId, kolonlarJson },
       update: { kolonlarJson },
     });
-    revalidatePath("/urunler");
+    if (yol) revalidatePath(yol);
     return { ok: true };
   } catch {
     return { ok: false, error: "Kolon ayarı kaydedilemedi." };

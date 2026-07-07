@@ -32,7 +32,6 @@ import {
   Check,
   ArrowUpNarrowWide,
   ArrowDownWideNarrow,
-  Columns3,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,12 +39,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
-import { FormSheet } from "@/components/ui/form-sheet";
-import { MultiSearchSelect } from "@/components/ui/multi-search-select";
-import { SheetClose, SheetFooter } from "@/components/ui/sheet";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+} from "@/components/ui/kolon-ayarlari";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -71,7 +71,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, type Model } from "@/lib/data";
-import { modelKaydet, modelSil, listeKolonKaydet } from "@/lib/db/actions";
+import { modelKaydet, modelSil } from "@/lib/db/actions";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -192,82 +192,18 @@ export function ProductsTable({
   yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
-  // Tek ayar: seçili ek kolonlar + bu kolonları gören kullanıcılar (DB).
-  const [ekKolonSet, setEkKolonSet] = React.useState<Set<string>>(
-    () => new Set(kolonAyari?.kolonlar ?? []),
-  );
-  const [kolonKullanicilar, setKolonKullanicilar] = React.useState<string[]>(
-    () => [...(kolonAyari?.kullanicilar ?? [])],
-  );
-  const [gizliTemel, setGizliTemel] = React.useState<Set<string>>(
-    () => new Set(kolonAyari?.gizliTemel ?? []),
-  );
-  const [kolonSheet, setKolonSheet] = React.useState(false);
-
-  // Ek kolonlar yalnızca listede seçili kullanıcılara görünür.
-  const gorunurEk =
-    mevcutKullaniciId && kolonKullanicilar.includes(mevcutKullaniciId)
-      ? EK_KOLONLAR.filter((k) => ekKolonSet.has(k.key))
-      : [];
-  // Gizlenmemiş temel kolonlar (herkes için geçerli).
-  const temelGorunur = (key: string) => !gizliTemel.has(key);
-  const gorunurTemelSayisi = TEMEL_KOLONLAR.filter((k) =>
-    temelGorunur(k.key),
-  ).length;
-
-  async function ayarYaz(
-    kolonlar: Set<string>,
-    kisiler: string[],
-    gizli: Set<string>,
-  ): Promise<void> {
-    const oncekiK = new Set(ekKolonSet);
-    const oncekiU = [...kolonKullanicilar];
-    const oncekiG = new Set(gizliTemel);
-    setEkKolonSet(new Set(kolonlar));
-    setKolonKullanicilar([...kisiler]);
-    setGizliTemel(new Set(gizli));
-    const res = await listeKolonKaydet("urunler", {
-      kolonlar: EK_KOLONLAR.filter((k) => kolonlar.has(k.key)).map(
-        (k) => k.key,
-      ),
-      kullanicilar: kisiler,
-      gizliTemel: TEMEL_KOLONLAR.filter((k) => gizli.has(k.key)).map(
-        (k) => k.key,
-      ),
-    });
-    if (!res.ok) {
-      setEkKolonSet(oncekiK);
-      setKolonKullanicilar(oncekiU);
-      setGizliTemel(oncekiG);
-      toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
-    }
-  }
-
-  /** Ek kolonu aç/kapat. İlk kolon açılırken kullanıcı seçiliyse dokunma,
-   *  hiç kullanıcı seçili değilse ayarı yapan da görsün diye kendini ekle. */
-  async function gosterDegis(key: string, acik: boolean) {
-    const k = new Set(ekKolonSet);
-    if (acik) k.add(key);
-    else k.delete(key);
-    const kisiler =
-      acik && kolonKullanicilar.length === 0 && mevcutKullaniciId
-        ? [mevcutKullaniciId]
-        : kolonKullanicilar;
-    await ayarYaz(k, kisiler, gizliTemel);
-  }
-
-  /** Temel kolonu aç/kapat (kilitli olanlar hariç; herkes için geçerli). */
-  async function temelDegis(key: string, acik: boolean) {
-    const g = new Set(gizliTemel);
-    if (acik) g.delete(key);
-    else g.add(key);
-    await ayarYaz(ekKolonSet, kolonKullanicilar, g);
-  }
-
-  /** Sheet genelindeki tek kullanıcı listesi değişimi. */
-  async function kullanicilarDegis(ids: string[]) {
-    await ayarYaz(ekKolonSet, ids, gizliTemel);
-  }
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "urunler",
+    yol: "/urunler",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+  const temelGorunur = kolon.temelGorunur;
+  const gorunurEk = EK_KOLONLAR.filter((k) => kolon.ekGorunur(k.key));
+  const gorunurTemelSayisi = kolon.gorunurTemelSayisi;
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   // Sütun başlığı popover'larından gelen kolon-bazlı filtreler
@@ -608,15 +544,7 @@ export function ProductsTable({
       {/* Tablo */}
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Modeller">
-          {yonetici && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setKolonSheet(true)}
-            >
-              <Columns3 className="size-4" /> Sütunlar
-            </Button>
-          )}
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button nativeButton={false} render={<Link href="/urunler/yeni" />}>
             Yeni Model
           </Button>
@@ -897,91 +825,8 @@ export function ProductsTable({
         </div>
       </div>
 
-      {/* Sütun ayarları sheet'i */}
-      <FormSheet
-        open={kolonSheet}
-        onOpenChange={setKolonSheet}
-        title="Liste Sütunları"
-        footer={
-          <SheetFooter className="mt-1 flex-row justify-end gap-2 rounded-md border bg-card p-2">
-            <SheetClose render={<Button variant="outline">Kapat</Button>} />
-          </SheetFooter>
-        }
-      >
-        <div className="grid gap-2.5">
-          <p className="text-xs text-muted-foreground">
-            Seçim anında uygulanır. Seçtiğiniz ek sütunlar aşağıdaki
-            kullanıcıların listesinde görünür.
-          </p>
-
-          {/* Tek kullanıcı seçimi — tüm ek sütunlar için geçerli */}
-          <div className="grid gap-1.5 rounded-md border p-3">
-            <span className="text-sm font-medium">Kullanıcılar</span>
-            <MultiSearchSelect
-              items={kullanicilar.map((k) => k.ad)}
-              value={kolonKullanicilar.map(
-                (id) => kullanicilar.find((k) => k.id === id)?.ad ?? id,
-              )}
-              onValueChange={(adlar) =>
-                kullanicilarDegis(
-                  adlar.map(
-                    (ad) => kullanicilar.find((k) => k.ad === ad)?.id ?? ad,
-                  ),
-                )
-              }
-              placeholder="Kullanıcı seç…"
-            />
-          </div>
-
-          {/* Tüm sütunlar tek listede: Model (kimlik) kilitli, gerisi aç/kapa */}
-          <div className="overflow-hidden rounded-md border">
-            {TEMEL_KOLONLAR.map((k) => (
-              <label
-                key={k.key}
-                className={cn(
-                  "flex items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0",
-                  k.kilitli ? "cursor-default" : "cursor-pointer",
-                )}
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{k.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {k.aciklama}
-                  </span>
-                </span>
-                <Switch
-                  checked={k.kilitli || temelGorunur(k.key)}
-                  disabled={k.kilitli}
-                  onCheckedChange={(v) =>
-                    !k.kilitli && temelDegis(k.key, v === true)
-                  }
-                  aria-label={`${k.label} kolonu`}
-                  className="shrink-0 data-checked:bg-emerald-600"
-                />
-              </label>
-            ))}
-            {EK_KOLONLAR.map((k) => (
-              <label
-                key={k.key}
-                className="flex cursor-pointer items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{k.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {k.aciklama}
-                  </span>
-                </span>
-                <Switch
-                  checked={ekKolonSet.has(k.key)}
-                  onCheckedChange={(v) => gosterDegis(k.key, v === true)}
-                  aria-label={`${k.label} kolonunu göster`}
-                  className="shrink-0 data-checked:bg-emerald-600"
-                />
-              </label>
-            ))}
-          </div>
-        </div>
-      </FormSheet>
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }
