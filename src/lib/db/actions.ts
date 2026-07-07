@@ -473,7 +473,7 @@ export async function parametreSifirla(
  *  TODO: oturum altyapısı gelince yalnızca Yönetici rolüne izin ver. */
 export async function listeKolonKaydet(
   listeId: string,
-  ayar: { kolonlar: string[]; kullanicilar: string[] },
+  ayar: { kolonlar: string[]; kullanicilar: string[]; gizliTemel: string[] },
 ): Promise<{ ok: boolean; error?: string }> {
   if (!listeId.trim()) return { ok: false, error: "Liste kimliği gerekli." };
   try {

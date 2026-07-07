@@ -152,14 +152,20 @@ const EK_KOLONLAR: {
   },
 ];
 
-/** Listede her zaman görünen temel kolonlar (kapatılamaz; sheet'te bilgi amaçlı). */
-const TEMEL_KOLONLAR: { label: string; aciklama: string }[] = [
-  { label: "Kod", aciklama: "Model kodu (URN-####); benzersiz kimlik." },
-  { label: "Model", aciklama: "Modelin adı." },
-  { label: "Kategori", aciklama: "Modelin bağlı olduğu kategori." },
-  { label: "Fiyat", aciklama: "Satış fiyatı (TL)." },
-  { label: "Stok", aciklama: "Eldeki adet; kritik seviyede renklenir." },
-  { label: "Durum", aciklama: "Aktif/Pasif satış durumu." },
+/** Listenin temel kolonları — Model (kimlik) hariç aç/kapa yapılabilir;
+ *  gizleme herkes için geçerlidir (liste_ayar.gizliTemel). */
+const TEMEL_KOLONLAR: {
+  key: string;
+  label: string;
+  aciklama: string;
+  kilitli?: boolean;
+}[] = [
+  { key: "kod", label: "Kod", aciklama: "Model kodu (URN-####); benzersiz kimlik." },
+  { key: "model", label: "Model", aciklama: "Modelin adı.", kilitli: true },
+  { key: "kategori", label: "Kategori", aciklama: "Modelin bağlı olduğu kategori." },
+  { key: "fiyat", label: "Fiyat", aciklama: "Satış fiyatı (TL)." },
+  { key: "stok", label: "Stok", aciklama: "Eldeki adet; kritik seviyede renklenir." },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif satış durumu." },
 ];
 
 export function ProductsTable({
@@ -172,8 +178,12 @@ export function ProductsTable({
 }: {
   urunler: Model[];
   initialKategori?: string;
-  /** Seçili ek kolonlar + bu kolonları gören kullanıcılar (liste_ayar). */
-  kolonAyari?: { kolonlar: string[]; kullanicilar: string[] };
+  /** Seçili ek kolonlar + gören kullanıcılar + gizlenen temel kolonlar (liste_ayar). */
+  kolonAyari?: {
+    kolonlar: string[];
+    kullanicilar: string[];
+    gizliTemel: string[];
+  };
   /** Kullanıcı combobox'ı için liste. */
   kullanicilar?: { id: string; ad: string }[];
   /** Görünürlük hesabında "ben" (TODO: oturumdan gelecek). */
@@ -188,6 +198,9 @@ export function ProductsTable({
   const [kolonKullanicilar, setKolonKullanicilar] = React.useState<string[]>(
     () => [...(kolonAyari?.kullanicilar ?? [])],
   );
+  const [gizliTemel, setGizliTemel] = React.useState<Set<string>>(
+    () => new Set(kolonAyari?.gizliTemel ?? []),
+  );
   const [kolonSheet, setKolonSheet] = React.useState(false);
 
   // Ek kolonlar yalnızca listede seçili kullanıcılara görünür.
@@ -195,29 +208,41 @@ export function ProductsTable({
     mevcutKullaniciId && kolonKullanicilar.includes(mevcutKullaniciId)
       ? EK_KOLONLAR.filter((k) => ekKolonSet.has(k.key))
       : [];
+  // Gizlenmemiş temel kolonlar (herkes için geçerli).
+  const temelGorunur = (key: string) => !gizliTemel.has(key);
+  const gorunurTemelSayisi = TEMEL_KOLONLAR.filter((k) =>
+    temelGorunur(k.key),
+  ).length;
 
   async function ayarYaz(
     kolonlar: Set<string>,
     kisiler: string[],
+    gizli: Set<string>,
   ): Promise<void> {
     const oncekiK = new Set(ekKolonSet);
     const oncekiU = [...kolonKullanicilar];
+    const oncekiG = new Set(gizliTemel);
     setEkKolonSet(new Set(kolonlar));
     setKolonKullanicilar([...kisiler]);
+    setGizliTemel(new Set(gizli));
     const res = await listeKolonKaydet("urunler", {
       kolonlar: EK_KOLONLAR.filter((k) => kolonlar.has(k.key)).map(
         (k) => k.key,
       ),
       kullanicilar: kisiler,
+      gizliTemel: TEMEL_KOLONLAR.filter((k) => gizli.has(k.key)).map(
+        (k) => k.key,
+      ),
     });
     if (!res.ok) {
       setEkKolonSet(oncekiK);
       setKolonKullanicilar(oncekiU);
+      setGizliTemel(oncekiG);
       toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
     }
   }
 
-  /** Kolonu aç/kapat. İlk kolon açılırken kullanıcı seçiliyse dokunma,
+  /** Ek kolonu aç/kapat. İlk kolon açılırken kullanıcı seçiliyse dokunma,
    *  hiç kullanıcı seçili değilse ayarı yapan da görsün diye kendini ekle. */
   async function gosterDegis(key: string, acik: boolean) {
     const k = new Set(ekKolonSet);
@@ -227,12 +252,20 @@ export function ProductsTable({
       acik && kolonKullanicilar.length === 0 && mevcutKullaniciId
         ? [mevcutKullaniciId]
         : kolonKullanicilar;
-    await ayarYaz(k, kisiler);
+    await ayarYaz(k, kisiler, gizliTemel);
+  }
+
+  /** Temel kolonu aç/kapat (kilitli olanlar hariç; herkes için geçerli). */
+  async function temelDegis(key: string, acik: boolean) {
+    const g = new Set(gizliTemel);
+    if (acik) g.delete(key);
+    else g.add(key);
+    await ayarYaz(ekKolonSet, kolonKullanicilar, g);
   }
 
   /** Sheet genelindeki tek kullanıcı listesi değişimi. */
   async function kullanicilarDegis(ids: string[]) {
-    await ayarYaz(ekKolonSet, ids);
+    await ayarYaz(ekKolonSet, ids, gizliTemel);
   }
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -598,21 +631,29 @@ export function ProductsTable({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              <SortBaslik k="id">Kod</SortBaslik>
+              {temelGorunur("kod") && <SortBaslik k="id">Kod</SortBaslik>}
               <SortBaslik k="ad">Model</SortBaslik>
-              <SortBaslik k="kategori">Kategori</SortBaslik>
-              <SortBaslik k="fiyat" className="text-right">
-                Fiyat
-              </SortBaslik>
-              <SortBaslik k="stok" className="text-right">
-                Stok
-              </SortBaslik>
+              {temelGorunur("kategori") && (
+                <SortBaslik k="kategori">Kategori</SortBaslik>
+              )}
+              {temelGorunur("fiyat") && (
+                <SortBaslik k="fiyat" className="text-right">
+                  Fiyat
+                </SortBaslik>
+              )}
+              {temelGorunur("stok") && (
+                <SortBaslik k="stok" className="text-right">
+                  Stok
+                </SortBaslik>
+              )}
               {gorunurEk.map((k) => (
                 <TableHead key={k.key} className={cn(k.sag && "text-right")}>
                   {k.label}
                 </TableHead>
               ))}
-              <SortBaslik k="durum">Durum</SortBaslik>
+              {temelGorunur("durum") && (
+                <SortBaslik k="durum">Durum</SortBaslik>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -634,51 +675,61 @@ export function ProductsTable({
                     aria-label={`${u.ad} seç`}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {u.id}
-                </TableCell>
+                {temelGorunur("kod") && (
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {u.id}
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">{u.ad}</TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setKategori((k) =>
-                        k === u.kategori ? "Tümü" : u.kategori,
-                      )
-                    }
-                    title="Bu kategoriye göre filtrele"
-                    className="-mx-1 cursor-pointer rounded-[5px] px-1 transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
-                    {u.kategori}
-                  </button>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatTL(u.fiyat)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <StokHucre stok={u.stok} />
-                </TableCell>
+                {temelGorunur("kategori") && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setKategori((k) =>
+                          k === u.kategori ? "Tümü" : u.kategori,
+                        )
+                      }
+                      title="Bu kategoriye göre filtrele"
+                      className="-mx-1 cursor-pointer rounded-[5px] px-1 transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      {u.kategori}
+                    </button>
+                  </TableCell>
+                )}
+                {temelGorunur("fiyat") && (
+                  <TableCell className="text-right tabular-nums">
+                    {formatTL(u.fiyat)}
+                  </TableCell>
+                )}
+                {temelGorunur("stok") && (
+                  <TableCell className="text-right">
+                    <StokHucre stok={u.stok} />
+                  </TableCell>
+                )}
                 {gorunurEk.map((k) => (
                   <TableCell key={k.key} className={cn(k.sag && "text-right")}>
                     {k.hucre(u)}
                   </TableCell>
                 ))}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDurum((d) => (d === u.durum ? "Tümü" : u.durum))
-                    }
-                    title="Bu duruma göre filtrele"
-                    className="cursor-pointer"
-                  >
-                    <Badge
-                      variant={u.durum === "Aktif" ? "default" : "secondary"}
+                {temelGorunur("durum") && (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDurum((d) => (d === u.durum ? "Tümü" : u.durum))
+                      }
+                      title="Bu duruma göre filtrele"
+                      className="cursor-pointer"
                     >
-                      {u.durum}
-                    </Badge>
-                  </button>
-                </TableCell>
+                      <Badge
+                        variant={u.durum === "Aktif" ? "default" : "secondary"}
+                      >
+                        {u.durum}
+                      </Badge>
+                    </button>
+                  </TableCell>
+                )}
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-52">
                   {/* Sık kullanılanlar üstte; gerisi alt menülerde (hiçbir işlev eksilmedi) */}
@@ -803,7 +854,7 @@ export function ProductsTable({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7 + gorunurEk.length}
+                  colSpan={1 + gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Sonuç bulunamadı.
@@ -872,24 +923,31 @@ export function ProductsTable({
             />
           </div>
 
-          {/* Tüm sütunlar tek listede: temel olanlar kilitli */}
+          {/* Tüm sütunlar tek listede: Model (kimlik) kilitli, gerisi aç/kapa */}
           {TEMEL_KOLONLAR.map((k) => (
-            <div
-              key={k.label}
-              className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3"
-            >
-              <Checkbox
-                checked
-                disabled
-                aria-label={`${k.label} (temel sütun)`}
-                className="mt-0.5"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{k.label}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {k.aciklama}
+            <div key={k.key} className="rounded-md border p-3">
+              <label
+                className={cn(
+                  "flex items-start gap-2.5",
+                  k.kilitli ? "cursor-default" : "cursor-pointer",
+                )}
+              >
+                <Checkbox
+                  checked={k.kilitli || temelGorunur(k.key)}
+                  disabled={k.kilitli}
+                  onCheckedChange={(v) =>
+                    !k.kilitli && temelDegis(k.key, v === true)
+                  }
+                  aria-label={`${k.label} kolonu`}
+                  className="mt-0.5"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{k.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {k.aciklama}
+                  </span>
                 </span>
-              </span>
+              </label>
             </div>
           ))}
           {EK_KOLONLAR.map((k) => (

@@ -170,13 +170,17 @@ export async function getParametreDegerleri(): Promise<
   return Object.fromEntries(rows.map((r) => [r.anahtar, r.deger]));
 }
 
-/** Liste kolon ayarı: seçili ek kolonlar + bu kolonları gören kullanıcılar. */
-export type ListeKolonAyari = { kolonlar: string[]; kullanicilar: string[] };
+/** Liste kolon ayarı: seçili ek kolonlar + gören kullanıcılar + gizlenen temel kolonlar. */
+export type ListeKolonAyari = {
+  kolonlar: string[];
+  kullanicilar: string[];
+  gizliTemel: string[];
+};
 
 export async function getListeKolonAyari(
   listeId: string,
 ): Promise<ListeKolonAyari> {
-  const bos: ListeKolonAyari = { kolonlar: [], kullanicilar: [] };
+  const bos: ListeKolonAyari = { kolonlar: [], kullanicilar: [], gizliTemel: [] };
   const row = await db.listeAyar.findUnique({ where: { listeId } });
   if (!row) return bos;
   try {
@@ -184,7 +188,11 @@ export async function getListeKolonAyari(
     if (!k || Array.isArray(k) || typeof k !== "object") return bos;
     const str = (v: unknown) =>
       Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
-    return { kolonlar: str(k.kolonlar), kullanicilar: str(k.kullanicilar) };
+    return {
+      kolonlar: str(k.kolonlar),
+      kullanicilar: str(k.kullanicilar),
+      gizliTemel: str(k.gizliTemel),
+    };
   } catch {
     return bos;
   }
