@@ -3,24 +3,20 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash, Save } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { SearchSelect } from "@/components/ui/search-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { Poset, PosetSatiri, Malzeme } from "@/lib/data";
+import { formatTL, type Poset, type PosetSatiri, type Malzeme } from "@/lib/data";
 import { posetKaydet } from "@/lib/db/actions";
 
+/**
+ * Poşet oluşturma/düzenleme — reçete detay sayfasıyla (recete-detay) birebir
+ * aynı yerleşim: üst şerit (geri + ad + durum + açıklama + Kaydet), solda
+ * bileşen grid'i (#fafafa başlık + alt ekleme şeridi), sağda maliyet özeti.
+ */
 export function PosetForm({
   poset,
   malzemeler,
@@ -29,14 +25,15 @@ export function PosetForm({
   malzemeler: Malzeme[];
 }) {
   const router = useRouter();
-  const duzenleme = !!poset;
+  const yeniMi = poset === null;
+
   const [ad, setAd] = React.useState(poset?.ad ?? "");
   const [aciklama, setAciklama] = React.useState(poset?.aciklama ?? "");
   const [durum, setDurum] = React.useState<"Aktif" | "Pasif">(
     poset?.durum ?? "Aktif",
   );
   const [satirlar, setSatirlar] = React.useState<PosetSatiri[]>(
-    poset?.malzemeler ? [...poset.malzemeler] : [],
+    poset?.malzemeler.map((m) => ({ ...m })) ?? [],
   );
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
@@ -45,25 +42,42 @@ export function PosetForm({
     [malzemeler],
   );
 
+  // ── Kirli takibi ──────────────────────────────────────────────────────
+  const kirli = React.useMemo(() => {
+    if (yeniMi) return ad.trim() !== "" || satirlar.length > 0;
+    if (!poset) return false;
+    if (
+      ad !== poset.ad ||
+      aciklama !== (poset.aciklama ?? "") ||
+      durum !== poset.durum
+    )
+      return true;
+    const key = (r: PosetSatiri[]) =>
+      JSON.stringify(r.map((s) => [s.malzemeId, s.miktar]));
+    return key(satirlar) !== key(poset.malzemeler);
+  }, [ad, aciklama, durum, satirlar, poset, yeniMi]);
+
+  // ── Maliyet özeti ─────────────────────────────────────────────────────
+  const gecerli = satirlar.filter((s) => s.malzemeId);
+  const satirTutari = (s: PosetSatiri): number =>
+    (malzemeMap.get(s.malzemeId)?.birimFiyat ?? 0) * s.miktar;
+  const toplam = gecerli.reduce((t, s) => t + satirTutari(s), 0);
+  const toplamAdet = gecerli.reduce((t, s) => t + s.miktar, 0);
+  const enPahali = [...gecerli]
+    .map((s) => ({ s, tutar: satirTutari(s) }))
+    .sort((a, b) => b.tutar - a.tutar)
+    .slice(0, 3);
+
+  // ── Eylemler ──────────────────────────────────────────────────────────
   function satirEkle() {
     setSatirlar((s) => [...s, { malzemeId: "", miktar: 1 }]);
   }
-  function satirMalzeme(i: number, ad: string | null) {
-    if (!ad) return;
-    const m = malzemeler.find((x) => x.ad === ad);
-    if (!m) return;
-    setSatirlar((s) =>
-      s.map((x, j) => (j === i ? { ...x, malzemeId: m.id } : x)),
-    );
-  }
-  function satirMiktar(i: number, v: string) {
-    const n = Number(v);
-    setSatirlar((s) =>
-      s.map((x, j) => (j === i ? { ...x, miktar: isNaN(n) ? 0 : n } : x)),
-    );
-  }
-  function satirSil(i: number) {
-    setSatirlar((s) => s.filter((_, j) => j !== i));
+  function satirGuncelle(i: number, degisim: Partial<PosetSatiri>) {
+    setSatirlar((s) => {
+      const n = [...s];
+      n[i] = { ...n[i], ...degisim };
+      return n;
+    });
   }
 
   async function kaydet() {
@@ -77,23 +91,22 @@ export function PosetForm({
       ad: ad.trim(),
       aciklama: aciklama.trim() || undefined,
       durum,
-      malzemeler: satirlar.filter((s) => s.malzemeId),
+      malzemeler: gecerli,
     });
     setKaydediliyor(false);
-    if (!res.ok) {
-      toast.error(res.error ?? "Poşet kaydedilemedi");
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Kaydedilemedi.");
       return;
     }
-    toast.success(duzenleme ? "Poşet güncellendi" : "Poşet eklendi");
-    router.push("/uretim/poset");
+    toast.success("Poşet kaydedildi");
+    if (yeniMi) router.replace(`/uretim/poset/${res.id}`);
+    else router.refresh();
   }
 
-  const aktifMalzeme = malzemeler.filter((m) => m.durum === "Aktif");
-
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      {/* Başlık */}
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3">
+      {/* Üst şerit */}
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -102,148 +115,167 @@ export function PosetForm({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="flex-1 text-xl font-semibold tracking-tight">
-          {duzenleme ? "Poşeti Düzenle" : "Yeni Poşet"}
-        </h1>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href="/uretim/poset" />}
-        >
-          İptal
-        </Button>
-        <Button onClick={kaydet} disabled={kaydediliyor}>
-          <Save className="size-4" /> Kaydet
-        </Button>
-      </div>
-
-      {/* Genel bilgiler */}
-      <div className="grid gap-4 rounded-lg border bg-card p-4">
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Poşet Adı</label>
-          <Input
-            placeholder="Örn. Komidin Montaj Poşeti"
-            value={ad}
-            onChange={(e) => setAd(e.target.value)}
+        <Input
+          placeholder="Poşet adı"
+          value={ad}
+          onChange={(e) => setAd(e.target.value)}
+          className="w-64 font-medium"
+        />
+        <div className="w-40">
+          <SearchSelect
+            items={["Aktif", "Pasif"]}
+            value={durum}
+            onValueChange={(v) => setDurum((v as "Aktif" | "Pasif") ?? "Aktif")}
+            placeholder="Durum"
           />
         </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Açıklama</label>
-          <textarea
-            rows={2}
-            placeholder="Kısa açıklama..."
-            value={aciklama}
-            onChange={(e) => setAciklama(e.target.value)}
-            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-          />
+        <Input
+          placeholder="Açıklama (opsiyonel)"
+          value={aciklama}
+          onChange={(e) => setAciklama(e.target.value)}
+          className="min-w-56 flex-1"
+        />
+        <div className="ml-auto flex items-center gap-2">
+          <Button onClick={kaydet} disabled={!kirli || kaydediliyor}>
+            {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
+          </Button>
         </div>
-        <label className="flex cursor-pointer items-center justify-between gap-3">
-          <span className="text-sm font-medium">Durum</span>
-          <span className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{durum}</span>
-            <Switch
-              checked={durum === "Aktif"}
-              onCheckedChange={(v) => setDurum(v === true ? "Aktif" : "Pasif")}
-              className="data-checked:bg-emerald-600"
-            />
-          </span>
-        </label>
       </div>
 
-      {/* İçerik: malzemeler */}
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">İçerik</h2>
-          <span className="text-xs text-muted-foreground">
-            {satirlar.filter((s) => s.malzemeId).length} malzeme
-          </span>
-        </div>
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="text-xs font-medium text-muted-foreground">
-                  Malzeme
-                </TableHead>
-                <TableHead className="w-24 text-right text-xs font-medium text-muted-foreground">
-                  Miktar
-                </TableHead>
-                <TableHead className="w-16 text-xs font-medium text-muted-foreground">
-                  Birim
-                </TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <div className="flex flex-col gap-3 xl:flex-row">
+        {/* ── Sol: malzeme grid'i ── */}
+        <div className="min-w-0 flex-1">
+          <div className="overflow-hidden rounded-md border bg-card">
+            <div className="grid grid-cols-[1fr_90px_56px_100px_36px] items-center gap-2 border-b bg-[#fafafa] px-3 py-2 text-xs font-medium text-foreground">
+              <span>Malzeme</span>
+              <span className="text-right">Miktar</span>
+              <span>Birim</span>
+              <span className="text-right">Tutar</span>
+              <span />
+            </div>
+            <div className="divide-y">
               {satirlar.map((s, i) => {
-                const m = s.malzemeId ? malzemeMap.get(s.malzemeId) : undefined;
+                const malzeme = s.malzemeId
+                  ? malzemeMap.get(s.malzemeId)
+                  : undefined;
                 const seciliBaskaIds = new Set(
                   satirlar
                     .filter((_, j) => j !== i)
                     .map((x) => x.malzemeId)
                     .filter(Boolean),
                 );
-                const items = aktifMalzeme
-                  .filter((x) => !seciliBaskaIds.has(x.id))
-                  .map((x) => x.ad);
                 return (
-                  <TableRow key={i} className="border-b last:border-0">
-                    <TableCell>
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_90px_56px_100px_36px] items-center gap-2 px-3 py-2"
+                  >
+                    <div className="min-w-0">
                       <SearchSelect
-                        items={items}
-                        value={m?.ad ?? null}
-                        onValueChange={(v) => satirMalzeme(i, v)}
-                        placeholder="Malzeme seç"
-                        searchPlaceholder="Malzeme ara..."
+                        items={malzemeler
+                          .filter(
+                            (m) =>
+                              m.durum === "Aktif" && !seciliBaskaIds.has(m.id),
+                          )
+                          .map((m) => m.ad)}
+                        value={malzeme?.ad ?? null}
+                        onValueChange={(adSecim) => {
+                          const ref = malzemeler.find(
+                            (m) => m.ad === adSecim,
+                          )?.id;
+                          satirGuncelle(i, { malzemeId: ref ?? "" });
+                        }}
+                        placeholder="Malzeme seçin"
+                        className="h-8"
                       />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        value={s.miktar}
-                        onChange={(e) => satirMiktar(i, e.target.value)}
-                        className="h-8 w-20 text-right tabular-nums"
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {m?.birim ?? ""}
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => satirSil(i)}
-                        aria-label="Sil"
-                        className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
-                      >
-                        <Trash className="size-3.5" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={s.miktar}
+                      onChange={(e) =>
+                        satirGuncelle(i, { miktar: Number(e.target.value) })
+                      }
+                      className="h-8 text-right tabular-nums"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {malzeme?.birim ?? "—"}
+                    </span>
+                    <span className="text-right text-xs text-muted-foreground tabular-nums">
+                      {formatTL(satirTutari(s))}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Satırı kaldır"
+                      onClick={() =>
+                        setSatirlar((x) => x.filter((_, j) => j !== i))
+                      }
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
                 );
               })}
               {satirlar.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="h-16 text-center text-sm text-muted-foreground"
-                  >
-                    Henüz malzeme eklenmedi.
-                  </TableCell>
-                </TableRow>
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  Henüz malzeme yok — aşağıdan malzeme ekleyin.
+                </p>
               )}
-            </TableBody>
-          </Table>
+            </div>
+            <div className="flex items-center gap-1.5 border-t bg-[#fafafa] px-3 py-2">
+              <Button variant="outline" size="sm" onClick={satirEkle}>
+                <Plus className="size-3.5" /> Malzeme
+              </Button>
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={satirEkle}
-          disabled={
-            satirlar.filter((s) => s.malzemeId).length >= aktifMalzeme.length
-          }
-          className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="size-3.5" /> Malzeme ekle
-        </button>
+
+        {/* ── Sağ: özet kolonu ── */}
+        <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
+          {/* Maliyet özeti */}
+          <div className="rounded-md border bg-card p-4">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Maliyet Özeti
+            </p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
+              {formatTL(toplam)}
+            </p>
+            <div className="mt-3 flex flex-col gap-1.5 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Malzeme çeşidi</span>
+                <span className="tabular-nums">{gecerli.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Toplam miktar</span>
+                <span className="tabular-nums">{toplamAdet}</span>
+              </div>
+            </div>
+            {enPahali.length > 0 && (
+              <>
+                <div className="my-3 h-px bg-border" />
+                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  En Maliyetli
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {enPahali.map(({ s, tutar }, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="truncate">
+                        {malzemeMap.get(s.malzemeId)?.ad ?? s.malzemeId}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                        {toplam > 0 ? Math.round((tutar / toplam) * 100) : 0}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
