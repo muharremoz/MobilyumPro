@@ -64,15 +64,28 @@ export function SistemParametreleri({
   async function kaydet(anahtar: string, yeni: string) {
     if (yeni === kayitli.current[anahtar]) return;
     const onceki = kayitli.current[anahtar];
+    const varsayilan = PARAMETRELER.find(
+      (p) => p.anahtar === anahtar,
+    )?.varsayilan;
     setDegerler((s) => ({ ...s, [anahtar]: yeni }));
-    const res = await parametreDegerKaydet(anahtar, yeni);
+    // Değer manuel olarak varsayılana eşitlendiyse override kaydını sil —
+    // "varsayılana dön" göstermeye gerek kalmaz.
+    const res =
+      yeni === varsayilan
+        ? await parametreSifirla(anahtar)
+        : await parametreDegerKaydet(anahtar, yeni);
     if (!res.ok) {
       setDegerler((s) => ({ ...s, [anahtar]: onceki }));
       toast.error(res.error ?? "Kaydedilemedi.");
       return;
     }
     kayitli.current[anahtar] = yeni;
-    setOverrideler((s) => new Set(s).add(anahtar));
+    setOverrideler((s) => {
+      const n = new Set(s);
+      if (yeni === varsayilan) n.delete(anahtar);
+      else n.add(anahtar);
+      return n;
+    });
     toast.success("Kaydedildi");
   }
 
