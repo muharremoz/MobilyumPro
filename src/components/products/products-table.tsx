@@ -44,6 +44,7 @@ import { FormSheet } from "@/components/ui/form-sheet";
 import { SheetClose, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -924,50 +925,52 @@ export function ProductsTable({
           </div>
 
           {/* Tüm sütunlar tek listede: Model (kimlik) kilitli, gerisi aç/kapa */}
-          {TEMEL_KOLONLAR.map((k) => (
-            <div key={k.key} className="rounded-md border p-3">
+          <div className="overflow-hidden rounded-md border">
+            {TEMEL_KOLONLAR.map((k) => (
               <label
+                key={k.key}
                 className={cn(
-                  "flex items-start gap-2.5",
+                  "flex items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0",
                   k.kilitli ? "cursor-default" : "cursor-pointer",
                 )}
               >
-                <Checkbox
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{k.label}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {k.aciklama}
+                  </span>
+                </span>
+                <Switch
                   checked={k.kilitli || temelGorunur(k.key)}
                   disabled={k.kilitli}
                   onCheckedChange={(v) =>
                     !k.kilitli && temelDegis(k.key, v === true)
                   }
                   aria-label={`${k.label} kolonu`}
-                  className="mt-0.5"
+                  className="shrink-0 data-checked:bg-emerald-600"
                 />
+              </label>
+            ))}
+            {EK_KOLONLAR.map((k) => (
+              <label
+                key={k.key}
+                className="flex cursor-pointer items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0"
+              >
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{k.label}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="block truncate text-xs text-muted-foreground">
                     {k.aciklama}
                   </span>
                 </span>
-              </label>
-            </div>
-          ))}
-          {EK_KOLONLAR.map((k) => (
-            <div key={k.key} className="rounded-md border p-3">
-              <label className="flex cursor-pointer items-start gap-2.5">
-                <Checkbox
+                <Switch
                   checked={ekKolonSet.has(k.key)}
                   onCheckedChange={(v) => gosterDegis(k.key, v === true)}
                   aria-label={`${k.label} kolonunu göster`}
-                  className="mt-0.5"
+                  className="shrink-0 data-checked:bg-emerald-600"
                 />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{k.label}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {k.aciklama}
-                  </span>
-                </span>
               </label>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </FormSheet>
     </div>
