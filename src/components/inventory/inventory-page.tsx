@@ -11,6 +11,7 @@ import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
+import type { ListeKolonAyariDegeri } from "@/components/ui/kolon-ayarlari";
 import type { Model, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
@@ -29,6 +30,9 @@ export function InventoryPage({
   parcalar,
   depolar,
   hareketler,
+  tanimKolonAyari,
+  kullanicilar,
+  mevcutKullaniciId,
 }: {
   bolum: string;
   urunler: Model[];
@@ -36,6 +40,10 @@ export function InventoryPage({
   parcalar: Parca[];
   depolar: Depo[];
   hareketler: StokHareket[];
+  /** Tanımlamalar listesi kolon ayarları (liste_ayar "tanimlamalar"). */
+  tanimKolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -64,7 +72,15 @@ export function InventoryPage({
 
   // Tanımlamalar
   if (TANIM_TIPLERI.includes(bolum as DefTab)) {
-    return <DefinitionsPage hideMenu tip={bolum as DefTab} />;
+    return (
+      <DefinitionsPage
+        hideMenu
+        tip={bolum as DefTab}
+        kolonAyari={tanimKolonAyari}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
+      />
+    );
   }
 
   // Varsayılan: Stok Durumu

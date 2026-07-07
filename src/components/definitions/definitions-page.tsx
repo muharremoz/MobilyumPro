@@ -7,11 +7,14 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Check,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,9 +23,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -32,6 +42,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -90,16 +105,37 @@ const ILK: Record<TabKey, Tanim[]> = {
 type SortKey = "ad" | "adet" | "durum";
 const SAYFA_BOYUT = 8;
 
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "ad", label: "Ad", aciklama: "Tanımın adı.", kilitli: true },
+  {
+    key: "adet",
+    label: "Kullanım",
+    aciklama: "Bu tanımı kullanan kayıt sayısı.",
+  },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
+
 export function DefinitionsPage({
   hideMenu = false,
   tip: tipProp,
   onTipChange,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   /** Sol gruplu menüyü gizler (üst kapsayıcı kendi menüsünü kullanır). */
   hideMenu?: boolean;
   /** Dış kontrollü tip (verilirse iç state yerine bu kullanılır). */
   tip?: TabKey;
   onTipChange?: (k: TabKey) => void;
+  /** Kolon ayarları (liste_ayar "tanimlamalar"). */
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
 } = {}) {
   const [data, setData] = React.useState<Record<TabKey, Tanim[]>>(ILK);
   const [tabState, setTabState] = React.useState<TabKey>("kategoriler");
@@ -109,6 +145,9 @@ export function DefinitionsPage({
     onTipChange?.(k);
   };
   const [arama, setArama] = React.useState("");
+  // Kolon filtreleri (başlık popover'larından)
+  const [adFiltre, setAdFiltre] = React.useState("");
+  const [adetAralik, setAdetAralik] = React.useState({ min: "", max: "" });
   const [durum, setDurum] = React.useState("Tümü");
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>({
     key: "ad",
@@ -122,17 +161,32 @@ export function DefinitionsPage({
     () => new Set(MENU.map((g) => g.label)),
   );
 
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "tanimlamalar",
+    yol: "/stok-yonetimi",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+
   const aktifTab = TABS[tab];
   const liste = data[tab];
 
   // Tip değişince filtre/seçim/sayfa sıfırla; filtre değişince sayfaya dön.
   React.useEffect(() => {
     setArama("");
+    setAdFiltre("");
+    setAdetAralik({ min: "", max: "" });
     setDurum("Tümü");
     setSecili(new Set());
     setSayfa(1);
   }, [tab]);
-  React.useEffect(() => setSayfa(1), [arama, durum]);
+  React.useEffect(
+    () => setSayfa(1),
+    [arama, adFiltre, adetAralik, durum],
+  );
 
   function grupAcKapa(label: string) {
     setAcikGrup((s) => {
@@ -145,10 +199,15 @@ export function DefinitionsPage({
 
   const filtreli = React.useMemo(() => {
     const q = arama.toLowerCase();
+    const qAd = adFiltre.toLowerCase();
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((x) => {
       const ara = x.ad.toLowerCase().includes(q);
+      const ad = x.ad.toLowerCase().includes(qAd);
+      const adet = arada(x.adet, adetAralik.min, adetAralik.max);
       const dur = durum === "Tümü" || x.durum === durum;
-      return ara && dur;
+      return ara && ad && adet && dur;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -157,7 +216,7 @@ export function DefinitionsPage({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, durum, sort]);
+  }, [liste, arama, adFiltre, adetAralik, durum, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -169,13 +228,6 @@ export function DefinitionsPage({
   const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
-  function sortla(key: SortKey) {
-    setSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" },
-    );
-  }
   function secimDegis(id: string, v: boolean) {
     setSecili((s) => {
       const n = new Set(s);
@@ -230,6 +282,7 @@ export function DefinitionsPage({
     toast.success(`${ids.length} kayıt silindi`);
   }
 
+  // ── Kolon başlığı: sırala + filtre popover'ı (proje standardı) ──────────
   const sortIkon = (key: SortKey) =>
     sort.key !== key ? (
       <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
@@ -237,6 +290,23 @@ export function DefinitionsPage({
       <ChevronUp className="size-3.5" />
     ) : (
       <ChevronDown className="size-3.5" />
+    );
+
+  const kolonFiltreAktif = (k: SortKey) => {
+    if (k === "ad") return adFiltre !== "";
+    if (k === "adet") return adetAralik.min !== "" || adetAralik.max !== "";
+    return durum !== "Tümü";
+  };
+  const kolonFiltreTemizle = (k: SortKey) => {
+    if (k === "ad") setAdFiltre("");
+    else if (k === "adet") setAdetAralik({ min: "", max: "" });
+    else setDurum("Tümü");
+  };
+
+  const ogeCls = (seciliMi: boolean) =>
+    cn(
+      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+      seciliMi && "bg-accent/60 font-medium",
     );
 
   const SortBaslik = ({
@@ -247,18 +317,121 @@ export function DefinitionsPage({
     k: SortKey;
     children: React.ReactNode;
     className?: string;
-  }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => sortla(k)}
-        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-      >
-        {children}
-        {sortIkon(k)}
-      </button>
-    </TableHead>
-  );
+  }) => {
+    const aktif = kolonFiltreAktif(k);
+    return (
+      <TableHead className={className}>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
+              >
+                {children}
+                {sortIkon(k)}
+                {aktif && (
+                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                )}
+              </button>
+            }
+          />
+          <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
+            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Sırala
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "asc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "asc" })}
+              >
+                <ArrowUpNarrowWide className="size-4" /> Artan
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "desc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "desc" })}
+              >
+                <ArrowDownWideNarrow className="size-4" /> Azalan
+              </button>
+            </div>
+
+            <div className="my-1.5 h-px bg-border" />
+            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Filtre
+            </p>
+
+            {k === "ad" && (
+              <Input
+                autoFocus
+                placeholder="İçeren metin..."
+                value={adFiltre}
+                onChange={(e) => setAdFiltre(e.target.value)}
+                className="h-8"
+              />
+            )}
+            {k === "adet" && (
+              <div className="grid grid-cols-2 gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="En az"
+                  value={adetAralik.min}
+                  onChange={(e) =>
+                    setAdetAralik((a) => ({ ...a, min: e.target.value }))
+                  }
+                  className="h-8 tabular-nums"
+                />
+                <Input
+                  type="number"
+                  placeholder="En çok"
+                  value={adetAralik.max}
+                  onChange={(e) =>
+                    setAdetAralik((a) => ({ ...a, max: e.target.value }))
+                  }
+                  className="h-8 tabular-nums"
+                />
+              </div>
+            )}
+            {k === "durum" && (
+              <div className="grid gap-0.5">
+                {["Tümü", "Aktif", "Pasif"].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={ogeCls(durum === v)}
+                    onClick={() => setDurum(v)}
+                  >
+                    {v}
+                    {durum === v && <Check className="ml-auto size-4" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {aktif && (
+              <>
+                <div className="my-1.5 h-px bg-border" />
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                  onClick={() => kolonFiltreTemizle(k)}
+                >
+                  <Trash2 className="size-3.5" /> Filtreyi temizle
+                </button>
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="flex gap-4">
@@ -317,36 +490,6 @@ export function DefinitionsPage({
 
       {/* Sağ içerik */}
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        {/* Araç çubuğu */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-56 flex-1">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={`${aktifTab.label} içinde ara...`}
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              className="h-9 pl-9"
-            />
-          </div>
-          <div className="w-36">
-            <SearchSelect
-              items={["Tümü", "Aktif", "Pasif"]}
-              value={durum}
-              onValueChange={(v) => setDurum(v ?? "Tümü")}
-              placeholder="Durum"
-            />
-          </div>
-          <Button
-            className="ml-auto"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
-            <Plus className="size-4" /> Yeni {aktifTab.tekil}
-          </Button>
-        </div>
-
         {/* Toplu işlem çubuğu */}
         {secili.size > 0 && (
           <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
@@ -365,8 +508,29 @@ export function DefinitionsPage({
           </div>
         )}
 
-        {/* Tablo */}
+        {/* Tablo — proje standardı liste kartı */}
         <div className="overflow-hidden rounded-md border bg-card">
+          <ListHeader title={aktifTab.label}>
+            <div className="relative w-56">
+              <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={`${aktifTab.label} içinde ara...`}
+                value={arama}
+                onChange={(e) => setArama(e.target.value)}
+                className="h-8 pl-8"
+              />
+            </div>
+            {yonetici && <KolonAyarButonu kolon={kolon} />}
+            <Button
+              size="sm"
+              onClick={() => {
+                setDuzenlenen(null);
+                setSheetOpen(true);
+              }}
+            >
+              <Plus className="size-4" /> Yeni {aktifTab.tekil}
+            </Button>
+          </ListHeader>
           <Table>
             <TableHeader>
               <TableRow>
@@ -379,10 +543,14 @@ export function DefinitionsPage({
                   />
                 </TableHead>
                 <SortBaslik k="ad">Ad</SortBaslik>
-                <SortBaslik k="adet" className="text-right">
-                  Kullanım
-                </SortBaslik>
-                <SortBaslik k="durum">Durum</SortBaslik>
+                {kolon.temelGorunur("adet") && (
+                  <SortBaslik k="adet" className="text-right">
+                    Kullanım
+                  </SortBaslik>
+                )}
+                {kolon.temelGorunur("durum") && (
+                  <SortBaslik k="durum">Durum</SortBaslik>
+                )}
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -405,14 +573,20 @@ export function DefinitionsPage({
                     />
                   </TableCell>
                   <TableCell className="font-medium">{x.ad}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {x.adet}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={x.durum === "Aktif" ? "default" : "secondary"}>
-                      {x.durum}
-                    </Badge>
-                  </TableCell>
+                  {kolon.temelGorunur("adet") && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {x.adet}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={x.durum === "Aktif" ? "default" : "secondary"}
+                      >
+                        {x.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger
@@ -445,7 +619,7 @@ export function DefinitionsPage({
               {sayfalik.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={2 + kolon.gorunurTemelSayisi}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Kayıt bulunamadı.
@@ -495,6 +669,9 @@ export function DefinitionsPage({
         tekil={aktifTab.tekil}
         onSave={kaydet}
       />
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }

@@ -188,28 +188,31 @@ export function KolonAyarSheet({
     >
       <div className="grid gap-2.5">
         <p className="text-xs text-muted-foreground">
-          Seçim anında uygulanır. Seçtiğiniz ek sütunlar aşağıdaki
-          kullanıcıların listesinde görünür.
+          {kolon.ek.length > 0
+            ? "Seçim anında uygulanır. Seçtiğiniz ek sütunlar aşağıdaki kullanıcıların listesinde görünür."
+            : "Seçim anında uygulanır ve herkes için geçerlidir."}
         </p>
 
-        {/* Tek kullanıcı seçimi — tüm ek sütunlar için geçerli */}
-        <div className="grid gap-1.5 rounded-md border p-3">
-          <span className="text-sm font-medium">Kullanıcılar</span>
-          <MultiSearchSelect
-            items={kullanicilar.map((k) => k.ad)}
-            value={kolon.kisiler.map(
-              (id) => kullanicilar.find((k) => k.id === id)?.ad ?? id,
-            )}
-            onValueChange={(adlar) =>
-              kolon.kisilerDegis(
-                adlar.map(
-                  (ad) => kullanicilar.find((k) => k.ad === ad)?.id ?? ad,
-                ),
-              )
-            }
-            placeholder="Kullanıcı seç…"
-          />
-        </div>
+        {/* Tek kullanıcı seçimi — yalnızca ek sütunu olan listelerde */}
+        {kolon.ek.length > 0 && (
+          <div className="grid gap-1.5 rounded-md border p-3">
+            <span className="text-sm font-medium">Kullanıcılar</span>
+            <MultiSearchSelect
+              items={kullanicilar.map((k) => k.ad)}
+              value={kolon.kisiler.map(
+                (id) => kullanicilar.find((k) => k.id === id)?.ad ?? id,
+              )}
+              onValueChange={(adlar) =>
+                kolon.kisilerDegis(
+                  adlar.map(
+                    (ad) => kullanicilar.find((k) => k.ad === ad)?.id ?? ad,
+                  ),
+                )
+              }
+              placeholder="Kullanıcı seç…"
+            />
+          </div>
+        )}
 
         {/* Tüm sütunlar tek listede: kilitliler hariç aç/kapa */}
         <div className="overflow-hidden rounded-md border">
