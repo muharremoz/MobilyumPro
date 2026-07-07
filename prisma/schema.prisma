@@ -326,6 +326,15 @@ model KullaniciCariYetki {
   @@map("kullanici_cari_yetki")
 }
 
+// ── Liste ayarı (listeId → görünür ek kolonlar; yönetici belirler) ──────
+model ListeAyar {
+  id           Int    @id @default(autoincrement())
+  listeId      String @unique @map("liste_id")
+  kolonlarJson String @map("kolonlar_json")
+
+  @@map("liste_ayar")
+}
+
 // ── Sistem parametresi (anahtar-değer; uygulama genel ayarları) ─────────
 model SistemParametre {
   id       Int     @id @default(autoincrement())

@@ -469,6 +469,27 @@ export async function parametreSifirla(
   }
 }
 
+/** Bir listenin görünür ek kolonlarını kaydeder (herkes için geçerli).
+ *  TODO: oturum altyapısı gelince yalnızca Yönetici rolüne izin ver. */
+export async function listeKolonKaydet(
+  listeId: string,
+  kolonlar: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!listeId.trim()) return { ok: false, error: "Liste kimliği gerekli." };
+  try {
+    const kolonlarJson = JSON.stringify(kolonlar);
+    await db.listeAyar.upsert({
+      where: { listeId },
+      create: { listeId, kolonlarJson },
+      update: { kolonlarJson },
+    });
+    revalidatePath("/urunler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Kolon ayarı kaydedilemedi." };
+  }
+}
+
 // ── Kullanıcı yönetimi ──────────────────────────────────────────────────
 
 /** Yeni rol tanımı ekler (varsa sessizce geçer). */

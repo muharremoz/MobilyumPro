@@ -32,6 +32,7 @@ import {
   Check,
   ArrowUpNarrowWide,
   ArrowDownWideNarrow,
+  Columns3,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,7 +67,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, type Model } from "@/lib/data";
-import { modelKaydet, modelSil } from "@/lib/db/actions";
+import { modelKaydet, modelSil, listeKolonKaydet } from "@/lib/db/actions";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -93,14 +94,89 @@ function StokHucre({ stok }: { stok: number }) {
   );
 }
 
+/** Yöneticinin listeye ekleyebileceği isteğe bağlı kolonlar (liste_ayar'da saklanır). */
+const EK_KOLONLAR: {
+  key: string;
+  label: string;
+  sag?: boolean;
+  hucre: (u: Model) => React.ReactNode;
+}[] = [
+  {
+    key: "marka",
+    label: "Marka",
+    hucre: (u) =>
+      u.marka ?? <span className="text-muted-foreground">—</span>,
+  },
+  {
+    key: "barkod",
+    label: "Barkod",
+    hucre: (u) =>
+      u.barkod ? (
+        <span className="font-mono text-xs text-muted-foreground">
+          {u.barkod}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "minStok",
+    label: "Min. Stok",
+    sag: true,
+    hucre: (u) =>
+      u.minStok != null ? (
+        <span className="tabular-nums">{u.minStok}</span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    key: "agirlik",
+    label: "Ağırlık",
+    sag: true,
+    hucre: (u) =>
+      u.agirlik != null ? (
+        <span className="tabular-nums">{u.agirlik} kg</span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+];
+
 export function ProductsTable({
   urunler,
   initialKategori,
+  ekKolonlar,
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   urunler: Model[];
   initialKategori?: string;
+  /** Yöneticinin seçtiği ek kolonlar (liste_ayar'dan; yoksa hiçbiri). */
+  ekKolonlar?: string[] | null;
+  yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
+  const [seciliEk, setSeciliEk] = React.useState<Set<string>>(
+    () => new Set(ekKolonlar ?? []),
+  );
+
+  const gorunurEk = EK_KOLONLAR.filter((k) => seciliEk.has(k.key));
+
+  async function ekKolonDegis(key: string, acik: boolean) {
+    const onceki = new Set(seciliEk);
+    const yeni = new Set(seciliEk);
+    if (acik) yeni.add(key);
+    else yeni.delete(key);
+    setSeciliEk(yeni);
+    const sirali = EK_KOLONLAR.filter((k) => yeni.has(k.key)).map(
+      (k) => k.key,
+    );
+    const res = await listeKolonKaydet("urunler", sirali);
+    if (!res.ok) {
+      setSeciliEk(onceki);
+      toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
+    }
+  }
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   // Sütun başlığı popover'larından gelen kolon-bazlı filtreler
@@ -441,6 +517,37 @@ export function ProductsTable({
       {/* Tablo */}
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Modeller">
+          {yonetici && (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button variant="outline" size="sm">
+                    <Columns3 className="size-4" /> Sütunlar
+                  </Button>
+                }
+              />
+              <PopoverContent align="end" className="w-48 p-1.5">
+                <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Ek Sütunlar
+                </p>
+                <div className="grid gap-0.5">
+                  {EK_KOLONLAR.map((k) => (
+                    <label
+                      key={k.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Checkbox
+                        checked={seciliEk.has(k.key)}
+                        onCheckedChange={(v) => ekKolonDegis(k.key, v === true)}
+                        aria-label={`${k.label} kolonu`}
+                      />
+                      {k.label}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
           <Button nativeButton={false} render={<Link href="/urunler/yeni" />}>
             Yeni Model
           </Button>
@@ -465,6 +572,11 @@ export function ProductsTable({
               <SortBaslik k="stok" className="text-right">
                 Stok
               </SortBaslik>
+              {gorunurEk.map((k) => (
+                <TableHead key={k.key} className={cn(k.sag && "text-right")}>
+                  {k.label}
+                </TableHead>
+              ))}
               <SortBaslik k="durum">Durum</SortBaslik>
             </TableRow>
           </TableHeader>
@@ -511,6 +623,11 @@ export function ProductsTable({
                 <TableCell className="text-right">
                   <StokHucre stok={u.stok} />
                 </TableCell>
+                {gorunurEk.map((k) => (
+                  <TableCell key={k.key} className={cn(k.sag && "text-right")}>
+                    {k.hucre(u)}
+                  </TableCell>
+                ))}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
@@ -651,7 +768,7 @@ export function ProductsTable({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={7 + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Sonuç bulunamadı.

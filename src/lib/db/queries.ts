@@ -170,6 +170,20 @@ export async function getParametreDegerleri(): Promise<
   return Object.fromEntries(rows.map((r) => [r.anahtar, r.deger]));
 }
 
+/** Bir listenin yönetici tarafından seçilmiş ek kolonları (kayıt yoksa null → varsayılan). */
+export async function getListeKolonlari(
+  listeId: string,
+): Promise<string[] | null> {
+  const row = await db.listeAyar.findUnique({ where: { listeId } });
+  if (!row) return null;
+  try {
+    const k = JSON.parse(row.kolonlarJson);
+    return Array.isArray(k) ? k.filter((x) => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
 type CariRow = Awaited<ReturnType<typeof db.cari.findMany>>[number];
 
 function mapCari(c: CariRow): Cari {
