@@ -469,15 +469,19 @@ export async function parametreSifirla(
   }
 }
 
-/** Bir listenin görünür ek kolonlarını kaydeder (herkes için geçerli).
+/** Bir listenin ek kolon atamalarını kaydeder (kolonKey → kullanıcı id'leri).
  *  TODO: oturum altyapısı gelince yalnızca Yönetici rolüne izin ver. */
 export async function listeKolonKaydet(
   listeId: string,
-  kolonlar: string[],
+  atamalar: Record<string, string[]>,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!listeId.trim()) return { ok: false, error: "Liste kimliği gerekli." };
   try {
-    const kolonlarJson = JSON.stringify(kolonlar);
+    // Boş atamaları temizle — JSON sade kalsın.
+    const temiz = Object.fromEntries(
+      Object.entries(atamalar).filter(([, ids]) => ids.length > 0),
+    );
+    const kolonlarJson = JSON.stringify(temiz);
     await db.listeAyar.upsert({
       where: { listeId },
       create: { listeId, kolonlarJson },

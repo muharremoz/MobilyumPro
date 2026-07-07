@@ -155,22 +155,38 @@ const EK_KOLONLAR: {
 /** Kişisel (yalnızca bu tarayıcı) kolon seçiminin localStorage anahtarı. */
 const KOLON_LS_KEY = "mp_ek_kolonlar_urunler";
 
+/** Listede her zaman görünen temel kolonlar (kapatılamaz; sheet'te bilgi amaçlı). */
+const TEMEL_KOLONLAR: { label: string; aciklama: string }[] = [
+  { label: "Kod", aciklama: "Model kodu (URN-####); benzersiz kimlik." },
+  { label: "Model", aciklama: "Modelin adı." },
+  { label: "Kategori", aciklama: "Modelin bağlı olduğu kategori." },
+  { label: "Fiyat", aciklama: "Satış fiyatı (TL)." },
+  { label: "Stok", aciklama: "Eldeki adet; kritik seviyede renklenir." },
+  { label: "Durum", aciklama: "Aktif/Pasif satış durumu." },
+];
+
 export function ProductsTable({
   urunler,
   initialKategori,
-  ekKolonlar,
+  ekAtamalar,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   urunler: Model[];
   initialKategori?: string;
-  /** Yöneticinin seçtiği ek kolonlar (liste_ayar'dan; yoksa hiçbiri). */
-  ekKolonlar?: string[] | null;
+  /** Ek kolon atamaları: kolonKey → o kolonu gören kullanıcı id'leri (liste_ayar). */
+  ekAtamalar?: Record<string, string[]>;
+  /** Atama combobox'ı için kullanıcı listesi. */
+  kullanicilar?: { id: string; ad: string }[];
+  /** Görünürlük hesabında "ben" (TODO: oturumdan gelecek). */
+  mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
-  // Ek kolonlar: DB seti herkes için, local set yalnızca bu tarayıcı için.
-  const [dbEk, setDbEk] = React.useState<Set<string>>(
-    () => new Set(ekKolonlar ?? []),
+  // Ek kolonlar: DB'de kullanıcı bazlı atamalar, localde yalnızca bu tarayıcı.
+  const [atamalar, setAtamalar] = React.useState<Record<string, string[]>>(
+    () => ({ ...(ekAtamalar ?? {}) }),
   );
   const [localEk, setLocalEk] = React.useState<Set<string>>(new Set());
   const [kolonSheet, setKolonSheet] = React.useState(false);
@@ -187,7 +203,9 @@ export function ProductsTable({
   }, []);
 
   const gorunurEk = EK_KOLONLAR.filter(
-    (k) => dbEk.has(k.key) || localEk.has(k.key),
+    (k) =>
+      localEk.has(k.key) ||
+      (atamalar[k.key]?.includes(mevcutKullaniciId) ?? false),
   );
 
   function localYaz(s: Set<string>) {
@@ -195,22 +213,21 @@ export function ProductsTable({
     localStorage.setItem(KOLON_LS_KEY, JSON.stringify([...s]));
   }
 
-  async function dbYaz(yeni: Set<string>): Promise<boolean> {
-    const onceki = new Set(dbEk);
-    setDbEk(new Set(yeni));
-    const sirali = EK_KOLONLAR.filter((k) => yeni.has(k.key)).map(
-      (k) => k.key,
-    );
-    const res = await listeKolonKaydet("urunler", sirali);
+  async function atamaYaz(
+    yeni: Record<string, string[]>,
+  ): Promise<boolean> {
+    const onceki = { ...atamalar };
+    setAtamalar(yeni);
+    const res = await listeKolonKaydet("urunler", yeni);
     if (!res.ok) {
-      setDbEk(onceki);
+      setAtamalar(onceki);
       toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
       return false;
     }
     return true;
   }
 
-  /** Kolonu göster/gizle — açınca önce kişisel; kapatınca her iki katmandan çıkar. */
+  /** Kolonu göster/gizle (kişisel). Kapatınca atamadan da kendimi çıkarırım. */
   async function gosterDegis(key: string, acik: boolean) {
     const l = new Set(localEk);
     if (acik) {
@@ -219,26 +236,19 @@ export function ProductsTable({
     } else {
       l.delete(key);
       localYaz(l);
-      if (dbEk.has(key)) {
-        const d = new Set(dbEk);
-        d.delete(key);
-        await dbYaz(d);
+      const ids = atamalar[key] ?? [];
+      if (mevcutKullaniciId && ids.includes(mevcutKullaniciId)) {
+        await atamaYaz({
+          ...atamalar,
+          [key]: ids.filter((x) => x !== mevcutKullaniciId),
+        });
       }
     }
   }
 
-  /** "Diğer kullanıcılar da görsün" — açınca DB'ye yazar, kapatınca kişisele düşer. */
-  async function herkesDegis(key: string, acik: boolean) {
-    const d = new Set(dbEk);
-    if (acik) d.add(key);
-    else d.delete(key);
-    const ok = await dbYaz(d);
-    if (ok && !acik) {
-      // Herkesten kaldırıldı ama bende görünmeye devam etsin.
-      const l = new Set(localEk);
-      l.add(key);
-      localYaz(l);
-    }
+  /** Kolonun kullanıcı atamasını (çoklu seçim) kaydeder. */
+  async function kullaniciAtamaDegis(key: string, ids: string[]) {
+    await atamaYaz({ ...atamalar, [key]: ids });
   }
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -864,13 +874,46 @@ export function ProductsTable({
       >
         <div className="grid gap-2.5">
           <p className="text-xs text-muted-foreground">
-            Listeye eklenecek sütunları seçin. Seçim anında uygulanır;
-            &quot;Diğer kullanıcılar da görsün&quot; işaretlenmezse yalnızca bu
-            tarayıcıda geçerlidir.
+            Seçim anında uygulanır. Ek sütunlar varsayılan olarak yalnızca bu
+            tarayıcıda görünür; kullanıcı seçerseniz o kullanıcıların
+            listesinde de görünür.
+          </p>
+
+          {/* Temel sütunlar (kapatılamaz) */}
+          <p className="mt-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Temel Sütunlar
+          </p>
+          <div className="grid gap-1.5">
+            {TEMEL_KOLONLAR.map((k) => (
+              <div
+                key={k.label}
+                className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3"
+              >
+                <Checkbox
+                  checked
+                  disabled
+                  aria-label={`${k.label} (temel sütun)`}
+                  className="mt-0.5"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{k.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {k.aciklama}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Ek sütunlar */}
+          <p className="mt-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Ek Sütunlar
           </p>
           {EK_KOLONLAR.map((k) => {
-            const gorunur = dbEk.has(k.key) || localEk.has(k.key);
-            const herkes = dbEk.has(k.key);
+            const ids = atamalar[k.key] ?? [];
+            const gorunur =
+              localEk.has(k.key) ||
+              (mevcutKullaniciId !== "" && ids.includes(mevcutKullaniciId));
             return (
               <div key={k.key} className="rounded-md border p-3">
                 <label className="flex cursor-pointer items-start gap-2.5">
@@ -890,14 +933,16 @@ export function ProductsTable({
                   </span>
                 </label>
                 {gorunur && (
-                  <label className="mt-2 ml-7 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                    <Checkbox
-                      checked={herkes}
-                      onCheckedChange={(v) => herkesDegis(k.key, v === true)}
-                      aria-label={`${k.label} kolonunu herkes görsün`}
+                  <div className="mt-2 ml-7 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Kullanıcılar:
+                    </span>
+                    <KullaniciCoktanSecim
+                      kullanicilar={kullanicilar}
+                      secili={ids}
+                      onDegis={(yeni) => kullaniciAtamaDegis(k.key, yeni)}
                     />
-                    Diğer kullanıcılar da görsün
-                  </label>
+                  </div>
                 )}
               </div>
             );
@@ -905,5 +950,73 @@ export function ProductsTable({
         </div>
       </FormSheet>
     </div>
+  );
+}
+
+/** Combobox görünümlü çoklu kullanıcı seçimi (Popover + checkbox listesi). */
+function KullaniciCoktanSecim({
+  kullanicilar,
+  secili,
+  onDegis,
+}: {
+  kullanicilar: { id: string; ad: string }[];
+  secili: string[];
+  onDegis: (ids: string[]) => void;
+}) {
+  const seciliSet = new Set(secili);
+  const etiket =
+    secili.length === 0
+      ? "Kullanıcı seç…"
+      : secili.length === 1
+        ? (kullanicilar.find((k) => k.id === secili[0])?.ad ?? "1 kullanıcı")
+        : `${secili.length} kullanıcı`;
+
+  function toggle(id: string, acik: boolean) {
+    const yeni = new Set(seciliSet);
+    if (acik) yeni.add(id);
+    else yeni.delete(id);
+    // Kullanıcı listesindeki sıraya göre kaydet.
+    onDegis(kullanicilar.filter((k) => yeni.has(k.id)).map((k) => k.id));
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className={cn(
+              "flex h-8 w-52 cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-left text-sm transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30",
+              secili.length === 0 && "text-muted-foreground",
+            )}
+          >
+            <span className="truncate">{etiket}</span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          </button>
+        }
+      />
+      <PopoverContent align="start" className="w-52 p-1.5">
+        <div className="grid max-h-56 gap-0.5 overflow-auto">
+          {kullanicilar.map((k) => (
+            <label
+              key={k.id}
+              className="flex cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Checkbox
+                checked={seciliSet.has(k.id)}
+                onCheckedChange={(v) => toggle(k.id, v === true)}
+                aria-label={k.ad}
+              />
+              <span className="truncate">{k.ad}</span>
+            </label>
+          ))}
+          {kullanicilar.length === 0 && (
+            <p className="px-1.5 py-2 text-xs text-muted-foreground">
+              Kullanıcı yok.
+            </p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

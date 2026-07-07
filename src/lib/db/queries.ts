@@ -170,17 +170,24 @@ export async function getParametreDegerleri(): Promise<
   return Object.fromEntries(rows.map((r) => [r.anahtar, r.deger]));
 }
 
-/** Bir listenin yönetici tarafından seçilmiş ek kolonları (kayıt yoksa null → varsayılan). */
-export async function getListeKolonlari(
+/** Bir listenin ek kolon atamaları: kolonKey → o kolonu gören kullanıcı id'leri.
+ *  (Eski dizi formatındaki kayıtlar yok sayılır.) */
+export async function getListeKolonAtamalari(
   listeId: string,
-): Promise<string[] | null> {
+): Promise<Record<string, string[]>> {
   const row = await db.listeAyar.findUnique({ where: { listeId } });
-  if (!row) return null;
+  if (!row) return {};
   try {
     const k = JSON.parse(row.kolonlarJson);
-    return Array.isArray(k) ? k.filter((x) => typeof x === "string") : null;
+    if (!k || Array.isArray(k) || typeof k !== "object") return {};
+    const sonuc: Record<string, string[]> = {};
+    for (const [key, ids] of Object.entries(k)) {
+      if (Array.isArray(ids))
+        sonuc[key] = ids.filter((x) => typeof x === "string");
+    }
+    return sonuc;
   } catch {
-    return null;
+    return {};
   }
 }
 
