@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { MultiSearchSelect } from "@/components/ui/multi-search-select";
 import { SheetClose, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -97,9 +98,8 @@ function StokHucre({ stok }: { stok: number }) {
   );
 }
 
-/** Listeye eklenebilecek isteğe bağlı kolonlar. "Herkes görsün" işaretlenirse
- *  seçim DB'de (liste_ayar) saklanır; aksi halde yalnızca bu tarayıcıda
- *  (localStorage) geçerlidir. */
+/** Listeye eklenebilecek isteğe bağlı kolonlar; seçim ve gören kullanıcılar
+ *  liste_ayar'da saklanır. */
 const EK_KOLONLAR: {
   key: string;
   label: string;
@@ -915,12 +915,21 @@ export function ProductsTable({
           </p>
 
           {/* Tek kullanıcı seçimi — tüm ek sütunlar için geçerli */}
-          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+          <div className="grid gap-1.5 rounded-md border p-3">
             <span className="text-sm font-medium">Kullanıcılar</span>
-            <KullaniciCoktanSecim
-              kullanicilar={kullanicilar}
-              secili={kolonKullanicilar}
-              onDegis={kullanicilarDegis}
+            <MultiSearchSelect
+              items={kullanicilar.map((k) => k.ad)}
+              value={kolonKullanicilar.map(
+                (id) => kullanicilar.find((k) => k.id === id)?.ad ?? id,
+              )}
+              onValueChange={(adlar) =>
+                kullanicilarDegis(
+                  adlar.map(
+                    (ad) => kullanicilar.find((k) => k.ad === ad)?.id ?? ad,
+                  ),
+                )
+              }
+              placeholder="Kullanıcı seç…"
             />
           </div>
 
@@ -974,73 +983,5 @@ export function ProductsTable({
         </div>
       </FormSheet>
     </div>
-  );
-}
-
-/** Combobox görünümlü çoklu kullanıcı seçimi (Popover + checkbox listesi). */
-function KullaniciCoktanSecim({
-  kullanicilar,
-  secili,
-  onDegis,
-}: {
-  kullanicilar: { id: string; ad: string }[];
-  secili: string[];
-  onDegis: (ids: string[]) => void;
-}) {
-  const seciliSet = new Set(secili);
-  const etiket =
-    secili.length === 0
-      ? "Kullanıcı seç…"
-      : secili.length === 1
-        ? (kullanicilar.find((k) => k.id === secili[0])?.ad ?? "1 kullanıcı")
-        : `${secili.length} kullanıcı`;
-
-  function toggle(id: string, acik: boolean) {
-    const yeni = new Set(seciliSet);
-    if (acik) yeni.add(id);
-    else yeni.delete(id);
-    // Kullanıcı listesindeki sıraya göre kaydet.
-    onDegis(kullanicilar.filter((k) => yeni.has(k.id)).map((k) => k.id));
-  }
-
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className={cn(
-              "flex h-8 w-52 cursor-pointer items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-left text-sm transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30",
-              secili.length === 0 && "text-muted-foreground",
-            )}
-          >
-            <span className="truncate">{etiket}</span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-          </button>
-        }
-      />
-      <PopoverContent align="start" className="w-52 p-1.5">
-        <div className="grid max-h-56 gap-0.5 overflow-auto">
-          {kullanicilar.map((k) => (
-            <label
-              key={k.id}
-              className="flex cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <Checkbox
-                checked={seciliSet.has(k.id)}
-                onCheckedChange={(v) => toggle(k.id, v === true)}
-                aria-label={k.ad}
-              />
-              <span className="truncate">{k.ad}</span>
-            </label>
-          ))}
-          {kullanicilar.length === 0 && (
-            <p className="px-1.5 py-2 text-xs text-muted-foreground">
-              Kullanıcı yok.
-            </p>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
