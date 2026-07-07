@@ -4,9 +4,13 @@ import * as React from "react";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
@@ -181,8 +185,8 @@ function ParametreSatiri({
         )}
 
         {tanim.tip === "sayi" && (
-          <div className="relative">
-            <Input
+          <InputGroup className="h-8 w-36 overflow-hidden">
+            <InputGroupInput
               type="number"
               value={deger}
               onChange={(e) => onDegis(e.target.value)}
@@ -190,17 +194,17 @@ function ParametreSatiri({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className={cn(
-                "h-8 w-36 text-right tabular-nums",
-                tanim.birim && "pr-11",
-              )}
+              className="text-right tabular-nums"
             />
             {tanim.birim && (
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-muted-foreground">
+              <InputGroupAddon
+                align="inline-end"
+                className="h-full w-12 justify-center self-stretch border-l bg-[#fafafa] px-2 text-xs font-normal"
+              >
                 {tanim.birim}
-              </span>
+              </InputGroupAddon>
             )}
-          </div>
+          </InputGroup>
         )}
 
         {tanim.tip === "metin" && (
