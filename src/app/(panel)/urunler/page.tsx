@@ -1,7 +1,7 @@
 import { ProductsTable } from "@/components/products/products-table";
 import {
   getKullanicilar,
-  getListeKolonAtamalari,
+  getListeKolonAyari,
   getModeller,
 } from "@/lib/db/queries";
 
@@ -11,9 +11,9 @@ export default async function UrunlerPage({
   searchParams: Promise<{ kategori?: string }>;
 }) {
   const { kategori = "Tümü" } = await searchParams;
-  const [urunler, ekAtamalar, kullanicilar] = await Promise.all([
+  const [urunler, kolonAyari, kullanicilar] = await Promise.all([
     getModeller(),
-    getListeKolonAtamalari("urunler"),
+    getListeKolonAyari("urunler"),
     getKullanicilar(),
   ]);
   // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
@@ -26,7 +26,7 @@ export default async function UrunlerPage({
       key={kategori}
       urunler={urunler}
       initialKategori={kategori}
-      ekAtamalar={ekAtamalar}
+      kolonAyari={kolonAyari}
       kullanicilar={kullanicilar.map((k) => ({ id: k.id, ad: k.adSoyad }))}
       mevcutKullaniciId={mevcutKullaniciId}
     />

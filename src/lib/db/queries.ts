@@ -170,24 +170,23 @@ export async function getParametreDegerleri(): Promise<
   return Object.fromEntries(rows.map((r) => [r.anahtar, r.deger]));
 }
 
-/** Bir listenin ek kolon atamaları: kolonKey → o kolonu gören kullanıcı id'leri.
- *  (Eski dizi formatındaki kayıtlar yok sayılır.) */
-export async function getListeKolonAtamalari(
+/** Liste kolon ayarı: seçili ek kolonlar + bu kolonları gören kullanıcılar. */
+export type ListeKolonAyari = { kolonlar: string[]; kullanicilar: string[] };
+
+export async function getListeKolonAyari(
   listeId: string,
-): Promise<Record<string, string[]>> {
+): Promise<ListeKolonAyari> {
+  const bos: ListeKolonAyari = { kolonlar: [], kullanicilar: [] };
   const row = await db.listeAyar.findUnique({ where: { listeId } });
-  if (!row) return {};
+  if (!row) return bos;
   try {
     const k = JSON.parse(row.kolonlarJson);
-    if (!k || Array.isArray(k) || typeof k !== "object") return {};
-    const sonuc: Record<string, string[]> = {};
-    for (const [key, ids] of Object.entries(k)) {
-      if (Array.isArray(ids))
-        sonuc[key] = ids.filter((x) => typeof x === "string");
-    }
-    return sonuc;
+    if (!k || Array.isArray(k) || typeof k !== "object") return bos;
+    const str = (v: unknown) =>
+      Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    return { kolonlar: str(k.kolonlar), kullanicilar: str(k.kullanicilar) };
   } catch {
-    return {};
+    return bos;
   }
 }
 

@@ -152,9 +152,6 @@ const EK_KOLONLAR: {
   },
 ];
 
-/** Kişisel (yalnızca bu tarayıcı) kolon seçiminin localStorage anahtarı. */
-const KOLON_LS_KEY = "mp_ek_kolonlar_urunler";
-
 /** Listede her zaman görünen temel kolonlar (kapatılamaz; sheet'te bilgi amaçlı). */
 const TEMEL_KOLONLAR: { label: string; aciklama: string }[] = [
   { label: "Kod", aciklama: "Model kodu (URN-####); benzersiz kimlik." },
@@ -168,87 +165,74 @@ const TEMEL_KOLONLAR: { label: string; aciklama: string }[] = [
 export function ProductsTable({
   urunler,
   initialKategori,
-  ekAtamalar,
+  kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   urunler: Model[];
   initialKategori?: string;
-  /** Ek kolon atamaları: kolonKey → o kolonu gören kullanıcı id'leri (liste_ayar). */
-  ekAtamalar?: Record<string, string[]>;
-  /** Atama combobox'ı için kullanıcı listesi. */
+  /** Seçili ek kolonlar + bu kolonları gören kullanıcılar (liste_ayar). */
+  kolonAyari?: { kolonlar: string[]; kullanicilar: string[] };
+  /** Kullanıcı combobox'ı için liste. */
   kullanicilar?: { id: string; ad: string }[];
   /** Görünürlük hesabında "ben" (TODO: oturumdan gelecek). */
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
-  // Ek kolonlar: DB'de kullanıcı bazlı atamalar, localde yalnızca bu tarayıcı.
-  const [atamalar, setAtamalar] = React.useState<Record<string, string[]>>(
-    () => ({ ...(ekAtamalar ?? {}) }),
+  // Tek ayar: seçili ek kolonlar + bu kolonları gören kullanıcılar (DB).
+  const [ekKolonSet, setEkKolonSet] = React.useState<Set<string>>(
+    () => new Set(kolonAyari?.kolonlar ?? []),
   );
-  const [localEk, setLocalEk] = React.useState<Set<string>>(new Set());
+  const [kolonKullanicilar, setKolonKullanicilar] = React.useState<string[]>(
+    () => [...(kolonAyari?.kullanicilar ?? [])],
+  );
   const [kolonSheet, setKolonSheet] = React.useState(false);
 
-  // Kişisel seçim tarayıcıdan yüklenir (hydration sonrası).
-  React.useEffect(() => {
-    try {
-      const v = JSON.parse(localStorage.getItem(KOLON_LS_KEY) ?? "[]");
-      if (Array.isArray(v))
-        setLocalEk(new Set(v.filter((x) => typeof x === "string")));
-    } catch {
-      /* bozuk kayıt yok sayılır */
-    }
-  }, []);
+  // Ek kolonlar yalnızca listede seçili kullanıcılara görünür.
+  const gorunurEk =
+    mevcutKullaniciId && kolonKullanicilar.includes(mevcutKullaniciId)
+      ? EK_KOLONLAR.filter((k) => ekKolonSet.has(k.key))
+      : [];
 
-  const gorunurEk = EK_KOLONLAR.filter(
-    (k) =>
-      localEk.has(k.key) ||
-      (atamalar[k.key]?.includes(mevcutKullaniciId) ?? false),
-  );
-
-  function localYaz(s: Set<string>) {
-    setLocalEk(new Set(s));
-    localStorage.setItem(KOLON_LS_KEY, JSON.stringify([...s]));
-  }
-
-  async function atamaYaz(
-    yeni: Record<string, string[]>,
-  ): Promise<boolean> {
-    const onceki = { ...atamalar };
-    setAtamalar(yeni);
-    const res = await listeKolonKaydet("urunler", yeni);
+  async function ayarYaz(
+    kolonlar: Set<string>,
+    kisiler: string[],
+  ): Promise<void> {
+    const oncekiK = new Set(ekKolonSet);
+    const oncekiU = [...kolonKullanicilar];
+    setEkKolonSet(new Set(kolonlar));
+    setKolonKullanicilar([...kisiler]);
+    const res = await listeKolonKaydet("urunler", {
+      kolonlar: EK_KOLONLAR.filter((k) => kolonlar.has(k.key)).map(
+        (k) => k.key,
+      ),
+      kullanicilar: kisiler,
+    });
     if (!res.ok) {
-      setAtamalar(onceki);
+      setEkKolonSet(oncekiK);
+      setKolonKullanicilar(oncekiU);
       toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
-      return false;
     }
-    return true;
   }
 
-  /** Kolonu göster/gizle (kişisel). Kapatınca atamadan da kendimi çıkarırım. */
+  /** Kolonu aç/kapat. İlk kolon açılırken kullanıcı seçiliyse dokunma,
+   *  hiç kullanıcı seçili değilse ayarı yapan da görsün diye kendini ekle. */
   async function gosterDegis(key: string, acik: boolean) {
-    const l = new Set(localEk);
-    if (acik) {
-      l.add(key);
-      localYaz(l);
-    } else {
-      l.delete(key);
-      localYaz(l);
-      const ids = atamalar[key] ?? [];
-      if (mevcutKullaniciId && ids.includes(mevcutKullaniciId)) {
-        await atamaYaz({
-          ...atamalar,
-          [key]: ids.filter((x) => x !== mevcutKullaniciId),
-        });
-      }
-    }
+    const k = new Set(ekKolonSet);
+    if (acik) k.add(key);
+    else k.delete(key);
+    const kisiler =
+      acik && kolonKullanicilar.length === 0 && mevcutKullaniciId
+        ? [mevcutKullaniciId]
+        : kolonKullanicilar;
+    await ayarYaz(k, kisiler);
   }
 
-  /** Kolonun kullanıcı atamasını (çoklu seçim) kaydeder. */
-  async function kullaniciAtamaDegis(key: string, ids: string[]) {
-    await atamaYaz({ ...atamalar, [key]: ids });
+  /** Sheet genelindeki tek kullanıcı listesi değişimi. */
+  async function kullanicilarDegis(ids: string[]) {
+    await ayarYaz(ekKolonSet, ids);
   }
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
   const [durum, setDurum] = React.useState("Tümü");
@@ -874,25 +858,47 @@ export function ProductsTable({
       >
         <div className="grid gap-2.5">
           <p className="text-xs text-muted-foreground">
-            Seçim anında uygulanır. Ek sütunlar varsayılan olarak yalnızca bu
-            tarayıcıda görünür; kullanıcı seçerseniz o kullanıcıların
-            listesinde de görünür.
+            Seçim anında uygulanır. Seçtiğiniz ek sütunlar aşağıdaki
+            kullanıcıların listesinde görünür.
           </p>
 
-          {/* Temel sütunlar (kapatılamaz) */}
-          <p className="mt-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Temel Sütunlar
-          </p>
-          <div className="grid gap-1.5">
-            {TEMEL_KOLONLAR.map((k) => (
-              <div
-                key={k.label}
-                className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3"
-              >
+          {/* Tek kullanıcı seçimi — tüm ek sütunlar için geçerli */}
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+            <span className="text-sm font-medium">Kullanıcılar</span>
+            <KullaniciCoktanSecim
+              kullanicilar={kullanicilar}
+              secili={kolonKullanicilar}
+              onDegis={kullanicilarDegis}
+            />
+          </div>
+
+          {/* Tüm sütunlar tek listede: temel olanlar kilitli */}
+          {TEMEL_KOLONLAR.map((k) => (
+            <div
+              key={k.label}
+              className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3"
+            >
+              <Checkbox
+                checked
+                disabled
+                aria-label={`${k.label} (temel sütun)`}
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{k.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {k.aciklama}
+                </span>
+              </span>
+            </div>
+          ))}
+          {EK_KOLONLAR.map((k) => (
+            <div key={k.key} className="rounded-md border p-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
                 <Checkbox
-                  checked
-                  disabled
-                  aria-label={`${k.label} (temel sütun)`}
+                  checked={ekKolonSet.has(k.key)}
+                  onCheckedChange={(v) => gosterDegis(k.key, v === true)}
+                  aria-label={`${k.label} kolonunu göster`}
                   className="mt-0.5"
                 />
                 <span className="min-w-0">
@@ -901,52 +907,9 @@ export function ProductsTable({
                     {k.aciklama}
                   </span>
                 </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Ek sütunlar */}
-          <p className="mt-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Ek Sütunlar
-          </p>
-          {EK_KOLONLAR.map((k) => {
-            const ids = atamalar[k.key] ?? [];
-            const gorunur =
-              localEk.has(k.key) ||
-              (mevcutKullaniciId !== "" && ids.includes(mevcutKullaniciId));
-            return (
-              <div key={k.key} className="rounded-md border p-3">
-                <label className="flex cursor-pointer items-start gap-2.5">
-                  <Checkbox
-                    checked={gorunur}
-                    onCheckedChange={(v) => gosterDegis(k.key, v === true)}
-                    aria-label={`${k.label} kolonunu göster`}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">
-                      {k.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {k.aciklama}
-                    </span>
-                  </span>
-                </label>
-                {gorunur && (
-                  <div className="mt-2 ml-7 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Kullanıcılar:
-                    </span>
-                    <KullaniciCoktanSecim
-                      kullanicilar={kullanicilar}
-                      secili={ids}
-                      onDegis={(yeni) => kullaniciAtamaDegis(k.key, yeni)}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              </label>
+            </div>
+          ))}
         </div>
       </FormSheet>
     </div>
