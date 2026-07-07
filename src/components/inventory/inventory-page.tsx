@@ -11,7 +11,6 @@ import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
-import { MaterialBags } from "@/components/inventory/material-bags";
 import type { Model, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
@@ -62,7 +61,6 @@ export function InventoryPage({
   if (bolum === "malzemeler") return <Materials malzemeler={malzemeler} />;
   if (bolum === "parcalar")
     return <Parts parcalar={parcalar} malzemeler={malzemeler} />;
-  if (bolum === "posetler") return <MaterialBags malzemeler={malzemeler} />;
 
   // Tanımlamalar
   if (TANIM_TIPLERI.includes(bolum as DefTab)) {
