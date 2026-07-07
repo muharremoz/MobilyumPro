@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +26,14 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +58,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Table,
   TableBody,
   TableCell,
@@ -69,11 +84,59 @@ const TIP_RENK_VARSAYILAN = "bg-slate-100 text-slate-700";
 const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "tip" | "birim" | "stok" | "birimFiyat" | "durum";
 
-export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "kod", label: "Kod", aciklama: "Malzeme kodu (MLZ-####)." },
+  { key: "ad", label: "Malzeme", aciklama: "Malzemenin adı.", kilitli: true },
+  { key: "tip", label: "Tip", aciklama: "Hammadde / Yarı Mamul / Yardımcı." },
+  {
+    key: "birim",
+    label: "Birim",
+    aciklama: "Stok takip birimi (adet, m², kg...).",
+  },
+  { key: "stok", label: "Stok", aciklama: "Eldeki miktar." },
+  {
+    key: "birimFiyat",
+    label: "Birim Fiyat",
+    aciklama: "Birim başına maliyet (TL).",
+  },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
+];
+const EK_KOLONLAR: (KolonTanim & {
+  hucre: (m: Malzeme) => React.ReactNode;
+})[] = [
+  {
+    key: "tedarikci",
+    label: "Tedarikçi",
+    aciklama: "Malzemenin alındığı tedarikçi firma.",
+    hucre: (m) =>
+      m.tedarikci ?? <span className="text-muted-foreground">—</span>,
+  },
+];
+
+export function Materials({
+  malzemeler,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
+}: {
+  malzemeler: Malzeme[];
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
+}) {
   const [liste, setListe] = React.useState<Malzeme[]>(malzemeler);
   const [arama, setArama] = React.useState("");
+  // Kolon filtreleri (başlık popover'larından)
+  const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [tip, setTip] = React.useState("Tümü");
+  const [birimF, setBirimF] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
+  const [sayiFiltre, setSayiFiltre] = React.useState<
+    Record<"stok" | "birimFiyat", { min: string; max: string }>
+  >({ stok: { min: "", max: "" }, birimFiyat: { min: "", max: "" } });
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>({
     key: "id",
     dir: "asc",
@@ -84,22 +147,47 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
   const [duzenlenen, setDuzenlenen] = React.useState<Malzeme | null>(null);
   const [tipler, setTipler] = React.useState<string[]>(TIPLER);
 
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "malzemeler",
+    yol: "/stok-yonetimi",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+  const gorunurEk = EK_KOLONLAR.filter((k) => kolon.ekGorunur(k.key));
+
   function tipEkle(t: string) {
     const ad = t.trim();
     if (!ad) return;
     setTipler((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
   }
 
-  React.useEffect(() => setSayfa(1), [arama, tip, durum]);
+  React.useEffect(
+    () => setSayfa(1),
+    [arama, metinFiltre, tip, birimF, durum, sayiFiltre],
+  );
 
   const filtreli = React.useMemo(() => {
     const q = arama.toLowerCase();
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((m) => {
       const ara =
         m.ad.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+      const kod = m.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
+      const ad = m.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
       const t = tip === "Tümü" || m.tip === tip;
+      const b = birimF === "Tümü" || m.birim === birimF;
       const d = durum === "Tümü" || m.durum === durum;
-      return ara && t && d;
+      const stk = arada(m.stok, sayiFiltre.stok.min, sayiFiltre.stok.max);
+      const fiy = arada(
+        m.birimFiyat,
+        sayiFiltre.birimFiyat.min,
+        sayiFiltre.birimFiyat.max,
+      );
+      return ara && kod && ad && t && b && d && stk && fiy;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
@@ -108,7 +196,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, tip, durum, sort]);
+  }, [liste, arama, metinFiltre, tip, birimF, durum, sayiFiltre, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -120,11 +208,6 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
   const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
-  function sortla(k: SortKey) {
-    setSort((s) =>
-      s.key === k ? { key: k, dir: s.dir === "asc" ? "desc" : "asc" } : { key: k, dir: "asc" },
-    );
-  }
   function secimDegis(id: string, v: boolean) {
     setSecili((s) => {
       const n = new Set(s);
@@ -179,6 +262,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
     await malzemeKaydet(m);
   }
 
+  // ── Kolon başlığı: sırala + filtre popover'ı (proje standardı) ──────────
   const sortIkon = (k: SortKey) =>
     sort.key !== k ? (
       <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
@@ -187,6 +271,29 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
     ) : (
       <ChevronDown className="size-3.5" />
     );
+
+  const kolonFiltreAktif = (k: SortKey) => {
+    if (k === "id") return metinFiltre.id !== "";
+    if (k === "ad") return metinFiltre.ad !== "";
+    if (k === "tip") return tip !== "Tümü";
+    if (k === "birim") return birimF !== "Tümü";
+    if (k === "durum") return durum !== "Tümü";
+    return sayiFiltre[k].min !== "" || sayiFiltre[k].max !== "";
+  };
+  const kolonFiltreTemizle = (k: SortKey) => {
+    if (k === "id" || k === "ad") setMetinFiltre((f) => ({ ...f, [k]: "" }));
+    else if (k === "tip") setTip("Tümü");
+    else if (k === "birim") setBirimF("Tümü");
+    else if (k === "durum") setDurum("Tümü");
+    else setSayiFiltre((f) => ({ ...f, [k]: { min: "", max: "" } }));
+  };
+
+  const ogeCls = (seciliMi: boolean) =>
+    cn(
+      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+      seciliMi && "bg-accent/60 font-medium",
+    );
+
   const SortBaslik = ({
     k,
     children,
@@ -195,59 +302,150 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
     k: SortKey;
     children: React.ReactNode;
     className?: string;
-  }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => sortla(k)}
-        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-      >
-        {children}
-        {sortIkon(k)}
-      </button>
-    </TableHead>
-  );
+  }) => {
+    const aktif = kolonFiltreAktif(k);
+    const listeSecim =
+      k === "tip"
+        ? { deger: tip, ayarla: setTip, secenekler: ["Tümü", ...tipler] }
+        : k === "birim"
+          ? {
+              deger: birimF,
+              ayarla: setBirimF,
+              secenekler: ["Tümü", ...BIRIMLER],
+            }
+          : k === "durum"
+            ? {
+                deger: durum,
+                ayarla: setDurum,
+                secenekler: ["Tümü", "Aktif", "Pasif"],
+              }
+            : null;
+    return (
+      <TableHead className={className}>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
+              >
+                {children}
+                {sortIkon(k)}
+                {aktif && (
+                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                )}
+              </button>
+            }
+          />
+          <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
+            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Sırala
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "asc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "asc" })}
+              >
+                <ArrowUpNarrowWide className="size-4" /> Artan
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  ogeCls(sort.key === k && sort.dir === "desc"),
+                  "justify-center",
+                )}
+                onClick={() => setSort({ key: k, dir: "desc" })}
+              >
+                <ArrowDownWideNarrow className="size-4" /> Azalan
+              </button>
+            </div>
+
+            <div className="my-1.5 h-px bg-border" />
+            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Filtre
+            </p>
+
+            {(k === "id" || k === "ad") && (
+              <Input
+                autoFocus
+                placeholder="İçeren metin..."
+                value={metinFiltre[k]}
+                onChange={(e) =>
+                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
+                }
+                className="h-8"
+              />
+            )}
+            {(k === "stok" || k === "birimFiyat") && (
+              <div className="grid grid-cols-2 gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="En az"
+                  value={sayiFiltre[k].min}
+                  onChange={(e) =>
+                    setSayiFiltre((f) => ({
+                      ...f,
+                      [k]: { ...f[k], min: e.target.value },
+                    }))
+                  }
+                  className="h-8 tabular-nums"
+                />
+                <Input
+                  type="number"
+                  placeholder="En çok"
+                  value={sayiFiltre[k].max}
+                  onChange={(e) =>
+                    setSayiFiltre((f) => ({
+                      ...f,
+                      [k]: { ...f[k], max: e.target.value },
+                    }))
+                  }
+                  className="h-8 tabular-nums"
+                />
+              </div>
+            )}
+            {listeSecim && (
+              <div className="grid max-h-56 gap-0.5 overflow-auto">
+                {listeSecim.secenekler.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={ogeCls(listeSecim.deger === v)}
+                    onClick={() => listeSecim.ayarla(v)}
+                  >
+                    {v}
+                    {listeSecim.deger === v && (
+                      <Check className="ml-auto size-4" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {aktif && (
+              <>
+                <div className="my-1.5 h-px bg-border" />
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                  onClick={() => kolonFiltreTemizle(k)}
+                >
+                  <Trash2 className="size-3.5" /> Filtreyi temizle
+                </button>
+              </>
+            )}
+          </PopoverContent>
+        </Popover>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Araç çubuğu */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Malzeme veya kod ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <div className="w-40">
-          <SearchSelect
-            items={["Tümü", ...tipler]}
-            value={tip}
-            onValueChange={(v) => setTip(v ?? "Tümü")}
-            placeholder="Tip"
-          />
-        </div>
-        <div className="w-36">
-          <SearchSelect
-            items={["Tümü", "Aktif", "Pasif"]}
-            value={durum}
-            onValueChange={(v) => setDurum(v ?? "Tümü")}
-            placeholder="Durum"
-          />
-        </div>
-        <Button
-          className="ml-auto"
-          onClick={() => {
-            setDuzenlenen(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="size-4" /> Yeni Malzeme
-        </Button>
-      </div>
-
       {secili.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span className="font-medium">{secili.size} seçili</span>
@@ -265,7 +463,29 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
         </div>
       )}
 
+      {/* Tablo — proje standardı liste kartı */}
       <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Malzemeler">
+          <div className="relative w-56">
+            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Malzeme veya kod ara..."
+              value={arama}
+              onChange={(e) => setArama(e.target.value)}
+              className="h-8 pl-8"
+            />
+          </div>
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
+          <Button
+            size="sm"
+            onClick={() => {
+              setDuzenlenen(null);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Yeni Malzeme
+          </Button>
+        </ListHeader>
         <Table>
           <TableHeader>
             <TableRow>
@@ -277,17 +497,30 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              <SortBaslik k="id">Kod</SortBaslik>
+              {kolon.temelGorunur("kod") && <SortBaslik k="id">Kod</SortBaslik>}
               <SortBaslik k="ad">Malzeme</SortBaslik>
-              <SortBaslik k="tip">Tip</SortBaslik>
-              <SortBaslik k="birim">Birim</SortBaslik>
-              <SortBaslik k="stok" className="text-right">
-                Stok
-              </SortBaslik>
-              <SortBaslik k="birimFiyat" className="text-right">
-                Birim Fiyat
-              </SortBaslik>
-              <SortBaslik k="durum">Durum</SortBaslik>
+              {kolon.temelGorunur("tip") && (
+                <SortBaslik k="tip">Tip</SortBaslik>
+              )}
+              {kolon.temelGorunur("birim") && (
+                <SortBaslik k="birim">Birim</SortBaslik>
+              )}
+              {kolon.temelGorunur("stok") && (
+                <SortBaslik k="stok" className="text-right">
+                  Stok
+                </SortBaslik>
+              )}
+              {kolon.temelGorunur("birimFiyat") && (
+                <SortBaslik k="birimFiyat" className="text-right">
+                  Birim Fiyat
+                </SortBaslik>
+              )}
+              {gorunurEk.map((k) => (
+                <TableHead key={k.key}>{k.label}</TableHead>
+              ))}
+              {kolon.temelGorunur("durum") && (
+                <SortBaslik k="durum">Durum</SortBaslik>
+              )}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -309,32 +542,54 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
                     aria-label={`${m.ad} seç`}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {m.id}
-                </TableCell>
+                {kolon.temelGorunur("kod") && (
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {m.id}
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">{m.ad}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={TIP_RENK[m.tip] ?? TIP_RENK_VARSAYILAN}>
-                    {m.tip}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{m.birim}</TableCell>
-                <TableCell
-                  className={cn(
-                    "text-right tabular-nums",
-                    m.stok === 0 && "text-rose-600",
-                  )}
-                >
-                  {m.stok}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatTL(m.birimFiyat)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={m.durum === "Aktif" ? "default" : "secondary"}>
-                    {m.durum}
-                  </Badge>
-                </TableCell>
+                {kolon.temelGorunur("tip") && (
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={TIP_RENK[m.tip] ?? TIP_RENK_VARSAYILAN}
+                    >
+                      {m.tip}
+                    </Badge>
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("birim") && (
+                  <TableCell className="text-muted-foreground">
+                    {m.birim}
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("stok") && (
+                  <TableCell
+                    className={cn(
+                      "text-right tabular-nums",
+                      m.stok === 0 && "text-rose-600",
+                    )}
+                  >
+                    {m.stok}
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("birimFiyat") && (
+                  <TableCell className="text-right tabular-nums">
+                    {formatTL(m.birimFiyat)}
+                  </TableCell>
+                )}
+                {gorunurEk.map((k) => (
+                  <TableCell key={k.key}>{k.hucre(m)}</TableCell>
+                ))}
+                {kolon.temelGorunur("durum") && (
+                  <TableCell>
+                    <Badge
+                      variant={m.durum === "Aktif" ? "default" : "secondary"}
+                    >
+                      {m.durum}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -370,7 +625,7 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={2 + kolon.gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Malzeme bulunamadı.
@@ -419,6 +674,9 @@ export function Materials({ malzemeler }: { malzemeler: Malzeme[] }) {
         onTipEkle={tipEkle}
         onSave={kaydet}
       />
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }

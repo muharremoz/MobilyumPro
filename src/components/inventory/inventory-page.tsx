@@ -30,7 +30,7 @@ export function InventoryPage({
   parcalar,
   depolar,
   hareketler,
-  tanimKolonAyari,
+  kolonAyarlari,
   kullanicilar,
   mevcutKullaniciId,
 }: {
@@ -40,8 +40,8 @@ export function InventoryPage({
   parcalar: Parca[];
   depolar: Depo[];
   hareketler: StokHareket[];
-  /** Tanımlamalar listesi kolon ayarları (liste_ayar "tanimlamalar"). */
-  tanimKolonAyari?: ListeKolonAyariDegeri;
+  /** listeId → kolon ayarı (liste_ayar); alt listeler kendi anahtarını okur. */
+  kolonAyarlari?: Record<string, ListeKolonAyariDegeri>;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
@@ -66,7 +66,15 @@ export function InventoryPage({
   if (bolum === "sayim") return <StockCount />;
 
   // Üretim
-  if (bolum === "malzemeler") return <Materials malzemeler={malzemeler} />;
+  if (bolum === "malzemeler")
+    return (
+      <Materials
+        malzemeler={malzemeler}
+        kolonAyari={kolonAyarlari?.["malzemeler"]}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
+      />
+    );
   if (bolum === "parcalar")
     return <Parts parcalar={parcalar} malzemeler={malzemeler} />;
 
@@ -76,7 +84,7 @@ export function InventoryPage({
       <DefinitionsPage
         hideMenu
         tip={bolum as DefTab}
-        kolonAyari={tanimKolonAyari}
+        kolonAyari={kolonAyarlari?.["tanimlamalar"]}
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}
       />
