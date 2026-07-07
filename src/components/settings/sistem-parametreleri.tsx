@@ -180,12 +180,12 @@ function ParametreSatiri({
             value={deger}
             onValueChange={(v) => v && onKaydet(v)}
             placeholder={tanim.etiket}
-            className="h-8 w-36"
+            className="h-8 w-32"
           />
         )}
 
         {tanim.tip === "sayi" && (
-          <InputGroup className="h-8 w-36 overflow-hidden">
+          <InputGroup className="h-8 w-28 overflow-hidden">
             <InputGroupInput
               type="number"
               value={deger}
@@ -215,7 +215,7 @@ function ParametreSatiri({
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
             }}
-            className="h-8 w-52"
+            className="h-8 w-44"
           />
         )}
       </div>
