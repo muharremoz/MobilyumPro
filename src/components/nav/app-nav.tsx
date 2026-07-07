@@ -444,6 +444,10 @@ function AppNavInner() {
                   {acikBolum.label}
                 </span>
               </button>
+              <div
+                aria-hidden="true"
+                className="my-1 h-px shrink-0 bg-[#ebebeb] duration-300 animate-in fade-in"
+              />
               <nav>
                 <ul key={acikBolum.id} className="flex flex-col gap-px">
                   {acikBolum.items.map((it, i) => (
