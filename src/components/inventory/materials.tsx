@@ -6,14 +6,9 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
   Check,
-  ArrowUpNarrowWide,
-  ArrowDownWideNarrow,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +28,7 @@ import {
   type KolonTanim,
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
   Dialog,
   DialogContent,
@@ -56,11 +52,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -257,187 +248,10 @@ export function Materials({
     await malzemeKaydet(m);
   }
 
-  // ── Kolon başlığı: sırala + filtre popover'ı (proje standardı) ──────────
-  const sortIkon = (k: SortKey) =>
-    sort.key !== k ? (
-      <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
-    ) : sort.dir === "asc" ? (
-      <ChevronUp className="size-3.5" />
-    ) : (
-      <ChevronDown className="size-3.5" />
-    );
-
-  const kolonFiltreAktif = (k: SortKey) => {
-    if (k === "id") return metinFiltre.id !== "";
-    if (k === "ad") return metinFiltre.ad !== "";
-    if (k === "tip") return tip !== "Tümü";
-    if (k === "birim") return birimF !== "Tümü";
-    if (k === "durum") return durum !== "Tümü";
-    return sayiFiltre[k].min !== "" || sayiFiltre[k].max !== "";
-  };
-  const kolonFiltreTemizle = (k: SortKey) => {
-    if (k === "id" || k === "ad") setMetinFiltre((f) => ({ ...f, [k]: "" }));
-    else if (k === "tip") setTip("Tümü");
-    else if (k === "birim") setBirimF("Tümü");
-    else if (k === "durum") setDurum("Tümü");
-    else setSayiFiltre((f) => ({ ...f, [k]: { min: "", max: "" } }));
-  };
-
-  const ogeCls = (seciliMi: boolean) =>
-    cn(
-      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-      seciliMi && "bg-accent/60 font-medium",
-    );
-
-  const SortBaslik = ({
-    k,
-    children,
-    className,
-  }: {
-    k: SortKey;
-    children: React.ReactNode;
-    className?: string;
-  }) => {
-    const aktif = kolonFiltreAktif(k);
-    const listeSecim =
-      k === "tip"
-        ? { deger: tip, ayarla: setTip, secenekler: ["Tümü", ...tipler] }
-        : k === "birim"
-          ? {
-              deger: birimF,
-              ayarla: setBirimF,
-              secenekler: ["Tümü", ...BIRIMLER],
-            }
-          : k === "durum"
-            ? {
-                deger: durum,
-                ayarla: setDurum,
-                secenekler: ["Tümü", "Aktif", "Pasif"],
-              }
-            : null;
-    return (
-      <TableHead className={className}>
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-              >
-                {children}
-                {sortIkon(k)}
-                {aktif && (
-                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                )}
-              </button>
-            }
-          />
-          <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
-            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Sırala
-            </p>
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "asc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "asc" })}
-              >
-                <ArrowUpNarrowWide className="size-4" /> Artan
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "desc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "desc" })}
-              >
-                <ArrowDownWideNarrow className="size-4" /> Azalan
-              </button>
-            </div>
-
-            <div className="my-1.5 h-px bg-border" />
-            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Filtre
-            </p>
-
-            {(k === "id" || k === "ad") && (
-              <Input
-                autoFocus
-                placeholder="İçeren metin..."
-                value={metinFiltre[k]}
-                onChange={(e) =>
-                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
-                }
-                className="h-8"
-              />
-            )}
-            {(k === "stok" || k === "birimFiyat") && (
-              <div className="grid grid-cols-2 gap-1.5">
-                <Input
-                  type="number"
-                  placeholder="En az"
-                  value={sayiFiltre[k].min}
-                  onChange={(e) =>
-                    setSayiFiltre((f) => ({
-                      ...f,
-                      [k]: { ...f[k], min: e.target.value },
-                    }))
-                  }
-                  className="h-8 tabular-nums"
-                />
-                <Input
-                  type="number"
-                  placeholder="En çok"
-                  value={sayiFiltre[k].max}
-                  onChange={(e) =>
-                    setSayiFiltre((f) => ({
-                      ...f,
-                      [k]: { ...f[k], max: e.target.value },
-                    }))
-                  }
-                  className="h-8 tabular-nums"
-                />
-              </div>
-            )}
-            {listeSecim && (
-              <div className="grid max-h-56 gap-0.5 overflow-auto">
-                {listeSecim.secenekler.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    className={ogeCls(listeSecim.deger === v)}
-                    onClick={() => listeSecim.ayarla(v)}
-                  >
-                    {v}
-                    {listeSecim.deger === v && (
-                      <Check className="ml-auto size-4" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {aktif && (
-              <>
-                <div className="my-1.5 h-px bg-border" />
-                <button
-                  type="button"
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
-                  onClick={() => kolonFiltreTemizle(k)}
-                >
-                  <Trash2 className="size-3.5" /> Filtreyi temizle
-                </button>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
-      </TableHead>
-    );
-  };
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
 
   return (
     <div className="flex flex-col gap-3">
@@ -483,29 +297,109 @@ export function Materials({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              {kolon.temelGorunur("kod") && <SortBaslik k="id">Kod</SortBaslik>}
-              <SortBaslik k="ad">Malzeme</SortBaslik>
+              {kolon.temelGorunur("kod") && (
+                <SiralaFiltreBaslik
+                  sira={sira("id")}
+                  onSirala={sirala("id")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.id,
+                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, id: v })),
+                  }}
+                >
+                  Kod
+                </SiralaFiltreBaslik>
+              )}
+              <SiralaFiltreBaslik
+                sira={sira("ad")}
+                onSirala={sirala("ad")}
+                filtre={{
+                  tip: "metin",
+                  deger: metinFiltre.ad,
+                  onDeger: (v) => setMetinFiltre((f) => ({ ...f, ad: v })),
+                }}
+              >
+                Malzeme
+              </SiralaFiltreBaslik>
               {kolon.temelGorunur("tip") && (
-                <SortBaslik k="tip">Tip</SortBaslik>
+                <SiralaFiltreBaslik
+                  sira={sira("tip")}
+                  onSirala={sirala("tip")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: tipler,
+                    deger: tip,
+                    onDeger: setTip,
+                  }}
+                >
+                  Tip
+                </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("birim") && (
-                <SortBaslik k="birim">Birim</SortBaslik>
+                <SiralaFiltreBaslik
+                  sira={sira("birim")}
+                  onSirala={sirala("birim")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: BIRIMLER,
+                    deger: birimF,
+                    onDeger: setBirimF,
+                  }}
+                >
+                  Birim
+                </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("stok") && (
-                <SortBaslik k="stok" className="text-right">
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("stok")}
+                  onSirala={sirala("stok")}
+                  filtre={{
+                    tip: "sayi",
+                    min: sayiFiltre.stok.min,
+                    max: sayiFiltre.stok.max,
+                    onDegis: (min, max) =>
+                      setSayiFiltre((f) => ({ ...f, stok: { min, max } })),
+                  }}
+                >
                   Stok
-                </SortBaslik>
+                </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("birimFiyat") && (
-                <SortBaslik k="birimFiyat" className="text-right">
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("birimFiyat")}
+                  onSirala={sirala("birimFiyat")}
+                  filtre={{
+                    tip: "sayi",
+                    min: sayiFiltre.birimFiyat.min,
+                    max: sayiFiltre.birimFiyat.max,
+                    onDegis: (min, max) =>
+                      setSayiFiltre((f) => ({
+                        ...f,
+                        birimFiyat: { min, max },
+                      })),
+                  }}
+                >
                   Birim Fiyat
-                </SortBaslik>
+                </SiralaFiltreBaslik>
               )}
               {gorunurEk.map((k) => (
                 <TableHead key={k.key}>{k.label}</TableHead>
               ))}
               {kolon.temelGorunur("durum") && (
-                <SortBaslik k="durum">Durum</SortBaslik>
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Aktif", "Pasif"],
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
               )}
               <TableHead className="w-10" />
             </TableRow>

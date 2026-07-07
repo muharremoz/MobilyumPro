@@ -7,22 +7,24 @@ import {
   Pencil,
   Copy,
   Trash2,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  ArrowUpNarrowWide,
-  ArrowDownWideNarrow,
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -38,15 +40,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -66,6 +62,21 @@ const KATEGORILER = [
 const SAYFA_BOYUT = 10;
 
 type SortKey = "ad" | "kategori" | "bilesen" | "maliyet" | "kullanim" | "durum";
+
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "ad", label: "Reçete", aciklama: "Reçetenin adı.", kilitli: true },
+  { key: "kategori", label: "Kategori", aciklama: "Reçetenin kategorisi." },
+  { key: "bilesen", label: "Bileşen", aciklama: "Reçetedeki bileşen sayısı." },
+  { key: "maliyet", label: "Maliyet", aciklama: "Fire dahil toplam maliyet." },
+  {
+    key: "kullanim",
+    label: "Kullanım",
+    aciklama: "Model ve reçetelerdeki kullanım sayısı.",
+  },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
 
 /** Reçete maliyeti — fire dahil, özyinelemeli (döngü korumalı). */
 export function receteMaliyeti(
@@ -95,15 +106,31 @@ export function ReceteListe({
   parcalar,
   malzemeler,
   modeller,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   parcalar: Parca[];
   malzemeler: Malzeme[];
   modeller: Model[];
+  /** Kolon ayarları (liste_ayar "receteler"). */
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
 }) {
   const router = useRouter();
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
+  // Kolon filtreleri (başlık popover'larından)
   const [adFiltre, setAdFiltre] = React.useState("");
   const [kategori, setKategori] = React.useState("Tümü");
+  const [bilesenAralik, setBilesenAralik] = React.useState({ min: "", max: "" });
+  const [maliyetAralik, setMaliyetAralik] = React.useState({ min: "", max: "" });
+  const [kullanimAralik, setKullanimAralik] = React.useState({
+    min: "",
+    max: "",
+  });
   const [durum, setDurum] = React.useState("Tümü");
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "ad", dir: "asc" },
@@ -111,6 +138,16 @@ export function ReceteListe({
   const [sayfa, setSayfa] = React.useState(1);
   const [kopyaKaynak, setKopyaKaynak] = React.useState<Parca | null>(null);
   const [kopyaAd, setKopyaAd] = React.useState("");
+
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "receteler",
+    yol: "/uretim/recete",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
 
   const malzemeMap = React.useMemo(
     () => new Map(malzemeler.map((m) => [m.id, m])),
@@ -134,22 +171,30 @@ export function ReceteListe({
     return m;
   }, [liste, modeller]);
 
-  React.useEffect(() => setSayfa(1), [adFiltre, kategori, durum]);
+  React.useEffect(
+    () => setSayfa(1),
+    [adFiltre, kategori, bilesenAralik, maliyetAralik, kullanimAralik, durum],
+  );
 
   const satirlar = React.useMemo(() => {
     const q = adFiltre.toLocaleLowerCase("tr");
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste
-      .filter(
-        (p) =>
-          (!q || p.ad.toLocaleLowerCase("tr").includes(q)) &&
-          (kategori === "Tümü" || p.kategori === kategori) &&
-          (durum === "Tümü" || p.durum === durum),
-      )
       .map((p) => ({
         p,
         maliyet: receteMaliyeti(p.recete, malzemeMap, parcaMap),
         kullanimSayisi: kullanim.get(p.id) ?? 0,
-      }));
+      }))
+      .filter(
+        (x) =>
+          (!q || x.p.ad.toLocaleLowerCase("tr").includes(q)) &&
+          (kategori === "Tümü" || x.p.kategori === kategori) &&
+          arada(x.p.recete.length, bilesenAralik.min, bilesenAralik.max) &&
+          arada(x.maliyet, maliyetAralik.min, maliyetAralik.max) &&
+          arada(x.kullanimSayisi, kullanimAralik.min, kullanimAralik.max) &&
+          (durum === "Tümü" || x.p.durum === durum),
+      );
     const yon = sort.dir === "asc" ? 1 : -1;
     return arr.sort((a, b) => {
       const deger = (x: (typeof arr)[number]) =>
@@ -170,7 +215,19 @@ export function ReceteListe({
         return (va - vb) * yon;
       return String(va).localeCompare(String(vb), "tr") * yon;
     });
-  }, [liste, adFiltre, kategori, durum, sort, malzemeMap, parcaMap, kullanim]);
+  }, [
+    liste,
+    adFiltre,
+    kategori,
+    bilesenAralik,
+    maliyetAralik,
+    kullanimAralik,
+    durum,
+    sort,
+    malzemeMap,
+    parcaMap,
+    kullanim,
+  ]);
 
   const toplamSayfa = Math.max(1, Math.ceil(satirlar.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -201,149 +258,16 @@ export function ReceteListe({
     router.push(`/uretim/recete/${res.id}`);
   }
 
-  // ── Kolon başlığı: sırala + filtre popover'ı ──────────────────────────
-  const sortIkon = (k: SortKey) =>
-    sort.key !== k ? (
-      <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
-    ) : sort.dir === "asc" ? (
-      <ChevronUp className="size-3.5" />
-    ) : (
-      <ChevronDown className="size-3.5" />
-    );
-  const filtreAktif = (k: SortKey) =>
-    k === "ad"
-      ? adFiltre !== ""
-      : k === "kategori"
-        ? kategori !== "Tümü"
-        : k === "durum"
-          ? durum !== "Tümü"
-          : false;
-  const filtreTemizle = (k: SortKey) => {
-    if (k === "ad") setAdFiltre("");
-    else if (k === "kategori") setKategori("Tümü");
-    else if (k === "durum") setDurum("Tümü");
-  };
-  const ogeCls = (seciliMi: boolean) =>
-    cn(
-      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-      seciliMi && "bg-accent/60 font-medium",
-    );
-
-  const SortBaslik = ({
-    k,
-    children,
-    className,
-  }: {
-    k: SortKey;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <TableHead className={className}>
-      <Popover>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-1 hover:text-foreground",
-                className?.includes("text-right") && "flex-row-reverse",
-              )}
-            >
-              {children}
-              {sortIkon(k)}
-              {filtreAktif(k) && (
-                <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-              )}
-            </button>
-          }
-        />
-        <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
-          <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Sırala
-          </p>
-          <div className="grid grid-cols-2 gap-1">
-            <button
-              type="button"
-              className={cn(
-                ogeCls(sort.key === k && sort.dir === "asc"),
-                "justify-center",
-              )}
-              onClick={() => setSort({ key: k, dir: "asc" })}
-            >
-              <ArrowUpNarrowWide className="size-4" /> Artan
-            </button>
-            <button
-              type="button"
-              className={cn(
-                ogeCls(sort.key === k && sort.dir === "desc"),
-                "justify-center",
-              )}
-              onClick={() => setSort({ key: k, dir: "desc" })}
-            >
-              <ArrowDownWideNarrow className="size-4" /> Azalan
-            </button>
-          </div>
-          {(k === "ad" || k === "kategori" || k === "durum") && (
-            <>
-              <div className="my-1.5 h-px bg-border" />
-              <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Filtre
-              </p>
-              {k === "ad" && (
-                <Input
-                  autoFocus
-                  placeholder="İçeren metin..."
-                  value={adFiltre}
-                  onChange={(e) => setAdFiltre(e.target.value)}
-                  className="h-8"
-                />
-              )}
-              {(k === "kategori" || k === "durum") && (
-                <div className="grid max-h-56 gap-0.5 overflow-auto">
-                  {(k === "kategori"
-                    ? ["Tümü", ...KATEGORILER]
-                    : ["Tümü", "Aktif", "Pasif"]
-                  ).map((v) => {
-                    const secili = k === "kategori" ? kategori : durum;
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        className={ogeCls(secili === v)}
-                        onClick={() =>
-                          k === "kategori" ? setKategori(v) : setDurum(v)
-                        }
-                      >
-                        {v}
-                        {secili === v && <Check className="ml-auto size-4" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {filtreAktif(k) && (
-                <>
-                  <div className="my-1.5 h-px bg-border" />
-                  <button
-                    type="button"
-                    className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
-                    onClick={() => filtreTemizle(k)}
-                  >
-                    <Trash2 className="size-3.5" /> Filtreyi temizle
-                  </button>
-                </>
-              )}
-            </>
-          )}
-        </PopoverContent>
-      </Popover>
-    </TableHead>
-  );
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
 
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Reçeteler">
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             nativeButton={false}
             render={<Link href="/uretim/recete/yeni" />}
@@ -354,18 +278,86 @@ export function ReceteListe({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortBaslik k="ad">Reçete</SortBaslik>
-              <SortBaslik k="kategori">Kategori</SortBaslik>
-              <SortBaslik k="bilesen" className="text-right">
-                Bileşen
-              </SortBaslik>
-              <SortBaslik k="maliyet" className="text-right">
-                Maliyet
-              </SortBaslik>
-              <SortBaslik k="kullanim" className="text-right">
-                Kullanım
-              </SortBaslik>
-              <SortBaslik k="durum">Durum</SortBaslik>
+              <SiralaFiltreBaslik
+                sira={sira("ad")}
+                onSirala={sirala("ad")}
+                filtre={{ tip: "metin", deger: adFiltre, onDeger: setAdFiltre }}
+              >
+                Reçete
+              </SiralaFiltreBaslik>
+              {kolon.temelGorunur("kategori") && (
+                <SiralaFiltreBaslik
+                  sira={sira("kategori")}
+                  onSirala={sirala("kategori")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: KATEGORILER,
+                    deger: kategori,
+                    onDeger: setKategori,
+                  }}
+                >
+                  Kategori
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("bilesen") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("bilesen")}
+                  onSirala={sirala("bilesen")}
+                  filtre={{
+                    tip: "sayi",
+                    min: bilesenAralik.min,
+                    max: bilesenAralik.max,
+                    onDegis: (min, max) => setBilesenAralik({ min, max }),
+                  }}
+                >
+                  Bileşen
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("maliyet") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("maliyet")}
+                  onSirala={sirala("maliyet")}
+                  filtre={{
+                    tip: "sayi",
+                    min: maliyetAralik.min,
+                    max: maliyetAralik.max,
+                    onDegis: (min, max) => setMaliyetAralik({ min, max }),
+                  }}
+                >
+                  Maliyet
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("kullanim") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("kullanim")}
+                  onSirala={sirala("kullanim")}
+                  filtre={{
+                    tip: "sayi",
+                    min: kullanimAralik.min,
+                    max: kullanimAralik.max,
+                    onDegis: (min, max) => setKullanimAralik({ min, max }),
+                  }}
+                >
+                  Kullanım
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("durum") && (
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Aktif", "Pasif"],
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -380,29 +372,41 @@ export function ReceteListe({
                   }
                 >
                   <TableCell className="font-medium">{p.ad}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {p.kategori}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground tabular-nums">
-                    {p.recete.length}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatTL(maliyet)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {kullanimSayisi > 0 ? (
-                      <Badge variant="secondary" className="tabular-nums">
-                        {kullanimSayisi} yerde
+                  {kolon.temelGorunur("kategori") && (
+                    <TableCell className="text-muted-foreground">
+                      {p.kategori}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("bilesen") && (
+                    <TableCell className="text-right text-muted-foreground tabular-nums">
+                      {p.recete.length}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("maliyet") && (
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatTL(maliyet)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("kullanim") && (
+                    <TableCell className="text-right">
+                      {kullanimSayisi > 0 ? (
+                        <Badge variant="secondary" className="tabular-nums">
+                          {kullanimSayisi} yerde
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={p.durum === "Aktif" ? "default" : "secondary"}
+                      >
+                        {p.durum}
                       </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.durum === "Aktif" ? "default" : "secondary"}>
-                      {p.durum}
-                    </Badge>
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-44">
                   <ContextMenuItem
@@ -430,7 +434,7 @@ export function ReceteListe({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Reçete bulunamadı.
@@ -509,6 +513,9 @@ export function ReceteListe({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }

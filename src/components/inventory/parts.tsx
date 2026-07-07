@@ -2,15 +2,11 @@
 
 import * as React from "react";
 import {
-  Search,
   Plus,
   MoreHorizontal,
   Pencil,
   Trash2,
   Trash,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -24,6 +20,15 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { BlocksIcon } from "@/components/ui/icons/blocks";
@@ -65,19 +70,44 @@ const KATEGORILER: ParcaKategori[] = [
   "Diğer",
 ];
 const SAYFA_BOYUT = 8;
-type SortKey = "id" | "ad" | "kategori" | "durum";
+type SortKey = "id" | "ad" | "kategori" | "recete" | "durum";
+
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "id", label: "Kod", aciklama: "Parça kodu (PRC-####)." },
+  { key: "ad", label: "Parça", aciklama: "Parçanın adı.", kilitli: true },
+  { key: "kategori", label: "Kategori", aciklama: "Parça kategorisi." },
+  { key: "recete", label: "Reçete", aciklama: "Reçetedeki satır sayısı." },
+  {
+    key: "malzeme",
+    label: "Malzeme",
+    aciklama: "Alt-parçalar çözülmüş toplam malzeme çeşidi.",
+  },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
 
 export function Parts({
   parcalar,
   malzemeler,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   parcalar: Parca[];
   malzemeler: Malzeme[];
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
-  const [arama, setArama] = React.useState("");
+  // Kolon filtreleri (başlık popover'larından)
+  const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [kategori, setKategori] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
+  const [receteAralik, setReceteAralik] = React.useState({ min: "", max: "" });
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "id", dir: "asc" },
   );
@@ -86,24 +116,41 @@ export function Parts({
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Parca | null>(null);
 
-  React.useEffect(() => setSayfa(1), [arama, kategori, durum]);
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "parcalar",
+    yol: "/stok-yonetimi",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+
+  React.useEffect(
+    () => setSayfa(1),
+    [metinFiltre, kategori, durum, receteAralik],
+  );
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter((p) => {
-      const ara =
-        p.ad.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+      const kod = p.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
+      const ad = p.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
       const k = kategori === "Tümü" || p.kategori === kategori;
       const d = durum === "Tümü" || p.durum === durum;
-      return ara && k && d;
+      const r = arada(p.recete.length, receteAralik.min, receteAralik.max);
+      return kod && ad && k && d && r;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
+      if (sort.key === "recete")
+        return (a.recete.length - b.recete.length) * yon;
       const x = a[sort.key];
       const y = b[sort.key];
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, arama, kategori, durum, sort]);
+  }, [liste, metinFiltre, kategori, durum, receteAralik, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -121,13 +168,6 @@ export function Parts({
     return m.size;
   }
 
-  function sortla(k: SortKey) {
-    setSort((s) =>
-      s.key === k
-        ? { key: k, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key: k, dir: "asc" },
-    );
-  }
   function secimDegis(id: string, v: boolean) {
     setSecili((s) => {
       const n = new Set(s);
@@ -183,74 +223,13 @@ export function Parts({
     await parcaKaydet(p);
   }
 
-  const sortIkon = (k: SortKey) =>
-    sort.key !== k ? (
-      <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
-    ) : sort.dir === "asc" ? (
-      <ChevronUp className="size-3.5" />
-    ) : (
-      <ChevronDown className="size-3.5" />
-    );
-  const SortBaslik = ({
-    k,
-    children,
-    className,
-  }: {
-    k: SortKey;
-    children: React.ReactNode;
-    className?: string;
-  }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => sortla(k)}
-        className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-      >
-        {children}
-        {sortIkon(k)}
-      </button>
-    </TableHead>
-  );
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Parça veya kod ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <div className="w-44">
-          <SearchSelect
-            items={["Tümü", ...KATEGORILER]}
-            value={kategori}
-            onValueChange={(v) => setKategori(v ?? "Tümü")}
-            placeholder="Kategori"
-          />
-        </div>
-        <div className="w-36">
-          <SearchSelect
-            items={["Tümü", "Aktif", "Pasif"]}
-            value={durum}
-            onValueChange={(v) => setDurum(v ?? "Tümü")}
-            placeholder="Durum"
-          />
-        </div>
-        <Button
-          className="ml-auto"
-          onClick={() => {
-            setDuzenlenen(null);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="size-4" /> Yeni Parça
-        </Button>
-      </div>
-
       {secili.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span className="font-medium">{secili.size} seçili</span>
@@ -268,7 +247,20 @@ export function Parts({
         </div>
       )}
 
+      {/* Tablo — proje standardı liste kartı */}
       <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Parçalar">
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
+          <Button
+            size="sm"
+            onClick={() => {
+              setDuzenlenen(null);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Yeni Parça
+          </Button>
+        </ListHeader>
         <Table>
           <TableHeader>
             <TableRow>
@@ -280,12 +272,76 @@ export function Parts({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              <SortBaslik k="id">Kod</SortBaslik>
-              <SortBaslik k="ad">Parça</SortBaslik>
-              <SortBaslik k="kategori">Kategori</SortBaslik>
-              <TableHead className="text-right">Reçete</TableHead>
-              <TableHead className="text-right">Malzeme</TableHead>
-              <SortBaslik k="durum">Durum</SortBaslik>
+              {kolon.temelGorunur("id") && (
+                <SiralaFiltreBaslik
+                  sira={sira("id")}
+                  onSirala={sirala("id")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.id,
+                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, id: v })),
+                  }}
+                >
+                  Kod
+                </SiralaFiltreBaslik>
+              )}
+              <SiralaFiltreBaslik
+                sira={sira("ad")}
+                onSirala={sirala("ad")}
+                filtre={{
+                  tip: "metin",
+                  deger: metinFiltre.ad,
+                  onDeger: (v) => setMetinFiltre((f) => ({ ...f, ad: v })),
+                }}
+              >
+                Parça
+              </SiralaFiltreBaslik>
+              {kolon.temelGorunur("kategori") && (
+                <SiralaFiltreBaslik
+                  sira={sira("kategori")}
+                  onSirala={sirala("kategori")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: KATEGORILER,
+                    deger: kategori,
+                    onDeger: setKategori,
+                  }}
+                >
+                  Kategori
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("recete") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("recete")}
+                  onSirala={sirala("recete")}
+                  filtre={{
+                    tip: "sayi",
+                    min: receteAralik.min,
+                    max: receteAralik.max,
+                    onDegis: (min, max) => setReceteAralik({ min, max }),
+                  }}
+                >
+                  Reçete
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("malzeme") && (
+                <TableHead className="text-right">Malzeme</TableHead>
+              )}
+              {kolon.temelGorunur("durum") && (
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Aktif", "Pasif"],
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
+              )}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -307,24 +363,36 @@ export function Parts({
                     aria-label={`${p.ad} seç`}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {p.id}
-                </TableCell>
+                {kolon.temelGorunur("id") && (
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {p.id}
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">{p.ad}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {p.kategori}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {p.recete.length}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {malzemeAdet(p)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={p.durum === "Aktif" ? "default" : "secondary"}>
-                    {p.durum}
-                  </Badge>
-                </TableCell>
+                {kolon.temelGorunur("kategori") && (
+                  <TableCell className="text-muted-foreground">
+                    {p.kategori}
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("recete") && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {p.recete.length}
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("malzeme") && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {malzemeAdet(p)}
+                  </TableCell>
+                )}
+                {kolon.temelGorunur("durum") && (
+                  <TableCell>
+                    <Badge
+                      variant={p.durum === "Aktif" ? "default" : "secondary"}
+                    >
+                      {p.durum}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -360,7 +428,7 @@ export function Parts({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={2 + kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Parça bulunamadı.
@@ -409,6 +477,9 @@ export function Parts({
         tumMalzemeler={malzemeler}
         onSave={kaydet}
       />
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }

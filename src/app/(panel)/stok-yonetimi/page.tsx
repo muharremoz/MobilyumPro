@@ -23,6 +23,11 @@ export default async function StokYonetimiPage({
     hareketler,
     tanimAyar,
     malzemeAyar,
+    parcaAyar,
+    depoAyar,
+    hareketAyar,
+    stokDurumAyar,
+    sayimAyar,
     kullanicilar,
   ] = await Promise.all([
     getModeller(),
@@ -32,6 +37,11 @@ export default async function StokYonetimiPage({
     getStokHareketleri(),
     getListeKolonAyari("tanimlamalar"),
     getListeKolonAyari("malzemeler"),
+    getListeKolonAyari("parcalar"),
+    getListeKolonAyari("depolar"),
+    getListeKolonAyari("stok-hareketleri"),
+    getListeKolonAyari("stok-durumu"),
+    getListeKolonAyari("sayim"),
     getKullanicilar(),
   ]);
   // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
@@ -47,7 +57,15 @@ export default async function StokYonetimiPage({
       parcalar={parcalar}
       depolar={depolar}
       hareketler={hareketler}
-      kolonAyarlari={{ tanimlamalar: tanimAyar, malzemeler: malzemeAyar }}
+      kolonAyarlari={{
+        tanimlamalar: tanimAyar,
+        malzemeler: malzemeAyar,
+        parcalar: parcaAyar,
+        depolar: depoAyar,
+        "stok-hareketleri": hareketAyar,
+        "stok-durumu": stokDurumAyar,
+        sayim: sayimAyar,
+      }}
       kullanicilar={kullanicilar.map((k) => ({ id: k.id, ad: k.adSoyad }))}
       mevcutKullaniciId={mevcutKullaniciId}
     />

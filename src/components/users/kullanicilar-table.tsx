@@ -5,13 +5,8 @@ import Link from "next/link";
 import {
   Pencil,
   Trash2,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  ArrowUpNarrowWide,
-  ArrowDownWideNarrow,
   Check,
   Wand2,
   Copy,
@@ -29,6 +24,14 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { ErrorShakeField } from "@/components/ui/error-shake";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
@@ -55,11 +58,6 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Table,
   TableBody,
   TableCell,
@@ -85,14 +83,44 @@ const SAYFA_BOYUT = 8;
 type SortKey = "adSoyad" | "email" | "telefon" | "departman" | "rol" | "durum";
 type MetinKolon = "adSoyad" | "email" | "telefon";
 
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  {
+    key: "adSoyad",
+    label: "Ad Soyad",
+    aciklama: "Kullanıcının adı soyadı.",
+    kilitli: true,
+  },
+  { key: "email", label: "E-posta", aciklama: "E-posta adresi." },
+  { key: "telefon", label: "Telefon", aciklama: "Telefon numarası." },
+  {
+    key: "departman",
+    label: "Departman",
+    aciklama: "Bağlı olduğu departman.",
+  },
+  { key: "rol", label: "Rol", aciklama: "Yetki rolü." },
+  { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
+
 export function KullanicilarTable({
   kullanicilar,
   roller: rollerProp,
   departmanlar: departmanlarProp,
+  kolonAyari,
+  kisiSecenekleri = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   kullanicilar: KullaniciGorunum[];
   roller: string[];
   departmanlar: string[];
+  /** Kolon ayarları (liste_ayar "kullanicilar"). */
+  kolonAyari?: ListeKolonAyariDegeri;
+  /** Kolon-ayar sheet'indeki kullanıcı seçenekleri (liste verisiyle karışmasın). */
+  kisiSecenekleri?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
@@ -135,6 +163,17 @@ export function KullanicilarTable({
     }
   }
 
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "kullanicilar",
+    yol: "/kullanicilar",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+
+  // Filtre değişince ilk sayfaya dön.
   React.useEffect(() => setSayfa(1), [metinFiltre, rol, departman, durum]);
 
   const filtreli = React.useMemo(() => {
@@ -266,154 +305,12 @@ export function KullanicilarTable({
     setSheetOpen(true);
   }
 
-  const sortIkon = (k: SortKey) =>
-    sort.key !== k ? (
-      <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
-    ) : sort.dir === "asc" ? (
-      <ChevronUp className="size-3.5" />
-    ) : (
-      <ChevronDown className="size-3.5" />
-    );
-
-  const kolonFiltreAktif = (k: SortKey) => {
-    if (k === "rol") return rol !== "Tümü";
-    if (k === "departman") return departman !== "Tümü";
-    if (k === "durum") return durum !== "Tümü";
-    return metinFiltre[k as MetinKolon] !== "";
-  };
-  const kolonFiltreTemizle = (k: SortKey) => {
-    if (k === "rol") setRol("Tümü");
-    else if (k === "departman") setDepartman("Tümü");
-    else if (k === "durum") setDurum("Tümü");
-    else setMetinFiltre((f) => ({ ...f, [k]: "" }));
-  };
-
-  const ogeCls = (seciliMi: boolean) =>
-    cn(
-      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-      seciliMi && "bg-accent/60 font-medium",
-    );
-
-  const SortBaslik = ({
-    k,
-    children,
-    className,
-  }: {
-    k: SortKey;
-    children: React.ReactNode;
-    className?: string;
-  }) => {
-    const aktif = kolonFiltreAktif(k);
-    return (
-      <TableHead className={className}>
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground"
-              >
-                {children}
-                {sortIkon(k)}
-                {aktif && (
-                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                )}
-              </button>
-            }
-          />
-          <PopoverContent align="start" className="w-56 gap-0 p-1.5 text-left">
-            {/* Sıralama */}
-            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Sırala
-            </p>
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "asc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "asc" })}
-              >
-                <ArrowUpNarrowWide className="size-4" /> Artan
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "desc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "desc" })}
-              >
-                <ArrowDownWideNarrow className="size-4" /> Azalan
-              </button>
-            </div>
-
-            <div className="my-1.5 h-px bg-border" />
-            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Filtre
-            </p>
-
-            {(k === "rol" || k === "departman" || k === "durum") && (
-              <div className="grid max-h-56 gap-0.5 overflow-auto">
-                {(k === "rol"
-                  ? ["Tümü", ...roller]
-                  : k === "departman"
-                    ? ["Tümü", ...departmanlar]
-                    : ["Tümü", "Aktif", "Pasif"]
-                ).map((v) => {
-                  const seciliDeger =
-                    k === "rol" ? rol : k === "departman" ? departman : durum;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      className={ogeCls(seciliDeger === v)}
-                      onClick={() =>
-                        k === "rol"
-                          ? setRol(v)
-                          : k === "departman"
-                            ? setDepartman(v)
-                            : setDurum(v)
-                      }
-                    >
-                      {v}
-                      {seciliDeger === v && <Check className="ml-auto size-4" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {(k === "adSoyad" || k === "email" || k === "telefon") && (
-              <Input
-                autoFocus
-                placeholder="İçeren metin..."
-                value={metinFiltre[k]}
-                onChange={(e) =>
-                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
-                }
-                className="h-8"
-              />
-            )}
-
-            {aktif && (
-              <>
-                <div className="my-1.5 h-px bg-border" />
-                <button
-                  type="button"
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
-                  onClick={() => kolonFiltreTemizle(k)}
-                >
-                  <Trash2 className="size-3.5" /> Filtreyi temizle
-                </button>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
-      </TableHead>
-    );
-  };
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
+  const metinDeger = (k: MetinKolon) => (v: string) =>
+    setMetinFiltre((f) => ({ ...f, [k]: v }));
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
@@ -436,6 +333,7 @@ export function KullanicilarTable({
 
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Kullanıcılar">
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             variant="outline"
             nativeButton={false}
@@ -464,12 +362,85 @@ export function KullanicilarTable({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              <SortBaslik k="adSoyad">Ad Soyad</SortBaslik>
-              <SortBaslik k="email">E-posta</SortBaslik>
-              <SortBaslik k="telefon">Telefon</SortBaslik>
-              <SortBaslik k="departman">Departman</SortBaslik>
-              <SortBaslik k="rol">Rol</SortBaslik>
-              <SortBaslik k="durum">Durum</SortBaslik>
+              <SiralaFiltreBaslik
+                sira={sira("adSoyad")}
+                onSirala={sirala("adSoyad")}
+                filtre={{
+                  tip: "metin",
+                  deger: metinFiltre.adSoyad,
+                  onDeger: metinDeger("adSoyad"),
+                }}
+              >
+                Ad Soyad
+              </SiralaFiltreBaslik>
+              {kolon.temelGorunur("email") && (
+                <SiralaFiltreBaslik
+                  sira={sira("email")}
+                  onSirala={sirala("email")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.email,
+                    onDeger: metinDeger("email"),
+                  }}
+                >
+                  E-posta
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("telefon") && (
+                <SiralaFiltreBaslik
+                  sira={sira("telefon")}
+                  onSirala={sirala("telefon")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.telefon,
+                    onDeger: metinDeger("telefon"),
+                  }}
+                >
+                  Telefon
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("departman") && (
+                <SiralaFiltreBaslik
+                  sira={sira("departman")}
+                  onSirala={sirala("departman")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: departmanlar,
+                    deger: departman,
+                    onDeger: setDepartman,
+                  }}
+                >
+                  Departman
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("rol") && (
+                <SiralaFiltreBaslik
+                  sira={sira("rol")}
+                  onSirala={sirala("rol")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: roller,
+                    deger: rol,
+                    onDeger: setRol,
+                  }}
+                >
+                  Rol
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("durum") && (
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Aktif", "Pasif"],
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -495,36 +466,46 @@ export function KullanicilarTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium">{k.adSoyad}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {k.email ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {k.telefon ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    {k.departman ? (
-                      <Badge variant="secondary">{k.departman}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        ROL_RENK[k.rol] ?? "bg-slate-100 text-slate-700",
+                  {kolon.temelGorunur("email") && (
+                    <TableCell className="text-muted-foreground">
+                      {k.email ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("telefon") && (
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {k.telefon ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("departman") && (
+                    <TableCell>
+                      {k.departman ? (
+                        <Badge variant="secondary">{k.departman}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
                       )}
-                    >
-                      {k.rol}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={k.durum === "Aktif" ? "default" : "secondary"}
-                    >
-                      {k.durum}
-                    </Badge>
-                  </TableCell>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("rol") && (
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          ROL_RENK[k.rol] ?? "bg-slate-100 text-slate-700",
+                        )}
+                      >
+                        {k.rol}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={k.durum === "Aktif" ? "default" : "secondary"}
+                      >
+                        {k.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-52">
                   <ContextMenuItem
@@ -566,7 +547,7 @@ export function KullanicilarTable({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={1 + kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Kullanıcı bulunamadı.
@@ -617,6 +598,9 @@ export function KullanicilarTable({
         onRolEkle={rolEkle}
         onSave={kaydet}
       />
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kisiSecenekleri} />
     </div>
   );
 }

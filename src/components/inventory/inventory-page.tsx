@@ -60,10 +60,28 @@ export function InventoryPage({
         hareketler={hareketler}
         urunler={urunler}
         malzemeler={malzemeler}
+        kolonAyari={kolonAyarlari?.["stok-hareketleri"]}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
       />
     );
-  if (bolum === "depolar") return <Warehouses depolar={depolar} />;
-  if (bolum === "sayim") return <StockCount />;
+  if (bolum === "depolar")
+    return (
+      <Warehouses
+        depolar={depolar}
+        kolonAyari={kolonAyarlari?.["depolar"]}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
+      />
+    );
+  if (bolum === "sayim")
+    return (
+      <StockCount
+        kolonAyari={kolonAyarlari?.["sayim"]}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
+      />
+    );
 
   // Üretim
   if (bolum === "malzemeler")
@@ -76,7 +94,15 @@ export function InventoryPage({
       />
     );
   if (bolum === "parcalar")
-    return <Parts parcalar={parcalar} malzemeler={malzemeler} />;
+    return (
+      <Parts
+        parcalar={parcalar}
+        malzemeler={malzemeler}
+        kolonAyari={kolonAyarlari?.["parcalar"]}
+        kullanicilar={kullanicilar}
+        mevcutKullaniciId={mevcutKullaniciId}
+      />
+    );
 
   // Tanımlamalar
   if (TANIM_TIPLERI.includes(bolum as DefTab)) {
@@ -92,5 +118,12 @@ export function InventoryPage({
   }
 
   // Varsayılan: Stok Durumu
-  return <StockStatus urunler={urunler} />;
+  return (
+    <StockStatus
+      urunler={urunler}
+      kolonAyari={kolonAyarlari?.["stok-durumu"]}
+      kullanicilar={kullanicilar}
+      mevcutKullaniciId={mevcutKullaniciId}
+    />
+  );
 }

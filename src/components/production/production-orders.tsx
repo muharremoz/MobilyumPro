@@ -5,15 +5,20 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { SearchSelect } from "@/components/ui/search-select";
-import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -30,6 +35,8 @@ const DURUMLAR: UretimDurum[] = [
   "Tamamlandı",
   "İptal",
 ];
+
+const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 
 const DURUM_RENK: Record<UretimDurum, string> = {
   Planlandı: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -54,72 +61,227 @@ function UretimBadge({ durum }: { durum: UretimDurum }) {
   );
 }
 
-export function ProductionOrders({ emirler }: { emirler: UretimEmri[] }) {
-  const [arama, setArama] = React.useState("");
+/** Emrin hedefi: müşteri, depo ya da kaynak sipariş. */
+const hedefStr = (e: UretimEmri) =>
+  e.musteri ?? e.hedefDepo ?? e.kaynakSiparis ?? "";
+
+type SortKey =
+  | "id"
+  | "urunAd"
+  | "adet"
+  | "durum"
+  | "oncelik"
+  | "olusturma"
+  | "termin"
+  | "hedef";
+
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  {
+    key: "id",
+    label: "Emir No",
+    aciklama: "Üretim emrinin numarası.",
+    kilitli: true,
+  },
+  { key: "urunAd", label: "Model", aciklama: "Üretilecek model." },
+  { key: "adet", label: "Adet", aciklama: "Üretilecek adet." },
+  { key: "durum", label: "Durum", aciklama: "Üretim emrinin durumu." },
+  { key: "oncelik", label: "Öncelik", aciklama: "Üretim önceliği." },
+  { key: "olusturma", label: "Oluşturma", aciklama: "Emrin oluşturma tarihi." },
+  { key: "termin", label: "Termin", aciklama: "Hedef bitiş tarihi." },
+  {
+    key: "hedef",
+    label: "Hedef",
+    aciklama: "Hedef müşteri, depo veya kaynak sipariş.",
+  },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
+
+export function ProductionOrders({
+  emirler,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
+}: {
+  emirler: UretimEmri[];
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
+}) {
+  // Kolon filtreleri (başlık popover'larından)
+  const [noFiltre, setNoFiltre] = React.useState("");
+  const [modelFiltre, setModelFiltre] = React.useState("");
+  const [adetAralik, setAdetAralik] = React.useState({ min: "", max: "" });
   const [durum, setDurum] = React.useState("Tümü");
+  const [oncelik, setOncelik] = React.useState("Tümü");
+  const [hedefFiltre, setHedefFiltre] = React.useState("");
+  const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "id",
+    dir: "desc",
+  });
+
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "uretim-emirleri",
+    yol: "/uretim/emirler",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
-    return emirler.filter((e) => {
-      const ara =
-        e.urunAd.toLowerCase().includes(q) || e.id.toLowerCase().includes(q);
+    const qNo = noFiltre.toLowerCase();
+    const qModel = modelFiltre.toLowerCase();
+    const qHedef = hedefFiltre.toLowerCase();
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
+    const arr = emirler.filter((e) => {
+      const no = e.id.toLowerCase().includes(qNo);
+      const model = e.urunAd.toLowerCase().includes(qModel);
+      const adet = arada(e.adet, adetAralik.min, adetAralik.max);
       const d = durum === "Tümü" || e.durum === durum;
-      return ara && d;
+      const o = oncelik === "Tümü" || e.oncelik === oncelik;
+      const h = hedefStr(e).toLowerCase().includes(qHedef);
+      return no && model && adet && d && o && h;
     });
-  }, [emirler, arama, durum]);
+    const yon = sort.dir === "asc" ? 1 : -1;
+    const deger = (e: UretimEmri): string | number => {
+      if (sort.key === "hedef") return hedefStr(e);
+      const v = e[sort.key];
+      return v ?? "";
+    };
+    return [...arr].sort((a, b) => {
+      const x = deger(a);
+      const y = deger(b);
+      if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
+      return String(x).localeCompare(String(y), "tr") * yon;
+    });
+  }, [emirler, noFiltre, modelFiltre, adetAralik, durum, oncelik, hedefFiltre, sort]);
+
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
 
   return (
-    <div>
-      <PageHeader baslik="Üretim Emirleri">
-        <Link
-          href="/uretim/plan"
-          className={buttonVariants({ size: "lg" })}
-        >
-          <Plus className="size-4" /> Yeni Üretim Emri
-        </Link>
-      </PageHeader>
-
-      {/* Filtreler */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Input
-          value={arama}
-          onChange={(e) => setArama(e.target.value)}
-          placeholder="Emir no / model ara..."
-          className="h-9 w-60"
-        />
-        <SearchSelect
-          items={["Tümü", ...DURUMLAR]}
-          value={durum}
-          onValueChange={(v) => setDurum(v ?? "Tümü")}
-          placeholder="Durum"
-          searchPlaceholder="Durum ara..."
-          className="w-44"
-        />
-        <span className="ml-auto text-sm text-muted-foreground">
-          {filtreli.length} emir
-        </span>
-      </div>
-
-      {/* Liste */}
-      <div className="rounded-md border bg-card">
+    <div className="flex flex-col gap-3">
+      {/* Liste — proje standardı liste kartı */}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Üretim Emirleri">
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/uretim/plan" />}
+          >
+            <Plus className="size-4" /> Yeni Üretim Emri
+          </Button>
+        </ListHeader>
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead>Emir No</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead className="text-right">Adet</TableHead>
-              <TableHead>Durum</TableHead>
-              <TableHead>Öncelik</TableHead>
-              <TableHead>Oluşturma</TableHead>
-              <TableHead>Termin</TableHead>
-              <TableHead>Hedef</TableHead>
+            <TableRow>
+              <SiralaFiltreBaslik
+                sira={sira("id")}
+                onSirala={sirala("id")}
+                filtre={{ tip: "metin", deger: noFiltre, onDeger: setNoFiltre }}
+              >
+                Emir No
+              </SiralaFiltreBaslik>
+              {kolon.temelGorunur("urunAd") && (
+                <SiralaFiltreBaslik
+                  sira={sira("urunAd")}
+                  onSirala={sirala("urunAd")}
+                  filtre={{
+                    tip: "metin",
+                    deger: modelFiltre,
+                    onDeger: setModelFiltre,
+                  }}
+                >
+                  Model
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("adet") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("adet")}
+                  onSirala={sirala("adet")}
+                  filtre={{
+                    tip: "sayi",
+                    min: adetAralik.min,
+                    max: adetAralik.max,
+                    onDegis: (min, max) => setAdetAralik({ min, max }),
+                  }}
+                >
+                  Adet
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("durum") && (
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: DURUMLAR,
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("oncelik") && (
+                <SiralaFiltreBaslik
+                  sira={sira("oncelik")}
+                  onSirala={sirala("oncelik")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ONCELIKLER,
+                    deger: oncelik,
+                    onDeger: setOncelik,
+                  }}
+                >
+                  Öncelik
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("olusturma") && (
+                <SiralaFiltreBaslik
+                  sira={sira("olusturma")}
+                  onSirala={sirala("olusturma")}
+                >
+                  Oluşturma
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("termin") && (
+                <SiralaFiltreBaslik
+                  sira={sira("termin")}
+                  onSirala={sirala("termin")}
+                >
+                  Termin
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("hedef") && (
+                <SiralaFiltreBaslik
+                  sira={sira("hedef")}
+                  onSirala={sirala("hedef")}
+                  filtre={{
+                    tip: "metin",
+                    deger: hedefFiltre,
+                    onDeger: setHedefFiltre,
+                  }}
+                >
+                  Hedef
+                </SiralaFiltreBaslik>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtreli.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={kolon.gorunurTemelSayisi}
                   className="py-10 text-center text-sm text-muted-foreground"
                 >
                   Kayıt bulunamadı.
@@ -131,40 +293,61 @@ export function ProductionOrders({ emirler }: { emirler: UretimEmri[] }) {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {e.id}
                   </TableCell>
-                  <TableCell className="font-medium">{e.urunAd}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {e.adet}
-                  </TableCell>
-                  <TableCell>
-                    <UretimBadge durum={e.durum} />
-                  </TableCell>
-                  <TableCell>
-                    {e.oncelik ? (
-                      <Badge
-                        variant="secondary"
-                        className={ONCELIK_RENK[e.oncelik]}
-                      >
-                        {e.oncelik}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatTarih(e.olusturma)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {e.termin ? formatTarih(e.termin) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {e.musteri ?? e.hedefDepo ?? e.kaynakSiparis ?? "—"}
-                  </TableCell>
+                  {kolon.temelGorunur("urunAd") && (
+                    <TableCell className="font-medium">{e.urunAd}</TableCell>
+                  )}
+                  {kolon.temelGorunur("adet") && (
+                    <TableCell className="text-right tabular-nums">
+                      {e.adet}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <UretimBadge durum={e.durum} />
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("oncelik") && (
+                    <TableCell>
+                      {e.oncelik ? (
+                        <Badge
+                          variant="secondary"
+                          className={ONCELIK_RENK[e.oncelik]}
+                        >
+                          {e.oncelik}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("olusturma") && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatTarih(e.olusturma)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("termin") && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {e.termin ? formatTarih(e.termin) : "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("hedef") && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {hedefStr(e) || "—"}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <div className="text-sm text-muted-foreground">
+        {filtreli.length} emir
+      </div>
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }

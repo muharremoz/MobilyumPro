@@ -1,12 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Search, AlertTriangle, Boxes, AlertOctagon } from "lucide-react";
+import { AlertTriangle, Boxes, AlertOctagon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { SearchSelect } from "@/components/ui/search-select";
+import { ListHeader } from "@/components/ui/list-header";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
   Card,
   CardContent,
@@ -17,7 +24,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -31,28 +37,94 @@ function durum(stok: number) {
   return { etiket: "Yeterli", renk: "bg-emerald-100 text-emerald-800" };
 }
 
-export function StockStatus({ urunler }: { urunler: Model[] }) {
-  const [arama, setArama] = React.useState("");
+type SortKey = "id" | "ad" | "kategori" | "stok" | "durum";
+
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "id", label: "Kod", aciklama: "Model kodu." },
+  { key: "ad", label: "Model", aciklama: "Modelin adı.", kilitli: true },
+  { key: "kategori", label: "Kategori", aciklama: "Model kategorisi." },
+  { key: "stok", label: "Stok", aciklama: "Eldeki miktar." },
+  {
+    key: "durum",
+    label: "Durum",
+    aciklama: "Stok durumu (Yeterli/Kritik/Tükendi).",
+  },
+];
+const EK_KOLONLAR: KolonTanim[] = [];
+
+export function StockStatus({
+  urunler,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
+  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
+}: {
+  urunler: Model[];
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
+  yonetici?: boolean;
+}) {
+  // Kolon filtreleri (başlık popover'larından)
+  const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
+  const [kategoriF, setKategoriF] = React.useState("Tümü");
+  const [stokAralik, setStokAralik] = React.useState({ min: "", max: "" });
   const [filt, setFilt] = React.useState("Tümü");
+  const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
+    { key: "stok", dir: "asc" },
+  );
+
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "stok-durumu",
+    yol: "/stok-yonetimi",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
+
+  const kategoriler = React.useMemo(
+    () => [...new Set(urunler.map((u) => u.kategori))],
+    [urunler],
+  );
 
   const filtreli = React.useMemo(() => {
-    const q = arama.toLowerCase();
-    return urunler
-      .filter((u) => {
-        const ara =
-          u.ad.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
-        let dur = true;
-        if (filt === "Tükendi") dur = u.stok === 0;
-        else if (filt === "Kritik") dur = u.stok > 0 && u.stok <= 5;
-        else if (filt === "Yeterli") dur = u.stok > 5;
-        return ara && dur;
-      })
-      .sort((a, b) => a.stok - b.stok);
-  }, [arama, filt]);
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
+    const arr = urunler.filter((u) => {
+      const kod = u.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
+      const ad = u.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
+      const k = kategoriF === "Tümü" || u.kategori === kategoriF;
+      const s = arada(u.stok, stokAralik.min, stokAralik.max);
+      let dur = true;
+      if (filt === "Tükendi") dur = u.stok === 0;
+      else if (filt === "Kritik") dur = u.stok > 0 && u.stok <= 5;
+      else if (filt === "Yeterli") dur = u.stok > 5;
+      return kod && ad && k && s && dur;
+    });
+    const yon = sort.dir === "asc" ? 1 : -1;
+    return [...arr].sort((a, b) => {
+      if (sort.key === "stok") return (a.stok - b.stok) * yon;
+      if (sort.key === "durum")
+        return (
+          durum(a.stok).etiket.localeCompare(durum(b.stok).etiket, "tr") * yon
+        );
+      const x = a[sort.key];
+      const y = b[sort.key];
+      return String(x).localeCompare(String(y), "tr") * yon;
+    });
+  }, [urunler, metinFiltre, kategoriF, stokAralik, filt, sort]);
 
   const kritik = urunler.filter((u) => u.stok > 0 && u.stok <= 5).length;
   const tukenen = urunler.filter((u) => u.stok === 0).length;
   const toplamAdet = urunler.reduce((t, u) => t + u.stok, 0);
+
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
+    setSort({ key: k, dir });
 
   return (
     <div className="flex flex-col gap-3">
@@ -76,35 +148,81 @@ export function StockStatus({ urunler }: { urunler: Model[] }) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Model veya kod ara..."
-            value={arama}
-            onChange={(e) => setArama(e.target.value)}
-            className="h-9 pl-9"
-          />
-        </div>
-        <div className="w-36">
-          <SearchSelect
-            items={["Tümü", "Yeterli", "Kritik", "Tükendi"]}
-            value={filt}
-            onValueChange={(v) => setFilt(v ?? "Tümü")}
-            placeholder="Stok Durumu"
-          />
-        </div>
-      </div>
-
+      {/* Tablo — proje standardı liste kartı */}
       <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Stok Durumu">
+          {yonetici && <KolonAyarButonu kolon={kolon} />}
+        </ListHeader>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kod</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead className="text-right">Stok</TableHead>
-              <TableHead>Durum</TableHead>
+              {kolon.temelGorunur("id") && (
+                <SiralaFiltreBaslik
+                  sira={sira("id")}
+                  onSirala={sirala("id")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.id,
+                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, id: v })),
+                  }}
+                >
+                  Kod
+                </SiralaFiltreBaslik>
+              )}
+              <SiralaFiltreBaslik
+                sira={sira("ad")}
+                onSirala={sirala("ad")}
+                filtre={{
+                  tip: "metin",
+                  deger: metinFiltre.ad,
+                  onDeger: (v) => setMetinFiltre((f) => ({ ...f, ad: v })),
+                }}
+              >
+                Model
+              </SiralaFiltreBaslik>
+              {kolon.temelGorunur("kategori") && (
+                <SiralaFiltreBaslik
+                  sira={sira("kategori")}
+                  onSirala={sirala("kategori")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: kategoriler,
+                    deger: kategoriF,
+                    onDeger: setKategoriF,
+                  }}
+                >
+                  Kategori
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("stok") && (
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("stok")}
+                  onSirala={sirala("stok")}
+                  filtre={{
+                    tip: "sayi",
+                    min: stokAralik.min,
+                    max: stokAralik.max,
+                    onDegis: (min, max) => setStokAralik({ min, max }),
+                  }}
+                >
+                  Stok
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("durum") && (
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Yeterli", "Kritik", "Tükendi"],
+                    deger: filt,
+                    onDeger: setFilt,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -112,28 +230,36 @@ export function StockStatus({ urunler }: { urunler: Model[] }) {
               const d = durum(u.stok);
               return (
                 <TableRow key={u.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {u.id}
-                  </TableCell>
+                  {kolon.temelGorunur("id") && (
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {u.id}
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{u.ad}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {u.kategori}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {u.stok}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={d.renk}>
-                      {d.etiket}
-                    </Badge>
-                  </TableCell>
+                  {kolon.temelGorunur("kategori") && (
+                    <TableCell className="text-muted-foreground">
+                      {u.kategori}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("stok") && (
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {u.stok}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge variant="secondary" className={d.renk}>
+                        {d.etiket}
+                      </Badge>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
             {filtreli.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Kayıt bulunamadı.
@@ -146,6 +272,9 @@ export function StockStatus({ urunler }: { urunler: Model[] }) {
       <span className="text-sm text-muted-foreground">
         {filtreli.length} model
       </span>
+
+      {/* Sütun ayarları sheet'i — proje standardı */}
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
     </div>
   );
 }
