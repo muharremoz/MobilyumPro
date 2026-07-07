@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,19 @@ export function SistemParametreleri({
   const [overrideler, setOverrideler] = React.useState<Set<string>>(
     () => new Set(Object.keys(dbDegerler)),
   );
+  const [arama, setArama] = React.useState("");
   const kayitli = React.useRef({ ...degerler });
+
+  // Arama: etiket, açıklama ve anahtar üzerinden süz; boş gruplar gizlenir.
+  const q = arama.trim().toLocaleLowerCase("tr");
+  const eslesir = (p: (typeof PARAMETRELER)[number]) =>
+    !q ||
+    p.etiket.toLocaleLowerCase("tr").includes(q) ||
+    p.aciklama.toLocaleLowerCase("tr").includes(q) ||
+    p.anahtar.toLocaleLowerCase("tr").includes(q);
+  const gorunurGruplar = PARAMETRE_GRUPLARI.filter((grup) =>
+    PARAMETRELER.some((p) => p.grup === grup && eslesir(p)),
+  );
 
   async function kaydet(anahtar: string, yeni: string) {
     if (yeni === kayitli.current[anahtar]) return;
@@ -85,26 +97,44 @@ export function SistemParametreleri({
   return (
     <TooltipProvider delay={200}>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-        {PARAMETRE_GRUPLARI.map((grup) => (
+        {/* Arama */}
+        <div className="relative">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Parametre ara..."
+            value={arama}
+            onChange={(e) => setArama(e.target.value)}
+            className="h-9 pl-9"
+          />
+        </div>
+
+        {gorunurGruplar.map((grup) => (
           <div key={grup} className="overflow-hidden rounded-md border bg-card">
             <ListHeader title={grup} />
             <div className="divide-y">
-              {PARAMETRELER.filter((p) => p.grup === grup).map((p) => (
-                <ParametreSatiri
-                  key={p.anahtar}
-                  tanim={p}
-                  deger={degerler[p.anahtar]}
-                  override={overrideler.has(p.anahtar)}
-                  onDegis={(v) =>
-                    setDegerler((s) => ({ ...s, [p.anahtar]: v }))
-                  }
-                  onKaydet={(v) => kaydet(p.anahtar, v)}
-                  onSifirla={() => sifirla(p)}
-                />
-              ))}
+              {PARAMETRELER.filter((p) => p.grup === grup && eslesir(p)).map(
+                (p) => (
+                  <ParametreSatiri
+                    key={p.anahtar}
+                    tanim={p}
+                    deger={degerler[p.anahtar]}
+                    override={overrideler.has(p.anahtar)}
+                    onDegis={(v) =>
+                      setDegerler((s) => ({ ...s, [p.anahtar]: v }))
+                    }
+                    onKaydet={(v) => kaydet(p.anahtar, v)}
+                    onSifirla={() => sifirla(p)}
+                  />
+                ),
+              )}
             </div>
           </div>
         ))}
+        {gorunurGruplar.length === 0 && (
+          <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed p-8 text-sm text-muted-foreground">
+            Aramayla eşleşen parametre yok.
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );
