@@ -40,6 +40,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import { FormSheet } from "@/components/ui/form-sheet";
+import { SheetClose, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -94,22 +96,27 @@ function StokHucre({ stok }: { stok: number }) {
   );
 }
 
-/** Yöneticinin listeye ekleyebileceği isteğe bağlı kolonlar (liste_ayar'da saklanır). */
+/** Listeye eklenebilecek isteğe bağlı kolonlar. "Herkes görsün" işaretlenirse
+ *  seçim DB'de (liste_ayar) saklanır; aksi halde yalnızca bu tarayıcıda
+ *  (localStorage) geçerlidir. */
 const EK_KOLONLAR: {
   key: string;
   label: string;
+  aciklama: string;
   sag?: boolean;
   hucre: (u: Model) => React.ReactNode;
 }[] = [
   {
     key: "marka",
     label: "Marka",
+    aciklama: "Modelin üretici markası (Tanımlamalar → Markalar).",
     hucre: (u) =>
       u.marka ?? <span className="text-muted-foreground">—</span>,
   },
   {
     key: "barkod",
     label: "Barkod",
+    aciklama: "Modelin barkod numarası; etiket ve hızlı arama için.",
     hucre: (u) =>
       u.barkod ? (
         <span className="font-mono text-xs text-muted-foreground">
@@ -122,6 +129,7 @@ const EK_KOLONLAR: {
   {
     key: "minStok",
     label: "Min. Stok",
+    aciklama: "Kritik stok eşiği; stok bu değerin altına düşünce uyarılır.",
     sag: true,
     hucre: (u) =>
       u.minStok != null ? (
@@ -133,6 +141,7 @@ const EK_KOLONLAR: {
   {
     key: "agirlik",
     label: "Ağırlık",
+    aciklama: "Birim ağırlık (kg); sevkiyat ve yük hesapları için.",
     sag: true,
     hucre: (u) =>
       u.agirlik != null ? (
@@ -142,6 +151,9 @@ const EK_KOLONLAR: {
       ),
   },
 ];
+
+/** Kişisel (yalnızca bu tarayıcı) kolon seçiminin localStorage anahtarı. */
+const KOLON_LS_KEY = "mp_ek_kolonlar_urunler";
 
 export function ProductsTable({
   urunler,
@@ -156,25 +168,76 @@ export function ProductsTable({
   yonetici?: boolean;
 }) {
   const [liste, setListe] = React.useState<Model[]>(urunler);
-  const [seciliEk, setSeciliEk] = React.useState<Set<string>>(
+  // Ek kolonlar: DB seti herkes için, local set yalnızca bu tarayıcı için.
+  const [dbEk, setDbEk] = React.useState<Set<string>>(
     () => new Set(ekKolonlar ?? []),
   );
+  const [localEk, setLocalEk] = React.useState<Set<string>>(new Set());
+  const [kolonSheet, setKolonSheet] = React.useState(false);
 
-  const gorunurEk = EK_KOLONLAR.filter((k) => seciliEk.has(k.key));
+  // Kişisel seçim tarayıcıdan yüklenir (hydration sonrası).
+  React.useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(KOLON_LS_KEY) ?? "[]");
+      if (Array.isArray(v))
+        setLocalEk(new Set(v.filter((x) => typeof x === "string")));
+    } catch {
+      /* bozuk kayıt yok sayılır */
+    }
+  }, []);
 
-  async function ekKolonDegis(key: string, acik: boolean) {
-    const onceki = new Set(seciliEk);
-    const yeni = new Set(seciliEk);
-    if (acik) yeni.add(key);
-    else yeni.delete(key);
-    setSeciliEk(yeni);
+  const gorunurEk = EK_KOLONLAR.filter(
+    (k) => dbEk.has(k.key) || localEk.has(k.key),
+  );
+
+  function localYaz(s: Set<string>) {
+    setLocalEk(new Set(s));
+    localStorage.setItem(KOLON_LS_KEY, JSON.stringify([...s]));
+  }
+
+  async function dbYaz(yeni: Set<string>): Promise<boolean> {
+    const onceki = new Set(dbEk);
+    setDbEk(new Set(yeni));
     const sirali = EK_KOLONLAR.filter((k) => yeni.has(k.key)).map(
       (k) => k.key,
     );
     const res = await listeKolonKaydet("urunler", sirali);
     if (!res.ok) {
-      setSeciliEk(onceki);
+      setDbEk(onceki);
       toast.error(res.error ?? "Kolon ayarı kaydedilemedi.");
+      return false;
+    }
+    return true;
+  }
+
+  /** Kolonu göster/gizle — açınca önce kişisel; kapatınca her iki katmandan çıkar. */
+  async function gosterDegis(key: string, acik: boolean) {
+    const l = new Set(localEk);
+    if (acik) {
+      l.add(key);
+      localYaz(l);
+    } else {
+      l.delete(key);
+      localYaz(l);
+      if (dbEk.has(key)) {
+        const d = new Set(dbEk);
+        d.delete(key);
+        await dbYaz(d);
+      }
+    }
+  }
+
+  /** "Diğer kullanıcılar da görsün" — açınca DB'ye yazar, kapatınca kişisele düşer. */
+  async function herkesDegis(key: string, acik: boolean) {
+    const d = new Set(dbEk);
+    if (acik) d.add(key);
+    else d.delete(key);
+    const ok = await dbYaz(d);
+    if (ok && !acik) {
+      // Herkesten kaldırıldı ama bende görünmeye devam etsin.
+      const l = new Set(localEk);
+      l.add(key);
+      localYaz(l);
     }
   }
   const [kategori, setKategori] = React.useState(initialKategori ?? "Tümü");
@@ -518,35 +581,13 @@ export function ProductsTable({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Modeller">
           {yonetici && (
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button variant="outline" size="sm">
-                    <Columns3 className="size-4" /> Sütunlar
-                  </Button>
-                }
-              />
-              <PopoverContent align="end" className="w-48 p-1.5">
-                <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  Ek Sütunlar
-                </p>
-                <div className="grid gap-0.5">
-                  {EK_KOLONLAR.map((k) => (
-                    <label
-                      key={k.key}
-                      className="flex cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Checkbox
-                        checked={seciliEk.has(k.key)}
-                        onCheckedChange={(v) => ekKolonDegis(k.key, v === true)}
-                        aria-label={`${k.label} kolonu`}
-                      />
-                      {k.label}
-                    </label>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setKolonSheet(true)}
+            >
+              <Columns3 className="size-4" /> Sütunlar
+            </Button>
           )}
           <Button nativeButton={false} render={<Link href="/urunler/yeni" />}>
             Yeni Model
@@ -809,6 +850,60 @@ export function ProductsTable({
           </Button>
         </div>
       </div>
+
+      {/* Sütun ayarları sheet'i */}
+      <FormSheet
+        open={kolonSheet}
+        onOpenChange={setKolonSheet}
+        title="Liste Sütunları"
+        footer={
+          <SheetFooter className="mt-1 flex-row justify-end gap-2 rounded-md border bg-card p-2">
+            <SheetClose render={<Button variant="outline">Kapat</Button>} />
+          </SheetFooter>
+        }
+      >
+        <div className="grid gap-2.5">
+          <p className="text-xs text-muted-foreground">
+            Listeye eklenecek sütunları seçin. Seçim anında uygulanır;
+            &quot;Diğer kullanıcılar da görsün&quot; işaretlenmezse yalnızca bu
+            tarayıcıda geçerlidir.
+          </p>
+          {EK_KOLONLAR.map((k) => {
+            const gorunur = dbEk.has(k.key) || localEk.has(k.key);
+            const herkes = dbEk.has(k.key);
+            return (
+              <div key={k.key} className="rounded-md border p-3">
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <Checkbox
+                    checked={gorunur}
+                    onCheckedChange={(v) => gosterDegis(k.key, v === true)}
+                    aria-label={`${k.label} kolonunu göster`}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">
+                      {k.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {k.aciklama}
+                    </span>
+                  </span>
+                </label>
+                {gorunur && (
+                  <label className="mt-2 ml-7 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={herkes}
+                      onCheckedChange={(v) => herkesDegis(k.key, v === true)}
+                      aria-label={`${k.label} kolonunu herkes görsün`}
+                    />
+                    Diğer kullanıcılar da görsün
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </FormSheet>
     </div>
   );
 }
