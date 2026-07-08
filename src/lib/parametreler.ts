@@ -69,10 +69,20 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "negatif_stok",
     etiket: "Negatif Stok",
-    aciklama: "Stok eksiye düşecek hareketlere izin verilsin mi?",
+    aciklama:
+      "Stok eksiye düşecek hareketlere izin verilsin mi? Kapalıysa yetersiz stokta üretim başlatılamaz/ilerletilemez; açıksa uyarı verilir ve devam edilir.",
     grup: "Stok",
     tip: "boolean",
     varsayilan: "false",
+  },
+  {
+    anahtar: "uretimde_hemen_dus",
+    etiket: "Üretimde Stokları Hemen Düş",
+    aciklama:
+      "Açıkken emir üretime geçtiği an reçetedeki tüm malzemeler stoktan düşer. Kapalıyken malzemeler rezerve edilir ve her fabrika istasyonu tamamlandıkça o istasyonun bileşenleri düşer.",
+    grup: "Stok",
+    tip: "boolean",
+    varsayilan: "true",
   },
   {
     anahtar: "varsayilan_depo",

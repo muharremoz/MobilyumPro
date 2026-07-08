@@ -11,7 +11,6 @@ import {
   bottomSections,
   type AnimatedIcon,
 } from "@/components/nav/nav-config";
-import { urunler } from "@/lib/data";
 
 type Crumb = { label: string; href?: string };
 type CrumbSonuc = { crumbs: Crumb[]; Icon?: AnimatedIcon; meta?: string };
@@ -63,12 +62,11 @@ function getCrumbs(
   }
   if (/^\/urunler\/[^/]+\/duzenle$/.test(pathname)) {
     const id = pathname.split("/")[2];
-    const urun = urunler.find((u) => u.id === id);
     return {
       crumbs: [
         { label: "Stok Yönetimi" },
         { label: "Modeller", href: "/urunler" },
-        { label: urun?.ad ?? "Model", href: `/urunler/${id}` },
+        { label: id, href: `/urunler/${id}` },
         { label: "Düzenle" },
       ],
       Icon: iconForHref("/urunler"),
@@ -76,15 +74,14 @@ function getCrumbs(
   }
   if (/^\/urunler\/[^/]+$/.test(pathname)) {
     const id = pathname.split("/")[2];
-    const urun = urunler.find((u) => u.id === id);
     return {
       crumbs: [
         { label: "Stok Yönetimi" },
         { label: "Modeller", href: "/urunler" },
-        { label: urun?.ad ?? "Model" },
+        { label: "Model" },
       ],
       Icon: iconForHref("/urunler"),
-      meta: urun?.id,
+      meta: id,
     };
   }
   if (pathname === "/cari/yeni") {

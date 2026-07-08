@@ -69,26 +69,14 @@ export const MENU: { label: string; keys: TabKey[] }[] = [
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
 ];
 
-const t = (ad: string, adet: number, pasif = false): Tanim => ({
-  id: `${ad}-${Math.floor(Math.random() * 100000)}`,
-  ad,
-  adet,
-  durum: pasif ? "Pasif" : "Aktif",
-});
-
+// Tanımlar henüz DB'ye bağlı değil; temiz başlangıç için boş başlar.
 const ILK: Record<TabKey, Tanim[]> = {
-  kategoriler: [
-    t("Oturma Grubu", 24),
-    t("Yatak Odası", 18),
-    t("Yemek Odası", 12),
-    t("Çalışma", 9),
-    t("Aksesuar", 31),
-  ],
-  markalar: [t("Milano", 14), t("Roma", 9), t("Nordic", 21), t("Comfort", 6), t("Elegance", 11)],
-  koleksiyonlar: [t("Yaz 2026", 8), t("Klasik", 14), t("Modern", 22), t("Loft", 6)],
-  renkler: [t("Antrasit", 33), t("Krem", 27), t("Kahve", 19), t("Bej", 22), t("Gri", 14)],
-  kumaslar: [t("Keten", 12), t("Kadife", 9), t("Deri", 17), t("Pamuk", 6), t("Nubuk", 4, true)],
-  birimler: [t("Adet", 120), t("Takım", 42), t("m²", 15), t("Metre", 8), t("Set", 5, true)],
+  kategoriler: [],
+  markalar: [],
+  koleksiyonlar: [],
+  renkler: [],
+  kumaslar: [],
+  birimler: [],
 };
 
 type SortKey = "ad" | "adet" | "durum";

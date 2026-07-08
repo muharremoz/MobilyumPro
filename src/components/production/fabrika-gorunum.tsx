@@ -53,10 +53,28 @@ export function FabrikaGorunum({ emirler }: { emirler: FabrikaEmri[] }) {
     const res = await emriIlerlet(emirId);
     setIlerleyen(null);
     if (!res.ok) {
-      toast.error(res.error ?? "İlerletilemedi.");
+      toast.error(res.error ?? "İlerletilemedi.", {
+        description: res.eksikler
+          ?.map(
+            (e) =>
+              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}`,
+          )
+          .join(" · "),
+      });
       return;
     }
-    toast.success("Emir ilerletildi");
+    if (res.eksikler?.length) {
+      toast.warning("Emir ilerledi — stok negatife düştü", {
+        description: res.eksikler
+          .map(
+            (e) =>
+              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}`,
+          )
+          .join(" · "),
+      });
+    } else {
+      toast.success("Emir ilerletildi");
+    }
     router.refresh();
   }
 

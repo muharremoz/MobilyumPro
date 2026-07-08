@@ -35,6 +35,7 @@ import {
   type ParcaKategori,
   type ReceteSatiri,
 } from "@/lib/data";
+import { ISTASYONLAR, ISTASYON_MAP, ROTA } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
 import { parcaKaydet, receteGeriYukle } from "@/lib/db/actions";
 import { receteMaliyeti } from "@/components/production/recete-liste";
@@ -130,7 +131,13 @@ export function ReceteDetay({
     if (ad !== recete.ad || kategori !== recete.kategori) return true;
     const key = (r: ReceteSatiri[]) =>
       JSON.stringify(
-        r.map((s) => [s.bilesen.tip, s.bilesen.ref, s.miktar, s.fire ?? 0]),
+        r.map((s) => [
+          s.bilesen.tip,
+          s.bilesen.ref,
+          s.miktar,
+          s.fire ?? 0,
+          s.istasyon ?? "",
+        ]),
       );
     return key(satirlar) !== key(recete.recete);
   }, [ad, kategori, satirlar, recete, yeniMi]);
@@ -241,7 +248,12 @@ export function ReceteDetay({
       cikan: (eski ?? []).filter((s) => !yeniMap.has(key(s))),
       degisen: yeni.filter((s) => {
         const e = eskiMap.get(key(s));
-        return e && (e.miktar !== s.miktar || (e.fire ?? 0) !== (s.fire ?? 0));
+        return (
+          e &&
+          (e.miktar !== s.miktar ||
+            (e.fire ?? 0) !== (s.fire ?? 0) ||
+            (e.istasyon ?? "") !== (s.istasyon ?? ""))
+        );
       }),
     };
   }
@@ -289,9 +301,10 @@ export function ReceteDetay({
         {/* ── Sol: bileşen grid'i ── */}
         <div className="min-w-0 flex-1">
           <div className="overflow-hidden rounded-md border bg-card">
-            <div className="grid grid-cols-[88px_1fr_90px_56px_72px_100px_36px] items-center gap-2 border-b bg-[#fafafa] px-3 py-2 text-xs font-medium text-foreground">
+            <div className="grid grid-cols-[88px_1fr_130px_90px_56px_72px_100px_36px] items-center gap-2 border-b bg-[#fafafa] px-3 py-2 text-xs font-medium text-foreground">
               <span>Tip</span>
               <span>Bileşen</span>
+              <span>İstasyon</span>
               <span className="text-right">Miktar</span>
               <span>Birim</span>
               <span className="text-right">Fire %</span>
@@ -311,7 +324,7 @@ export function ReceteDetay({
                 const acik = acikAltlar.has(i);
                 return (
                   <React.Fragment key={i}>
-                    <div className="grid grid-cols-[88px_1fr_90px_56px_72px_100px_36px] items-center gap-2 px-3 py-2">
+                    <div className="grid grid-cols-[88px_1fr_130px_90px_56px_72px_100px_36px] items-center gap-2 px-3 py-2">
                       <Badge
                         variant="secondary"
                         className={cn(
@@ -378,6 +391,31 @@ export function ReceteDetay({
                           />
                         </div>
                       </div>
+                      {s.bilesen.tip === "malzeme" ? (
+                        <SearchSelect
+                          items={ISTASYONLAR.map((x) => x.ad)}
+                          value={
+                            ISTASYON_MAP.get(
+                              (s.istasyon ?? ROTA[0]) as (typeof ROTA)[number],
+                            )?.ad ?? null
+                          }
+                          onValueChange={(ad) =>
+                            satirGuncelle(i, {
+                              istasyon: ISTASYONLAR.find((x) => x.ad === ad)
+                                ?.slug,
+                            })
+                          }
+                          placeholder="İstasyon"
+                          className="h-8"
+                        />
+                      ) : (
+                        <span
+                          className="text-xs text-muted-foreground"
+                          title="Alt reçetenin tüketim yerleri kendi satırlarından gelir"
+                        >
+                          kendi reçetesi
+                        </span>
+                      )}
                       <Input
                         type="number"
                         min={0}

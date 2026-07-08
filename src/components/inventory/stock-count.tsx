@@ -36,12 +36,8 @@ type Sayim = {
   sorumlu: string;
 };
 
-const ILK: Sayim[] = [
-  { id: "SAY-2026-006", tarih: "2026-06-04", depo: "Ana Depo", sayilan: 312, fark: -3, durum: "Tamamlandı", sorumlu: "Ahmet Y." },
-  { id: "SAY-2026-005", tarih: "2026-06-02", depo: "Yedek Depo", sayilan: 178, fark: 0, durum: "Tamamlandı", sorumlu: "Mehmet K." },
-  { id: "SAY-2026-007", tarih: "2026-06-07", depo: "Showroom Merkez", sayilan: 0, fark: 0, durum: "Devam Ediyor", sorumlu: "Ayşe D." },
-  { id: "SAY-2026-008", tarih: "2026-06-10", depo: "Ana Depo", sayilan: 0, fark: 0, durum: "Planlandı", sorumlu: "Ahmet Y." },
-];
+// Sayım henüz DB'ye bağlı değil; temiz başlangıç için boş başlar.
+const ILK: Sayim[] = [];
 
 const DURUM_RENK: Record<SayimDurum, string> = {
   Planlandı: "bg-blue-100 text-blue-800",

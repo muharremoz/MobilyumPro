@@ -237,6 +237,8 @@ export function ProductionPlan({
           ? `${res.ids.length} üretim emri oluşturuldu.`
           : `${res.ids.length} taslak kaydedildi.`,
       );
+      // Stok yetersizliği uyarıları (negatife düşüş / Planlandı'ya bekletme).
+      for (const u of res.uyarilar ?? []) toast.warning(u, { duration: 8000 });
       router.push("/uretim/emirler");
     } catch {
       toast.error("Kaydedilemedi. Lütfen tekrar deneyin.");

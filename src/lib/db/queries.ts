@@ -88,6 +88,7 @@ export async function getParcalar(): Promise<Parca[]> {
           : { tip: "parca", ref: r.altParcaId! },
       miktar: Number(r.miktar),
       fire: Number(r.fire) || undefined,
+      istasyon: r.istasyon ?? undefined,
     };
     const arr = receteByParca.get(r.parcaId) ?? [];
     arr.push(satir);
@@ -273,6 +274,7 @@ export type ReceteVersiyonGorunum = {
     ref: string;
     miktar: number;
     fire?: number;
+    istasyon?: string;
   }[];
 };
 

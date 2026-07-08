@@ -64,6 +64,8 @@ export type ReceteSatiri = {
   miktar: number;
   /** Fire payı (%): brüt ihtiyaç = miktar × (1 + fire/100). */
   fire?: number;
+  /** Malzemenin tüketildiği fabrika istasyonu (slug); boşsa ilk istasyon. */
+  istasyon?: string;
 };
 export type ParcaSatiri = { parcaId: string; miktar: number };
 

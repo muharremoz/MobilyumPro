@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
 import { sifreHashle } from "./sifre";
-import { ROTA } from "../fabrika";
+import { ROTA, type IstasyonSlug } from "../fabrika";
+import {
+  istasyonDusumu,
+  mamulGirisi,
+  uretimeGecisDusumu,
+  type EksikMalzeme,
+} from "./stok";
 import type { ModulYetki } from "../yetki";
 import type {
   UretimDurum,
@@ -38,7 +44,7 @@ function bugun(): string {
 /** Bir veya daha fazla üretim emrini DB'ye yazar; sonraki UE-#### kodlarını üretir. */
 export async function uretimEmriOlustur(
   yeniler: YeniUretimEmri[],
-): Promise<{ ok: boolean; ids: string[] }> {
+): Promise<{ ok: boolean; ids: string[]; uyarilar?: string[] }> {
   if (yeniler.length === 0) return { ok: false, ids: [] };
 
   // Mevcut en yüksek UE-#### kodundan devam et.
@@ -80,74 +86,179 @@ export async function uretimEmriOlustur(
     ),
   });
 
+  // Üretimde doğan emirler: mod 1 toplu düşüm. Negatif stok kapalı ve stok
+  // yetersizse emir Planlandı'ya çekilir (rezerve bekler), uyarı döner.
+  const uyarilar: string[] = [];
+  for (const r of rows.filter((x) => x.durum === "Üretimde")) {
+    const dusum = await uretimeGecisDusumu({
+      id: r.id,
+      modelId: r.modelId,
+      modelAd: r.modelAd,
+      adet: r.adet,
+    });
+    if (!dusum.ok) {
+      await db.$transaction(async (tx) => {
+        await tx.uretimEmri.update({
+          where: { id: r.id },
+          data: { durum: "Planlandı" },
+        });
+        await tx.uretimEmriAdim.updateMany({
+          where: { emirId: r.id },
+          data: { durum: "Bekliyor", baslangic: null },
+        });
+      });
+      uyarilar.push(
+        `${r.id}: stok yetersiz, Planlandı olarak bekletildi (${dusum.eksikler
+          .map((e) => e.ad)
+          .join(", ")})`,
+      );
+    } else if (dusum.eksikler.length > 0) {
+      uyarilar.push(
+        `${r.id}: negatif stoğa düşüldü (${dusum.eksikler
+          .map((e) => e.ad)
+          .join(", ")})`,
+      );
+    }
+  }
+
   revalidatePath("/uretim/emirler");
   revalidatePath("/uretim/fabrika");
+  revalidatePath("/stok-yonetimi");
 
-  return { ok: true, ids: rows.map((r) => r.id) };
+  return { ok: true, ids: rows.map((r) => r.id), uyarilar };
 }
 
 /**
  * Emri fabrika rotasında bir adım ilerletir: aktif (İşleniyor) adım
  * tamamlanır, sıradaki adım İşleniyor olur. Planlandı'daki emirde ilk
  * adımı başlatır; son adım bitince emir Tamamlandı olur.
+ *
+ * Stok entegrasyonu:
+ *  - Başlatmada mod 1 (uretimde_hemen_dus) toplu düşüm yapılır.
+ *  - Adım tamamlanınca mod 2'de o istasyonun bileşenleri düşer.
+ *  - Paketleme adımı bitince mamul stoğa girer.
+ * Negatif stok kapalıysa yetersizlik ilerlemeyi ENGELLER; açıksa uyarı döner.
  */
-export async function emriIlerlet(
-  emirId: string,
-): Promise<{ ok: boolean; error?: string }> {
+export async function emriIlerlet(emirId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  eksikler?: EksikMalzeme[];
+}> {
   try {
-    const adimlar = await db.uretimEmriAdim.findMany({
-      where: { emirId },
-      orderBy: { sira: "asc" },
+    const emir = await db.uretimEmri.findUnique({
+      where: { id: emirId },
+      include: { adimlar: { orderBy: { sira: "asc" } } },
     });
+    if (!emir) return { ok: false, error: "Emir bulunamadı." };
+    const adimlar = emir.adimlar;
     if (adimlar.length === 0)
       return { ok: false, error: "Emrin rota adımları yok." };
 
+    const emirBilgi = {
+      id: emir.id,
+      modelId: emir.modelId,
+      modelAd: emir.modelAd,
+      adet: emir.adet,
+    };
     const simdi = new Date();
     const isleniyor = adimlar.find((a) => a.durum === "İşleniyor");
+    let eksikler: EksikMalzeme[] = [];
 
-    await db.$transaction(async (tx) => {
-      if (!isleniyor) {
-        // Henüz başlamamış: ilk bekleyen adımı başlat.
-        const ilkBekleyen = adimlar.find((a) => a.durum === "Bekliyor");
-        if (!ilkBekleyen) return;
-        await tx.uretimEmriAdim.update({
-          where: { id: ilkBekleyen.id },
-          data: { durum: "İşleniyor", baslangic: simdi },
+    if (!isleniyor) {
+      // Henüz başlamamış: önce mod 1 düşümü (engellenebilir), sonra başlat.
+      const dusum = await uretimeGecisDusumu(emirBilgi);
+      if (!dusum.ok)
+        return { ok: false, error: dusum.error, eksikler: dusum.eksikler };
+      eksikler = dusum.eksikler;
+
+      const ilkBekleyen = adimlar.find((a) => a.durum === "Bekliyor");
+      if (ilkBekleyen) {
+        await db.$transaction(async (tx) => {
+          await tx.uretimEmriAdim.update({
+            where: { id: ilkBekleyen.id },
+            data: { durum: "İşleniyor", baslangic: simdi },
+          });
+          await tx.uretimEmri.update({
+            where: { id: emirId },
+            data: { durum: "Üretimde" },
+          });
         });
-        await tx.uretimEmri.update({
-          where: { id: emirId },
-          data: { durum: "Üretimde" },
-        });
-        return;
       }
+    } else {
+      // Adım tamamlanıyor: önce mod 2 istasyon tüketimi (engellenebilir).
+      const dusum = await istasyonDusumu(
+        emirBilgi,
+        isleniyor.istasyon as IstasyonSlug,
+      );
+      if (!dusum.ok)
+        return { ok: false, error: dusum.error, eksikler: dusum.eksikler };
+      eksikler = dusum.eksikler;
 
-      await tx.uretimEmriAdim.update({
-        where: { id: isleniyor.id },
-        data: { durum: "Tamamlandı", bitis: simdi },
+      await db.$transaction(async (tx) => {
+        await tx.uretimEmriAdim.update({
+          where: { id: isleniyor.id },
+          data: { durum: "Tamamlandı", bitis: simdi },
+        });
+        const sonraki = adimlar.find((a) => a.sira === isleniyor.sira + 1);
+        if (sonraki) {
+          await tx.uretimEmriAdim.update({
+            where: { id: sonraki.id },
+            data: { durum: "İşleniyor", baslangic: simdi },
+          });
+          await tx.uretimEmri.update({
+            where: { id: emirId },
+            data: { durum: "Üretimde" },
+          });
+        } else {
+          await tx.uretimEmri.update({
+            where: { id: emirId },
+            data: { durum: "Tamamlandı" },
+          });
+        }
       });
-      const sonraki = adimlar.find((a) => a.sira === isleniyor.sira + 1);
-      if (sonraki) {
-        await tx.uretimEmriAdim.update({
-          where: { id: sonraki.id },
-          data: { durum: "İşleniyor", baslangic: simdi },
-        });
-        await tx.uretimEmri.update({
-          where: { id: emirId },
-          data: { durum: "Üretimde" },
-        });
-      } else {
-        await tx.uretimEmri.update({
-          where: { id: emirId },
-          data: { durum: "Tamamlandı" },
-        });
+
+      // Paketleme bitti → mamul girişi (her iki modda).
+      if (isleniyor.istasyon === "paketleme") {
+        await mamulGirisi(emirBilgi);
+        revalidatePath("/urunler");
+        revalidatePath("/stok-yonetimi");
       }
-    });
+    }
 
     revalidatePath("/uretim/fabrika");
     revalidatePath("/uretim/emirler");
-    return { ok: true };
+    return { ok: true, eksikler: eksikler.length ? eksikler : undefined };
   } catch {
     return { ok: false, error: "Emir ilerletilemedi." };
+  }
+}
+
+/**
+ * Emri iptal eder. Tamamlanmış emir iptal edilemez.
+ * Not: Düşülmüş stokların iadesi şimdilik kapsam dışı — hareketler
+ * ledger'da kalır, rezerv hesabı iptal emrini zaten dışlar.
+ */
+export async function emriIptalEt(
+  emirId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const emir = await db.uretimEmri.findUnique({ where: { id: emirId } });
+    if (!emir) return { ok: false, error: "Emir bulunamadı." };
+    if (emir.durum === "Tamamlandı")
+      return { ok: false, error: "Tamamlanmış emir iptal edilemez." };
+    if (emir.durum === "İptal")
+      return { ok: false, error: "Emir zaten iptal edilmiş." };
+
+    await db.uretimEmri.update({
+      where: { id: emirId },
+      data: { durum: "İptal" },
+    });
+    revalidatePath("/uretim/emirler");
+    revalidatePath("/uretim/fabrika");
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Emir iptal edilemedi." };
   }
 }
 
@@ -279,6 +390,7 @@ export type ReceteSnapshotSatir = {
   ref: string;
   miktar: number;
   fire?: number;
+  istasyon?: string;
 };
 
 function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
@@ -287,6 +399,7 @@ function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
     ref: r.bilesen.ref,
     miktar: r.miktar,
     ...(r.fire ? { fire: r.fire } : {}),
+    ...(r.istasyon ? { istasyon: r.istasyon } : {}),
   }));
 }
 
@@ -334,6 +447,7 @@ export async function parcaKaydet(
         altParcaId: r.bilesen.tip === "parca" ? r.bilesen.ref : null,
         miktar: r.miktar,
         fire: r.fire ?? 0,
+        istasyon: r.istasyon ?? null,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
 
@@ -387,6 +501,7 @@ export async function receteKopyala(
               : { tip: "parca" as const, ref: r.altParcaId! },
           miktar: Number(r.miktar),
           fire: Number(r.fire) || undefined,
+          istasyon: r.istasyon ?? undefined,
         })),
       },
       `"${kaynak.ad}" reçetesinden kopyalandı`,
@@ -424,6 +539,7 @@ export async function receteGeriYukle(
           bilesen: { tip: s.tip, ref: s.ref },
           miktar: s.miktar,
           fire: s.fire,
+          istasyon: s.istasyon,
         })),
       },
       `v${versiyonNo} sürümüne geri dönüldü`,
