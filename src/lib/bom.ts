@@ -79,6 +79,83 @@ export function modelMalzemeIhtiyaci(
   );
 }
 
+export type IhtiyacDokumSatiri = {
+  malzeme: Malzeme;
+  /** Fire hariç net ihtiyaç. */
+  netMiktar: number;
+  /** Fire dahil brüt ihtiyaç — stok motoru bu miktarı düşer. */
+  brutMiktar: number;
+  /** Tüketildiği istasyon slug'ları (reçete satırlarından). */
+  istasyonlar: string[];
+  /** Brüt miktar × birim fiyat. */
+  tutar: number;
+};
+
+function dokumPatlat(
+  parcaId: string,
+  netCarpan: number,
+  brutCarpan: number,
+  parcalar: Parca[],
+  topla: Map<string, { net: number; brut: number; istasyonlar: Set<string> }>,
+  gezilen: Set<string>,
+) {
+  if (gezilen.has(parcaId)) return; // döngü koruması
+  const parca = parcalar.find((p) => p.id === parcaId);
+  if (!parca) return;
+  const yeniGezilen = new Set(gezilen);
+  yeniGezilen.add(parcaId);
+
+  for (const s of parca.recete) {
+    const net = s.miktar * netCarpan;
+    const brut = s.miktar * (1 + (s.fire ?? 0) / 100) * brutCarpan;
+    if (s.bilesen.tip === "malzeme") {
+      const kayit = topla.get(s.bilesen.ref) ?? {
+        net: 0,
+        brut: 0,
+        istasyonlar: new Set<string>(),
+      };
+      kayit.net += net;
+      kayit.brut += brut;
+      if (s.istasyon) kayit.istasyonlar.add(s.istasyon);
+      topla.set(s.bilesen.ref, kayit);
+    } else {
+      dokumPatlat(s.bilesen.ref, net, brut, parcalar, topla, yeniGezilen);
+    }
+  }
+}
+
+/**
+ * Model formu için canlı malzeme dökümü — stok motoruyla (stok.ts
+ * parcayiPatlat) aynı fire mantığı: brüt = miktar × (1 + fire/100),
+ * alt-parça çarpanına fire dahil edilir.
+ */
+export function modelIhtiyacDokumu(
+  parcaSatirlari: ParcaSatiri[],
+  parcalar: Parca[],
+  malzemeler: Malzeme[],
+): IhtiyacDokumSatiri[] {
+  const topla = new Map<
+    string,
+    { net: number; brut: number; istasyonlar: Set<string> }
+  >();
+  for (const ps of parcaSatirlari) {
+    dokumPatlat(ps.parcaId, ps.miktar, ps.miktar, parcalar, topla, new Set());
+  }
+  const sonuc: IhtiyacDokumSatiri[] = [];
+  for (const [mid, k] of topla) {
+    const m = malzemeler.find((x) => x.id === mid);
+    if (!m) continue;
+    sonuc.push({
+      malzeme: m,
+      netMiktar: k.net,
+      brutMiktar: k.brut,
+      istasyonlar: [...k.istasyonlar],
+      tutar: k.brut * m.birimFiyat,
+    });
+  }
+  return sonuc.sort((a, b) => b.tutar - a.tutar);
+}
+
 export type Yeterlilik = {
   ihtiyac: MalzemeIhtiyac[];
   /** Stoğu yetersiz kalan malzemeler. */

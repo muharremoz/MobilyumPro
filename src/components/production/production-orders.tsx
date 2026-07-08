@@ -2,11 +2,28 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Ban, Factory, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { emriIlerlet, emriIptalEt } from "@/lib/db/actions";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -110,6 +127,10 @@ export function ProductionOrders({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
+  const router = useRouter();
+  // Context menu aksiyonları
+  const [ilerleyen, setIlerleyen] = React.useState<string | null>(null);
+  const [iptalEmir, setIptalEmir] = React.useState<UretimEmri | null>(null);
   // Kolon filtreleri (başlık popover'larından)
   const [noFiltre, setNoFiltre] = React.useState("");
   const [modelFiltre, setModelFiltre] = React.useState("");
@@ -160,6 +181,48 @@ export function ProductionOrders({
       return String(x).localeCompare(String(y), "tr") * yon;
     });
   }, [emirler, noFiltre, modelFiltre, adetAralik, durum, oncelik, hedefFiltre, sort]);
+
+  async function ilerlet(e: UretimEmri) {
+    setIlerleyen(e.id);
+    const res = await emriIlerlet(e.id);
+    setIlerleyen(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "İlerletilemedi.", {
+        description: res.eksikler
+          ?.map(
+            (x) =>
+              `${x.ad}: gereken ${x.gereken.toFixed(1)} ${x.birim}, eldeki ${x.eldeki.toFixed(1)}`,
+          )
+          .join(" · "),
+      });
+      return;
+    }
+    if (res.eksikler?.length) {
+      toast.warning("Emir ilerledi — stok negatife düştü", {
+        description: res.eksikler
+          .map(
+            (x) =>
+              `${x.ad}: gereken ${x.gereken.toFixed(1)} ${x.birim}, eldeki ${x.eldeki.toFixed(1)}`,
+          )
+          .join(" · "),
+      });
+    } else {
+      toast.success("Emir ilerletildi");
+    }
+    router.refresh();
+  }
+
+  async function iptalEt() {
+    if (!iptalEmir) return;
+    const res = await emriIptalEt(iptalEmir.id);
+    setIptalEmir(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "İptal edilemedi.");
+      return;
+    }
+    toast.success("Emir iptal edildi");
+    router.refresh();
+  }
 
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
@@ -289,7 +352,8 @@ export function ProductionOrders({
               </TableRow>
             ) : (
               filtreli.map((e) => (
-                <TableRow key={e.id}>
+                <ContextMenu key={e.id}>
+                  <ContextMenuTrigger render={<TableRow />}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {e.id}
                   </TableCell>
@@ -335,7 +399,32 @@ export function ProductionOrders({
                       {hedefStr(e) || "—"}
                     </TableCell>
                   )}
-                </TableRow>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    {(e.durum === "Planlandı" || e.durum === "Üretimde") && (
+                      <ContextMenuItem
+                        disabled={ilerleyen === e.id}
+                        onClick={() => ilerlet(e)}
+                      >
+                        <ArrowRight className="mr-2 size-4" />
+                        {e.durum === "Planlandı" ? "Üretimi Başlat" : "İlerlet"}
+                      </ContextMenuItem>
+                    )}
+                    <ContextMenuItem
+                      onClick={() => router.push("/uretim/fabrika")}
+                    >
+                      <Factory className="mr-2 size-4" /> Fabrikada Gör
+                    </ContextMenuItem>
+                    {(e.durum === "Planlandı" || e.durum === "Üretimde") && (
+                      <ContextMenuItem
+                        variant="destructive"
+                        onClick={() => setIptalEmir(e)}
+                      >
+                        <Ban className="mr-2 size-4" /> İptal Et
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
               ))
             )}
           </TableBody>
@@ -345,6 +434,40 @@ export function ProductionOrders({
       <div className="text-sm text-muted-foreground">
         {filtreli.length} emir
       </div>
+
+      {/* İptal onayı */}
+      <Dialog
+        open={iptalEmir !== null}
+        onOpenChange={(o) => !o && setIptalEmir(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Emri iptal et</DialogTitle>
+            <DialogDescription>
+              {iptalEmir && (
+                <>
+                  <span className="font-mono text-xs">{iptalEmir.id}</span> ·{" "}
+                  {iptalEmir.urunAd} × {iptalEmir.adet} iptal edilecek.
+                  {iptalEmir.durum === "Üretimde" &&
+                    " Üretimde düşülen stoklar şimdilik iade edilmez."}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="p-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIptalEmir(null)}
+            >
+              Vazgeç
+            </Button>
+            <Button size="sm" variant="destructive" onClick={iptalEt}>
+              <Ban className="size-3.5" /> İptal Et
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
