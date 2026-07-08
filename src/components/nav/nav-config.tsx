@@ -113,6 +113,7 @@ export const sections: Section[] = [
     RailIcon: I(HammerIcon),
     items: [
       { label: "Üretim Emirleri", href: "/uretim/emirler", icon: I(HammerIcon) },
+      { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
       { label: "Reçeteler (BOM)", href: "/uretim/recete", icon: I(LayersIcon) },
     ],
   },

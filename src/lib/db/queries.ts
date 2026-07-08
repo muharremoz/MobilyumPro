@@ -295,6 +295,31 @@ export async function getReceteVersiyonlari(): Promise<
   return sonuc;
 }
 
+/** Fabrika sahnesi: İptal dışındaki emirler + istasyon adımları. */
+export async function getFabrikaEmirleri(): Promise<
+  import("../fabrika").FabrikaEmri[]
+> {
+  const rows = await db.uretimEmri.findMany({
+    where: { durum: { notIn: ["İptal"] } },
+    include: { adimlar: { orderBy: { sira: "asc" } } },
+    orderBy: { id: "asc" },
+  });
+  return rows.map((e) => ({
+    id: e.id,
+    modelAd: e.modelAd,
+    adet: e.adet,
+    oncelik: e.oncelik ?? undefined,
+    durum: e.durum,
+    adimlar: e.adimlar.map((a) => ({
+      istasyon: a.istasyon as import("../fabrika").IstasyonSlug,
+      sira: a.sira,
+      durum: a.durum as import("../fabrika").AdimDurum,
+      baslangic: a.baslangic?.toISOString(),
+      bitis: a.bitis?.toISOString(),
+    })),
+  }));
+}
+
 /** Üretim planlama formunun ihtiyaç duyduğu hafif müşteri görünümü. */
 export type MusteriSecim = { id: string; ad: string; sehir: string };
 

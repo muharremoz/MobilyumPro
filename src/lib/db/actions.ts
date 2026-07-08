@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
 import { sifreHashle } from "./sifre";
+import { ROTA } from "../fabrika";
 import type { ModulYetki } from "../yetki";
 import type {
   UretimDurum,
@@ -64,9 +65,117 @@ export async function uretimEmriOlustur(
   }));
 
   await db.uretimEmri.createMany({ data: rows });
+
+  // Fabrika rotası: her emir için istasyon adımlarını oluştur.
+  // "Üretimde" başlayan emirde ilk adım hemen İşleniyor olur.
+  await db.uretimEmriAdim.createMany({
+    data: rows.flatMap((r) =>
+      ROTA.map((istasyon, i) => ({
+        emirId: r.id,
+        istasyon,
+        sira: i + 1,
+        durum: r.durum === "Üretimde" && i === 0 ? "İşleniyor" : "Bekliyor",
+        baslangic: r.durum === "Üretimde" && i === 0 ? new Date() : null,
+      })),
+    ),
+  });
+
   revalidatePath("/uretim/emirler");
+  revalidatePath("/uretim/fabrika");
 
   return { ok: true, ids: rows.map((r) => r.id) };
+}
+
+/**
+ * Emri fabrika rotasında bir adım ilerletir: aktif (İşleniyor) adım
+ * tamamlanır, sıradaki adım İşleniyor olur. Planlandı'daki emirde ilk
+ * adımı başlatır; son adım bitince emir Tamamlandı olur.
+ */
+export async function emriIlerlet(
+  emirId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const adimlar = await db.uretimEmriAdim.findMany({
+      where: { emirId },
+      orderBy: { sira: "asc" },
+    });
+    if (adimlar.length === 0)
+      return { ok: false, error: "Emrin rota adımları yok." };
+
+    const simdi = new Date();
+    const isleniyor = adimlar.find((a) => a.durum === "İşleniyor");
+
+    await db.$transaction(async (tx) => {
+      if (!isleniyor) {
+        // Henüz başlamamış: ilk bekleyen adımı başlat.
+        const ilkBekleyen = adimlar.find((a) => a.durum === "Bekliyor");
+        if (!ilkBekleyen) return;
+        await tx.uretimEmriAdim.update({
+          where: { id: ilkBekleyen.id },
+          data: { durum: "İşleniyor", baslangic: simdi },
+        });
+        await tx.uretimEmri.update({
+          where: { id: emirId },
+          data: { durum: "Üretimde" },
+        });
+        return;
+      }
+
+      await tx.uretimEmriAdim.update({
+        where: { id: isleniyor.id },
+        data: { durum: "Tamamlandı", bitis: simdi },
+      });
+      const sonraki = adimlar.find((a) => a.sira === isleniyor.sira + 1);
+      if (sonraki) {
+        await tx.uretimEmriAdim.update({
+          where: { id: sonraki.id },
+          data: { durum: "İşleniyor", baslangic: simdi },
+        });
+        await tx.uretimEmri.update({
+          where: { id: emirId },
+          data: { durum: "Üretimde" },
+        });
+      } else {
+        await tx.uretimEmri.update({
+          where: { id: emirId },
+          data: { durum: "Tamamlandı" },
+        });
+      }
+    });
+
+    revalidatePath("/uretim/fabrika");
+    revalidatePath("/uretim/emirler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Emir ilerletilemedi." };
+  }
+}
+
+/** Rota adımı olmayan (eski) emirlere adımları üretir. */
+export async function eksikAdimlariOlustur(): Promise<{
+  ok: boolean;
+  eklenen: number;
+}> {
+  const emirler = await db.uretimEmri.findMany({
+    where: { durum: { notIn: ["İptal", "Tamamlandı"] } },
+    include: { adimlar: { select: { id: true } } },
+  });
+  const eksikler = emirler.filter((e) => e.adimlar.length === 0);
+  if (eksikler.length === 0) return { ok: true, eklenen: 0 };
+
+  await db.uretimEmriAdim.createMany({
+    data: eksikler.flatMap((e) =>
+      ROTA.map((istasyon, i) => ({
+        emirId: e.id,
+        istasyon,
+        sira: i + 1,
+        durum: e.durum === "Üretimde" && i === 0 ? "İşleniyor" : "Bekliyor",
+        baslangic: e.durum === "Üretimde" && i === 0 ? new Date() : null,
+      })),
+    ),
+  });
+  revalidatePath("/uretim/fabrika");
+  return { ok: true, eklenen: eksikler.length };
 }
 
 /** Malzeme ekle/güncelle (id varsa upsert). */
