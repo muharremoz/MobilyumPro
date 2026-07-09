@@ -550,7 +550,11 @@ export function CariFormPage({
         <BankaTab cariId={cari.id} kayitlar={detay.bankalar} />
       )}
       {duzenleme && cari && tab === "subeler" && (
-        <SubelerTab cariId={cari.id} kayitlar={detay.subeler} />
+        <SubelerTab
+          cariId={cari.id}
+          kayitlar={detay.subeler}
+          adresSecenekleri={adresSecenekleri}
+        />
       )}
       {duzenleme && cari && tab === "yetkililer" && (
         <YetkililerTab
@@ -1842,9 +1846,11 @@ function BankaSheet({
 function SubelerTab({
   cariId,
   kayitlar,
+  adresSecenekleri,
 }: {
   cariId: string;
   kayitlar: CariSube[];
+  adresSecenekleri: AdresSecenekleri;
 }) {
   const [liste, setListe] = React.useState<CariSube[]>(kayitlar);
   React.useEffect(() => setListe(kayitlar), [kayitlar]);
@@ -1915,6 +1921,7 @@ function SubelerTab({
         onOpenChange={setSheetAcik}
         kayit={duzenlenen}
         onSave={kaydetKayit}
+        adresSecenekleri={adresSecenekleri}
       />
       <Table>
         <TableHeader>
@@ -1972,11 +1979,13 @@ function SubeSheet({
   onOpenChange,
   kayit,
   onSave,
+  adresSecenekleri,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   kayit: CariSube | null;
   onSave: (f: Omit<CariSube, "id" | "cariId">) => void;
+  adresSecenekleri: AdresSecenekleri;
 }) {
   const [form, setForm] = React.useState({
     subeAdi: "",
@@ -1989,6 +1998,33 @@ function SubeSheet({
     adres: "",
     aciklama: "",
   });
+
+  // Adres seçenekleri — "yeni ekle" ile büyür (Tanımlamalar'a da yazılır).
+  const [secenekler, setSecenekler] =
+    React.useState<AdresSecenekleri>(adresSecenekleri);
+  React.useEffect(() => setSecenekler(adresSecenekleri), [adresSecenekleri]);
+  const [yeniAlan, setYeniAlan] = React.useState<
+    "ulke" | "sehir" | "semt" | null
+  >(null);
+  const [yeniDeger, setYeniDeger] = React.useState("");
+
+  async function yeniSecenekEkle() {
+    if (!yeniAlan) return;
+    const v = yeniDeger.trim();
+    if (!v) {
+      toast.error("Değer gerekli");
+      return;
+    }
+    const alan = yeniAlan;
+    setSecenekler((s) => ({
+      ...s,
+      [alan]: s[alan].includes(v) ? s[alan] : [...s[alan], v],
+    }));
+    setForm((f) => ({ ...f, [alan]: v }));
+    setYeniAlan(null);
+    const res = await tanimKaydet(alan as TanimTip, { ad: v, durum: "Aktif" });
+    if (!res.ok) toast.error(res.error ?? "Tanım kaydedilemedi.");
+  }
 
   React.useEffect(() => {
     if (!open) return;
@@ -2067,27 +2103,29 @@ function SubeSheet({
           />
         </div>
         <div className="grid grid-cols-3 gap-2.5">
-          <IconInput
-            label="Ülke"
-            icon={TruckIcon}
-            placeholder="Türkiye"
-            value={form.ulke}
-            onChange={(e) => setForm((f) => ({ ...f, ulke: e.target.value }))}
-          />
-          <IconInput
-            label="Şehir"
-            icon={BlocksIcon}
-            placeholder="İstanbul"
-            value={form.sehir}
-            onChange={(e) => setForm((f) => ({ ...f, sehir: e.target.value }))}
-          />
-          <IconInput
-            label="Semt"
-            icon={BlocksIcon}
-            placeholder="Kadıköy"
-            value={form.semt}
-            onChange={(e) => setForm((f) => ({ ...f, semt: e.target.value }))}
-          />
+          {(
+            [
+              ["ulke", "Ülke", "Türkiye"],
+              ["sehir", "Şehir", "İstanbul"],
+              ["semt", "Semt", "Kadıköy"],
+            ] as const
+          ).map(([alan, etiket, ornek]) => (
+            <AnimatedField key={alan} label={etiket} icon={TruckIcon}>
+              <SearchSelect
+                items={secenekler[alan]}
+                value={form[alan] || null}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, [alan]: v ?? "" }))
+                }
+                placeholder={ornek}
+                addLabel={`Yeni ${etiket.toLocaleLowerCase("tr")} ekle`}
+                onAdd={() => {
+                  setYeniDeger("");
+                  setYeniAlan(alan);
+                }}
+              />
+            </AnimatedField>
+          ))}
         </div>
         <AnimatedField label="Adres" icon={BlocksIcon}>
           <textarea
@@ -2110,6 +2148,44 @@ function SubeSheet({
           />
         </AnimatedField>
       </div>
+
+      {/* Yeni adres tanımı modalı (ülke/şehir/semt) */}
+      <Dialog
+        open={yeniAlan !== null}
+        onOpenChange={(o) => !o && setYeniAlan(null)}
+      >
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              Yeni{" "}
+              {yeniAlan === "ulke"
+                ? "Ülke"
+                : yeniAlan === "sehir"
+                  ? "Şehir"
+                  : "Semt"}
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={yeniDeger}
+            onChange={(e) => setYeniDeger(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                yeniSecenekEkle();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniAlan(null)}>
+              İptal
+            </Button>
+            <Button onClick={yeniSecenekEkle} disabled={!yeniDeger.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FormSheet>
   );
 }
@@ -2725,14 +2801,15 @@ function DokumanlarTab({
         open={sheetAcik}
         onOpenChange={setSheetAcik}
         kayit={duzenlenen}
+        cariId={cariId}
         onSave={kaydetKayit}
       />
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            Dokümanlar URL tabanlıdır — dosya yükleme yoktur. Görsel bağlantılar
-            (jpg/png/webp) önizleme olarak, diğerleri liste halinde gösterilir.
+            Dosyalar bilgisayarınızdan seçilip sunucuya yüklenir (en fazla 20
+            MB). Görseller önizleme olarak, diğerleri liste halinde gösterilir.
           </span>
         </div>
 
@@ -2812,30 +2889,65 @@ function DokumanSheet({
   open,
   onOpenChange,
   kayit,
+  cariId,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   kayit: CariDokuman | null;
+  cariId: string;
   onSave: (f: Omit<CariDokuman, "id" | "cariId">) => void;
 }) {
-  const [form, setForm] = React.useState({ ad: "", url: "" });
+  const [ad, setAd] = React.useState("");
+  const [dosya, setDosya] = React.useState<File | null>(null);
+  const [yukleniyor, setYukleniyor] = React.useState(false);
+  const dosyaRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
-    setForm({ ad: kayit?.ad ?? "", url: kayit?.url ?? "" });
+    setAd(kayit?.ad ?? "");
+    setDosya(null);
+    setYukleniyor(false);
   }, [open, kayit]);
 
-  function kaydet() {
-    if (!form.ad.trim()) {
+  function dosyaSecildi(f: File | null) {
+    setDosya(f);
+    // Ad boşsa dosya adından öner (uzantısız).
+    if (f && !ad.trim())
+      setAd(f.name.replace(/\.[^.]+$/, ""));
+  }
+
+  async function kaydet() {
+    if (!ad.trim()) {
       toast.error("Doküman adı gerekli");
       return;
     }
-    if (!form.url.trim()) {
-      toast.error("Doküman URL'si gerekli");
+    if (!kayit && !dosya) {
+      toast.error("Dosya seçin");
       return;
     }
-    onSave({ ad: form.ad.trim(), url: form.url.trim() });
+    let url = kayit?.url ?? "";
+    if (dosya) {
+      setYukleniyor(true);
+      try {
+        const fd = new FormData();
+        fd.append("dosya", dosya);
+        fd.append("klasor", `cari-${cariId}`);
+        const cevap = await fetch("/api/dosya", { method: "POST", body: fd });
+        const veri = await cevap.json();
+        if (!cevap.ok || !veri.url) {
+          toast.error(veri.error ?? "Dosya yüklenemedi");
+          return;
+        }
+        url = veri.url;
+      } catch {
+        toast.error("Dosya yüklenemedi");
+        return;
+      } finally {
+        setYukleniyor(false);
+      }
+    }
+    onSave({ ad: ad.trim(), url });
     onOpenChange(false);
   }
 
@@ -2848,20 +2960,55 @@ function DokumanSheet({
       onSave={kaydet}
     >
       <div className="grid gap-2.5">
+        {/* Dosya seçimi — PC'den */}
+        <input
+          ref={dosyaRef}
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+          onChange={(e) => dosyaSecildi(e.target.files?.[0] ?? null)}
+        />
+        <button
+          type="button"
+          onClick={() => dosyaRef.current?.click()}
+          disabled={yukleniyor}
+          className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed px-3 py-6 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40"
+        >
+          <FileImage className="size-5 text-muted-foreground" />
+          {dosya ? (
+            <>
+              <span className="font-medium">{dosya.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {(dosya.size / 1024 / 1024).toFixed(2)} MB · değiştirmek için
+                tıklayın
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="font-medium">
+                {kayit ? "Dosyayı değiştir (isteğe bağlı)" : "Dosya seç"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Görsel, PDF, Office… en fazla 20 MB
+              </span>
+            </>
+          )}
+        </button>
+        {kayit && !dosya && (
+          <p className="text-xs text-muted-foreground">
+            Mevcut dosya korunur; yalnızca adı değiştirebilirsiniz.
+          </p>
+        )}
         <IconInput
           label="Ad"
           icon={ScanTextIcon}
           placeholder="Örn. Vergi Levhası"
-          value={form.ad}
-          onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))}
+          value={ad}
+          onChange={(e) => setAd(e.target.value)}
         />
-        <IconInput
-          label="URL"
-          icon={SendIcon}
-          placeholder="https://..."
-          value={form.url}
-          onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-        />
+        {yukleniyor && (
+          <p className="text-xs text-muted-foreground">Yükleniyor…</p>
+        )}
       </div>
     </FormSheet>
   );

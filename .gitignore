@@ -54,3 +54,6 @@ next-env.d.ts
 /.agents
 /skills-lock.json
 /dev.log
+
+# kullanici dosyalari (cari dokumanlari vb.)
+/uploads
