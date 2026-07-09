@@ -201,24 +201,136 @@ model UretimEmriAdim {
 // ── Cari (müşteri/tedarikçi hesabı) ─────────────────────────────────────
 model Cari {
   id           String  @id
+  // Kısa ad (listede görünen)
   ad           String
+  // Tam ad / ticari ad
+  tamAd        String? @map("tam_ad")
   tip          String
   sinif        String
+  // Ana yetkili kişi (hızlı erişim; detaylı liste CariYetkili'de)
+  yetkili      String?
+  telefon      String?
+  telefon2     String?
+  telefon3     String?
+  fax          String?
+  email        String?
+  webSite      String? @map("web_site")
+  // "Maliyet" | "Satış Fiyatı 1" | "Satış Fiyatı 2"
+  satisFiyatTipi String @default("Satış Fiyatı 1") @map("satis_fiyat_tipi")
+  iskontoOrani Decimal @default(0) @map("iskonto_orani") @db.Decimal(5, 2)
+  // Satış temsilcisi (kullanıcı adı)
+  temsilci     String?
+  // Çoklu şube kullanımında hesabın bağlı olduğu mağaza şubesi
+  sube         String?
+  muhasebeKodu String? @map("muhasebe_kodu")
+  // Fatura bilgileri
+  tcKimlik     String? @map("tc_kimlik")
   vergiNo      String? @map("vergi_no")
   vergiDairesi String? @map("vergi_dairesi")
-  telefon      String?
-  email        String?
-  adres        String? @db.NVarChar(Max)
+  unvan        String?
+  // Adres
+  ulke         String?
+  bolge        String?
   sehir        String?
+  semt         String?
+  adres        String? @db.NVarChar(Max)
   // Pozitif = cari bizden alacaklı, negatif = bize borçlu.
   bakiye       Decimal @default(0) @db.Decimal(14, 2)
   paraBirimi   String  @default("TL") @map("para_birimi")
   durum        String  @default("Aktif")
   not          String? @db.NVarChar(Max)
+  // Denetim izi (oturum altyapısı gelince kullanıcı id'leri dolar)
+  createDate   DateTime @default(now()) @map("create_date")
+  createUserId String?  @map("create_user_id")
+  updateDate   DateTime @updatedAt @map("update_date")
+  updateUserId String?  @map("update_user_id")
 
-  islemler CariIslem[]
+  islemler   CariIslem[]
+  bankalar   CariBanka[]
+  subeler    CariSube[]
+  yetkililer CariYetkili[]
+  crmKayitlari CariCrm[]
+  dokumanlar CariDokuman[]
 
   @@map("cari")
+}
+
+// ── Cari banka hesapları ─────────────────────────────────────────────────
+model CariBanka {
+  id       Int     @id @default(autoincrement())
+  cariId   String  @map("cari_id")
+  bankaAdi String  @map("banka_adi")
+  sube     String?
+  iban     String?
+  aciklama String?
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_banka")
+}
+
+// ── Cari şubeleri (karşı tarafın şubeleri/lokasyonları) ─────────────────
+model CariSube {
+  id       Int     @id @default(autoincrement())
+  cariId   String  @map("cari_id")
+  subeAdi  String  @map("sube_adi")
+  yetkili  String?
+  email    String?
+  telefon  String?
+  aciklama String?
+  ulke     String?
+  sehir    String?
+  semt     String?
+  adres    String? @db.NVarChar(Max)
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_sube")
+}
+
+// ── Cari yetkilileri (irtibat kişileri) ─────────────────────────────────
+model CariYetkili {
+  id       Int     @id @default(autoincrement())
+  cariId   String  @map("cari_id")
+  yetkili  String
+  gorevi   String?
+  email    String?
+  telefon  String?
+  subeAdi  String? @map("sube_adi")
+  aciklama String?
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_yetkili")
+}
+
+// ── Cari CRM kayıtları (görüşme/ziyaret/teklif takibi) ──────────────────
+model CariCrm {
+  id       Int      @id @default(autoincrement())
+  cariId   String   @map("cari_id")
+  tarih    DateTime @db.Date
+  personel String?
+  // Telefon | Ziyaret | E-posta | Teklif | Toplantı | Diğer
+  tip      String
+  // Planlandı | Tamamlandı | İptal
+  durum    String   @default("Planlandı")
+  aciklama String?  @db.NVarChar(Max)
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_crm")
+}
+
+// ── Cari resim/dokümanları (URL tabanlı) ────────────────────────────────
+model CariDokuman {
+  id     Int    @id @default(autoincrement())
+  cariId String @map("cari_id")
+  ad     String
+  url    String @db.NVarChar(Max)
+
+  cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("cari_dokuman")
 }
 
 // ── Cari işlem (tahsilat/ödeme/borç/alacak) ─────────────────────────────

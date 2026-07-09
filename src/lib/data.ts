@@ -105,27 +105,111 @@ export type StokHareket = {
   aciklama: string;
 };
 
-// Cari hesap (müşteri/tedarikçi) — Cari Yönetimi modülü.
-export type CariTip = "Müşteri" | "Tedarikçi" | "Her İkisi";
+// Cari hesap (müşteri/tedarikçi/banka) — Cari Yönetimi modülü.
+export type CariTip = "Müşteri" | "Tedarikçi" | "Her İkisi" | "Banka";
 export type CariSinifi = "Bireysel" | "Kurumsal";
 export type ParaBirimi = "TL" | "USD" | "EUR";
+export type SatisFiyatTipi = "Maliyet" | "Satış Fiyatı 1" | "Satış Fiyatı 2";
 
 export type Cari = {
   id: string;
+  /** Kısa ad (listede görünen). */
   ad: string;
+  /** Tam ad / ticari ad. */
+  tamAd?: string;
   tip: CariTip;
   sinif: CariSinifi;
+  /** Ana yetkili (hızlı erişim; detaylı liste yetkililer sekmesinde). */
+  yetkili?: string;
+  telefon?: string;
+  telefon2?: string;
+  telefon3?: string;
+  fax?: string;
+  email?: string;
+  webSite?: string;
+  satisFiyatTipi?: SatisFiyatTipi;
+  /** İskonto oranı (%). */
+  iskontoOrani?: number;
+  /** Satış temsilcisi (kullanıcı adı). */
+  temsilci?: string;
+  /** Çoklu şube kullanımında bağlı mağaza şubesi. */
+  sube?: string;
+  muhasebeKodu?: string;
+  // Fatura bilgileri
+  tcKimlik?: string;
   vergiNo?: string;
   vergiDairesi?: string;
-  telefon?: string;
-  email?: string;
-  adres?: string;
+  unvan?: string;
+  // Adres
+  ulke?: string;
+  bolge?: string;
   sehir?: string;
+  semt?: string;
+  adres?: string;
   /** Bakiye: pozitif = bizden alacaklı, negatif = bize borçlu. */
   bakiye: number;
   paraBirimi: ParaBirimi;
   durum: "Aktif" | "Pasif";
   not?: string;
+};
+
+export type CariBanka = {
+  id: number;
+  cariId: string;
+  bankaAdi: string;
+  sube?: string;
+  iban?: string;
+  aciklama?: string;
+};
+
+export type CariSube = {
+  id: number;
+  cariId: string;
+  subeAdi: string;
+  yetkili?: string;
+  email?: string;
+  telefon?: string;
+  aciklama?: string;
+  ulke?: string;
+  sehir?: string;
+  semt?: string;
+  adres?: string;
+};
+
+export type CariYetkili = {
+  id: number;
+  cariId: string;
+  yetkili: string;
+  gorevi?: string;
+  email?: string;
+  telefon?: string;
+  subeAdi?: string;
+  aciklama?: string;
+};
+
+export type CariCrmTip =
+  | "Telefon"
+  | "Ziyaret"
+  | "E-posta"
+  | "Teklif"
+  | "Toplantı"
+  | "Diğer";
+export type CariCrmDurum = "Planlandı" | "Tamamlandı" | "İptal";
+export type CariCrm = {
+  id: number;
+  cariId: string;
+  tarih: string;
+  personel?: string;
+  tip: CariCrmTip;
+  durum: CariCrmDurum;
+  aciklama?: string;
+};
+
+export type CariDokuman = {
+  id: number;
+  cariId: string;
+  ad: string;
+  url: string;
 };
 
 // Cari işlemleri — tahsilat/ödeme/borç/alacak hareketleri.

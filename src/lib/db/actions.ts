@@ -22,6 +22,11 @@ import type {
   Cari,
   CariIslem,
   CariIslemTuru,
+  CariBanka,
+  CariSube,
+  CariYetkili,
+  CariCrm,
+  CariDokuman,
   Poset,
   TanimTip,
 } from "../data";
@@ -1068,14 +1073,30 @@ export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> 
   }
   const ortak = {
     ad: c.ad,
+    tamAd: c.tamAd ?? null,
     tip: c.tip,
     sinif: c.sinif,
+    yetkili: c.yetkili ?? null,
+    telefon: c.telefon ?? null,
+    telefon2: c.telefon2 ?? null,
+    telefon3: c.telefon3 ?? null,
+    fax: c.fax ?? null,
+    email: c.email ?? null,
+    webSite: c.webSite ?? null,
+    satisFiyatTipi: c.satisFiyatTipi ?? "Satış Fiyatı 1",
+    iskontoOrani: c.iskontoOrani ?? 0,
+    temsilci: c.temsilci ?? null,
+    sube: c.sube ?? null,
+    muhasebeKodu: c.muhasebeKodu ?? null,
+    tcKimlik: c.tcKimlik ?? null,
     vergiNo: c.vergiNo ?? null,
     vergiDairesi: c.vergiDairesi ?? null,
-    telefon: c.telefon ?? null,
-    email: c.email ?? null,
-    adres: c.adres ?? null,
+    unvan: c.unvan ?? null,
+    ulke: c.ulke ?? null,
+    bolge: c.bolge ?? null,
     sehir: c.sehir ?? null,
+    semt: c.semt ?? null,
+    adres: c.adres ?? null,
     paraBirimi: c.paraBirimi,
     durum: c.durum,
     not: c.not ?? null,
@@ -1234,5 +1255,176 @@ export async function tanimSil(
   } catch (e) {
     console.error("tanimSil:", e);
     return { ok: false, error: "Tanım silinemedi." };
+  }
+}
+
+// ── Cari kart alt kayıtları (banka / şube / yetkili / CRM / doküman) ─────
+
+type CariAltSonuc = { ok: boolean; id?: number; error?: string };
+
+/** Banka hesabı ekle/güncelle. */
+export async function cariBankaKaydet(
+  b: Omit<CariBanka, "id"> & { id?: number },
+): Promise<CariAltSonuc> {
+  try {
+    const veri = {
+      cariId: b.cariId,
+      bankaAdi: b.bankaAdi,
+      sube: b.sube ?? null,
+      iban: b.iban ?? null,
+      aciklama: b.aciklama ?? null,
+    };
+    const kayit = b.id
+      ? await db.cariBanka.update({ where: { id: b.id }, data: veri })
+      : await db.cariBanka.create({ data: veri });
+    revalidatePath(`/cari/${b.cariId}`);
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("cariBankaKaydet:", e);
+    return { ok: false, error: "Banka hesabı kaydedilemedi." };
+  }
+}
+
+export async function cariBankaSil(id: number, cariId: string): Promise<CariAltSonuc> {
+  try {
+    await db.cariBanka.delete({ where: { id } });
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Banka hesabı silinemedi." };
+  }
+}
+
+/** Cari şubesi ekle/güncelle. */
+export async function cariSubeKaydet(
+  s: Omit<CariSube, "id"> & { id?: number },
+): Promise<CariAltSonuc> {
+  try {
+    const veri = {
+      cariId: s.cariId,
+      subeAdi: s.subeAdi,
+      yetkili: s.yetkili ?? null,
+      email: s.email ?? null,
+      telefon: s.telefon ?? null,
+      aciklama: s.aciklama ?? null,
+      ulke: s.ulke ?? null,
+      sehir: s.sehir ?? null,
+      semt: s.semt ?? null,
+      adres: s.adres ?? null,
+    };
+    const kayit = s.id
+      ? await db.cariSube.update({ where: { id: s.id }, data: veri })
+      : await db.cariSube.create({ data: veri });
+    revalidatePath(`/cari/${s.cariId}`);
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("cariSubeKaydet:", e);
+    return { ok: false, error: "Şube kaydedilemedi." };
+  }
+}
+
+export async function cariSubeSil(id: number, cariId: string): Promise<CariAltSonuc> {
+  try {
+    await db.cariSube.delete({ where: { id } });
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Şube silinemedi." };
+  }
+}
+
+/** Cari yetkilisi ekle/güncelle. */
+export async function cariYetkiliKaydet(
+  y: Omit<CariYetkili, "id"> & { id?: number },
+): Promise<CariAltSonuc> {
+  try {
+    const veri = {
+      cariId: y.cariId,
+      yetkili: y.yetkili,
+      gorevi: y.gorevi ?? null,
+      email: y.email ?? null,
+      telefon: y.telefon ?? null,
+      subeAdi: y.subeAdi ?? null,
+      aciklama: y.aciklama ?? null,
+    };
+    const kayit = y.id
+      ? await db.cariYetkili.update({ where: { id: y.id }, data: veri })
+      : await db.cariYetkili.create({ data: veri });
+    revalidatePath(`/cari/${y.cariId}`);
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("cariYetkiliKaydet:", e);
+    return { ok: false, error: "Yetkili kaydedilemedi." };
+  }
+}
+
+export async function cariYetkiliSil(id: number, cariId: string): Promise<CariAltSonuc> {
+  try {
+    await db.cariYetkili.delete({ where: { id } });
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Yetkili silinemedi." };
+  }
+}
+
+/** CRM kaydı ekle/güncelle. */
+export async function cariCrmKaydet(
+  k: Omit<CariCrm, "id"> & { id?: number },
+): Promise<CariAltSonuc> {
+  try {
+    const veri = {
+      cariId: k.cariId,
+      tarih: tarihDate(k.tarih),
+      personel: k.personel ?? null,
+      tip: k.tip,
+      durum: k.durum,
+      aciklama: k.aciklama ?? null,
+    };
+    const kayit = k.id
+      ? await db.cariCrm.update({ where: { id: k.id }, data: veri })
+      : await db.cariCrm.create({ data: veri });
+    revalidatePath(`/cari/${k.cariId}`);
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("cariCrmKaydet:", e);
+    return { ok: false, error: "CRM kaydı kaydedilemedi." };
+  }
+}
+
+export async function cariCrmSil(id: number, cariId: string): Promise<CariAltSonuc> {
+  try {
+    await db.cariCrm.delete({ where: { id } });
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "CRM kaydı silinemedi." };
+  }
+}
+
+/** Doküman/resim (URL) ekle. */
+export async function cariDokumanKaydet(
+  d: Omit<CariDokuman, "id"> & { id?: number },
+): Promise<CariAltSonuc> {
+  try {
+    const veri = { cariId: d.cariId, ad: d.ad, url: d.url };
+    const kayit = d.id
+      ? await db.cariDokuman.update({ where: { id: d.id }, data: veri })
+      : await db.cariDokuman.create({ data: veri });
+    revalidatePath(`/cari/${d.cariId}`);
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("cariDokumanKaydet:", e);
+    return { ok: false, error: "Doküman kaydedilemedi." };
+  }
+}
+
+export async function cariDokumanSil(id: number, cariId: string): Promise<CariAltSonuc> {
+  try {
+    await db.cariDokuman.delete({ where: { id } });
+    revalidatePath(`/cari/${cariId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Doküman silinemedi." };
   }
 }

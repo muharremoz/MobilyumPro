@@ -22,6 +22,11 @@ import type {
   ParaBirimi,
   CariIslem,
   CariIslemTuru,
+  CariBanka,
+  CariSube,
+  CariYetkili,
+  CariCrm,
+  CariDokuman,
   StokHareket,
   StokHareketTuru,
   StokGrup,
@@ -207,14 +212,30 @@ function mapCari(c: CariRow): Cari {
   return {
     id: c.id,
     ad: c.ad,
+    tamAd: c.tamAd ?? undefined,
     tip: c.tip as CariTip,
     sinif: c.sinif as CariSinifi,
+    yetkili: c.yetkili ?? undefined,
+    telefon: c.telefon ?? undefined,
+    telefon2: c.telefon2 ?? undefined,
+    telefon3: c.telefon3 ?? undefined,
+    fax: c.fax ?? undefined,
+    email: c.email ?? undefined,
+    webSite: c.webSite ?? undefined,
+    satisFiyatTipi: c.satisFiyatTipi as Cari["satisFiyatTipi"],
+    iskontoOrani: Number(c.iskontoOrani) || undefined,
+    temsilci: c.temsilci ?? undefined,
+    sube: c.sube ?? undefined,
+    muhasebeKodu: c.muhasebeKodu ?? undefined,
+    tcKimlik: c.tcKimlik ?? undefined,
     vergiNo: c.vergiNo ?? undefined,
     vergiDairesi: c.vergiDairesi ?? undefined,
-    telefon: c.telefon ?? undefined,
-    email: c.email ?? undefined,
-    adres: c.adres ?? undefined,
+    unvan: c.unvan ?? undefined,
+    ulke: c.ulke ?? undefined,
+    bolge: c.bolge ?? undefined,
     sehir: c.sehir ?? undefined,
+    semt: c.semt ?? undefined,
+    adres: c.adres ?? undefined,
     bakiye: Number(c.bakiye),
     paraBirimi: c.paraBirimi as ParaBirimi,
     durum: c.durum as Durum,
@@ -618,4 +639,71 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     });
   }
   return sonuc;
+}
+
+/** Cari kartın alt kayıtları (banka/şube/yetkili/CRM/doküman) — tek seferde. */
+export type CariDetay = {
+  bankalar: CariBanka[];
+  subeler: CariSube[];
+  yetkililer: CariYetkili[];
+  crmKayitlari: CariCrm[];
+  dokumanlar: CariDokuman[];
+};
+
+export async function getCariDetay(cariId: string): Promise<CariDetay> {
+  const [bankalar, subeler, yetkililer, crm, dokumanlar] = await Promise.all([
+    db.cariBanka.findMany({ where: { cariId } }),
+    db.cariSube.findMany({ where: { cariId } }),
+    db.cariYetkili.findMany({ where: { cariId } }),
+    db.cariCrm.findMany({ where: { cariId }, orderBy: { tarih: "desc" } }),
+    db.cariDokuman.findMany({ where: { cariId } }),
+  ]);
+  return {
+    bankalar: bankalar.map((b) => ({
+      id: b.id,
+      cariId: b.cariId,
+      bankaAdi: b.bankaAdi,
+      sube: b.sube ?? undefined,
+      iban: b.iban ?? undefined,
+      aciklama: b.aciklama ?? undefined,
+    })),
+    subeler: subeler.map((s) => ({
+      id: s.id,
+      cariId: s.cariId,
+      subeAdi: s.subeAdi,
+      yetkili: s.yetkili ?? undefined,
+      email: s.email ?? undefined,
+      telefon: s.telefon ?? undefined,
+      aciklama: s.aciklama ?? undefined,
+      ulke: s.ulke ?? undefined,
+      sehir: s.sehir ?? undefined,
+      semt: s.semt ?? undefined,
+      adres: s.adres ?? undefined,
+    })),
+    yetkililer: yetkililer.map((y) => ({
+      id: y.id,
+      cariId: y.cariId,
+      yetkili: y.yetkili,
+      gorevi: y.gorevi ?? undefined,
+      email: y.email ?? undefined,
+      telefon: y.telefon ?? undefined,
+      subeAdi: y.subeAdi ?? undefined,
+      aciklama: y.aciklama ?? undefined,
+    })),
+    crmKayitlari: crm.map((k) => ({
+      id: k.id,
+      cariId: k.cariId,
+      tarih: tarihStr(k.tarih),
+      personel: k.personel ?? undefined,
+      tip: k.tip as CariCrm["tip"],
+      durum: k.durum as CariCrm["durum"],
+      aciklama: k.aciklama ?? undefined,
+    })),
+    dokumanlar: dokumanlar.map((d) => ({
+      id: d.id,
+      cariId: d.cariId,
+      ad: d.ad,
+      url: d.url,
+    })),
+  };
 }

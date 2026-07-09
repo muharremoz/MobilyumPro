@@ -16,19 +16,35 @@ import {
   Mail,
   MapPin,
   BadgePercent,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Landmark,
+  Building2,
+  Users,
+  CalendarDays,
+  FileImage,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { NestedCard } from "@/components/ui/nested-card";
+import { FormSheet } from "@/components/ui/form-sheet";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -47,21 +63,86 @@ import { WalletIcon } from "@/components/ui/icons/wallet";
 import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
+import { PhoneIcon } from "@/components/ui/icons/phone";
+import { ReceiptIcon } from "@/components/ui/icons/receipt";
+import { TruckIcon } from "@/components/ui/icons/truck";
 import {
   formatTL,
   formatTarih,
   type Cari,
+  type CariBanka,
+  type CariCrm,
+  type CariCrmDurum,
+  type CariCrmTip,
+  type CariDokuman,
   type CariIslem,
   type CariIslemTuru,
   type CariSinifi,
+  type CariSube,
   type CariTip,
+  type CariYetkili,
   type ParaBirimi,
+  type SatisFiyatTipi,
 } from "@/lib/data";
-import { cariKaydet, cariIslemEkle } from "@/lib/db/actions";
+import {
+  cariKaydet,
+  cariIslemEkle,
+  cariBankaKaydet,
+  cariBankaSil,
+  cariSubeKaydet,
+  cariSubeSil,
+  cariYetkiliKaydet,
+  cariYetkiliSil,
+  cariCrmKaydet,
+  cariCrmSil,
+  cariDokumanKaydet,
+  cariDokumanSil,
+} from "@/lib/db/actions";
 
-const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi"];
+/**
+ * Cari kartın alt kayıtları — queries.getCariDetay ile aynı şekil.
+ * (queries.ts "server-only" olduğundan tip burada yerel tanımlı.)
+ */
+export type CariDetay = {
+  bankalar: CariBanka[];
+  subeler: CariSube[];
+  yetkililer: CariYetkili[];
+  crmKayitlari: CariCrm[];
+  dokumanlar: CariDokuman[];
+};
+
+const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi", "Banka"];
 const SINIFLAR: CariSinifi[] = ["Bireysel", "Kurumsal"];
 const PARA_BIRIMLERI: ParaBirimi[] = ["TL", "USD", "EUR"];
+const SATIS_FIYAT_TIPLERI: SatisFiyatTipi[] = [
+  "Maliyet",
+  "Satış Fiyatı 1",
+  "Satış Fiyatı 2",
+];
+const CRM_TIPLERI: CariCrmTip[] = [
+  "Telefon",
+  "Ziyaret",
+  "E-posta",
+  "Teklif",
+  "Toplantı",
+  "Diğer",
+];
+const CRM_DURUMLAR: CariCrmDurum[] = ["Planlandı", "Tamamlandı", "İptal"];
+
+const CRM_TIP_RENK: Record<CariCrmTip, string> = {
+  Telefon: "bg-sky-100 text-sky-800",
+  Ziyaret: "bg-violet-100 text-violet-800",
+  "E-posta": "bg-blue-100 text-blue-800",
+  Teklif: "bg-amber-100 text-amber-800",
+  Toplantı: "bg-indigo-100 text-indigo-800",
+  Diğer: "bg-slate-100 text-slate-800",
+};
+const CRM_DURUM_RENK: Record<CariCrmDurum, string> = {
+  Planlandı: "bg-amber-100 text-amber-800",
+  Tamamlandı: "bg-emerald-100 text-emerald-800",
+  İptal: "bg-rose-100 text-rose-800",
+};
+
 const ISLEM_RENK: Record<CariIslemTuru, string> = {
   Tahsilat: "bg-emerald-100 text-emerald-800",
   Ödeme: "bg-rose-100 text-rose-800",
@@ -97,15 +178,31 @@ function bakiyeEtkisi(tur: CariIslemTuru, tutar: number): number {
 type Form = {
   id: string;
   ad: string;
+  tamAd: string;
   tip: CariTip;
   sinif: CariSinifi;
+  yetkili: string;
+  telefon: string;
+  telefon2: string;
+  telefon3: string;
+  fax: string;
+  email: string;
+  webSite: string;
+  satisFiyatTipi: SatisFiyatTipi;
+  paraBirimi: ParaBirimi;
+  iskontoOrani: string;
+  temsilci: string;
+  sube: string;
+  muhasebeKodu: string;
+  tcKimlik: string;
   vergiNo: string;
   vergiDairesi: string;
-  telefon: string;
-  email: string;
-  adres: string;
+  unvan: string;
+  ulke: string;
+  bolge: string;
   sehir: string;
-  paraBirimi: ParaBirimi;
+  semt: string;
+  adres: string;
   durum: "Aktif" | "Pasif";
   not: string;
 };
@@ -113,47 +210,96 @@ type Form = {
 const bos: Form = {
   id: "",
   ad: "",
+  tamAd: "",
   tip: "Müşteri",
   sinif: "Bireysel",
+  yetkili: "",
+  telefon: "",
+  telefon2: "",
+  telefon3: "",
+  fax: "",
+  email: "",
+  webSite: "",
+  satisFiyatTipi: "Satış Fiyatı 1",
+  paraBirimi: "TL",
+  iskontoOrani: "",
+  temsilci: "",
+  sube: "",
+  muhasebeKodu: "",
+  tcKimlik: "",
   vergiNo: "",
   vergiDairesi: "",
-  telefon: "",
-  email: "",
-  adres: "",
+  unvan: "",
+  ulke: "",
+  bolge: "",
   sehir: "",
-  paraBirimi: "TL",
+  semt: "",
+  adres: "",
   durum: "Aktif",
   not: "",
 };
 
-type Tab = "islemler" | "bilgiler";
+type Tab =
+  | "islemler"
+  | "genel"
+  | "banka"
+  | "subeler"
+  | "yetkililer"
+  | "crm"
+  | "dokumanlar";
 
 export function CariFormPage({
   cari,
   islemler: islemlerProp = [],
-}: { cari?: Cari; islemler?: CariIslem[] } = {}) {
+  detay,
+  kullanicilar = [],
+}: {
+  cari?: Cari;
+  islemler?: CariIslem[];
+  detay?: CariDetay;
+  kullanicilar?: string[];
+} = {}) {
   const router = useRouter();
   const duzenleme = !!cari;
   const baslangic: Form = cari
     ? {
         id: cari.id,
         ad: cari.ad,
+        tamAd: cari.tamAd ?? "",
         tip: cari.tip,
         sinif: cari.sinif,
+        yetkili: cari.yetkili ?? "",
+        telefon: cari.telefon ?? "",
+        telefon2: cari.telefon2 ?? "",
+        telefon3: cari.telefon3 ?? "",
+        fax: cari.fax ?? "",
+        email: cari.email ?? "",
+        webSite: cari.webSite ?? "",
+        satisFiyatTipi: cari.satisFiyatTipi ?? "Satış Fiyatı 1",
+        paraBirimi: cari.paraBirimi,
+        iskontoOrani:
+          cari.iskontoOrani != null && cari.iskontoOrani !== 0
+            ? String(cari.iskontoOrani)
+            : "",
+        temsilci: cari.temsilci ?? "",
+        sube: cari.sube ?? "",
+        muhasebeKodu: cari.muhasebeKodu ?? "",
+        tcKimlik: cari.tcKimlik ?? "",
         vergiNo: cari.vergiNo ?? "",
         vergiDairesi: cari.vergiDairesi ?? "",
-        telefon: cari.telefon ?? "",
-        email: cari.email ?? "",
-        adres: cari.adres ?? "",
+        unvan: cari.unvan ?? "",
+        ulke: cari.ulke ?? "",
+        bolge: cari.bolge ?? "",
         sehir: cari.sehir ?? "",
-        paraBirimi: cari.paraBirimi,
+        semt: cari.semt ?? "",
+        adres: cari.adres ?? "",
         durum: cari.durum,
         not: cari.not ?? "",
       }
     : bos;
   const [form, setForm] = React.useState<Form>(baslangic);
-  // Yeni cari eklerken sekme yok → her zaman "bilgiler"; düzenlemede varsayılan "islemler"
-  const [tab, setTab] = React.useState<Tab>(duzenleme ? "islemler" : "bilgiler");
+  // Yeni cari eklerken sekme yok → her zaman "genel"; düzenlemede varsayılan "islemler"
+  const [tab, setTab] = React.useState<Tab>(duzenleme ? "islemler" : "genel");
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
   // Mevcut cari'nin işlemleri (DB'den prop olarak gelir; refresh ile senkron)
@@ -185,8 +331,7 @@ export function CariFormPage({
     return ileri.reverse();
   }, [islemler, cari]);
 
-  const sonBakiye =
-    islemlerWithBakiye[0]?.bakiye ?? cari?.bakiye ?? 0;
+  const sonBakiye = islemlerWithBakiye[0]?.bakiye ?? cari?.bakiye ?? 0;
 
   const paraBirimi = cari?.paraBirimi ?? "TL";
   const onPara = React.useCallback(
@@ -197,54 +342,63 @@ export function CariFormPage({
     [paraBirimi],
   );
 
-  // Özetler
-  const ozet = React.useMemo(() => {
-    let tahsilat = 0;
-    let odeme = 0;
-    let borc = 0;
-    let alacak = 0;
-    for (const i of islemler) {
-      if (i.tur === "Tahsilat") tahsilat += i.tutar;
-      else if (i.tur === "Ödeme") odeme += i.tutar;
-      else if (i.tur === "Borç") borc += i.tutar;
-      else alacak += i.tutar;
-    }
-    return { tahsilat, odeme, borc, alacak };
-  }, [islemler]);
-
   async function kaydet() {
     if (!form.ad.trim()) {
       toast.error("Ad / Unvan gerekli");
-      setTab("bilgiler");
+      setTab("genel");
       return;
     }
     if (kurumsal && !form.vergiNo.trim()) {
       toast.error("Kurumsal cari için vergi numarası gerekli");
-      setTab("bilgiler");
+      setTab("genel");
       return;
     }
+    const t = (s: string) => s.trim() || undefined;
     const yeniCari: Cari = {
       id: form.id,
       ad: form.ad.trim(),
+      tamAd: t(form.tamAd),
       tip: form.tip,
       sinif: form.sinif,
-      vergiNo: form.vergiNo.trim() || undefined,
-      vergiDairesi: form.vergiDairesi.trim() || undefined,
-      telefon: form.telefon.trim() || undefined,
-      email: form.email.trim() || undefined,
-      adres: form.adres.trim() || undefined,
-      sehir: form.sehir.trim() || undefined,
+      yetkili: t(form.yetkili),
+      telefon: t(form.telefon),
+      telefon2: t(form.telefon2),
+      telefon3: t(form.telefon3),
+      fax: t(form.fax),
+      email: t(form.email),
+      webSite: t(form.webSite),
+      satisFiyatTipi: form.satisFiyatTipi,
+      iskontoOrani: form.iskontoOrani.trim()
+        ? Number(form.iskontoOrani)
+        : undefined,
+      temsilci: t(form.temsilci),
+      sube: t(form.sube),
+      muhasebeKodu: t(form.muhasebeKodu),
+      tcKimlik: t(form.tcKimlik),
+      vergiNo: t(form.vergiNo),
+      vergiDairesi: t(form.vergiDairesi),
+      unvan: t(form.unvan),
+      ulke: t(form.ulke),
+      bolge: t(form.bolge),
+      sehir: t(form.sehir),
+      semt: t(form.semt),
+      adres: t(form.adres),
       bakiye: cari?.bakiye ?? 0,
       paraBirimi: form.paraBirimi,
       durum: form.durum,
-      not: form.not.trim() || undefined,
+      not: t(form.not),
     };
     const res = await cariKaydet(yeniCari);
     if (!res.ok) {
       toast.error("Cari kaydedilemedi");
       return;
     }
-    toast.success(duzenleme ? "Cari güncellendi" : "Cari eklendi");
+    if (!duzenleme) {
+      toast.success(`Cari eklendi (${res.id})`);
+      router.push(`/cari/${res.id}`);
+      return;
+    }
+    toast.success("Cari güncellendi");
     router.push("/cari");
   }
 
@@ -273,14 +427,35 @@ export function CariFormPage({
         />
       )}
 
-      {/* Sekmeler — sadece düzenlemede */}
+      {/* Sekmeler — sadece düzenlemede (alt kayıtlar cari id ister) */}
       {duzenleme && (
-        <div className="flex gap-1 border-b">
+        <div className="flex flex-wrap gap-1 border-b">
           <TabBtn aktif={tab === "islemler"} onClick={() => setTab("islemler")}>
             Cari İşlemler
           </TabBtn>
-          <TabBtn aktif={tab === "bilgiler"} onClick={() => setTab("bilgiler")}>
-            Bilgiler
+          <TabBtn aktif={tab === "genel"} onClick={() => setTab("genel")}>
+            Genel
+          </TabBtn>
+          <TabBtn aktif={tab === "banka"} onClick={() => setTab("banka")}>
+            Banka Bilgileri
+          </TabBtn>
+          <TabBtn aktif={tab === "subeler"} onClick={() => setTab("subeler")}>
+            Şubeler
+          </TabBtn>
+          <TabBtn
+            aktif={tab === "yetkililer"}
+            onClick={() => setTab("yetkililer")}
+          >
+            Yetkililer
+          </TabBtn>
+          <TabBtn aktif={tab === "crm"} onClick={() => setTab("crm")}>
+            CRM
+          </TabBtn>
+          <TabBtn
+            aktif={tab === "dokumanlar"}
+            onClick={() => setTab("dokumanlar")}
+          >
+            Dokümanlar
           </TabBtn>
         </div>
       )}
@@ -294,28 +469,52 @@ export function CariFormPage({
         />
       )}
 
-      {(tab === "bilgiler" || !duzenleme) && (
-        <BilgilerTab
-          form={form}
-          setForm={setForm}
-          set={set}
-          kurumsal={kurumsal}
-          durumRef={durumRef}
-        />
+      {(tab === "genel" || !duzenleme) && (
+        <>
+          <GenelTab
+            form={form}
+            setForm={setForm}
+            set={set}
+            kurumsal={kurumsal}
+            duzenleme={duzenleme}
+            kullanicilar={kullanicilar}
+            durumRef={durumRef}
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/cari" />}
+            >
+              İptal
+            </Button>
+            <Button onClick={kaydet}>Kaydet</Button>
+          </div>
+        </>
       )}
 
-      {/* Bilgi formu altında kaydet bar — sadece bilgiler sekmesinde */}
-      {(tab === "bilgiler" || !duzenleme) && (
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/cari" />}
-          >
-            İptal
-          </Button>
-          <Button onClick={kaydet}>Kaydet</Button>
-        </div>
+      {duzenleme && cari && tab === "banka" && (
+        <BankaTab cariId={cari.id} kayitlar={detay?.bankalar ?? []} />
+      )}
+      {duzenleme && cari && tab === "subeler" && (
+        <SubelerTab cariId={cari.id} kayitlar={detay?.subeler ?? []} />
+      )}
+      {duzenleme && cari && tab === "yetkililer" && (
+        <YetkililerTab
+          cariId={cari.id}
+          kayitlar={detay?.yetkililer ?? []}
+          subeler={(detay?.subeler ?? []).map((s) => s.subeAdi)}
+        />
+      )}
+      {duzenleme && cari && tab === "crm" && (
+        <CrmTab
+          cariId={cari.id}
+          kayitlar={detay?.crmKayitlari ?? []}
+          kullanicilar={kullanicilar}
+        />
+      )}
+      {duzenleme && cari && tab === "dokumanlar" && (
+        <DokumanlarTab cariId={cari.id} kayitlar={detay?.dokumanlar ?? []} />
       )}
     </div>
   );
@@ -469,6 +668,7 @@ const TIP_RENK_FIRMA: Record<CariTip, string> = {
   Müşteri: "bg-blue-100 text-blue-800",
   Tedarikçi: "bg-amber-100 text-amber-800",
   "Her İkisi": "bg-violet-100 text-violet-800",
+  Banka: "bg-emerald-100 text-emerald-800",
 };
 
 /**
@@ -818,19 +1018,26 @@ function HareketKarti({
 }
 
 /* ------------------------------------------------------------------ */
-/* BİLGİLER SEKMESİ                                                   */
+/* GENEL SEKMESİ                                                      */
 /* ------------------------------------------------------------------ */
-function BilgilerTab({
+const textareaCls =
+  "w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30";
+
+function GenelTab({
   form,
   setForm,
   set,
   kurumsal,
+  duzenleme,
+  kullanicilar,
   durumRef,
 }: {
   form: Form;
   setForm: React.Dispatch<React.SetStateAction<Form>>;
   set: (k: keyof Form) => (v: string) => void;
   kurumsal: boolean;
+  duzenleme: boolean;
+  kullanicilar: string[];
   durumRef: React.RefObject<AnimatedIconHandle | null>;
 }) {
   return (
@@ -842,22 +1049,31 @@ function BilgilerTab({
             <span className="text-sm font-medium">Genel Bilgiler</span>
           </div>
           <div className="grid gap-3 p-4">
-            <IconInput
-              label="Ad / Unvan"
-              icon={UsersRoundIcon}
-              placeholder={
-                kurumsal ? "Örn. Mobilyum Ticaret Ltd. Şti." : "Ad Soyad"
-              }
-              value={form.ad}
-              onChange={(e) => set("ad")(e.target.value)}
-            />
             <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Ad (Kısa Ad)"
+                icon={UsersRoundIcon}
+                placeholder={kurumsal ? "Örn. Mobilyum" : "Ad Soyad"}
+                value={form.ad}
+                onChange={(e) => set("ad")(e.target.value)}
+              />
+              <IconInput
+                label="Tam Ad / Ticari Ad"
+                icon={UsersRoundIcon}
+                placeholder="Örn. Mobilyum Ticaret Ltd. Şti."
+                value={form.tamAd}
+                onChange={(e) => set("tamAd")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
               <IconInput
                 label="Kod"
                 icon={ScanTextIcon}
-                placeholder="CARI-0000"
+                placeholder={duzenleme ? "" : "Boş bırak → otomatik"}
                 value={form.id}
                 onChange={(e) => set("id")(e.target.value)}
+                readOnly={duzenleme}
+                className={cn(duzenleme && "text-muted-foreground")}
               />
               <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
@@ -872,8 +1088,6 @@ function BilgilerTab({
                   placeholder="Tip seç"
                 />
               </AnimatedField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
               <AnimatedField label="Sınıf" icon={UsersIcon}>
                 <SearchSelect
                   items={SINIFLAR}
@@ -885,6 +1099,75 @@ function BilgilerTab({
                     }))
                   }
                   placeholder="Sınıf seç"
+                />
+              </AnimatedField>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Yetkili"
+                icon={UsersIcon}
+                placeholder="Ana irtibat kişisi"
+                value={form.yetkili}
+                onChange={(e) => set("yetkili")(e.target.value)}
+              />
+              <IconInput
+                label="Telefon 1"
+                icon={PhoneIcon}
+                placeholder="0532 000 00 00"
+                value={form.telefon}
+                onChange={(e) => set("telefon")(e.target.value)}
+              />
+              <IconInput
+                label="Telefon 2"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.telefon2}
+                onChange={(e) => set("telefon2")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Telefon 3"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.telefon3}
+                onChange={(e) => set("telefon3")(e.target.value)}
+              />
+              <IconInput
+                label="Fax"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.fax}
+                onChange={(e) => set("fax")(e.target.value)}
+              />
+              <IconInput
+                label="E-posta"
+                icon={SendIcon}
+                placeholder="ornek@firma.com"
+                value={form.email}
+                onChange={(e) => set("email")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Web Sitesi"
+                icon={SendIcon}
+                placeholder="www.firma.com"
+                value={form.webSite}
+                onChange={(e) => set("webSite")(e.target.value)}
+              />
+              <AnimatedField label="Satış Fiyat Tipi" icon={BadgePercentIcon}>
+                <SearchSelect
+                  items={SATIS_FIYAT_TIPLERI}
+                  value={form.satisFiyatTipi}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      satisFiyatTipi:
+                        (v as SatisFiyatTipi) ?? "Satış Fiyatı 1",
+                    }))
+                  }
+                  placeholder="Fiyat tipi"
                 />
               </AnimatedField>
               <AnimatedField label="Para Birimi" icon={WalletIcon}>
@@ -901,127 +1184,1517 @@ function BilgilerTab({
                 />
               </AnimatedField>
             </div>
-
-            {kurumsal && (
-              <div className="grid grid-cols-2 gap-3">
-                <IconInput
-                  label="Vergi No"
-                  icon={BadgePercentIcon}
-                  placeholder="10 haneli"
-                  value={form.vergiNo}
-                  onChange={(e) => set("vergiNo")(e.target.value)}
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="İskonto Oranı (%)"
+                icon={BadgePercentIcon}
+                type="number"
+                min={0}
+                max={100}
+                placeholder="0"
+                value={form.iskontoOrani}
+                onChange={(e) => set("iskontoOrani")(e.target.value)}
+              />
+              <AnimatedField label="Temsilci" icon={UsersIcon}>
+                <SearchSelect
+                  items={kullanicilar}
+                  value={form.temsilci || null}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, temsilci: v ?? "" }))
+                  }
+                  placeholder="Satış temsilcisi"
                 />
+              </AnimatedField>
+              <div className="grid gap-0.5">
                 <IconInput
-                  label="Vergi Dairesi"
-                  icon={BadgePercentIcon}
-                  placeholder="Örn. Beşiktaş"
-                  value={form.vergiDairesi}
-                  onChange={(e) => set("vergiDairesi")(e.target.value)}
+                  label="Şube"
+                  icon={BlocksIcon}
+                  placeholder="Bağlı mağaza şubesi"
+                  value={form.sube}
+                  onChange={(e) => set("sube")(e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Çoklu şube kullanımında bağlı olduğu şube.
+                </p>
               </div>
-            )}
-
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                }))
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Muhasebe Kodu"
+                icon={ScanTextIcon}
+                placeholder="Örn. 120.01.001"
+                value={form.muhasebeKodu}
+                onChange={(e) => set("muhasebeKodu")(e.target.value)}
+              />
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() =>
                   setForm((f) => ({
                     ...f,
                     durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                  }));
+                  }))
                 }
-              }}
-              onMouseEnter={() => durumRef.current?.startAnimation()}
-              onMouseLeave={() => durumRef.current?.stopAnimation()}
-              className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-            >
-              <span className="flex items-center gap-1.5 text-sm font-medium">
-                <CircleCheckIcon
-                  ref={durumRef}
-                  size={15}
-                  className="text-muted-foreground"
-                />
-                Durum
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {form.durum}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setForm((f) => ({
+                      ...f,
+                      durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
+                    }));
+                  }
+                }}
+                onMouseEnter={() => durumRef.current?.startAnimation()}
+                onMouseLeave={() => durumRef.current?.stopAnimation()}
+                className="flex cursor-pointer items-center justify-between gap-3 self-end rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+              >
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <CircleCheckIcon
+                    ref={durumRef}
+                    size={15}
+                    className="text-muted-foreground"
+                  />
+                  Durum
                 </span>
-                <Switch
-                  checked={form.durum === "Aktif"}
-                  className="pointer-events-none data-checked:bg-emerald-600"
-                />
-              </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {form.durum}
+                  </span>
+                  <Switch
+                    checked={form.durum === "Aktif"}
+                    className="pointer-events-none data-checked:bg-emerald-600"
+                  />
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sağ: İletişim + Not */}
-      <div className="flex flex-col gap-4 lg:col-span-1">
-        <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">İletişim</span>
-          </div>
-          <div className="grid gap-3 p-4">
-            <IconInput
-              label="Telefon"
-              icon={SendIcon}
-              placeholder="0532 000 00 00"
-              value={form.telefon}
-              onChange={(e) => set("telefon")(e.target.value)}
-            />
-            <IconInput
-              label="E-posta"
-              icon={SendIcon}
-              placeholder="ornek@firma.com"
-              value={form.email}
-              onChange={(e) => set("email")(e.target.value)}
-            />
-            <IconInput
-              label="Şehir"
-              icon={BlocksIcon}
-              placeholder="Örn. İstanbul"
-              value={form.sehir}
-              onChange={(e) => set("sehir")(e.target.value)}
-            />
-            <AnimatedField label="Adres" icon={BlocksIcon}>
-              <textarea
-                rows={2}
-                placeholder="Mahalle, sokak, no..."
-                value={form.adres}
-                onChange={(e) => set("adres")(e.target.value)}
-                className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              />
-            </AnimatedField>
-          </div>
-        </div>
-
-        <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Not</span>
-          </div>
-          <div className="p-4">
-            <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+            <AnimatedField label="Açıklama / Not" icon={AlignLeftIcon}>
               <textarea
                 rows={3}
                 placeholder="Cari ile ilgili özel notlar..."
                 value={form.not}
                 onChange={(e) => set("not")(e.target.value)}
-                className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                className={textareaCls}
+              />
+            </AnimatedField>
+          </div>
+        </div>
+      </div>
+
+      {/* Sağ: Fatura bilgileri + Adres */}
+      <div className="flex flex-col gap-4 lg:col-span-1">
+        <div className="rounded-md border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-sm font-medium">Fatura Bilgileri</span>
+          </div>
+          <div className="grid gap-3 p-4">
+            {!kurumsal && (
+              <IconInput
+                label="TC Kimlik No"
+                icon={ReceiptIcon}
+                placeholder="11 haneli"
+                value={form.tcKimlik}
+                onChange={(e) => set("tcKimlik")(e.target.value)}
+              />
+            )}
+            {kurumsal && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <IconInput
+                    label="Vergi No"
+                    icon={BadgePercentIcon}
+                    placeholder="10 haneli"
+                    value={form.vergiNo}
+                    onChange={(e) => set("vergiNo")(e.target.value)}
+                  />
+                  <IconInput
+                    label="Vergi Dairesi"
+                    icon={BadgePercentIcon}
+                    placeholder="Örn. Beşiktaş"
+                    value={form.vergiDairesi}
+                    onChange={(e) => set("vergiDairesi")(e.target.value)}
+                  />
+                </div>
+                <IconInput
+                  label="Ünvan"
+                  icon={ReceiptIcon}
+                  placeholder="Fatura ünvanı"
+                  value={form.unvan}
+                  onChange={(e) => set("unvan")(e.target.value)}
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-md border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-sm font-medium">Adres</span>
+          </div>
+          <div className="grid gap-3 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Ülke"
+                icon={TruckIcon}
+                placeholder="Türkiye"
+                value={form.ulke}
+                onChange={(e) => set("ulke")(e.target.value)}
+              />
+              <IconInput
+                label="Bölge"
+                icon={TruckIcon}
+                placeholder="Örn. Marmara"
+                value={form.bolge}
+                onChange={(e) => set("bolge")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Şehir"
+                icon={BlocksIcon}
+                placeholder="Örn. İstanbul"
+                value={form.sehir}
+                onChange={(e) => set("sehir")(e.target.value)}
+              />
+              <IconInput
+                label="Semt"
+                icon={BlocksIcon}
+                placeholder="Örn. Kadıköy"
+                value={form.semt}
+                onChange={(e) => set("semt")(e.target.value)}
+              />
+            </div>
+            <AnimatedField label="Adres" icon={BlocksIcon}>
+              <textarea
+                rows={3}
+                placeholder="Mahalle, sokak, no..."
+                value={form.adres}
+                onChange={(e) => set("adres")(e.target.value)}
+                className={textareaCls}
               />
             </AnimatedField>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ALT KAYIT ORTAK PARÇALARI                                          */
+/* ------------------------------------------------------------------ */
+
+/** Alt kayıt listesi kabuğu — başlık + adet + ekle butonu, altında içerik. */
+function AltListeKart({
+  baslik,
+  adet,
+  adetEtiket,
+  ekleEtiket,
+  onEkle,
+  ikon,
+  children,
+}: {
+  baslik: string;
+  adet: number;
+  adetEtiket: string;
+  ekleEtiket: string;
+  onEkle: () => void;
+  ikon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border bg-card">
+      <div className="flex items-center justify-between gap-3 border-b px-4 py-2">
+        <div className="flex items-center gap-2">
+          {ikon}
+          <span className="text-sm font-medium">{baslik}</span>
+          <span className="text-xs text-muted-foreground">
+            · {adet} {adetEtiket}
+          </span>
+        </div>
+        <Button size="sm" onClick={onEkle}>
+          <Plus className="size-4" /> {ekleEtiket}
+        </Button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Satır sonu işlem menüsü — Düzenle / Sil. */
+function SatirMenu({
+  onDuzenle,
+  onSil,
+}: {
+  onDuzenle: () => void;
+  onSil: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
+            <MoreHorizontal className="size-4" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="w-36">
+        <DropdownMenuItem onClick={onDuzenle}>
+          <Pencil className="mr-2 size-4" /> Düzenle
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onClick={onSil}>
+          <Trash2 className="mr-2 size-4" /> Sil
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Optimistic ekleme için geçici (negatif) id üretir. */
+function geciciId(): number {
+  return -Math.floor(Math.random() * 1_000_000_000) - 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* BANKA BİLGİLERİ SEKMESİ                                            */
+/* ------------------------------------------------------------------ */
+function BankaTab({
+  cariId,
+  kayitlar,
+}: {
+  cariId: string;
+  kayitlar: CariBanka[];
+}) {
+  const [liste, setListe] = React.useState<CariBanka[]>(kayitlar);
+  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [sheetAcik, setSheetAcik] = React.useState(false);
+  const [duzenlenen, setDuzenlenen] = React.useState<CariBanka | null>(null);
+
+  function ekleAc() {
+    setDuzenlenen(null);
+    setSheetAcik(true);
+  }
+  function duzenleAc(b: CariBanka) {
+    setDuzenlenen(b);
+    setSheetAcik(true);
+  }
+
+  async function kaydetKayit(f: Omit<CariBanka, "id" | "cariId">) {
+    if (duzenlenen) {
+      const onceki = liste;
+      const guncel = { ...duzenlenen, ...f };
+      setListe((l) => l.map((x) => (x.id === duzenlenen.id ? guncel : x)));
+      const res = await cariBankaKaydet({ ...f, id: duzenlenen.id, cariId });
+      if (!res.ok) {
+        setListe(onceki);
+        toast.error(res.error ?? "Banka hesabı kaydedilemedi");
+        return;
+      }
+      toast.success("Banka hesabı güncellendi");
+      return;
+    }
+    const gecici = geciciId();
+    setListe((l) => [...l, { ...f, id: gecici, cariId }]);
+    const res = await cariBankaKaydet({ ...f, cariId });
+    if (!res.ok || !res.id) {
+      setListe((l) => l.filter((x) => x.id !== gecici));
+      toast.error(res.error ?? "Banka hesabı kaydedilemedi");
+      return;
+    }
+    setListe((l) =>
+      l.map((x) => (x.id === gecici ? { ...x, id: res.id! } : x)),
+    );
+    toast.success("Banka hesabı eklendi");
+  }
+
+  async function sil(b: CariBanka) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== b.id));
+    const res = await cariBankaSil(b.id, cariId);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Banka hesabı silinemedi");
+      return;
+    }
+    toast.success("Banka hesabı silindi");
+  }
+
+  return (
+    <AltListeKart
+      baslik="Banka Hesapları"
+      adet={liste.length}
+      adetEtiket="hesap"
+      ekleEtiket="Banka Hesabı Ekle"
+      onEkle={ekleAc}
+      ikon={<Landmark className="size-4 text-muted-foreground" />}
+    >
+      <BankaSheet
+        open={sheetAcik}
+        onOpenChange={setSheetAcik}
+        kayit={duzenlenen}
+        onSave={kaydetKayit}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Banka Adı</TableHead>
+            <TableHead>Şube</TableHead>
+            <TableHead>IBAN</TableHead>
+            <TableHead>Açıklama</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {liste.map((b) => (
+            <TableRow key={b.id}>
+              <TableCell className="font-medium">{b.bankaAdi}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {b.sube ?? "—"}
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">
+                {b.iban ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {b.aciklama ?? "—"}
+              </TableCell>
+              <TableCell>
+                <SatirMenu
+                  onDuzenle={() => duzenleAc(b)}
+                  onSil={() => sil(b)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+          {liste.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Bu cari için kayıtlı banka hesabı yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </AltListeKart>
+  );
+}
+
+function BankaSheet({
+  open,
+  onOpenChange,
+  kayit,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kayit: CariBanka | null;
+  onSave: (f: Omit<CariBanka, "id" | "cariId">) => void;
+}) {
+  const [form, setForm] = React.useState({
+    bankaAdi: "",
+    sube: "",
+    iban: "",
+    aciklama: "",
+  });
+
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({
+      bankaAdi: kayit?.bankaAdi ?? "",
+      sube: kayit?.sube ?? "",
+      iban: kayit?.iban ?? "",
+      aciklama: kayit?.aciklama ?? "",
+    });
+  }, [open, kayit]);
+
+  function kaydet() {
+    if (!form.bankaAdi.trim()) {
+      toast.error("Banka adı gerekli");
+      return;
+    }
+    onSave({
+      bankaAdi: form.bankaAdi.trim(),
+      sube: form.sube.trim() || undefined,
+      iban: form.iban.trim() || undefined,
+      aciklama: form.aciklama.trim() || undefined,
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={kayit ? "Banka Hesabını Düzenle" : "Banka Hesabı Ekle"}
+      icon={WalletIcon}
+      onSave={kaydet}
+    >
+      <div className="grid gap-2.5">
+        <IconInput
+          label="Banka Adı"
+          icon={WalletIcon}
+          placeholder="Örn. Ziraat Bankası"
+          value={form.bankaAdi}
+          onChange={(e) => setForm((f) => ({ ...f, bankaAdi: e.target.value }))}
+        />
+        <IconInput
+          label="Şube"
+          icon={BlocksIcon}
+          placeholder="Örn. Kadıköy Şubesi"
+          value={form.sube}
+          onChange={(e) => setForm((f) => ({ ...f, sube: e.target.value }))}
+        />
+        <IconInput
+          label="IBAN"
+          icon={ScanTextIcon}
+          placeholder="TR00 0000 0000 0000 0000 0000 00"
+          value={form.iban}
+          onChange={(e) => setForm((f) => ({ ...f, iban: e.target.value }))}
+        />
+        <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+          <textarea
+            rows={2}
+            placeholder="Kısa açıklama..."
+            value={form.aciklama}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, aciklama: e.target.value }))
+            }
+            className={textareaCls}
+          />
+        </AnimatedField>
+      </div>
+    </FormSheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ŞUBELER SEKMESİ                                                    */
+/* ------------------------------------------------------------------ */
+function SubelerTab({
+  cariId,
+  kayitlar,
+}: {
+  cariId: string;
+  kayitlar: CariSube[];
+}) {
+  const [liste, setListe] = React.useState<CariSube[]>(kayitlar);
+  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [sheetAcik, setSheetAcik] = React.useState(false);
+  const [duzenlenen, setDuzenlenen] = React.useState<CariSube | null>(null);
+
+  function ekleAc() {
+    setDuzenlenen(null);
+    setSheetAcik(true);
+  }
+  function duzenleAc(s: CariSube) {
+    setDuzenlenen(s);
+    setSheetAcik(true);
+  }
+
+  async function kaydetKayit(f: Omit<CariSube, "id" | "cariId">) {
+    if (duzenlenen) {
+      const onceki = liste;
+      setListe((l) =>
+        l.map((x) => (x.id === duzenlenen.id ? { ...duzenlenen, ...f } : x)),
+      );
+      const res = await cariSubeKaydet({ ...f, id: duzenlenen.id, cariId });
+      if (!res.ok) {
+        setListe(onceki);
+        toast.error(res.error ?? "Şube kaydedilemedi");
+        return;
+      }
+      toast.success("Şube güncellendi");
+      return;
+    }
+    const gecici = geciciId();
+    setListe((l) => [...l, { ...f, id: gecici, cariId }]);
+    const res = await cariSubeKaydet({ ...f, cariId });
+    if (!res.ok || !res.id) {
+      setListe((l) => l.filter((x) => x.id !== gecici));
+      toast.error(res.error ?? "Şube kaydedilemedi");
+      return;
+    }
+    setListe((l) =>
+      l.map((x) => (x.id === gecici ? { ...x, id: res.id! } : x)),
+    );
+    toast.success("Şube eklendi");
+  }
+
+  async function sil(s: CariSube) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== s.id));
+    const res = await cariSubeSil(s.id, cariId);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Şube silinemedi");
+      return;
+    }
+    toast.success("Şube silindi");
+  }
+
+  return (
+    <AltListeKart
+      baslik="Şubeler"
+      adet={liste.length}
+      adetEtiket="şube"
+      ekleEtiket="Şube Ekle"
+      onEkle={ekleAc}
+      ikon={<Building2 className="size-4 text-muted-foreground" />}
+    >
+      <SubeSheet
+        open={sheetAcik}
+        onOpenChange={setSheetAcik}
+        kayit={duzenlenen}
+        onSave={kaydetKayit}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Şube Adı</TableHead>
+            <TableHead>Yetkili</TableHead>
+            <TableHead>Telefon</TableHead>
+            <TableHead>E-posta</TableHead>
+            <TableHead>Şehir</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {liste.map((s) => (
+            <TableRow key={s.id}>
+              <TableCell className="font-medium">{s.subeAdi}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {s.yetkili ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground tabular-nums">
+                {s.telefon ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {s.email ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {s.sehir ?? "—"}
+              </TableCell>
+              <TableCell>
+                <SatirMenu
+                  onDuzenle={() => duzenleAc(s)}
+                  onSil={() => sil(s)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+          {liste.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={6}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Bu cari için kayıtlı şube yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </AltListeKart>
+  );
+}
+
+function SubeSheet({
+  open,
+  onOpenChange,
+  kayit,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kayit: CariSube | null;
+  onSave: (f: Omit<CariSube, "id" | "cariId">) => void;
+}) {
+  const [form, setForm] = React.useState({
+    subeAdi: "",
+    yetkili: "",
+    email: "",
+    telefon: "",
+    ulke: "",
+    sehir: "",
+    semt: "",
+    adres: "",
+    aciklama: "",
+  });
+
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({
+      subeAdi: kayit?.subeAdi ?? "",
+      yetkili: kayit?.yetkili ?? "",
+      email: kayit?.email ?? "",
+      telefon: kayit?.telefon ?? "",
+      ulke: kayit?.ulke ?? "",
+      sehir: kayit?.sehir ?? "",
+      semt: kayit?.semt ?? "",
+      adres: kayit?.adres ?? "",
+      aciklama: kayit?.aciklama ?? "",
+    });
+  }, [open, kayit]);
+
+  function kaydet() {
+    if (!form.subeAdi.trim()) {
+      toast.error("Şube adı gerekli");
+      return;
+    }
+    const t = (s: string) => s.trim() || undefined;
+    onSave({
+      subeAdi: form.subeAdi.trim(),
+      yetkili: t(form.yetkili),
+      email: t(form.email),
+      telefon: t(form.telefon),
+      ulke: t(form.ulke),
+      sehir: t(form.sehir),
+      semt: t(form.semt),
+      adres: t(form.adres),
+      aciklama: t(form.aciklama),
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={kayit ? "Şubeyi Düzenle" : "Şube Ekle"}
+      icon={BlocksIcon}
+      onSave={kaydet}
+    >
+      <div className="grid gap-2.5">
+        <IconInput
+          label="Şube Adı"
+          icon={BlocksIcon}
+          placeholder="Örn. Kadıköy Mağaza"
+          value={form.subeAdi}
+          onChange={(e) => setForm((f) => ({ ...f, subeAdi: e.target.value }))}
+        />
+        <IconInput
+          label="Yetkili"
+          icon={UsersIcon}
+          placeholder="Şube yetkilisi"
+          value={form.yetkili}
+          onChange={(e) => setForm((f) => ({ ...f, yetkili: e.target.value }))}
+        />
+        <div className="grid grid-cols-2 gap-2.5">
+          <IconInput
+            label="Telefon"
+            icon={PhoneIcon}
+            placeholder="0216 000 00 00"
+            value={form.telefon}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, telefon: e.target.value }))
+            }
+          />
+          <IconInput
+            label="E-posta"
+            icon={SendIcon}
+            placeholder="sube@firma.com"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          <IconInput
+            label="Ülke"
+            icon={TruckIcon}
+            placeholder="Türkiye"
+            value={form.ulke}
+            onChange={(e) => setForm((f) => ({ ...f, ulke: e.target.value }))}
+          />
+          <IconInput
+            label="Şehir"
+            icon={BlocksIcon}
+            placeholder="İstanbul"
+            value={form.sehir}
+            onChange={(e) => setForm((f) => ({ ...f, sehir: e.target.value }))}
+          />
+          <IconInput
+            label="Semt"
+            icon={BlocksIcon}
+            placeholder="Kadıköy"
+            value={form.semt}
+            onChange={(e) => setForm((f) => ({ ...f, semt: e.target.value }))}
+          />
+        </div>
+        <AnimatedField label="Adres" icon={BlocksIcon}>
+          <textarea
+            rows={2}
+            placeholder="Mahalle, sokak, no..."
+            value={form.adres}
+            onChange={(e) => setForm((f) => ({ ...f, adres: e.target.value }))}
+            className={textareaCls}
+          />
+        </AnimatedField>
+        <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+          <textarea
+            rows={2}
+            placeholder="Kısa açıklama..."
+            value={form.aciklama}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, aciklama: e.target.value }))
+            }
+            className={textareaCls}
+          />
+        </AnimatedField>
+      </div>
+    </FormSheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* YETKİLİLER SEKMESİ                                                 */
+/* ------------------------------------------------------------------ */
+function YetkililerTab({
+  cariId,
+  kayitlar,
+  subeler,
+}: {
+  cariId: string;
+  kayitlar: CariYetkili[];
+  subeler: string[];
+}) {
+  const [liste, setListe] = React.useState<CariYetkili[]>(kayitlar);
+  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [sheetAcik, setSheetAcik] = React.useState(false);
+  const [duzenlenen, setDuzenlenen] = React.useState<CariYetkili | null>(null);
+
+  function ekleAc() {
+    setDuzenlenen(null);
+    setSheetAcik(true);
+  }
+  function duzenleAc(y: CariYetkili) {
+    setDuzenlenen(y);
+    setSheetAcik(true);
+  }
+
+  async function kaydetKayit(f: Omit<CariYetkili, "id" | "cariId">) {
+    if (duzenlenen) {
+      const onceki = liste;
+      setListe((l) =>
+        l.map((x) => (x.id === duzenlenen.id ? { ...duzenlenen, ...f } : x)),
+      );
+      const res = await cariYetkiliKaydet({ ...f, id: duzenlenen.id, cariId });
+      if (!res.ok) {
+        setListe(onceki);
+        toast.error(res.error ?? "Yetkili kaydedilemedi");
+        return;
+      }
+      toast.success("Yetkili güncellendi");
+      return;
+    }
+    const gecici = geciciId();
+    setListe((l) => [...l, { ...f, id: gecici, cariId }]);
+    const res = await cariYetkiliKaydet({ ...f, cariId });
+    if (!res.ok || !res.id) {
+      setListe((l) => l.filter((x) => x.id !== gecici));
+      toast.error(res.error ?? "Yetkili kaydedilemedi");
+      return;
+    }
+    setListe((l) =>
+      l.map((x) => (x.id === gecici ? { ...x, id: res.id! } : x)),
+    );
+    toast.success("Yetkili eklendi");
+  }
+
+  async function sil(y: CariYetkili) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== y.id));
+    const res = await cariYetkiliSil(y.id, cariId);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Yetkili silinemedi");
+      return;
+    }
+    toast.success("Yetkili silindi");
+  }
+
+  return (
+    <AltListeKart
+      baslik="Yetkililer"
+      adet={liste.length}
+      adetEtiket="yetkili"
+      ekleEtiket="Yetkili Ekle"
+      onEkle={ekleAc}
+      ikon={<Users className="size-4 text-muted-foreground" />}
+    >
+      <YetkiliSheet
+        open={sheetAcik}
+        onOpenChange={setSheetAcik}
+        kayit={duzenlenen}
+        subeler={subeler}
+        onSave={kaydetKayit}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Yetkili</TableHead>
+            <TableHead>Görevi</TableHead>
+            <TableHead>Telefon</TableHead>
+            <TableHead>E-posta</TableHead>
+            <TableHead>Şube</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {liste.map((y) => (
+            <TableRow key={y.id}>
+              <TableCell className="font-medium">{y.yetkili}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {y.gorevi ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground tabular-nums">
+                {y.telefon ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {y.email ?? "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {y.subeAdi ?? "—"}
+              </TableCell>
+              <TableCell>
+                <SatirMenu
+                  onDuzenle={() => duzenleAc(y)}
+                  onSil={() => sil(y)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+          {liste.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={6}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Bu cari için kayıtlı yetkili yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </AltListeKart>
+  );
+}
+
+function YetkiliSheet({
+  open,
+  onOpenChange,
+  kayit,
+  subeler,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kayit: CariYetkili | null;
+  subeler: string[];
+  onSave: (f: Omit<CariYetkili, "id" | "cariId">) => void;
+}) {
+  const [form, setForm] = React.useState({
+    yetkili: "",
+    gorevi: "",
+    email: "",
+    telefon: "",
+    subeAdi: "",
+    aciklama: "",
+  });
+
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({
+      yetkili: kayit?.yetkili ?? "",
+      gorevi: kayit?.gorevi ?? "",
+      email: kayit?.email ?? "",
+      telefon: kayit?.telefon ?? "",
+      subeAdi: kayit?.subeAdi ?? "",
+      aciklama: kayit?.aciklama ?? "",
+    });
+  }, [open, kayit]);
+
+  function kaydet() {
+    if (!form.yetkili.trim()) {
+      toast.error("Yetkili adı gerekli");
+      return;
+    }
+    const t = (s: string) => s.trim() || undefined;
+    onSave({
+      yetkili: form.yetkili.trim(),
+      gorevi: t(form.gorevi),
+      email: t(form.email),
+      telefon: t(form.telefon),
+      subeAdi: t(form.subeAdi),
+      aciklama: t(form.aciklama),
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={kayit ? "Yetkiliyi Düzenle" : "Yetkili Ekle"}
+      icon={UsersIcon}
+      onSave={kaydet}
+    >
+      <div className="grid gap-2.5">
+        <IconInput
+          label="Yetkili"
+          icon={UsersIcon}
+          placeholder="Ad Soyad"
+          value={form.yetkili}
+          onChange={(e) => setForm((f) => ({ ...f, yetkili: e.target.value }))}
+        />
+        <IconInput
+          label="Görevi"
+          icon={ScanTextIcon}
+          placeholder="Örn. Satın Alma Müdürü"
+          value={form.gorevi}
+          onChange={(e) => setForm((f) => ({ ...f, gorevi: e.target.value }))}
+        />
+        <div className="grid grid-cols-2 gap-2.5">
+          <IconInput
+            label="Telefon"
+            icon={PhoneIcon}
+            placeholder="0532 000 00 00"
+            value={form.telefon}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, telefon: e.target.value }))
+            }
+          />
+          <IconInput
+            label="E-posta"
+            icon={SendIcon}
+            placeholder="ornek@firma.com"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+        </div>
+        {subeler.length > 0 ? (
+          <AnimatedField label="Şube" icon={BlocksIcon}>
+            <SearchSelect
+              items={subeler}
+              value={form.subeAdi || null}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, subeAdi: v ?? "" }))
+              }
+              placeholder="Bağlı olduğu şube"
+            />
+          </AnimatedField>
+        ) : (
+          <IconInput
+            label="Şube"
+            icon={BlocksIcon}
+            placeholder="Bağlı olduğu şube (serbest)"
+            value={form.subeAdi}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, subeAdi: e.target.value }))
+            }
+          />
+        )}
+        <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+          <textarea
+            rows={2}
+            placeholder="Kısa açıklama..."
+            value={form.aciklama}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, aciklama: e.target.value }))
+            }
+            className={textareaCls}
+          />
+        </AnimatedField>
+      </div>
+    </FormSheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* CRM SEKMESİ                                                        */
+/* ------------------------------------------------------------------ */
+function CrmTab({
+  cariId,
+  kayitlar,
+  kullanicilar,
+}: {
+  cariId: string;
+  kayitlar: CariCrm[];
+  kullanicilar: string[];
+}) {
+  const [liste, setListe] = React.useState<CariCrm[]>(kayitlar);
+  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [sheetAcik, setSheetAcik] = React.useState(false);
+  const [duzenlenen, setDuzenlenen] = React.useState<CariCrm | null>(null);
+
+  function ekleAc() {
+    setDuzenlenen(null);
+    setSheetAcik(true);
+  }
+  function duzenleAc(k: CariCrm) {
+    setDuzenlenen(k);
+    setSheetAcik(true);
+  }
+
+  async function kaydetKayit(f: Omit<CariCrm, "id" | "cariId">) {
+    if (duzenlenen) {
+      const onceki = liste;
+      setListe((l) =>
+        l.map((x) => (x.id === duzenlenen.id ? { ...duzenlenen, ...f } : x)),
+      );
+      const res = await cariCrmKaydet({ ...f, id: duzenlenen.id, cariId });
+      if (!res.ok) {
+        setListe(onceki);
+        toast.error(res.error ?? "CRM kaydı kaydedilemedi");
+        return;
+      }
+      toast.success("CRM kaydı güncellendi");
+      return;
+    }
+    const gecici = geciciId();
+    setListe((l) => [{ ...f, id: gecici, cariId }, ...l]);
+    const res = await cariCrmKaydet({ ...f, cariId });
+    if (!res.ok || !res.id) {
+      setListe((l) => l.filter((x) => x.id !== gecici));
+      toast.error(res.error ?? "CRM kaydı kaydedilemedi");
+      return;
+    }
+    setListe((l) =>
+      l.map((x) => (x.id === gecici ? { ...x, id: res.id! } : x)),
+    );
+    toast.success("CRM kaydı eklendi");
+  }
+
+  async function sil(k: CariCrm) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== k.id));
+    const res = await cariCrmSil(k.id, cariId);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "CRM kaydı silinemedi");
+      return;
+    }
+    toast.success("CRM kaydı silindi");
+  }
+
+  return (
+    <AltListeKart
+      baslik="CRM Kayıtları"
+      adet={liste.length}
+      adetEtiket="kayıt"
+      ekleEtiket="CRM Kaydı Ekle"
+      onEkle={ekleAc}
+      ikon={<CalendarDays className="size-4 text-muted-foreground" />}
+    >
+      <CrmSheet
+        open={sheetAcik}
+        onOpenChange={setSheetAcik}
+        kayit={duzenlenen}
+        kullanicilar={kullanicilar}
+        onSave={kaydetKayit}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>
+              <span className="inline-flex items-center gap-1.5">
+                <Calendar className="size-3.5 text-muted-foreground" />
+                Tarih
+              </span>
+            </TableHead>
+            <TableHead>Personel</TableHead>
+            <TableHead>Tip</TableHead>
+            <TableHead>Durum</TableHead>
+            <TableHead>Açıklama</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {liste.map((k) => (
+            <TableRow key={k.id}>
+              <TableCell className="text-muted-foreground">
+                {formatTarih(k.tarih)}
+              </TableCell>
+              <TableCell>{k.personel ?? "—"}</TableCell>
+              <TableCell>
+                <Badge variant="secondary" className={CRM_TIP_RENK[k.tip]}>
+                  {k.tip}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary" className={CRM_DURUM_RENK[k.durum]}>
+                  {k.durum}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {k.aciklama ?? "—"}
+              </TableCell>
+              <TableCell>
+                <SatirMenu
+                  onDuzenle={() => duzenleAc(k)}
+                  onSil={() => sil(k)}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+          {liste.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={6}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Bu cari için CRM kaydı yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </AltListeKart>
+  );
+}
+
+function CrmSheet({
+  open,
+  onOpenChange,
+  kayit,
+  kullanicilar,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kayit: CariCrm | null;
+  kullanicilar: string[];
+  onSave: (f: Omit<CariCrm, "id" | "cariId">) => void;
+}) {
+  const bugun = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = React.useState({
+    tarih: bugun,
+    personel: "",
+    tip: "Telefon" as CariCrmTip,
+    durum: "Planlandı" as CariCrmDurum,
+    aciklama: "",
+  });
+
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({
+      tarih: kayit?.tarih ?? new Date().toISOString().slice(0, 10),
+      personel: kayit?.personel ?? "",
+      tip: kayit?.tip ?? "Telefon",
+      durum: kayit?.durum ?? "Planlandı",
+      aciklama: kayit?.aciklama ?? "",
+    });
+  }, [open, kayit]);
+
+  function kaydet() {
+    if (!form.tarih) {
+      toast.error("Tarih gerekli");
+      return;
+    }
+    onSave({
+      tarih: form.tarih,
+      personel: form.personel.trim() || undefined,
+      tip: form.tip,
+      durum: form.durum,
+      aciklama: form.aciklama.trim() || undefined,
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={kayit ? "CRM Kaydını Düzenle" : "CRM Kaydı Ekle"}
+      icon={AlignLeftIcon}
+      onSave={kaydet}
+    >
+      <div className="grid gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <IconInput
+            label="Tarih"
+            icon={ScanTextIcon}
+            type="date"
+            value={form.tarih}
+            onChange={(e) => setForm((f) => ({ ...f, tarih: e.target.value }))}
+          />
+          <AnimatedField label="Personel" icon={UsersIcon}>
+            <SearchSelect
+              items={kullanicilar}
+              value={form.personel || null}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, personel: v ?? "" }))
+              }
+              placeholder="Görüşen personel"
+            />
+          </AnimatedField>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <AnimatedField label="Tip" icon={FolderOpenIcon}>
+            <SearchSelect
+              items={CRM_TIPLERI}
+              value={form.tip}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, tip: (v as CariCrmTip) ?? "Telefon" }))
+              }
+              placeholder="Görüşme tipi"
+            />
+          </AnimatedField>
+          <AnimatedField label="Durum" icon={CircleCheckIcon}>
+            <SearchSelect
+              items={CRM_DURUMLAR}
+              value={form.durum}
+              onValueChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  durum: (v as CariCrmDurum) ?? "Planlandı",
+                }))
+              }
+              placeholder="Durum"
+            />
+          </AnimatedField>
+        </div>
+        <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+          <textarea
+            rows={3}
+            placeholder="Görüşme notları..."
+            value={form.aciklama}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, aciklama: e.target.value }))
+            }
+            className={textareaCls}
+          />
+        </AnimatedField>
+      </div>
+    </FormSheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* DOKÜMANLAR SEKMESİ                                                 */
+/* ------------------------------------------------------------------ */
+const RESIM_UZANTI = /\.(jpe?g|png|webp)$/i;
+
+function resimMi(url: string): boolean {
+  return RESIM_UZANTI.test(url.split("?")[0]);
+}
+
+function DokumanlarTab({
+  cariId,
+  kayitlar,
+}: {
+  cariId: string;
+  kayitlar: CariDokuman[];
+}) {
+  const [liste, setListe] = React.useState<CariDokuman[]>(kayitlar);
+  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [sheetAcik, setSheetAcik] = React.useState(false);
+  const [duzenlenen, setDuzenlenen] = React.useState<CariDokuman | null>(null);
+
+  const resimler = liste.filter((d) => resimMi(d.url));
+  const digerleri = liste.filter((d) => !resimMi(d.url));
+
+  function ekleAc() {
+    setDuzenlenen(null);
+    setSheetAcik(true);
+  }
+  function duzenleAc(d: CariDokuman) {
+    setDuzenlenen(d);
+    setSheetAcik(true);
+  }
+
+  async function kaydetKayit(f: Omit<CariDokuman, "id" | "cariId">) {
+    if (duzenlenen) {
+      const onceki = liste;
+      setListe((l) =>
+        l.map((x) => (x.id === duzenlenen.id ? { ...duzenlenen, ...f } : x)),
+      );
+      const res = await cariDokumanKaydet({ ...f, id: duzenlenen.id, cariId });
+      if (!res.ok) {
+        setListe(onceki);
+        toast.error(res.error ?? "Doküman kaydedilemedi");
+        return;
+      }
+      toast.success("Doküman güncellendi");
+      return;
+    }
+    const gecici = geciciId();
+    setListe((l) => [...l, { ...f, id: gecici, cariId }]);
+    const res = await cariDokumanKaydet({ ...f, cariId });
+    if (!res.ok || !res.id) {
+      setListe((l) => l.filter((x) => x.id !== gecici));
+      toast.error(res.error ?? "Doküman kaydedilemedi");
+      return;
+    }
+    setListe((l) =>
+      l.map((x) => (x.id === gecici ? { ...x, id: res.id! } : x)),
+    );
+    toast.success("Doküman eklendi");
+  }
+
+  async function sil(d: CariDokuman) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== d.id));
+    const res = await cariDokumanSil(d.id, cariId);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Doküman silinemedi");
+      return;
+    }
+    toast.success("Doküman silindi");
+  }
+
+  return (
+    <AltListeKart
+      baslik="Dokümanlar"
+      adet={liste.length}
+      adetEtiket="doküman"
+      ekleEtiket="Doküman Ekle"
+      onEkle={ekleAc}
+      ikon={<FileImage className="size-4 text-muted-foreground" />}
+    >
+      <DokumanSheet
+        open={sheetAcik}
+        onOpenChange={setSheetAcik}
+        kayit={duzenlenen}
+        onSave={kaydetKayit}
+      />
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <Info className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            Dokümanlar URL tabanlıdır — dosya yükleme yoktur. Görsel bağlantılar
+            (jpg/png/webp) önizleme olarak, diğerleri liste halinde gösterilir.
+          </span>
+        </div>
+
+        {/* Görseller — küçük önizleme grid'i */}
+        {resimler.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {resimler.map((d) => (
+              <div
+                key={d.id}
+                className="group relative overflow-hidden rounded-md border bg-muted/20"
+              >
+                <a href={d.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={d.url}
+                    alt={d.ad}
+                    className="aspect-square w-full object-cover"
+                  />
+                </a>
+                <div className="flex items-center justify-between gap-1 border-t bg-card px-2 py-1">
+                  <span className="truncate text-xs" title={d.ad}>
+                    {d.ad}
+                  </span>
+                  <SatirMenu
+                    onDuzenle={() => duzenleAc(d)}
+                    onSil={() => sil(d)}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Diğer dokümanlar — satır listesi */}
+        {digerleri.length > 0 && (
+          <div className="overflow-hidden rounded-md border">
+            {digerleri.map((d, i) => (
+              <div
+                key={d.id}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2",
+                  i > 0 && "border-t",
+                )}
+              >
+                <FileText className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {d.ad}
+                </span>
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <ExternalLink className="size-3.5" /> Aç
+                </a>
+                <SatirMenu
+                  onDuzenle={() => duzenleAc(d)}
+                  onSil={() => sil(d)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {liste.length === 0 && (
+          <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+            Bu cari için kayıtlı doküman yok.
+          </div>
+        )}
+      </div>
+    </AltListeKart>
+  );
+}
+
+function DokumanSheet({
+  open,
+  onOpenChange,
+  kayit,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kayit: CariDokuman | null;
+  onSave: (f: Omit<CariDokuman, "id" | "cariId">) => void;
+}) {
+  const [form, setForm] = React.useState({ ad: "", url: "" });
+
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({ ad: kayit?.ad ?? "", url: kayit?.url ?? "" });
+  }, [open, kayit]);
+
+  function kaydet() {
+    if (!form.ad.trim()) {
+      toast.error("Doküman adı gerekli");
+      return;
+    }
+    if (!form.url.trim()) {
+      toast.error("Doküman URL'si gerekli");
+      return;
+    }
+    onSave({ ad: form.ad.trim(), url: form.url.trim() });
+    onOpenChange(false);
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={kayit ? "Dokümanı Düzenle" : "Doküman Ekle"}
+      icon={FolderOpenIcon}
+      onSave={kaydet}
+    >
+      <div className="grid gap-2.5">
+        <IconInput
+          label="Ad"
+          icon={ScanTextIcon}
+          placeholder="Örn. Vergi Levhası"
+          value={form.ad}
+          onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))}
+        />
+        <IconInput
+          label="URL"
+          icon={SendIcon}
+          placeholder="https://..."
+          value={form.url}
+          onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+        />
+      </div>
+    </FormSheet>
   );
 }

@@ -84,6 +84,16 @@ function getCrumbs(
       meta: id,
     };
   }
+  if (pathname === "/cari/yeni") {
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Cari Hesaplar", href: "/cari" },
+        { label: "Yeni Cari" },
+      ],
+      Icon: iconForHref("/cari"),
+    };
+  }
   if (/^\/cari\/[^/]+$/.test(pathname)) {
     return {
       crumbs: [
