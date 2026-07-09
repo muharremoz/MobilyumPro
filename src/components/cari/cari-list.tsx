@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -40,8 +39,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CariSheet } from "@/components/cari/cari-sheet";
 import { formatTL, type Cari, type CariTip } from "@/lib/data";
-import { cariSil } from "@/lib/db/actions";
+import { cariKaydet, cariSil } from "@/lib/db/actions";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi"];
 const TIP_RENK: Record<CariTip, string> = {
@@ -100,6 +100,7 @@ export function CariList({
   );
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
+  const [sheetAcik, setSheetAcik] = React.useState(false);
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -183,6 +184,20 @@ export function CariList({
       return n;
     });
   }
+  async function ekle(c: Cari) {
+    // Optimistic: geçici kodla listeye koy; sunucu CARI-#### üretince değiştir.
+    const geciciId = `gecici-${Math.floor(Math.random() * 100000)}`;
+    setListe((l) => [{ ...c, id: geciciId }, ...l]);
+    const res = await cariKaydet(c);
+    if (!res.ok) {
+      setListe((l) => l.filter((x) => x.id !== geciciId));
+      toast.error("Cari kaydedilemedi.");
+      return;
+    }
+    setListe((l) => l.map((x) => (x.id === geciciId ? { ...x, id: res.id } : x)));
+    toast.success(`Cari eklendi (${res.id})`);
+  }
+
   async function sil(ids: string[]) {
     const onceki = liste;
     setListe((l) => l.filter((c) => !ids.includes(c.id)));
@@ -227,7 +242,7 @@ export function CariList({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Cari Hesaplar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button nativeButton={false} render={<Link href="/cari/yeni" />}>
+          <Button onClick={() => setSheetAcik(true)}>
             <Plus className="size-4" /> Yeni Cari
           </Button>
         </ListHeader>
@@ -476,6 +491,9 @@ export function CariList({
           </Button>
         </div>
       </div>
+
+      {/* Yeni cari ekleme sheet'i */}
+      <CariSheet open={sheetAcik} onOpenChange={setSheetAcik} onSave={ekle} />
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
