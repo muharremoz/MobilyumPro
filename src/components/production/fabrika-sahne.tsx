@@ -323,80 +323,107 @@ function Forklift() {
   );
 }
 
-// ── Dekorlar ─────────────────────────────────────────────────────────────
-function TestereMasasi({ x, z }: { x: number; z: number }) {
-  const disk = React.useRef<Mesh>(null);
-  useFrame(({ clock }) => {
-    if (disk.current) disk.current.rotation.y = clock.elapsedTime * 8;
-  });
+// ── Dekorlar — Kenney Factory Kit (CC0, kenney.nl) ───────────────────────
+// Modeller: public/modeller/fabrika/*.glb (Factory Kit 3.0, CC0/Public Domain).
+const KIT = (ad: string) => `/modeller/fabrika/${ad}.glb`;
+const KIT_PARCALAR = [
+  "machine-bed",
+  "machine",
+  "machine-fortified",
+  "machine-window",
+  "robot-arm-a",
+  "robot-arm-b",
+  "conveyor-long",
+  "scanner-high",
+  "box-large",
+  "box-small",
+  "box-wide",
+  "box-long",
+  "cone",
+  "warning-orange",
+] as const;
+KIT_PARCALAR.forEach((ad) => useGLTF.preload(KIT(ad)));
+
+type KitParcaProps = {
+  ad: (typeof KIT_PARCALAR)[number];
+  x: number;
+  z: number;
+  /** Platform üstü taban (istasyon zemini 0.22). */
+  y?: number;
+  donus?: number;
+  olcek?: number;
+};
+
+function KitParca(props: KitParcaProps) {
   return (
-    <group position={[x, 0, z]}>
-      <mesh castShadow position={[0, 0.55, 0]}>
-        <boxGeometry args={[2.6, 0.16, 1.6]} />
-        <meshStandardMaterial color="#94a3b8" />
-      </mesh>
-      {[
-        [-1.1, -0.6],
-        [1.1, -0.6],
-        [-1.1, 0.6],
-        [1.1, 0.6],
-      ].map(([dx, dz], i) => (
-        <mesh key={i} position={[dx, 0.28, dz]}>
-          <boxGeometry args={[0.12, 0.55, 0.12]} />
-          <meshStandardMaterial color="#64748b" />
-        </mesh>
-      ))}
-      {/* Dönen testere diski */}
-      <mesh ref={disk} position={[0.4, 0.75, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.32, 0.32, 0.04, 20]} />
-        <meshStandardMaterial color="#e5e7eb" metalness={0.6} roughness={0.3} />
-      </mesh>
-      {/* Kesilen plaka */}
-      <mesh position={[-0.5, 0.68, 0]}>
-        <boxGeometry args={[1.3, 0.06, 1]} />
-        <meshStandardMaterial color="#d6b98c" />
-      </mesh>
-    </group>
+    <React.Suspense fallback={null}>
+      <KitParcaModel {...props} />
+    </React.Suspense>
   );
 }
 
-function Konveyor({
+function KitParcaModel({ ad, x, z, y = 0.22, donus = 0, olcek = 1 }: KitParcaProps) {
+  const { scene } = useGLTF(KIT(ad));
+  const model = React.useMemo(() => {
+    const klon = scene.clone(true);
+    klon.traverse((o) => {
+      const mesh = o as Mesh;
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
+    });
+    return klon;
+  }, [scene]);
+  return (
+    <primitive
+      object={model}
+      position={[x, y, z]}
+      rotation={[0, donus, 0]}
+      scale={olcek}
+    />
+  );
+}
+
+// Konveyör hattı — kit segmentlerinden dizilir, üzerinde kutu kayar.
+function KonveyorHatti({
   x,
   z,
   uzunluk,
-  yatay = true,
+  olcek = 1.4,
 }: {
   x: number;
   z: number;
   uzunluk: number;
-  yatay?: boolean;
+  olcek?: number;
 }) {
+  const segUz = 2 * olcek; // conveyor-long: 2 birim genişlik
+  const adet = Math.max(1, Math.round(uzunluk / segUz));
+  const hatUz = adet * segUz;
   const kutu = React.useRef<Group>(null);
   useFrame(({ clock }) => {
     if (!kutu.current) return;
-    const t = (clock.elapsedTime * 0.7) % 1;
-    const off = -uzunluk / 2 + 0.6 + t * (uzunluk - 1.2);
-    kutu.current.position.set(yatay ? off : 0, 0.78, yatay ? 0 : off);
+    const t = (clock.elapsedTime * 0.55) % 1;
+    kutu.current.position.x = x - hatUz / 2 + 0.7 + t * (hatUz - 1.4);
   });
   return (
-    <group position={[x, 0, z]} rotation={[0, yatay ? 0 : Math.PI / 2, 0]}>
-      <mesh castShadow position={[0, 0.55, 0]}>
-        <boxGeometry args={[uzunluk, 0.14, 0.9]} />
-        <meshStandardMaterial color="#525252" />
-      </mesh>
-      {[-uzunluk / 2 + 0.4, uzunluk / 2 - 0.4].map((dx, i) => (
-        <mesh key={i} position={[dx, 0.28, 0]}>
-          <boxGeometry args={[0.14, 0.5, 0.7]} />
-          <meshStandardMaterial color="#404040" />
-        </mesh>
+    <>
+      {Array.from({ length: adet }, (_, i) => (
+        <KitParca
+          key={i}
+          ad="conveyor-long"
+          x={x - hatUz / 2 + segUz / 2 + i * segUz}
+          z={z}
+          olcek={olcek}
+        />
       ))}
-      <group ref={kutu}>
-        <mesh castShadow>
-          <boxGeometry args={[0.55, 0.4, 0.55]} />
-          <meshStandardMaterial color="#c8a165" />
-        </mesh>
+      {/* Bant üzerinde ilerleyen koli */}
+      <group ref={kutu} position={[x, 0.22 + 0.4 * olcek, z]}>
+        <React.Suspense fallback={null}>
+          <KitParcaModel ad="box-small" x={0} z={0} y={0} olcek={1.2} />
+        </React.Suspense>
       </group>
-    </group>
+    </>
   );
 }
 
@@ -503,35 +530,6 @@ function IstasyonAlani({
         </div>
       </Html>
       {children}
-    </group>
-  );
-}
-
-function Makine({
-  x,
-  z,
-  g = 1.6,
-  d = 1.2,
-  h = 1.1,
-  renk = "#9ca3af",
-}: {
-  x: number;
-  z: number;
-  g?: number;
-  d?: number;
-  h?: number;
-  renk?: string;
-}) {
-  return (
-    <group position={[x, 0, z]}>
-      <mesh castShadow position={[0, h / 2 + 0.2, 0]}>
-        <boxGeometry args={[g, h, d]} />
-        <meshStandardMaterial color={renk} />
-      </mesh>
-      <mesh position={[0, h + 0.32, 0]}>
-        <boxGeometry args={[g * 0.55, 0.22, d * 0.55]} />
-        <meshStandardMaterial color="#6b7280" />
-      </mesh>
     </group>
   );
 }
@@ -682,6 +680,9 @@ export default function FabrikaSahne({
         </Html>
         <Raf x={depoM.cx} z={DEPO.konum.z + 2.2} uzunluk={DEPO.konum.g - 2.5} />
         <Raf x={depoM.cx} z={DEPO.konum.z + 5.4} uzunluk={DEPO.konum.g - 2.5} />
+        {/* Raf önünde bekleyen koliler */}
+        <KitParca ad="box-large" x={depoM.cx - 3} z={DEPO.konum.z + 3.8} olcek={1.4} />
+        <KitParca ad="box-small" x={depoM.cx - 1.8} z={DEPO.konum.z + 3.9} donus={0.5} olcek={1.4} />
         <Isci merkezX={depoM.cx} merkezZ={DEPO.konum.z + 3.8} rx={2.6} rz={1} hiz={0.4} yelek="#737373" />
       </group>
 
@@ -709,17 +710,23 @@ export default function FabrikaSahne({
           >
             {ist.slug === "kesim" && (
               <>
-                <TestereMasasi x={cx + 1.5} z={konum.z + konum.d - 1.6} />
+                {/* CNC ebatlama tezgahı + panel yükleme robot kolu */}
+                <KitParca ad="machine-bed" x={cx + 1.3} z={konum.z + konum.d - 2} olcek={1.4} />
+                <KitParca ad="robot-arm-a" x={cx - 2.2} z={konum.z + konum.d - 1.9} y={0.22 + 0.2 * 1.5} donus={Math.PI / 2} olcek={1.5} />
                 <Isci merkezX={cx + 1.5} merkezZ={konum.z + konum.d - 1.6} rx={2.2} rz={1.1} hiz={0.55} faz={1} yelek="#3b82f6" />
               </>
             )}
             {ist.slug === "bantlama" && (
-              <Konveyor x={cx} z={konum.z + konum.d - 1.3} uzunluk={konum.g - 2.5} />
+              <>
+                {/* Kenar bantlama: bant hattı + hattın gerisinde makine */}
+                <KonveyorHatti x={cx} z={konum.z + konum.d - 1.3} uzunluk={konum.g - 2.5} />
+                <KitParca ad="machine" x={cx} z={konum.z + konum.d - 2.9} olcek={1.3} />
+              </>
             )}
             {ist.slug === "delik" && (
               <>
-                <Makine x={konum.x + 2} z={konum.z + konum.d - 1.6} g={2.2} h={1.5} renk="#94a3b8" />
-                <Makine x={konum.x + konum.g - 2} z={konum.z + konum.d - 1.6} g={2.2} h={1.3} renk="#a8a29e" />
+                <KitParca ad="machine-fortified" x={konum.x + 2} z={konum.z + konum.d - 1.7} olcek={1.4} />
+                <KitParca ad="machine-window" x={konum.x + konum.g - 2} z={konum.z + konum.d - 1.7} olcek={1.4} />
                 <Isci merkezX={cx} merkezZ={konum.z + konum.d - 2.6} rx={2.8} rz={0.9} hiz={0.45} faz={3} yelek="#06b6d4" />
               </>
             )}
@@ -727,17 +734,32 @@ export default function FabrikaSahne({
               <>
                 <CalismaMasasi x={konum.x + 2.2} z={konum.z + konum.d - 1.3} />
                 <CalismaMasasi x={konum.x + konum.g - 2.2} z={konum.z + konum.d - 1.3} />
+                <KitParca ad="robot-arm-b" x={cx} z={konum.z + konum.d - 2.4} y={0.22 + 0.2 * 1.5} olcek={1.5} />
                 <Isci merkezX={cx} merkezZ={konum.z + konum.d - 1.9} rx={2.4} rz={0.7} hiz={0.6} faz={2} yelek="#f97316" />
               </>
             )}
             {ist.slug === "paketleme" && (
               <>
-                <Konveyor x={cx} z={konum.z + konum.d - 1.2} uzunluk={konum.g - 2.5} />
+                {/* Paket hattı + barkod/kontrol kapısı + hazır koliler */}
+                <KonveyorHatti x={cx} z={konum.z + konum.d - 1.2} uzunluk={konum.g - 2.5} />
+                <KitParca ad="scanner-high" x={cx} z={konum.z + konum.d - 1.2} olcek={1.5} />
+                <KitParca ad="box-large" x={konum.x + 1.4} z={konum.z + 1.5} olcek={1.4} />
+                <KitParca ad="box-wide" x={konum.x + 1.4} z={konum.z + 1.5} y={0.22 + 0.55 * 1.4} olcek={1.4} />
                 <Isci merkezX={cx} merkezZ={konum.z + 1.6} rx={2.2} rz={0.6} hiz={0.5} faz={4.5} yelek="#f59e0b" />
               </>
             )}
             {ist.slug === "sevkiyat" && (
-              <Isci merkezX={cx} merkezZ={konum.z + 4} rx={1.6} rz={2.6} hiz={0.45} faz={0.7} yelek="#10b981" />
+              <>
+                {/* Sevke hazır koli istifleri + saha işaretleri */}
+                <KitParca ad="box-large" x={cx - 2.2} z={konum.z + konum.d - 2} olcek={1.5} />
+                <KitParca ad="box-long" x={cx - 2.2} z={konum.z + konum.d - 2} y={0.22 + 0.55 * 1.5} olcek={1.5} />
+                <KitParca ad="box-wide" x={cx - 0.6} z={konum.z + konum.d - 1.8} donus={0.4} olcek={1.5} />
+                <KitParca ad="box-small" x={cx + 1} z={konum.z + konum.d - 2.1} olcek={1.5} />
+                <KitParca ad="warning-orange" x={konum.x + 1} z={konum.z + 1.2} olcek={1.3} />
+                <KitParca ad="cone" x={cx + 2.4} z={konum.z + konum.d - 1.2} olcek={1.4} />
+                <KitParca ad="cone" x={cx + 3.1} z={konum.z + konum.d - 2} olcek={1.4} />
+                <Isci merkezX={cx} merkezZ={konum.z + 4} rx={1.6} rz={2.6} hiz={0.45} faz={0.7} yelek="#10b981" />
+              </>
             )}
           </IstasyonAlani>
         );
