@@ -127,6 +127,7 @@ function Isci({
   hiz = 0.5,
   faz = 0,
   yelek = "#f97316",
+  zeminY = 0.24, // istasyon/depo platformunun üst yüzü (0.22) + bot payı
 }: {
   merkezX: number;
   merkezZ: number;
@@ -135,6 +136,7 @@ function Isci({
   hiz?: number;
   faz?: number;
   yelek?: string;
+  zeminY?: number;
 }) {
   const ref = React.useRef<Group>(null);
   const solKol = React.useRef<Group>(null);
@@ -151,7 +153,7 @@ function Isci({
     // Yürüme yönüne dön; adım döngüsüyle gövde hafifçe iner-kalkar.
     g.rotation.y = Math.atan2(-(Math.sin(t) * rx), Math.cos(t) * rz);
     const adim = Math.sin(t * 6);
-    g.position.set(x, Math.abs(Math.cos(t * 6)) * 0.03, z);
+    g.position.set(x, zeminY + Math.abs(Math.cos(t * 6)) * 0.03, z);
     // Karşıt kol-bacak salınımı (kalça/omuz pivotlu).
     if (solBacak.current) solBacak.current.rotation.x = adim * 0.55;
     if (sagBacak.current) sagBacak.current.rotation.x = -adim * 0.55;
