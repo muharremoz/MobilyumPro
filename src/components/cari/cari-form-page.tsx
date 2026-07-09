@@ -277,10 +277,22 @@ const BOS_ADRES_SECENEKLERI: AdresSecenekleri = {
   semt: [],
 };
 
+// Varsayılan prop'lar MODÜL sabiti olmalı: inline `= []` / `?? []` her
+// render'da yeni referans üretir ve [prop] bağımlı useEffect'leri sonsuz
+// döngüye sokar.
+const BOS_ISLEMLER: CariIslem[] = [];
+const BOS_DETAY: CariDetay = {
+  bankalar: [],
+  subeler: [],
+  yetkililer: [],
+  crmKayitlari: [],
+  dokumanlar: [],
+};
+
 export function CariFormPage({
   cari,
-  islemler: islemlerProp = [],
-  detay,
+  islemler: islemlerProp = BOS_ISLEMLER,
+  detay = BOS_DETAY,
   kullanicilar = [],
   adresSecenekleri = BOS_ADRES_SECENEKLERI,
   sonrakiKod = "",
@@ -535,27 +547,27 @@ export function CariFormPage({
       )}
 
       {duzenleme && cari && tab === "banka" && (
-        <BankaTab cariId={cari.id} kayitlar={detay?.bankalar ?? []} />
+        <BankaTab cariId={cari.id} kayitlar={detay.bankalar} />
       )}
       {duzenleme && cari && tab === "subeler" && (
-        <SubelerTab cariId={cari.id} kayitlar={detay?.subeler ?? []} />
+        <SubelerTab cariId={cari.id} kayitlar={detay.subeler} />
       )}
       {duzenleme && cari && tab === "yetkililer" && (
         <YetkililerTab
           cariId={cari.id}
-          kayitlar={detay?.yetkililer ?? []}
-          subeler={(detay?.subeler ?? []).map((s) => s.subeAdi)}
+          kayitlar={detay.yetkililer}
+          subeler={detay.subeler.map((s) => s.subeAdi)}
         />
       )}
       {duzenleme && cari && tab === "crm" && (
         <CrmTab
           cariId={cari.id}
-          kayitlar={detay?.crmKayitlari ?? []}
+          kayitlar={detay.crmKayitlari}
           kullanicilar={kullanicilar}
         />
       )}
       {duzenleme && cari && tab === "dokumanlar" && (
-        <DokumanlarTab cariId={cari.id} kayitlar={detay?.dokumanlar ?? []} />
+        <DokumanlarTab cariId={cari.id} kayitlar={detay.dokumanlar} />
       )}
     </div>
   );
