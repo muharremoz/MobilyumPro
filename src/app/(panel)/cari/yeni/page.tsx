@@ -1,13 +1,16 @@
 import { CariFormPage } from "@/components/cari/cari-form-page";
 import { getKullanicilar, getTanimlar } from "@/lib/db/queries";
+import { sonrakiCariKodu } from "@/lib/db/actions";
 
 export default async function YeniCariRoute() {
-  const [kullanicilar, tanimlar] = await Promise.all([
+  const [kullanicilar, tanimlar, sonrakiKod] = await Promise.all([
     getKullanicilar(),
     getTanimlar(),
+    sonrakiCariKodu(),
   ]);
   return (
     <CariFormPage
+      sonrakiKod={sonrakiKod}
       kullanicilar={kullanicilar.map((k) => k.adSoyad)}
       adresSecenekleri={{
         ulke: tanimlar.ulke.map((t) => t.ad),

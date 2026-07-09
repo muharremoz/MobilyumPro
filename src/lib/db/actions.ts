@@ -1059,18 +1059,26 @@ function bakiyeEtkisi(tur: CariIslemTuru, tutar: number): number {
   }
 }
 
-/** Cari ekle/güncelle (id varsa upsert). Yeni kayıtta CARI-#### üretir. */
-export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> {
-  let id = c.id;
-  if (!id) {
-    const mevcut = await db.cari.findMany({ select: { id: true } });
-    let maxNo = 1000;
-    for (const r of mevcut) {
-      const m = /^CARI-(\d+)$/.exec(r.id);
-      if (m) maxNo = Math.max(maxNo, Number(m[1]));
-    }
-    id = `CARI-${maxNo + 1}`;
+/** Sıradaki sayısal cari kodu (1001'den başlar). */
+export async function sonrakiCariKodu(): Promise<string> {
+  const mevcut = await db.cari.findMany({ select: { id: true } });
+  let maxNo = 1000;
+  for (const r of mevcut) {
+    if (/^\d+$/.test(r.id)) maxNo = Math.max(maxNo, Number(r.id));
   }
+  return String(maxNo + 1);
+}
+
+/**
+ * Cari ekle/güncelle. `yeni: true` → kod SUNUCUDA üretilir (formdaki değer
+ * önizlemedir; yarış durumunda çakışma olmaz), aksi halde mevcut kayıt
+ * güncellenir. Kodlar düz rakamdır (1001, 1002...).
+ */
+export async function cariKaydet(
+  c: Cari,
+  yeni = false,
+): Promise<{ ok: boolean; id: string }> {
+  const id = yeni ? await sonrakiCariKodu() : c.id;
   const ortak = {
     ad: c.ad,
     tamAd: c.tamAd ?? null,
@@ -1104,12 +1112,12 @@ export async function cariKaydet(c: Cari): Promise<{ ok: boolean; id: string }> 
     durum: c.durum,
     not: c.not ?? null,
   };
-  await db.cari.upsert({
-    where: { id },
-    create: { id, ...ortak, bakiye: c.bakiye },
+  if (yeni) {
     // bakiye'yi düz kaydette değiştirmiyoruz (işlemler yönetir) — yeni kayıtta 0.
-    update: ortak,
-  });
+    await db.cari.create({ data: { id, ...ortak, bakiye: c.bakiye } });
+  } else {
+    await db.cari.update({ where: { id }, data: ortak });
+  }
   revalidatePath("/cari");
   return { ok: true, id };
 }

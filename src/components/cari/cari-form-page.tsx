@@ -283,12 +283,15 @@ export function CariFormPage({
   detay,
   kullanicilar = [],
   adresSecenekleri = BOS_ADRES_SECENEKLERI,
+  sonrakiKod = "",
 }: {
   cari?: Cari;
   islemler?: CariIslem[];
   detay?: CariDetay;
   kullanicilar?: string[];
   adresSecenekleri?: AdresSecenekleri;
+  /** Yeni cari için sunucuda hesaplanan sıradaki kod (önizleme). */
+  sonrakiKod?: string;
 } = {}) {
   const router = useRouter();
   const duzenleme = !!cari;
@@ -330,7 +333,7 @@ export function CariFormPage({
         durum: cari.durum,
         not: cari.not ?? "",
       }
-    : bos;
+    : { ...bos, id: sonrakiKod };
   const [form, setForm] = React.useState<Form>(baslangic);
   // Yeni cari eklerken sekme yok → her zaman "genel"; düzenlemede varsayılan "islemler"
   const [tab, setTab] = React.useState<Tab>(duzenleme ? "islemler" : "genel");
@@ -425,7 +428,7 @@ export function CariFormPage({
       durum: form.durum,
       not: t(form.not),
     };
-    const res = await cariKaydet(yeniCari);
+    const res = await cariKaydet(yeniCari, !duzenleme);
     if (!res.ok) {
       toast.error("Cari kaydedilemedi");
       return;
@@ -1150,11 +1153,9 @@ function GenelTab({
               <IconInput
                 label="Kod"
                 icon={ScanTextIcon}
-                placeholder={duzenleme ? "" : "Boş bırak → otomatik"}
                 value={form.id}
-                onChange={(e) => set("id")(e.target.value)}
-                readOnly={duzenleme}
-                className={cn(duzenleme && "text-muted-foreground")}
+                readOnly
+                className="text-muted-foreground"
               />
               <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
