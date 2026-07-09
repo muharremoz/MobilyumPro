@@ -45,13 +45,15 @@ DATABASE_URL="sqlserver://localhost:1433;database=mobilyumpro;user=sa;password=<
 > Şifrede `;` KULLANMA (bağlantı string'ini bozar). `%` gibi diğer özel
 > karakterler sorunsuz.
 
-## 5. Şemayı bas + veriyi doldur
+## 5. Şemayı bas
 
 ```powershell
 npx prisma generate      # Prisma client üret
 npx prisma db push       # tabloları oluştur
-npm run db:seed          # mock veriyi (src/lib/data.ts) yükle
+npm run db:seed          # (opsiyonel) iş tablolarını boşaltır — temiz başlangıç
 ```
+
+> Projede mock/örnek veri yok; veriler uygulama üzerinden girilir.
 
 ## 6. Çalıştır
 
@@ -76,6 +78,6 @@ npm run dev              # http://localhost:1616
 ## Notlar
 
 - `.env` **git'e girmez** (`.gitignore`). Her makine kendi `.env`'ini kurar.
-- Veri paylaşılmaz; herkes seed'den kendi kopyasıyla çalışır.
+- Veri paylaşılmaz; herkes kendi boş veritabanıyla başlar, verileri uygulamadan girer.
 - `backups/*.sql` dosyaları **eski PostgreSQL** dönemine ait (tarihsel),
-  yeni SQL Server kurulumunda kullanılmaz — veri için `db:seed` yeterli.
+  yeni SQL Server kurulumunda kullanılmaz.

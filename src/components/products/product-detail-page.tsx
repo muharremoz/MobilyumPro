@@ -29,9 +29,9 @@ import {
 import {
   formatTL,
   formatTarih,
-  parcalar as TUM_PARCALAR,
-  malzemeler as TUM_MALZEMELER,
-  stokHareketleri,
+  type Parca,
+  type Malzeme,
+  type StokHareket,
   type StokHareketTuru,
   type Model,
 } from "@/lib/data";
@@ -58,7 +58,17 @@ const SEKMELER: { key: Tab; etiket: string }[] = [
   { key: "varyant", etiket: "Varyant & Maliyet" },
 ];
 
-export function ProductDetailPage({ product }: { product: Model }) {
+export function ProductDetailPage({
+  product,
+  parcalar = [],
+  malzemeler = [],
+  hareketler = [],
+}: {
+  product: Model;
+  parcalar?: Parca[];
+  malzemeler?: Malzeme[];
+  hareketler?: StokHareket[];
+}) {
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>("genel");
   const aktif = product.durum === "Aktif";
@@ -199,11 +209,15 @@ export function ProductDetailPage({ product }: { product: Model }) {
       {tab === "genel" && <GenelTab product={product} />}
       {tab === "detay" && <DetayTab product={product} />}
       {tab === "entegrasyon" && <EntegrasyonTab product={product} />}
-      {tab === "agac" && <UrunAgaciTab product={product} />}
+      {tab === "agac" && (
+        <UrunAgaciTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
+      )}
       {tab === "resimler" && <ResimlerTab product={product} />}
-      {tab === "kullanim" && <KullanimTab product={product} />}
-      {tab === "analiz" && <StokAnalizTab product={product} />}
-      {tab === "varyant" && <VaryantMaliyetTab product={product} />}
+      {tab === "kullanim" && <KullanimTab product={product} parcalar={parcalar} />}
+      {tab === "analiz" && <StokAnalizTab product={product} hareketler={hareketler} />}
+      {tab === "varyant" && (
+        <VaryantMaliyetTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
+      )}
     </div>
   );
 }
@@ -373,11 +387,19 @@ function EntegrasyonTab({ product }: { product: Model }) {
 }
 
 /* ── Model Ağacı (Reçete / BOM) ───────────────────────────────── */
-function UrunAgaciTab({ product }: { product: Model }) {
+function UrunAgaciTab({
+  product,
+  parcalar,
+  malzemeler,
+}: {
+  product: Model;
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
   const parcaSatirlari = product.parcalar ?? [];
   const ihtiyac = React.useMemo(
-    () => modelMalzemeIhtiyaci(parcaSatirlari, TUM_PARCALAR, TUM_MALZEMELER),
-    [parcaSatirlari],
+    () => modelMalzemeIhtiyaci(parcaSatirlari, parcalar, malzemeler),
+    [parcaSatirlari, parcalar, malzemeler],
   );
   const toplamMaliyet = ihtiyac.reduce((t, m) => t + m.toplamFiyat, 0);
 
@@ -395,8 +417,8 @@ function UrunAgaciTab({ product }: { product: Model }) {
       <Kart baslik="Parçalar">
         <div className="flex flex-col gap-1">
           {parcaSatirlari.map((ps) => {
-            const p = TUM_PARCALAR.find((x) => x.id === ps.parcaId);
-            const mAdet = flattenParca(ps.parcaId, 1, TUM_PARCALAR).size;
+            const p = parcalar.find((x) => x.id === ps.parcaId);
+            const mAdet = flattenParca(ps.parcaId, 1, parcalar).size;
             return (
               <div
                 key={ps.parcaId}
@@ -499,9 +521,15 @@ function ResimlerTab({ product }: { product: Model }) {
 }
 
 /* ── Kullanıldığı Reçeteler (ters BOM) ───────────────────────── */
-function KullanimTab({ product }: { product: Model }) {
+function KullanimTab({
+  product,
+  parcalar,
+}: {
+  product: Model;
+  parcalar: Parca[];
+}) {
   // Bu modeli bileşen olarak içeren parçaları ara (ters arama).
-  const kullananlar = TUM_PARCALAR.filter((p) =>
+  const kullananlar = parcalar.filter((p) =>
     p.recete.some((s) => s.bilesen.ref === product.id),
   );
 
@@ -544,9 +572,15 @@ const TUR_IKON: Record<StokHareketTuru, React.ReactNode> = {
 const turDelta = (t: StokHareketTuru, m: number) =>
   t === "Giriş" ? m : t === "Çıkış" ? -m : 0;
 
-function StokAnalizTab({ product }: { product: Model }) {
+function StokAnalizTab({
+  product,
+  hareketler: tumHareketler,
+}: {
+  product: Model;
+  hareketler: StokHareket[];
+}) {
   const hareketler = React.useMemo(() => {
-    const arr = stokHareketleri
+    const arr = tumHareketler
       .filter((h) => h.ref.tip === "model" && h.ref.id === product.id)
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
     const net = arr.reduce((s, h) => s + turDelta(h.tur, h.miktar), 0);
@@ -557,7 +591,7 @@ function StokAnalizTab({ product }: { product: Model }) {
         return { ...h, bakiye };
       })
       .reverse();
-  }, [product]);
+  }, [product, tumHareketler]);
 
   const giris = hareketler
     .filter((h) => h.tur === "Giriş")
@@ -688,12 +722,20 @@ function Ozet({
 }
 
 /* ── Varyant & Maliyet ───────────────────────────────────────── */
-function VaryantMaliyetTab({ product }: { product: Model }) {
+function VaryantMaliyetTab({
+  product,
+  parcalar,
+  malzemeler,
+}: {
+  product: Model;
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
   const varyantlar = product.varyantlar ?? [];
   const ihtiyac = modelMalzemeIhtiyaci(
     product.parcalar ?? [],
-    TUM_PARCALAR,
-    TUM_MALZEMELER,
+    parcalar,
+    malzemeler,
   );
   const maliyet = ihtiyac.reduce((t, m) => t + m.toplamFiyat, 0);
   const kar = product.fiyat - maliyet;
