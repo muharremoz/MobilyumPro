@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   CornerDownRight,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +26,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { StokGrup } from "@/lib/data";
 import { grupKaydet, grupSil } from "@/lib/db/actions";
 
@@ -195,6 +201,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Gruplar">
+          <KodBilgisi />
           <Button size="sm" onClick={() => yeniGrup(null)}>
             <Plus className="size-4" /> Yeni Grup
           </Button>
@@ -218,6 +225,74 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
         onSave={kaydet}
       />
     </div>
+  );
+}
+
+/** Kod mantığı bilgilendirmesi — sektör alışkanlığı (Tekdüzen Hesap Planı). */
+const HESAP_KODLARI: [string, string][] = [
+  ["150", "İlk Madde ve Malzeme"],
+  ["151", "Yarı Mamuller (parçalar)"],
+  ["152", "Mamuller (bitmiş ürün)"],
+  ["153", "Ticari Mallar"],
+  ["157", "Diğer Stoklar (paket vb.)"],
+];
+
+function KodBilgisi() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button variant="ghost" size="icon-sm" aria-label="Kod mantığı">
+            <Info className="size-4 text-muted-foreground" />
+          </Button>
+        }
+      />
+      <PopoverContent align="end" className="w-80 gap-0 p-3 text-left">
+        <p className="text-sm font-semibold">Grup kodu nasıl verilir?</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Kodlar serbesttir; sektörde yaygın kullanım üç türü birlikte
+          kullanır:
+        </p>
+
+        <p className="mt-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          1 · Muhasebe hesap kodu
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Üst gruplarda ve yapraklarda, stoğun bağlandığı Tekdüzen Hesap Planı
+          kodu kullanılır:
+        </p>
+        <div className="mt-1.5 overflow-hidden rounded-md border">
+          {HESAP_KODLARI.map(([kod, ad]) => (
+            <div
+              key={kod}
+              className="flex items-center gap-2 border-b px-2 py-1 text-xs last:border-b-0"
+            >
+              <span className="font-mono font-medium">{kod}</span>
+              <span className="text-muted-foreground">{ad}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          2 · Sıra numarası
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Ara seviyelerde basit sıra: Yatak Odası <span className="font-mono">01</span>,
+          Yemek Odası <span className="font-mono">02</span>... Stok kodu
+          üretiminde segment olur (örn. <span className="font-mono">152.01</span>).
+        </p>
+
+        <p className="mt-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          3 · Kısaltma
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Malzeme altlarında anımsatıcı kısaltma:{" "}
+          <span className="font-mono">AKS</span> (Aksesuar),{" "}
+          <span className="font-mono">ALU</span> (Alüminyum),{" "}
+          <span className="font-mono">KBN</span> (Kenarbant)...
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -291,6 +366,12 @@ function GrupSheet({
           value={kod}
           onChange={(e) => setKod(e.target.value)}
         />
+        <p className="text-xs text-muted-foreground">
+          İpucu: üst gruplarda muhasebe hesap kodu (150 malzeme, 152 mamul,
+          153 ticari mal...), ara seviyede sıra (01, 02...), malzeme
+          altlarında kısaltma (AKS, ALU...) yaygındır. Detay için listedeki{" "}
+          <Info className="inline size-3 align-[-1px]" /> simgesine bakın.
+        </p>
       </div>
     </FormSheet>
   );
