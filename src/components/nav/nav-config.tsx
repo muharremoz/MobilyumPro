@@ -68,7 +68,8 @@ export const sections: Section[] = [
     label: "Stok Yönetimi",
     RailIcon: I(BoxesIcon),
     items: [
-      { groupHeader: "Stok", label: "Modeller", href: "/urunler", icon: I(RockingChairIcon) },
+      { groupHeader: "Stok", label: "Stok Kartları", href: "/stok-karti", icon: I(BoxesIcon) },
+      { label: "Modeller", href: "/urunler", icon: I(RockingChairIcon) },
       { label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
       { label: "Stok Takip", href: "/stok-yonetimi?bolum=takip", icon: I(ActivityIcon) },
       { label: "Stok Hareketleri", href: "/stok-yonetimi?bolum=hareketler", icon: I(HistoryIcon) },

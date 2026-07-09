@@ -33,6 +33,10 @@ import type {
   TanimTip,
   TanimKalemi,
   Alis,
+  StokKarti,
+  StokUretici,
+  StokMusteri,
+  StokDokuman,
 } from "../data";
 
 type Durum = "Aktif" | "Pasif";
@@ -765,4 +769,178 @@ export async function getAlis(id: string): Promise<Alis | null> {
     include: { satirlar: true },
   });
   return row ? mapAlis(row) : null;
+}
+
+// ── Stok kartları ───────────────────────────────────────────────────────
+
+type StokRow = Awaited<ReturnType<typeof db.stok.findMany>>[number];
+
+function mapStok(s: StokRow, miktar: number): StokKarti {
+  const num = (v: unknown) =>
+    v == null ? undefined : Number(v) || undefined;
+  return {
+    id: s.id,
+    kod: s.kod ?? undefined,
+    ad: s.ad,
+    tur: s.tur ?? undefined,
+    cins: s.cins ?? undefined,
+    grup: s.grup as StokKarti["grup"],
+    altGrup: s.altGrup ?? undefined,
+    detayGrup: s.detayGrup ?? undefined,
+    kategori: s.kategori ?? undefined,
+    marka: s.marka ?? undefined,
+    model: s.model ?? undefined,
+    stokBirimi: s.stokBirimi,
+    puan: num(s.puan),
+    yukseklik: num(s.yukseklik),
+    genislik: num(s.genislik),
+    boy: num(s.boy),
+    agirlik: num(s.agirlik),
+    minSiparis: num(s.minSiparis),
+    minStok: num(s.minStok),
+    maxStok: num(s.maxStok),
+    muhasebeKodu: s.muhasebeKodu ?? undefined,
+    receteParcaId: s.receteParcaId ?? undefined,
+    rota: s.rota ?? undefined,
+    ureticiCariId: s.ureticiCariId ?? undefined,
+    ureticiKodu: s.ureticiKodu ?? undefined,
+    bolum: s.bolum ?? undefined,
+    renkKodu: s.renkKodu ?? undefined,
+    barkod: s.barkod ?? undefined,
+    aciklama: s.aciklama ?? undefined,
+    durum: s.durum as Durum,
+    maliyetFiyati: Number(s.maliyetFiyati),
+    maliyetBirimi: s.maliyetBirimi as StokKarti["maliyetBirimi"],
+    satisFiyat1: Number(s.satisFiyat1),
+    satisBirim1: s.satisBirim1 as StokKarti["satisBirim1"],
+    satisFiyat2: Number(s.satisFiyat2),
+    satisBirim2: s.satisBirim2 as StokKarti["satisBirim2"],
+    satisFiyat3: Number(s.satisFiyat3),
+    satisBirim3: s.satisBirim3 as StokKarti["satisBirim3"],
+    satisFiyat4: Number(s.satisFiyat4),
+    satisBirim4: s.satisBirim4 as StokKarti["satisBirim4"],
+    satisFiyat5: Number(s.satisFiyat5),
+    satisBirim5: s.satisBirim5 as StokKarti["satisBirim5"],
+    miktar,
+  };
+}
+
+/** Ayna tablolardan miktarlar: Hammadde/Yarı Mamül → malzeme, Mamül → model. */
+async function stokMiktarlari(): Promise<Map<string, number>> {
+  const [malzemeler, modeller] = await Promise.all([
+    db.malzeme.findMany({ select: { id: true, stok: true } }),
+    db.model.findMany({ select: { id: true, stok: true } }),
+  ]);
+  const m = new Map<string, number>();
+  for (const x of malzemeler) m.set(x.id, Number(x.stok));
+  for (const x of modeller) m.set(x.id, Number(x.stok));
+  return m;
+}
+
+/**
+ * Kartı olmayan malzeme/model kayıtlarından stok kartı üretir (idempotent).
+ * Birleşik karta geçiş: eski ekranlardan eklenen kayıtlar da kart kazanır.
+ */
+async function stokKartlariniTamamla(): Promise<void> {
+  const [stoklar, malzemeler, modeller] = await Promise.all([
+    db.stok.findMany({ select: { id: true } }),
+    db.malzeme.findMany(),
+    db.model.findMany(),
+  ]);
+  const mevcut = new Set(stoklar.map((s) => s.id));
+  for (const m of malzemeler) {
+    if (mevcut.has(m.id)) continue;
+    await db.stok.create({
+      data: {
+        id: m.id,
+        ad: m.ad,
+        grup: "Hammadde",
+        altGrup: m.grup ?? null,
+        stokBirimi: m.birim,
+        maliyetFiyati: m.birimFiyat,
+        durum: m.durum,
+      },
+    });
+  }
+  for (const u of modeller) {
+    if (mevcut.has(u.id)) continue;
+    await db.stok.create({
+      data: {
+        id: u.id,
+        ad: u.ad,
+        grup: "Mamül",
+        kategori: u.kategori,
+        marka: u.marka ?? null,
+        barkod: u.barkod ?? null,
+        agirlik: u.agirlik,
+        minStok: u.minStok,
+        satisFiyat1: u.fiyat,
+        durum: u.durum,
+      },
+    });
+  }
+}
+
+export async function getStoklar(): Promise<StokKarti[]> {
+  await stokKartlariniTamamla();
+  const [rows, miktarlar] = await Promise.all([
+    db.stok.findMany({ orderBy: { id: "asc" } }),
+    stokMiktarlari(),
+  ]);
+  return rows.map((s) => mapStok(s, miktarlar.get(s.id) ?? 0));
+}
+
+export type StokKartiDetay = {
+  ureticiler: StokUretici[];
+  musteriler: StokMusteri[];
+  dokumanlar: StokDokuman[];
+};
+
+export async function getStok(
+  id: string,
+): Promise<{ kart: StokKarti; detay: StokKartiDetay } | null> {
+  const [row, miktarlar, ureticiler, musteriler, dokumanlar] =
+    await Promise.all([
+      db.stok.findUnique({ where: { id } }),
+      stokMiktarlari(),
+      db.stokUretici.findMany({ where: { stokId: id } }),
+      db.stokMusteri.findMany({ where: { stokId: id } }),
+      db.stokDokuman.findMany({ where: { stokId: id } }),
+    ]);
+  if (!row) return null;
+  return {
+    kart: mapStok(row, miktarlar.get(id) ?? 0),
+    detay: {
+      ureticiler: ureticiler.map((u) => ({
+        id: u.id,
+        stokId: u.stokId,
+        cariId: u.cariId,
+        cariAd: u.cariAd,
+        ureticiKodu: u.ureticiKodu ?? undefined,
+        fiyat: Number(u.fiyat),
+        doviz: u.doviz as StokUretici["doviz"],
+        minSiparis: u.minSiparis != null ? Number(u.minSiparis) : undefined,
+        tedarikGun: u.tedarikGun ?? undefined,
+      })),
+      musteriler: musteriler.map((u) => ({
+        id: u.id,
+        stokId: u.stokId,
+        cariId: u.cariId,
+        cariAd: u.cariAd,
+        musteriKodu: u.musteriKodu ?? undefined,
+        minSiparis: u.minSiparis != null ? Number(u.minSiparis) : undefined,
+        fiyat: Number(u.fiyat),
+        doviz: u.doviz as StokMusteri["doviz"],
+        iskontoOrani:
+          u.iskontoOrani != null ? Number(u.iskontoOrani) : undefined,
+      })),
+      dokumanlar: dokumanlar.map((d) => ({
+        id: d.id,
+        stokId: d.stokId,
+        ad: d.ad,
+        url: d.url,
+        tip: d.tip as StokDokuman["tip"],
+      })),
+    },
+  };
 }

@@ -330,6 +330,101 @@ export type StokGrup = {
   durum: "Aktif" | "Pasif";
 };
 
+// Stok kartı — birleşik kart (hammadde/yarı mamül/mamül/hizmet).
+// Miktar ledger'a aittir; kart açıklayıcı alanları ve fiyatları tutar.
+export type StokGrubu = "Hammadde" | "Yarı Mamül" | "Mamül" | "Hizmet";
+export type Doviz = "TL" | "USD" | "EUR";
+
+export type StokKarti = {
+  id: string;
+  /** Kullanıcı kodu (boşsa id gösterilir). */
+  kod?: string;
+  ad: string;
+  tur?: string;
+  cins?: string;
+  grup: StokGrubu;
+  altGrup?: string;
+  detayGrup?: string;
+  kategori?: string;
+  marka?: string;
+  model?: string;
+  stokBirimi: string;
+  puan?: number;
+  yukseklik?: number;
+  genislik?: number;
+  boy?: number;
+  agirlik?: number;
+  minSiparis?: number;
+  minStok?: number;
+  maxStok?: number;
+  muhasebeKodu?: string;
+  /** Havuzdan seçilen reçete (parca.id). */
+  receteParcaId?: string;
+  /** Şimdilik sabit fabrika rotası. */
+  rota?: string;
+  ureticiCariId?: string;
+  ureticiKodu?: string;
+  bolum?: string;
+  renkKodu?: string;
+  barkod?: string;
+  aciklama?: string;
+  durum: "Aktif" | "Pasif";
+  // Fiyatlar
+  maliyetFiyati: number;
+  maliyetBirimi: Doviz;
+  satisFiyat1: number;
+  satisBirim1: Doviz;
+  satisFiyat2: number;
+  satisBirim2: Doviz;
+  satisFiyat3: number;
+  satisBirim3: Doviz;
+  satisFiyat4: number;
+  satisBirim4: Doviz;
+  satisFiyat5: number;
+  satisBirim5: Doviz;
+  /** Ledger'dan okunan mevcut miktar (ayna tablodan; Hizmet'te 0). */
+  miktar: number;
+};
+
+export type StokUretici = {
+  id: number;
+  stokId: string;
+  cariId: string;
+  cariAd: string;
+  ureticiKodu?: string;
+  fiyat: number;
+  doviz: Doviz;
+  minSiparis?: number;
+  tedarikGun?: number;
+};
+
+export type StokMusteri = {
+  id: number;
+  stokId: string;
+  cariId: string;
+  cariAd: string;
+  musteriKodu?: string;
+  minSiparis?: number;
+  fiyat: number;
+  doviz: Doviz;
+  iskontoOrani?: number;
+};
+
+export type StokDokumanTipi =
+  | "Ürün Resmi"
+  | "Teknik Resim"
+  | "PDF"
+  | "Kalite Belgesi"
+  | "Video"
+  | "Diğer";
+export type StokDokuman = {
+  id: number;
+  stokId: string;
+  ad: string;
+  url: string;
+  tip: StokDokumanTipi;
+};
+
 // Satın alma — tedarikçiden malzeme alışı.
 // Kaydedildiğinde stok girişi + cari Alacak işlemi otomatik oluşur.
 export type AlisSatiri = {

@@ -580,3 +580,117 @@ model AlisSatiri {
 
   @@map("alis_satiri")
 }
+
+// ── Stok kartı (birleşik: hammadde / yarı mamül / mamül / hizmet) ────────
+// Kartın sahibi bu tablodur. Mevcut akışlar bozulmasın diye malzeme ve
+// model tabloları AYNI id ile senkron ayna olarak tutulur (stokKaydet):
+//   Hammadde / Yarı Mamül → malzeme aynası, Mamül → model aynası.
+// Stok MİKTARI ledger'a aittir ve ayna tablolarda yaşar; kart okur.
+model Stok {
+  id           String  @id
+  // Kullanıcı kodu (boşsa id gösterilir)
+  kod          String?
+  ad           String
+  tur          String?
+  cins         String?
+  // Hammadde | Yarı Mamül | Mamül | Hizmet
+  grup         String
+  // Grup ağacından (Tanımlamalar → Gruplar) adlar
+  altGrup      String? @map("alt_grup")
+  detayGrup    String? @map("detay_grup")
+  kategori     String?
+  marka        String?
+  model        String?
+  stokBirimi   String  @default("adet") @map("stok_birimi")
+  puan         Decimal? @db.Decimal(10, 2)
+  yukseklik    Decimal? @db.Decimal(10, 2)
+  genislik     Decimal? @db.Decimal(10, 2)
+  boy          Decimal? @db.Decimal(10, 2)
+  agirlik      Decimal? @db.Decimal(10, 3)
+  minSiparis   Decimal? @map("min_siparis") @db.Decimal(14, 3)
+  minStok      Decimal? @map("min_stok") @db.Decimal(14, 3)
+  maxStok      Decimal? @map("max_stok") @db.Decimal(14, 3)
+  muhasebeKodu String? @map("muhasebe_kodu")
+  // Reçete havuzdan seçilir (parca.id); rota şimdilik sabit fabrika rotası
+  receteParcaId String? @map("recete_parca_id")
+  rota          String? @default("fabrika")
+  // Varsayılan üretici (detaylı liste StokUretici'de)
+  ureticiCariId String? @map("uretici_cari_id")
+  ureticiKodu   String? @map("uretici_kodu")
+  bolum         String?
+  renkKodu      String? @map("renk_kodu")
+  barkod        String?
+  aciklama      String? @db.NVarChar(Max)
+  durum         String  @default("Aktif")
+  createDate    DateTime @default(now()) @map("create_date")
+  createUserId  String?  @map("create_user_id")
+  updateDate    DateTime @updatedAt @map("update_date")
+  updateUserId  String?  @map("update_user_id")
+  // Fiyatlar (birimler döviz: TL/USD/EUR)
+  maliyetFiyati Decimal @default(0) @map("maliyet_fiyati") @db.Decimal(14, 2)
+  maliyetBirimi String  @default("TL") @map("maliyet_birimi")
+  satisFiyat1   Decimal @default(0) @map("satis_fiyat1") @db.Decimal(14, 2)
+  satisBirim1   String  @default("TL") @map("satis_birim1")
+  satisFiyat2   Decimal @default(0) @map("satis_fiyat2") @db.Decimal(14, 2)
+  satisBirim2   String  @default("TL") @map("satis_birim2")
+  satisFiyat3   Decimal @default(0) @map("satis_fiyat3") @db.Decimal(14, 2)
+  satisBirim3   String  @default("TL") @map("satis_birim3")
+  satisFiyat4   Decimal @default(0) @map("satis_fiyat4") @db.Decimal(14, 2)
+  satisBirim4   String  @default("TL") @map("satis_birim4")
+  satisFiyat5   Decimal @default(0) @map("satis_fiyat5") @db.Decimal(14, 2)
+  satisBirim5   String  @default("TL") @map("satis_birim5")
+
+  ureticiler StokUretici[]
+  musteriler StokMusteri[]
+  dokumanlar StokDokuman[]
+
+  @@map("stok")
+}
+
+// ── Stok kartı üreticileri (tedarikçi bazlı kod/fiyat/termin) ───────────
+model StokUretici {
+  id          Int      @id @default(autoincrement())
+  stokId      String   @map("stok_id")
+  cariId      String   @map("cari_id")
+  cariAd      String   @map("cari_ad")
+  ureticiKodu String?  @map("uretici_kodu")
+  fiyat       Decimal  @default(0) @db.Decimal(14, 2)
+  doviz       String   @default("TL")
+  minSiparis  Decimal? @map("min_siparis") @db.Decimal(14, 3)
+  tedarikGun  Int?     @map("tedarik_gun")
+
+  stok Stok @relation(fields: [stokId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("stok_uretici")
+}
+
+// ── Stok kartı müşterileri (müşteri bazlı kod/fiyat/iskonto) ────────────
+model StokMusteri {
+  id           Int      @id @default(autoincrement())
+  stokId       String   @map("stok_id")
+  cariId       String   @map("cari_id")
+  cariAd       String   @map("cari_ad")
+  musteriKodu  String?  @map("musteri_kodu")
+  minSiparis   Decimal? @map("min_siparis") @db.Decimal(14, 3)
+  fiyat        Decimal  @default(0) @db.Decimal(14, 2)
+  doviz        String   @default("TL")
+  iskontoOrani Decimal  @default(0) @map("iskonto_orani") @db.Decimal(5, 2)
+
+  stok Stok @relation(fields: [stokId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("stok_musteri")
+}
+
+// ── Stok kartı resim/dokümanları ────────────────────────────────────────
+model StokDokuman {
+  id     Int    @id @default(autoincrement())
+  stokId String @map("stok_id")
+  ad     String
+  url    String @db.NVarChar(Max)
+  // Ürün Resmi | Teknik Resim | PDF | Kalite Belgesi | Video | Diğer
+  tip    String @default("Diğer")
+
+  stok Stok @relation(fields: [stokId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("stok_dokuman")
+}

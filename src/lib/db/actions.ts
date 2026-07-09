@@ -29,6 +29,10 @@ import type {
   CariDokuman,
   Poset,
   TanimTip,
+  StokKarti,
+  StokUretici,
+  StokMusteri,
+  StokDokuman,
 } from "../data";
 
 export type YeniUretimEmri = {
@@ -1583,4 +1587,283 @@ export async function alisKaydet(
     console.error("alisKaydet:", e);
     return { ok: false, error: "Alış kaydedilemedi." };
   }
+}
+
+// ── Stok kartı ──────────────────────────────────────────────────────────
+
+/** Sıradaki stok kodu (STK-####, 1000''den başlar). */
+export async function sonrakiStokKodu(): Promise<string> {
+  const rows = await db.stok.findMany({ select: { id: true } });
+  let max = 1000;
+  for (const r of rows) {
+    const m = /^STK-(\d+)$/.exec(r.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `STK-${max + 1}`;
+}
+
+/**
+ * Stok kartını kaydeder ve AYNA tabloyu senkronlar:
+ *  Hammadde / Yarı Mamül → malzeme (aynı id), Mamül → model (aynı id),
+ *  Hizmet → ayna yok. Miktara DOKUNULMAZ (ledger yönetir; yeni aynada 0).
+ * `yeni: true` → kod sunucuda üretilir.
+ */
+export async function stokKaydet(
+  s: Omit<StokKarti, "miktar">,
+  yeni = false,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const id = yeni ? await sonrakiStokKodu() : s.id;
+    const veri = {
+      kod: s.kod ?? null,
+      ad: s.ad,
+      tur: s.tur ?? null,
+      cins: s.cins ?? null,
+      grup: s.grup,
+      altGrup: s.altGrup ?? null,
+      detayGrup: s.detayGrup ?? null,
+      kategori: s.kategori ?? null,
+      marka: s.marka ?? null,
+      model: s.model ?? null,
+      stokBirimi: s.stokBirimi,
+      puan: s.puan ?? null,
+      yukseklik: s.yukseklik ?? null,
+      genislik: s.genislik ?? null,
+      boy: s.boy ?? null,
+      agirlik: s.agirlik ?? null,
+      minSiparis: s.minSiparis ?? null,
+      minStok: s.minStok ?? null,
+      maxStok: s.maxStok ?? null,
+      muhasebeKodu: s.muhasebeKodu ?? null,
+      receteParcaId: s.receteParcaId ?? null,
+      rota: s.rota ?? "fabrika",
+      ureticiCariId: s.ureticiCariId ?? null,
+      ureticiKodu: s.ureticiKodu ?? null,
+      bolum: s.bolum ?? null,
+      renkKodu: s.renkKodu ?? null,
+      barkod: s.barkod ?? null,
+      aciklama: s.aciklama ?? null,
+      durum: s.durum,
+      maliyetFiyati: s.maliyetFiyati,
+      maliyetBirimi: s.maliyetBirimi,
+      satisFiyat1: s.satisFiyat1,
+      satisBirim1: s.satisBirim1,
+      satisFiyat2: s.satisFiyat2,
+      satisBirim2: s.satisBirim2,
+      satisFiyat3: s.satisFiyat3,
+      satisBirim3: s.satisBirim3,
+      satisFiyat4: s.satisFiyat4,
+      satisBirim4: s.satisBirim4,
+      satisFiyat5: s.satisFiyat5,
+      satisBirim5: s.satisBirim5,
+    };
+
+    await db.$transaction(async (tx) => {
+      await tx.stok.upsert({
+        where: { id },
+        create: { id, ...veri },
+        update: veri,
+      });
+
+      // Ayna senkronu — akışlar (reçete, üretim, satın alma) bozulmasın.
+      if (s.grup === "Hammadde" || s.grup === "Yarı Mamül") {
+        const ayna = {
+          ad: s.ad,
+          grup: s.altGrup ?? s.grup,
+          birim: s.stokBirimi,
+          birimFiyat: s.maliyetFiyati,
+          durum: s.durum,
+        };
+        await tx.malzeme.upsert({
+          where: { id },
+          create: { id, ...ayna, stok: 0 },
+          update: ayna,
+        });
+      } else if (s.grup === "Mamül") {
+        const ayna = {
+          ad: s.ad,
+          kategori: s.kategori ?? s.altGrup ?? s.grup,
+          fiyat: s.satisFiyat1,
+          marka: s.marka ?? null,
+          barkod: s.barkod ?? null,
+          agirlik: s.agirlik ?? null,
+          minStok: s.minStok != null ? Math.round(s.minStok) : null,
+          durum: s.durum,
+        };
+        await tx.model.upsert({
+          where: { id },
+          create: { id, ...ayna, stok: 0 },
+          update: ayna,
+        });
+      }
+    });
+
+    revalidatePath("/stok-karti");
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/urunler");
+    return { ok: true, id };
+  } catch (e) {
+    console.error("stokKaydet:", e);
+    return { ok: false, error: "Stok kartı kaydedilemedi." };
+  }
+}
+
+type StokAltSonuc = { ok: boolean; id?: number; error?: string };
+
+/** Üretici kaydı ekle/güncelle. */
+export async function stokUreticiKaydet(
+  u: Omit<StokUretici, "id"> & { id?: number },
+): Promise<StokAltSonuc> {
+  try {
+    const veri = {
+      stokId: u.stokId,
+      cariId: u.cariId,
+      cariAd: u.cariAd,
+      ureticiKodu: u.ureticiKodu ?? null,
+      fiyat: u.fiyat,
+      doviz: u.doviz,
+      minSiparis: u.minSiparis ?? null,
+      tedarikGun: u.tedarikGun ?? null,
+    };
+    const kayit = u.id
+      ? await db.stokUretici.update({ where: { id: u.id }, data: veri })
+      : await db.stokUretici.create({ data: veri });
+    revalidatePath(`/stok-karti/${u.stokId}`);
+    return { ok: true, id: kayit.id };
+  } catch {
+    return { ok: false, error: "Üretici kaydedilemedi." };
+  }
+}
+
+export async function stokUreticiSil(
+  id: number,
+  stokId: string,
+): Promise<StokAltSonuc> {
+  try {
+    await db.stokUretici.delete({ where: { id } });
+    revalidatePath(`/stok-karti/${stokId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Üretici silinemedi." };
+  }
+}
+
+/** Müşteri kaydı ekle/güncelle. */
+export async function stokMusteriKaydet(
+  u: Omit<StokMusteri, "id"> & { id?: number },
+): Promise<StokAltSonuc> {
+  try {
+    const veri = {
+      stokId: u.stokId,
+      cariId: u.cariId,
+      cariAd: u.cariAd,
+      musteriKodu: u.musteriKodu ?? null,
+      minSiparis: u.minSiparis ?? null,
+      fiyat: u.fiyat,
+      doviz: u.doviz,
+      iskontoOrani: u.iskontoOrani ?? 0,
+    };
+    const kayit = u.id
+      ? await db.stokMusteri.update({ where: { id: u.id }, data: veri })
+      : await db.stokMusteri.create({ data: veri });
+    revalidatePath(`/stok-karti/${u.stokId}`);
+    return { ok: true, id: kayit.id };
+  } catch {
+    return { ok: false, error: "Müşteri kaydedilemedi." };
+  }
+}
+
+export async function stokMusteriSil(
+  id: number,
+  stokId: string,
+): Promise<StokAltSonuc> {
+  try {
+    await db.stokMusteri.delete({ where: { id } });
+    revalidatePath(`/stok-karti/${stokId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Müşteri silinemedi." };
+  }
+}
+
+/** Doküman ekle/güncelle (URL upload API''den gelir). */
+export async function stokDokumanKaydet(
+  d: Omit<StokDokuman, "id"> & { id?: number },
+): Promise<StokAltSonuc> {
+  try {
+    const veri = { stokId: d.stokId, ad: d.ad, url: d.url, tip: d.tip };
+    const kayit = d.id
+      ? await db.stokDokuman.update({ where: { id: d.id }, data: veri })
+      : await db.stokDokuman.create({ data: veri });
+    revalidatePath(`/stok-karti/${d.stokId}`);
+    return { ok: true, id: kayit.id };
+  } catch {
+    return { ok: false, error: "Doküman kaydedilemedi." };
+  }
+}
+
+export async function stokDokumanSil(
+  id: number,
+  stokId: string,
+): Promise<StokAltSonuc> {
+  try {
+    await db.stokDokuman.delete({ where: { id } });
+    revalidatePath(`/stok-karti/${stokId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Doküman silinemedi." };
+  }
+}
+
+/**
+ * Mevcut malzeme/model kayıtlarından stok kartı üretir (idempotent —
+ * kartı olmayanlar için). Birleşik karta geçiş senkronu; pull sonrası
+ * bir kez çalıştırmak yeterli (ayarlar gerektirmez).
+ */
+export async function stokKartlariniSenkronla(): Promise<{
+  ok: boolean;
+  eklenen: number;
+}> {
+  const [stoklar, malzemeler, modeller] = await Promise.all([
+    db.stok.findMany({ select: { id: true } }),
+    db.malzeme.findMany(),
+    db.model.findMany(),
+  ]);
+  const var_ = new Set(stoklar.map((s) => s.id));
+  let eklenen = 0;
+  for (const m of malzemeler) {
+    if (var_.has(m.id)) continue;
+    await db.stok.create({
+      data: {
+        id: m.id,
+        ad: m.ad,
+        grup: "Hammadde",
+        altGrup: m.grup ?? null,
+        stokBirimi: m.birim,
+        maliyetFiyati: m.birimFiyat,
+        durum: m.durum,
+      },
+    });
+    eklenen++;
+  }
+  for (const u of modeller) {
+    if (var_.has(u.id)) continue;
+    await db.stok.create({
+      data: {
+        id: u.id,
+        ad: u.ad,
+        grup: "Mamül",
+        kategori: u.kategori,
+        marka: u.marka ?? null,
+        barkod: u.barkod ?? null,
+        agirlik: u.agirlik,
+        minStok: u.minStok,
+        satisFiyat1: u.fiyat,
+        durum: u.durum,
+      },
+    });
+    eklenen++;
+  }
+  if (eklenen > 0) revalidatePath("/stok-karti");
+  return { ok: true, eklenen };
 }

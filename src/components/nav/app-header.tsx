@@ -84,6 +84,28 @@ function getCrumbs(
       meta: id,
     };
   }
+  if (pathname === "/stok-karti/yeni") {
+    return {
+      crumbs: [
+        { label: "Stok Yönetimi" },
+        { label: "Stok Kartları", href: "/stok-karti" },
+        { label: "Yeni Stok Kartı" },
+      ],
+      Icon: iconForHref("/stok-karti"),
+    };
+  }
+  if (/^\/stok-karti\/[^/]+$/.test(pathname)) {
+    const id = pathname.split("/")[2];
+    return {
+      crumbs: [
+        { label: "Stok Yönetimi" },
+        { label: "Stok Kartları", href: "/stok-karti" },
+        { label: "Stok Kartı" },
+      ],
+      Icon: iconForHref("/stok-karti"),
+      meta: id,
+    };
+  }
   if (pathname === "/cari/yeni") {
     return {
       crumbs: [
