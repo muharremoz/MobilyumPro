@@ -2,8 +2,15 @@
 
 import * as React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html, OrbitControls } from "@react-three/drei";
-import { MathUtils, type Group, type Mesh } from "three";
+import { Html, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
+import { SkeletonUtils } from "three-stdlib";
+import {
+  Color,
+  MathUtils,
+  type Group,
+  type Mesh,
+  type MeshStandardMaterial,
+} from "three";
 
 import {
   DEPO,
@@ -118,17 +125,13 @@ function Palet({
   );
 }
 
-// ── İşçi — verilen elips üzerinde yürür (kol/bacak salınımlı) ────────────
-function Isci({
-  merkezX,
-  merkezZ,
-  rx = 1.6,
-  rz = 1.2,
-  hiz = 0.5,
-  faz = 0,
-  yelek = "#f97316",
-  zeminY = 0.24, // istasyon/depo platformunun üst yüzü (0.22) + bot payı
-}: {
+// ── İşçi — Quaternius "Worker" modeli (CC0), verilen elips üzerinde yürür ─
+// Model: public/modeller/isci.glb (Ultimate Modular Men Pack, quaternius.com,
+// CC0/Public Domain; Walk+Idle animasyonlarına indirgenmiş GLB).
+const ISCI_MODEL = "/modeller/isci.glb";
+useGLTF.preload(ISCI_MODEL);
+
+type IsciProps = {
   merkezX: number;
   merkezZ: number;
   rx?: number;
@@ -137,12 +140,62 @@ function Isci({
   faz?: number;
   yelek?: string;
   zeminY?: number;
-}) {
+};
+
+function Isci(props: IsciProps) {
+  // useGLTF suspend eder; sahnenin geri kalanını bekletmemek için sınır burada.
+  return (
+    <React.Suspense fallback={null}>
+      <IsciModel {...props} />
+    </React.Suspense>
+  );
+}
+
+function IsciModel({
+  merkezX,
+  merkezZ,
+  rx = 1.6,
+  rz = 1.2,
+  hiz = 0.5,
+  faz = 0,
+  yelek = "#f97316",
+  zeminY = 0.22, // istasyon/depo platformunun üst yüzü
+}: IsciProps) {
   const ref = React.useRef<Group>(null);
-  const solKol = React.useRef<Group>(null);
-  const sagKol = React.useRef<Group>(null);
-  const solBacak = React.useRef<Group>(null);
-  const sagBacak = React.useRef<Group>(null);
+  const { scene, animations } = useGLTF(ISCI_MODEL);
+
+  // Her işçi kendi iskelet klonunu alır; yeleği istasyon rengine boyanır.
+  const model = React.useMemo(() => {
+    const klon = SkeletonUtils.clone(scene);
+    klon.traverse((o) => {
+      const mesh = o as Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      // Animasyonda iskelet sınır kutusunun dışına çıkabilir; kaybolmasın.
+      mesh.frustumCulled = false;
+      const boya = (m: MeshStandardMaterial) => {
+        if (m.name !== "Worker_Vest") return m;
+        const y = m.clone();
+        y.color = new Color(yelek);
+        return y;
+      };
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map((m) => boya(m as MeshStandardMaterial))
+        : boya(mesh.material as MeshStandardMaterial);
+    });
+    return klon;
+  }, [scene, yelek]);
+
+  const { actions } = useAnimations(animations, ref);
+  React.useEffect(() => {
+    const yuru = actions["Walk"];
+    if (!yuru) return;
+    yuru.reset().play();
+    yuru.time = faz; // işçiler adım adım senkron yürümesin
+    return () => {
+      yuru.stop();
+    };
+  }, [actions, faz]);
 
   useFrame(({ clock }) => {
     const g = ref.current;
@@ -150,94 +203,14 @@ function Isci({
     const t = clock.elapsedTime * hiz + faz;
     const x = merkezX + Math.cos(t) * rx;
     const z = merkezZ + Math.sin(t) * rz;
-    // Yürüme yönüne dön; adım döngüsüyle gövde hafifçe iner-kalkar.
+    // Yürüme yönüne dön (model +Z'ye bakar).
     g.rotation.y = Math.atan2(-(Math.sin(t) * rx), Math.cos(t) * rz);
-    const adim = Math.sin(t * 6);
-    g.position.set(x, zeminY + Math.abs(Math.cos(t * 6)) * 0.03, z);
-    // Karşıt kol-bacak salınımı (kalça/omuz pivotlu).
-    if (solBacak.current) solBacak.current.rotation.x = adim * 0.55;
-    if (sagBacak.current) sagBacak.current.rotation.x = -adim * 0.55;
-    if (solKol.current) solKol.current.rotation.x = -adim * 0.45;
-    if (sagKol.current) sagKol.current.rotation.x = adim * 0.45;
+    g.position.set(x, zeminY, z);
   });
-
-  const ten = "#e8b98e";
-  const pantolon = "#3f3f46";
-  const gomlek = "#52525b";
 
   return (
     <group ref={ref}>
-      {/* Bacaklar — kalça pivotlu */}
-      {(
-        [
-          [0.09, solBacak],
-          [-0.09, sagBacak],
-        ] as const
-      ).map(([dx, bacakRef]) => (
-        <group key={dx} ref={bacakRef} position={[dx, 0.78, 0]}>
-          <mesh castShadow position={[0, -0.37, 0]}>
-            <cylinderGeometry args={[0.065, 0.075, 0.72, 8]} />
-            <meshStandardMaterial color={pantolon} />
-          </mesh>
-          {/* Bot */}
-          <mesh castShadow position={[0, -0.75, 0.05]}>
-            <boxGeometry args={[0.13, 0.09, 0.27]} />
-            <meshStandardMaterial color="#262626" />
-          </mesh>
-        </group>
-      ))}
-      {/* Gövde — yelek */}
-      <mesh castShadow position={[0, 1.03, 0]}>
-        <cylinderGeometry args={[0.17, 0.2, 0.52, 12]} />
-        <meshStandardMaterial color={yelek} />
-      </mesh>
-      {/* Yelek reflektör şeritleri */}
-      {[-0.08, 0.08].map((dx) => (
-        <mesh key={dx} position={[dx, 1.03, 0.17]}>
-          <boxGeometry args={[0.045, 0.42, 0.035]} />
-          <meshStandardMaterial
-            color="#f4f4f5"
-            emissive="#f4f4f5"
-            emissiveIntensity={0.15}
-          />
-        </mesh>
-      ))}
-      {/* Kollar — omuz pivotlu, gömlek kollu + ten eller */}
-      {(
-        [
-          [0.25, solKol],
-          [-0.25, sagKol],
-        ] as const
-      ).map(([dx, kolRef]) => (
-        <group key={dx} ref={kolRef} position={[dx, 1.24, 0]}>
-          <mesh castShadow position={[0, -0.23, 0]}>
-            <cylinderGeometry args={[0.05, 0.045, 0.48, 8]} />
-            <meshStandardMaterial color={gomlek} />
-          </mesh>
-          <mesh castShadow position={[0, -0.5, 0]}>
-            <sphereGeometry args={[0.055, 8, 8]} />
-            <meshStandardMaterial color={ten} />
-          </mesh>
-        </group>
-      ))}
-      {/* Boyun + kafa */}
-      <mesh position={[0, 1.32, 0]}>
-        <cylinderGeometry args={[0.06, 0.07, 0.1, 8]} />
-        <meshStandardMaterial color={ten} />
-      </mesh>
-      <mesh castShadow position={[0, 1.46, 0]}>
-        <sphereGeometry args={[0.14, 14, 14]} />
-        <meshStandardMaterial color={ten} />
-      </mesh>
-      {/* Baret — tepe + siperlik */}
-      <mesh position={[0, 1.54, 0]}>
-        <sphereGeometry args={[0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#facc15" />
-      </mesh>
-      <mesh position={[0, 1.54, 0.03]}>
-        <cylinderGeometry args={[0.16, 0.16, 0.025, 14]} />
-        <meshStandardMaterial color="#eab308" />
-      </mesh>
+      <primitive object={model} scale={0.92} />
     </group>
   );
 }
