@@ -8,7 +8,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
@@ -29,14 +27,6 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { LayersIcon } from "@/components/ui/icons/layers";
@@ -60,25 +50,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTL, type Malzeme, type MalzemeTipi } from "@/lib/data";
+import { formatTL, type Malzeme, type StokGrup } from "@/lib/data";
+import { GrupSecici } from "@/components/ui/grup-secici";
 import { malzemeKaydet, malzemeSil } from "@/lib/db/actions";
 
-const TIPLER: MalzemeTipi[] = ["Hammadde", "Yarı Mamul", "Yardımcı"];
 const BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
-const TIP_RENK: Record<string, string> = {
-  Hammadde: "bg-blue-100 text-blue-800",
-  "Yarı Mamul": "bg-violet-100 text-violet-800",
-  Yardımcı: "bg-amber-100 text-amber-800",
-};
-const TIP_RENK_VARSAYILAN = "bg-slate-100 text-slate-700";
 const SAYFA_BOYUT = 8;
-type SortKey = "id" | "ad" | "tip" | "birim" | "stok" | "birimFiyat" | "durum";
+type SortKey = "id" | "ad" | "grup" | "birim" | "stok" | "birimFiyat" | "durum";
 
 /** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
 const TEMEL_KOLONLAR: KolonTanim[] = [
   { key: "kod", label: "Kod", aciklama: "Malzeme kodu (MLZ-####)." },
   { key: "ad", label: "Malzeme", aciklama: "Malzemenin adı.", kilitli: true },
-  { key: "tip", label: "Tip", aciklama: "Hammadde / Yarı Mamul / Yardımcı." },
+  {
+    key: "grup",
+    label: "Grup",
+    aciklama: "Stok grubu (Tanımlamalar → Gruplar).",
+  },
   {
     key: "birim",
     label: "Birim",
@@ -111,6 +99,7 @@ export function Materials({
   mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
   birimler,
+  gruplar = [],
 }: {
   malzemeler: Malzeme[];
   kolonAyari?: ListeKolonAyariDegeri;
@@ -119,13 +108,15 @@ export function Materials({
   yonetici?: boolean;
   /** Birim seçenekleri (Tanımlamalar → Birimler); boşsa varsayılan liste. */
   birimler?: string[];
+  /** Stok grup ağacı (Tanımlamalar → Gruplar). */
+  gruplar?: StokGrup[];
 }) {
   const birimSecenekleri =
     birimler && birimler.length > 0 ? birimler : BIRIMLER;
   const [liste, setListe] = React.useState<Malzeme[]>(malzemeler);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
-  const [tip, setTip] = React.useState("Tümü");
+  const [grupF, setGrupF] = React.useState("Tümü");
   const [birimF, setBirimF] = React.useState("Tümü");
   const [durum, setDurum] = React.useState("Tümü");
   const [sayiFiltre, setSayiFiltre] = React.useState<
@@ -139,7 +130,6 @@ export function Materials({
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Malzeme | null>(null);
-  const [tipler, setTipler] = React.useState<string[]>(TIPLER);
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -152,15 +142,15 @@ export function Materials({
   });
   const gorunurEk = EK_KOLONLAR.filter((k) => kolon.ekGorunur(k.key));
 
-  function tipEkle(t: string) {
-    const ad = t.trim();
-    if (!ad) return;
-    setTipler((prev) => (prev.includes(ad) ? prev : [...prev, ad]));
-  }
+  // Grup filtresi seçenekleri — ağaçtaki tüm grup adları.
+  const grupSecenekleri = React.useMemo(
+    () => gruplar.map((g) => g.ad).sort((a, b) => a.localeCompare(b, "tr")),
+    [gruplar],
+  );
 
   React.useEffect(
     () => setSayfa(1),
-    [metinFiltre, tip, birimF, durum, sayiFiltre],
+    [metinFiltre, grupF, birimF, durum, sayiFiltre],
   );
 
   const filtreli = React.useMemo(() => {
@@ -169,7 +159,7 @@ export function Materials({
     const arr = liste.filter((m) => {
       const kod = m.id.toLowerCase().includes(metinFiltre.id.toLowerCase());
       const ad = m.ad.toLowerCase().includes(metinFiltre.ad.toLowerCase());
-      const t = tip === "Tümü" || m.tip === tip;
+      const g = grupF === "Tümü" || m.grup === grupF;
       const b = birimF === "Tümü" || m.birim === birimF;
       const d = durum === "Tümü" || m.durum === durum;
       const stk = arada(m.stok, sayiFiltre.stok.min, sayiFiltre.stok.max);
@@ -178,16 +168,16 @@ export function Materials({
         sayiFiltre.birimFiyat.min,
         sayiFiltre.birimFiyat.max,
       );
-      return kod && ad && t && b && d && stk && fiy;
+      return kod && ad && g && b && d && stk && fiy;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => {
-      const x = a[sort.key];
-      const y = b[sort.key];
+      const x = a[sort.key] ?? "";
+      const y = b[sort.key] ?? "";
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, metinFiltre, tip, birimF, durum, sayiFiltre, sort]);
+  }, [liste, metinFiltre, grupF, birimF, durum, sayiFiltre, sort]);
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -326,18 +316,18 @@ export function Materials({
               >
                 Malzeme
               </SiralaFiltreBaslik>
-              {kolon.temelGorunur("tip") && (
+              {kolon.temelGorunur("grup") && (
                 <SiralaFiltreBaslik
-                  sira={sira("tip")}
-                  onSirala={sirala("tip")}
+                  sira={sira("grup")}
+                  onSirala={sirala("grup")}
                   filtre={{
                     tip: "liste",
-                    secenekler: tipler,
-                    deger: tip,
-                    onDeger: setTip,
+                    secenekler: grupSecenekleri,
+                    deger: grupF,
+                    onDeger: setGrupF,
                   }}
                 >
-                  Tip
+                  Grup
                 </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("birim") && (
@@ -433,14 +423,9 @@ export function Materials({
                   </TableCell>
                 )}
                 <TableCell className="font-medium">{m.ad}</TableCell>
-                {kolon.temelGorunur("tip") && (
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={TIP_RENK[m.tip] ?? TIP_RENK_VARSAYILAN}
-                    >
-                      {m.tip}
-                    </Badge>
+                {kolon.temelGorunur("grup") && (
+                  <TableCell className="text-muted-foreground">
+                    {m.grup ?? "—"}
                   </TableCell>
                 )}
                 {kolon.temelGorunur("birim") && (
@@ -555,8 +540,7 @@ export function Materials({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         item={duzenlenen}
-        tipler={tipler}
-        onTipEkle={tipEkle}
+        gruplar={gruplar}
         birimler={birimSecenekleri}
         onSave={kaydet}
       />
@@ -571,41 +555,21 @@ function MaterialSheet({
   open,
   onOpenChange,
   item,
-  tipler,
+  gruplar = [],
   birimler = BIRIMLER,
-  onTipEkle,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   item: Malzeme | null;
-  tipler: string[];
+  gruplar?: StokGrup[];
   birimler?: string[];
-  onTipEkle: (t: string) => void;
   onSave: (m: Malzeme) => void;
 }) {
-  const [yeniTipMod, setYeniTipMod] = React.useState(false);
-  const [yeniTip, setYeniTip] = React.useState("");
-
-  function tipKaydet() {
-    const ad = yeniTip.trim();
-    if (!ad) return;
-    onTipEkle(ad);
-    setForm((f) => ({ ...f, tip: ad as MalzemeTipi }));
-    setYeniTip("");
-    setYeniTipMod(false);
-  }
-
-  React.useEffect(() => {
-    if (!open) {
-      setYeniTipMod(false);
-      setYeniTip("");
-    }
-  }, [open]);
   const [form, setForm] = React.useState({
     id: "",
     ad: "",
-    tip: "Hammadde" as MalzemeTipi,
+    grup: "",
     birim: "adet",
     stok: "",
     birimFiyat: "",
@@ -620,7 +584,7 @@ function MaterialSheet({
       setForm({
         id: item.id,
         ad: item.ad,
-        tip: item.tip,
+        grup: item.grup ?? "",
         birim: item.birim,
         stok: String(item.stok),
         birimFiyat: String(item.birimFiyat),
@@ -631,7 +595,7 @@ function MaterialSheet({
       setForm({
         id: "",
         ad: "",
-        tip: "Hammadde",
+        grup: "",
         birim: "adet",
         stok: "",
         birimFiyat: "",
@@ -649,7 +613,7 @@ function MaterialSheet({
     onSave({
       id: form.id.trim() || `MLZ-${Math.floor(1000 + Math.random() * 9000)}`,
       ad: form.ad.trim(),
-      tip: form.tip,
+      grup: form.grup || undefined,
       birim: form.birim,
       stok: Number(form.stok) || 0,
       birimFiyat: Number(form.birimFiyat) || 0,
@@ -684,17 +648,12 @@ function MaterialSheet({
           onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
         />
         <div className="grid grid-cols-2 gap-2.5">
-          <AnimatedField label="Tip" icon={FolderOpenIcon}>
-            <SearchSelect
-              items={tipler}
-              value={form.tip}
-              onValueChange={(v) => setForm((f) => ({ ...f, tip: (v as MalzemeTipi) ?? "Hammadde" }))}
-              placeholder="Tip"
-              addLabel="Yeni tip ekle"
-              onAdd={() => {
-                setYeniTip("");
-                setYeniTipMod(true);
-              }}
+          <AnimatedField label="Grup" icon={FolderOpenIcon}>
+            <GrupSecici
+              gruplar={gruplar}
+              value={form.grup || null}
+              onValueChange={(v) => setForm((f) => ({ ...f, grup: v ?? "" }))}
+              placeholder="Grup seç"
             />
           </AnimatedField>
           <AnimatedField label="Birim" icon={BoxesIcon}>
@@ -774,40 +733,6 @@ function MaterialSheet({
           </span>
         </div>
       </div>
-
-      <Dialog open={yeniTipMod} onOpenChange={setYeniTipMod}>
-        <DialogContent className="sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-1.5">
-              <FolderOpenIcon size={16} className="text-muted-foreground" />
-              Yeni Tip
-            </DialogTitle>
-            <DialogDescription>
-              Malzeme tipi ekleyin; eklenince otomatik seçilir.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            autoFocus
-            placeholder="Örn. Sarf Malzeme"
-            value={yeniTip}
-            onChange={(e) => setYeniTip(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                tipKaydet();
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setYeniTipMod(false)}>
-              İptal
-            </Button>
-            <Button onClick={tipKaydet} disabled={!yeniTip.trim()}>
-              <Check className="size-4" /> Ekle
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </FormSheet>
   );
 }

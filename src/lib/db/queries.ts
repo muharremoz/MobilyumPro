@@ -12,7 +12,6 @@ import type {
   SiparisDurum,
   Kategori,
   ParcaKategori,
-  MalzemeTipi,
   ReceteSatiri,
   UretimEmri,
   UretimDurum,
@@ -112,7 +111,7 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
   return rows.map((m) => ({
     id: m.id,
     ad: m.ad,
-    tip: m.tip as MalzemeTipi,
+    grup: m.grup ?? undefined,
     birim: m.birim,
     stok: Number(m.stok),
     birimFiyat: Number(m.birimFiyat),

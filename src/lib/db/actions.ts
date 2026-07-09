@@ -294,7 +294,7 @@ export async function eksikAdimlariOlustur(): Promise<{
 export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
   const veri = {
     ad: m.ad,
-    tip: m.tip,
+    grup: m.grup ?? null,
     birim: m.birim,
     stok: m.stok,
     birimFiyat: m.birimFiyat,

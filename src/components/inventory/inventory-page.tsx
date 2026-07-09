@@ -107,6 +107,7 @@ export function InventoryPage({
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}
         birimler={tanimlar?.birim.map((t) => t.ad)}
+        gruplar={gruplar}
       />
     );
   if (bolum === "parcalar")

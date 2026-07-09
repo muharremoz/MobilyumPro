@@ -70,11 +70,12 @@ model ReceteVersiyon {
   @@map("recete_versiyon")
 }
 
-// ── Malzeme (hammadde / yarı mamul / yardımcı) ──────────────────────────
+// ── Malzeme (BOM tabanı; sınıflama grup ağacından) ──────────────────────
 model Malzeme {
   id         String  @id
   ad         String
-  tip        String
+  // Stok grubu adı (Tanımlamalar → Gruplar ağacından)
+  grup       String?
   birim      String
   stok       Decimal @default(0) @db.Decimal(14, 3)
   birimFiyat Decimal @default(0) @map("birim_fiyat") @db.Decimal(14, 2)

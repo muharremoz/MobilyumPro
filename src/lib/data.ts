@@ -166,11 +166,11 @@ export type Musteri = {
 };
 
 // Üretim — hammadde/yarı mamul (BOM tabanı).
-export type MalzemeTipi = "Hammadde" | "Yarı Mamul" | "Yardımcı";
 export type Malzeme = {
   id: string;
   ad: string;
-  tip: MalzemeTipi;
+  /** Stok grubu adı (Tanımlamalar → Gruplar ağacından). */
+  grup?: string;
   birim: string; // m, m², adet, kg, lt
   stok: number;
   birimFiyat: Para;
