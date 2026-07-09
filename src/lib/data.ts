@@ -34,7 +34,8 @@ export type ModelVaryant = {
 export type Model = {
   id: string;
   ad: string;
-  kategori: Kategori;
+  /** Stok grubu adı (Tanımlamalar → Gruplar ağacından seçilir). */
+  kategori: string;
   fiyat: Para;
   stok: number;
   durum: "Aktif" | "Pasif";
@@ -209,6 +210,16 @@ export type Poset = {
   aciklama?: string;
   durum: "Aktif" | "Pasif";
   malzemeler: PosetSatiri[];
+};
+
+// Tanımlamalar — düz tanımlar (marka/koleksiyon/renk/kumaş/birim).
+export type TanimTip = "marka" | "koleksiyon" | "renk" | "kumas" | "birim";
+export type TanimKalemi = {
+  id: string;
+  ad: string;
+  /** Bu tanımı kullanan kayıt sayısı (hesaplanır). */
+  adet: number;
+  durum: "Aktif" | "Pasif";
 };
 
 // Tanımlamalar — stok grup ağacı (grup → alt grup → alt-alt grup ...).

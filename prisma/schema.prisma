@@ -420,3 +420,15 @@ model Grup {
 
   @@map("grup")
 }
+
+// ── Tanımlamalar: düz tanımlar (marka/koleksiyon/renk/kumaş/birim) ───────
+model Tanim {
+  id    String @id @default(cuid())
+  // "marka" | "koleksiyon" | "renk" | "kumas" | "birim"
+  tip   String
+  ad    String
+  durum String @default("Aktif")
+
+  @@unique([tip, ad])
+  @@map("tanim")
+}

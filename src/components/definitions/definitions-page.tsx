@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
-import type { StokGrup } from "@/lib/data";
+import type { StokGrup, TanimTip, TanimKalemi } from "@/lib/data";
+import { tanimKaydet, tanimSil } from "@/lib/db/actions";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -71,15 +72,37 @@ export const MENU: { label: string; keys: TabKey[] }[] = [
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
 ];
 
-// Düz tanımlar henüz DB'ye bağlı değil; temiz başlangıç için boş başlar.
-// (Gruplar DB'ye bağlıdır — GrupAgaci ile ayrıca çizilir.)
-const ILK: Record<Exclude<TabKey, "gruplar">, Tanim[]> = {
+type DuzTab = Exclude<TabKey, "gruplar">;
+
+// Sekme → DB tanım tipi (tanim.tip kolonu).
+const TIP_MAP: Record<DuzTab, TanimTip> = {
+  markalar: "marka",
+  koleksiyonlar: "koleksiyon",
+  renkler: "renk",
+  kumaslar: "kumas",
+  birimler: "birim",
+};
+
+const BOS: Record<DuzTab, Tanim[]> = {
   markalar: [],
   koleksiyonlar: [],
   renkler: [],
   kumaslar: [],
   birimler: [],
 };
+
+function tanimlardanData(
+  tanimlar?: Record<TanimTip, TanimKalemi[]>,
+): Record<DuzTab, Tanim[]> {
+  if (!tanimlar) return BOS;
+  return {
+    markalar: tanimlar.marka,
+    koleksiyonlar: tanimlar.koleksiyon,
+    renkler: tanimlar.renk,
+    kumaslar: tanimlar.kumas,
+    birimler: tanimlar.birim,
+  };
+}
 
 type SortKey = "ad" | "adet" | "durum";
 const SAYFA_BOYUT = 8;
@@ -105,6 +128,7 @@ export function DefinitionsPage({
   mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
   gruplar = [],
+  tanimlar,
 }: {
   /** Sol gruplu menüyü gizler (üst kapsayıcı kendi menüsünü kullanır). */
   hideMenu?: boolean;
@@ -118,9 +142,14 @@ export function DefinitionsPage({
   yonetici?: boolean;
   /** Stok grup ağacı (DB'den). */
   gruplar?: StokGrup[];
+  /** Düz tanımlar (DB'den, tip → kayıtlar). */
+  tanimlar?: Record<TanimTip, TanimKalemi[]>;
 } = {}) {
-  const [data, setData] = React.useState<Record<Exclude<TabKey, "gruplar">, Tanim[]>>(ILK);
+  const [data, setData] = React.useState<Record<DuzTab, Tanim[]>>(() =>
+    tanimlardanData(tanimlar),
+  );
   const [tabState, setTabState] = React.useState<TabKey>("gruplar");
+  React.useEffect(() => setData(tanimlardanData(tanimlar)), [tanimlar]);
   const tab = tipProp ?? tabState;
   const setTab = (k: TabKey) => {
     setTabState(k);
@@ -219,43 +248,53 @@ export function DefinitionsPage({
     });
   }
 
-  function kaydet(degerler: { ad: string; durum: "Aktif" | "Pasif" }) {
+  async function kaydet(degerler: { ad: string; durum: "Aktif" | "Pasif" }) {
     if (tab === "gruplar") return;
-    setData((d) => {
-      const arr = d[tab];
-      if (duzenlenen) {
-        return {
-          ...d,
-          [tab]: arr.map((x) =>
-            x.id === duzenlenen.id ? { ...x, ...degerler } : x,
-          ),
-        };
-      }
-      return {
-        ...d,
-        [tab]: [
-          {
-            id: `${degerler.ad}-${Math.floor(Math.random() * 100000)}`,
-            adet: 0,
-            ...degerler,
-          },
-          ...arr,
-        ],
-      };
+    const t = tab;
+    const onceki = data;
+    const geciciId = `gecici-${Math.floor(Math.random() * 100000)}`;
+    setData((d) => ({
+      ...d,
+      [t]: duzenlenen
+        ? d[t].map((x) => (x.id === duzenlenen.id ? { ...x, ...degerler } : x))
+        : [{ id: geciciId, adet: 0, ...degerler }, ...d[t]],
+    }));
+    const res = await tanimKaydet(TIP_MAP[t], {
+      id: duzenlenen?.id,
+      ...degerler,
     });
+    if (!res.ok) {
+      setData(onceki);
+      toast.error(res.error ?? "Tanım kaydedilemedi.");
+      return;
+    }
+    // Yeni kayıtta geçici id'yi DB id'siyle değiştir.
+    if (!duzenlenen && res.id)
+      setData((d) => ({
+        ...d,
+        [t]: d[t].map((x) => (x.id === geciciId ? { ...x, id: res.id! } : x)),
+      }));
     toast.success(
       duzenlenen ? `${aktifTab.tekil} güncellendi` : `${aktifTab.tekil} eklendi`,
     );
   }
 
-  function sil(ids: string[]) {
+  async function sil(ids: string[]) {
     if (tab === "gruplar") return;
-    setData((d) => ({ ...d, [tab]: d[tab].filter((x) => !ids.includes(x.id)) }));
+    const t = tab;
+    const onceki = data;
+    setData((d) => ({ ...d, [t]: d[t].filter((x) => !ids.includes(x.id)) }));
     setSecili((s) => {
       const n = new Set(s);
       ids.forEach((id) => n.delete(id));
       return n;
     });
+    const res = await tanimSil(ids);
+    if (!res.ok) {
+      setData(onceki);
+      toast.error(res.error ?? "Tanım silinemedi.");
+      return;
+    }
     toast.success(`${ids.length} kayıt silindi`);
   }
 

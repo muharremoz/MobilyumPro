@@ -19,6 +19,8 @@ import type {
   Depo,
   StokHareket,
   StokGrup,
+  TanimTip,
+  TanimKalemi,
 } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
@@ -41,6 +43,7 @@ export function InventoryPage({
   kullanicilar,
   mevcutKullaniciId,
   gruplar,
+  tanimlar,
 }: {
   bolum: string;
   urunler: Model[];
@@ -54,6 +57,8 @@ export function InventoryPage({
   mevcutKullaniciId?: string;
   /** Stok grup ağacı (Tanımlamalar → Gruplar). */
   gruplar?: StokGrup[];
+  /** Düz tanımlar (Tanımlamalar → Marka/Renk/Kumaş/Birim...). */
+  tanimlar?: Record<TanimTip, TanimKalemi[]>;
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -101,6 +106,7 @@ export function InventoryPage({
         kolonAyari={kolonAyarlari?.["malzemeler"]}
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}
+        birimler={tanimlar?.birim.map((t) => t.ad)}
       />
     );
   if (bolum === "parcalar")
@@ -124,6 +130,7 @@ export function InventoryPage({
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}
         gruplar={gruplar}
+        tanimlar={tanimlar}
       />
     );
   }

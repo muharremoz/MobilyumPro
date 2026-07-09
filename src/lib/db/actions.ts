@@ -23,6 +23,7 @@ import type {
   CariIslem,
   CariIslemTuru,
   Poset,
+  TanimTip,
 } from "../data";
 
 export type YeniUretimEmri = {
@@ -1192,5 +1193,46 @@ export async function grupSil(
   } catch (e) {
     console.error("grupSil:", e);
     return { ok: false, error: "Grup silinemedi." };
+  }
+}
+
+// ── Düz tanımlar (marka/koleksiyon/renk/kumaş/birim) ─────────────────────
+
+/** Tanım ekle/güncelle. */
+export async function tanimKaydet(
+  tip: TanimTip,
+  t: { id?: string; ad: string; durum: "Aktif" | "Pasif" },
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    if (t.id) {
+      await db.tanim.update({
+        where: { id: t.id },
+        data: { ad: t.ad, durum: t.durum },
+      });
+      revalidatePath("/stok-yonetimi");
+      return { ok: true, id: t.id };
+    }
+    const yeni = await db.tanim.create({
+      data: { tip, ad: t.ad, durum: t.durum },
+    });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true, id: yeni.id };
+  } catch (e) {
+    console.error("tanimKaydet:", e);
+    return { ok: false, error: "Tanım kaydedilemedi (aynı ad olabilir)." };
+  }
+}
+
+/** Tanımları siler. */
+export async function tanimSil(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.tanim.deleteMany({ where: { id: { in: ids } } });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("tanimSil:", e);
+    return { ok: false, error: "Tanım silinemedi." };
   }
 }

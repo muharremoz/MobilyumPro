@@ -41,16 +41,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  type Kategori,
   type Malzeme,
   type Parca,
   type ParcaSatiri,
   type Model,
   type ModelVaryant,
+  type StokGrup,
 } from "@/lib/data";
+import { GrupSecici } from "@/components/ui/grup-secici";
 import { modelIhtiyacDokumu } from "@/lib/bom";
 import { ISTASYON_MAP } from "@/lib/fabrika";
-import { modelKaydet } from "@/lib/db/actions";
+import { modelKaydet, tanimKaydet } from "@/lib/db/actions";
 
 type Form = {
   ad: string;
@@ -150,13 +151,14 @@ export function NewProductPage({
   product,
   parcalar,
   malzemeler,
-  kategoriler: kategorilerProp,
+  gruplar = [],
   markalar: markalarProp,
 }: {
   product?: Model;
   parcalar: Parca[];
   malzemeler: Malzeme[];
-  kategoriler: string[];
+  /** Stok grup ağacı (kategori seçimi bu ağaçtan yapılır). */
+  gruplar?: StokGrup[];
   markalar: string[];
 }) {
   const router = useRouter();
@@ -175,12 +177,9 @@ export function NewProductPage({
       }
     : bos;
   const [form, setForm] = React.useState<Form>(baslangic);
-  const [kategoriler, setKategoriler] = React.useState(kategorilerProp);
   const [markalar, setMarkalar] = React.useState(markalarProp);
-  // Tanım ekleme modalı — kategori ve marka aynı modalı paylaşır.
-  const [tanimTip, setTanimTip] = React.useState<"kategori" | "marka" | null>(
-    null,
-  );
+  // Tanım ekleme modalı (yalnızca marka; kategori grup ağacından seçilir).
+  const [tanimTip, setTanimTip] = React.useState<"marka" | null>(null);
   const [yeniTanim, setYeniTanim] = React.useState("");
   const [urunParcalar, setUrunParcalar] = React.useState<ParcaSatiri[]>(
     product?.parcalar ? [...product.parcalar] : [],
@@ -213,7 +212,7 @@ export function NewProductPage({
   async function kaydet() {
     const h: typeof hatalar = {};
     if (!form.ad.trim()) h.ad = "Model adı zorunludur.";
-    if (!form.kategori.trim()) h.kategori = "Kategori zorunludur.";
+    if (!form.kategori.trim()) h.kategori = "Grup zorunludur.";
     if (h.ad || h.kategori) {
       setHatalar(h);
       setShakeNonce((n) => n + 1);
@@ -223,7 +222,7 @@ export function NewProductPage({
     const u: Model = {
       id: form.id,
       ad: form.ad.trim(),
-      kategori: form.kategori as Kategori,
+      kategori: form.kategori,
       fiyat: Number(form.fiyat) || 0,
       // Mamul stoğu üretimden (ledger) gelir; formdan elle girilmez.
       stok: product?.stok ?? 0,
@@ -247,22 +246,18 @@ export function NewProductPage({
     router.push("/urunler");
   }
 
-  function tanimEkle() {
+  async function tanimEkle() {
     const v = yeniTanim.trim();
     if (!v) {
-      toast.error(
-        tanimTip === "marka" ? "Marka adı gerekli" : "Kategori adı gerekli",
-      );
+      toast.error("Marka adı gerekli");
       return;
     }
-    if (tanimTip === "kategori") {
-      setKategoriler((k) => (k.includes(v) ? k : [...k, v]));
-      set("kategori")(v);
-    } else {
-      setMarkalar((m) => (m.includes(v) ? m : [...m, v]));
-      set("marka")(v);
-    }
+    setMarkalar((m) => (m.includes(v) ? m : [...m, v]));
+    set("marka")(v);
     setTanimTip(null);
+    // Tanımlamalar → Markalar'a da kalıcı yaz.
+    const res = await tanimKaydet("marka", { ad: v, durum: "Aktif" });
+    if (!res.ok) toast.error(res.error ?? "Marka tanımı kaydedilemedi.");
   }
 
   // Reçete satırları — her satırda kendi SearchSelect'i
@@ -398,17 +393,12 @@ export function NewProductPage({
                   error={hatalar.kategori}
                   shakeNonce={shakeNonce}
                 >
-                  <AnimatedField label="Kategori" icon={FolderOpenIcon}>
-                    <SearchSelect
-                      items={kategoriler}
+                  <AnimatedField label="Grup" icon={FolderOpenIcon}>
+                    <GrupSecici
+                      gruplar={gruplar}
                       value={form.kategori || null}
                       onValueChange={(v) => set("kategori")(v ?? "")}
-                      placeholder="Kategori seç"
-                      addLabel="Yeni kategori ekle"
-                      onAdd={() => {
-                        setYeniTanim("");
-                        setTanimTip("kategori");
-                      }}
+                      placeholder="Grup seç"
                     />
                   </AnimatedField>
                 </ErrorShakeField>
@@ -961,23 +951,19 @@ export function NewProductPage({
         </aside>
       </div>
 
-      {/* Yeni kategori / marka tanımlama modalı */}
+      {/* Yeni marka tanımlama modalı (Tanımlamalar → Markalar'a da yazılır) */}
       <Dialog
         open={tanimTip !== null}
         onOpenChange={(o) => !o && setTanimTip(null)}
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              {tanimTip === "marka" ? "Yeni Marka" : "Yeni Kategori"}
-            </DialogTitle>
+            <DialogTitle>Yeni Marka</DialogTitle>
           </DialogHeader>
           <IconInput
-            label={tanimTip === "marka" ? "Marka Adı" : "Kategori Adı"}
-            icon={tanimTip === "marka" ? BadgePercentIcon : FolderOpenIcon}
-            placeholder={
-              tanimTip === "marka" ? "Örn. Mobilyum" : "Örn. Bahçe Mobilyası"
-            }
+            label="Marka Adı"
+            icon={BadgePercentIcon}
+            placeholder="Örn. Mobilyum"
             value={yeniTanim}
             autoFocus
             onChange={(e) => setYeniTanim(e.target.value)}

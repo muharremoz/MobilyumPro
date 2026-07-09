@@ -110,13 +110,18 @@ export function Materials({
   kullanicilar = [],
   mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
+  birimler,
 }: {
   malzemeler: Malzeme[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
   yonetici?: boolean;
+  /** Birim seçenekleri (Tanımlamalar → Birimler); boşsa varsayılan liste. */
+  birimler?: string[];
 }) {
+  const birimSecenekleri =
+    birimler && birimler.length > 0 ? birimler : BIRIMLER;
   const [liste, setListe] = React.useState<Malzeme[]>(malzemeler);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
@@ -341,7 +346,7 @@ export function Materials({
                   onSirala={sirala("birim")}
                   filtre={{
                     tip: "liste",
-                    secenekler: BIRIMLER,
+                    secenekler: birimSecenekleri,
                     deger: birimF,
                     onDeger: setBirimF,
                   }}
@@ -552,6 +557,7 @@ export function Materials({
         item={duzenlenen}
         tipler={tipler}
         onTipEkle={tipEkle}
+        birimler={birimSecenekleri}
         onSave={kaydet}
       />
 
@@ -566,6 +572,7 @@ function MaterialSheet({
   onOpenChange,
   item,
   tipler,
+  birimler = BIRIMLER,
   onTipEkle,
   onSave,
 }: {
@@ -573,6 +580,7 @@ function MaterialSheet({
   onOpenChange: (v: boolean) => void;
   item: Malzeme | null;
   tipler: string[];
+  birimler?: string[];
   onTipEkle: (t: string) => void;
   onSave: (m: Malzeme) => void;
 }) {
@@ -691,7 +699,7 @@ function MaterialSheet({
           </AnimatedField>
           <AnimatedField label="Birim" icon={BoxesIcon}>
             <SearchSelect
-              items={BIRIMLER}
+              items={birimler}
               value={form.birim}
               onValueChange={(v) => setForm((f) => ({ ...f, birim: v ?? "adet" }))}
               placeholder="Birim"

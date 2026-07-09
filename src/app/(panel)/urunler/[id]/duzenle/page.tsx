@@ -1,8 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { NewProductPage } from "@/components/products/new-product-page";
-import { getMalzemeler, getModeller, getParcalar } from "@/lib/db/queries";
-import { modelTanimSecenekleri } from "@/lib/model-tanimlar";
+import {
+  getMalzemeler,
+  getModeller,
+  getParcalar,
+  getGruplar,
+  getTanimlar,
+} from "@/lib/db/queries";
 
 export default async function UrunDuzenleRoute({
   params,
@@ -10,21 +15,22 @@ export default async function UrunDuzenleRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [urunler, parcalar, malzemeler] = await Promise.all([
+  const [urunler, parcalar, malzemeler, gruplar, tanimlar] = await Promise.all([
     getModeller(),
     getParcalar(),
     getMalzemeler(),
+    getGruplar(),
+    getTanimlar(),
   ]);
   const product = urunler.find((u) => u.id === id);
   if (!product) notFound();
-  const { kategoriler, markalar } = modelTanimSecenekleri(urunler);
   return (
     <NewProductPage
       product={product}
       parcalar={parcalar}
       malzemeler={malzemeler}
-      kategoriler={kategoriler}
-      markalar={markalar}
+      gruplar={gruplar}
+      markalar={tanimlar.marka.map((t) => t.ad)}
     />
   );
 }

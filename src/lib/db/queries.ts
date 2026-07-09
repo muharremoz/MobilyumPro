@@ -26,6 +26,8 @@ import type {
   StokHareket,
   StokHareketTuru,
   StokGrup,
+  TanimTip,
+  TanimKalemi,
 } from "../data";
 
 type Durum = "Aktif" | "Pasif";
@@ -559,4 +561,62 @@ export async function getGruplar(): Promise<StokGrup[]> {
     ustId: g.ustId,
     durum: g.durum as Durum,
   }));
+}
+
+/**
+ * Düz tanımlar (marka/koleksiyon/renk/kumaş/birim) — kullanım adetleriyle.
+ * adet: marka → model sayısı, birim → malzeme sayısı, renk/kumaş → varyant
+ * sayısı, koleksiyon → 0 (henüz bağlanan alan yok).
+ */
+export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
+  const [rows, modeller, malzemeRows] = await Promise.all([
+    db.tanim.findMany({ orderBy: { ad: "asc" } }),
+    db.model.findMany({ select: { marka: true, varyantlarJson: true } }),
+    db.malzeme.findMany({ select: { birim: true } }),
+  ]);
+
+  const say = (m: Map<string, number>, k: string | null | undefined) => {
+    if (!k) return;
+    m.set(k, (m.get(k) ?? 0) + 1);
+  };
+  const markaAdet = new Map<string, number>();
+  const renkAdet = new Map<string, number>();
+  const kumasAdet = new Map<string, number>();
+  const birimAdet = new Map<string, number>();
+  for (const u of modeller) {
+    say(markaAdet, u.marka);
+    const varyantlar = parseJson<ModelVaryant[]>(u.varyantlarJson) ?? [];
+    for (const v of varyantlar) {
+      say(renkAdet, v.renk);
+      say(kumasAdet, v.kumas);
+    }
+  }
+  for (const m of malzemeRows) say(birimAdet, m.birim);
+
+  const adetMap: Record<TanimTip, Map<string, number>> = {
+    marka: markaAdet,
+    koleksiyon: new Map(),
+    renk: renkAdet,
+    kumas: kumasAdet,
+    birim: birimAdet,
+  };
+
+  const sonuc: Record<TanimTip, TanimKalemi[]> = {
+    marka: [],
+    koleksiyon: [],
+    renk: [],
+    kumas: [],
+    birim: [],
+  };
+  for (const r of rows) {
+    const tip = r.tip as TanimTip;
+    if (!(tip in sonuc)) continue;
+    sonuc[tip].push({
+      id: r.id,
+      ad: r.ad,
+      adet: adetMap[tip].get(r.ad) ?? 0,
+      durum: r.durum as Durum,
+    });
+  }
+  return sonuc;
 }

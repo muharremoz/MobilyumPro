@@ -8,6 +8,7 @@ import {
   getListeKolonAyari,
   getKullanicilar,
   getGruplar,
+  getTanimlar,
 } from "@/lib/db/queries";
 
 export default async function StokYonetimiPage({
@@ -31,6 +32,7 @@ export default async function StokYonetimiPage({
     sayimAyar,
     kullanicilar,
     gruplar,
+    tanimlar,
   ] = await Promise.all([
     getModeller(),
     getMalzemeler(),
@@ -46,6 +48,7 @@ export default async function StokYonetimiPage({
     getListeKolonAyari("sayim"),
     getKullanicilar(),
     getGruplar(),
+    getTanimlar(),
   ]);
   // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
   const mevcutKullaniciId =
@@ -72,6 +75,7 @@ export default async function StokYonetimiPage({
       kullanicilar={kullanicilar.map((k) => ({ id: k.id, ad: k.adSoyad }))}
       mevcutKullaniciId={mevcutKullaniciId}
       gruplar={gruplar}
+      tanimlar={tanimlar}
     />
   );
 }

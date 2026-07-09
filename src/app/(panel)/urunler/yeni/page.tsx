@@ -1,20 +1,24 @@
 import { NewProductPage } from "@/components/products/new-product-page";
-import { getMalzemeler, getModeller, getParcalar } from "@/lib/db/queries";
-import { modelTanimSecenekleri } from "@/lib/model-tanimlar";
+import {
+  getMalzemeler,
+  getParcalar,
+  getGruplar,
+  getTanimlar,
+} from "@/lib/db/queries";
 
 export default async function YeniUrunRoute() {
-  const [parcalar, malzemeler, modeller] = await Promise.all([
+  const [parcalar, malzemeler, gruplar, tanimlar] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
-    getModeller(),
+    getGruplar(),
+    getTanimlar(),
   ]);
-  const { kategoriler, markalar } = modelTanimSecenekleri(modeller);
   return (
     <NewProductPage
       parcalar={parcalar}
       malzemeler={malzemeler}
-      kategoriler={kategoriler}
-      markalar={markalar}
+      gruplar={gruplar}
+      markalar={tanimlar.marka.map((t) => t.ad)}
     />
   );
 }
