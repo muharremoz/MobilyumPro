@@ -32,6 +32,7 @@ import type {
   StokGrup,
   TanimTip,
   TanimKalemi,
+  Alis,
 } from "../data";
 
 type Durum = "Aktif" | "Pasif";
@@ -717,4 +718,51 @@ export async function getCariDetay(cariId: string): Promise<CariDetay> {
       url: d.url,
     })),
   };
+}
+
+// ── Satın alma ──────────────────────────────────────────────────────────
+
+type AlisRow = Awaited<ReturnType<typeof db.alis.findMany>>[number] & {
+  satirlar: {
+    id: number;
+    malzemeId: string;
+    malzemeAd: string;
+    miktar: unknown;
+    birim: string;
+    birimFiyat: unknown;
+  }[];
+};
+
+function mapAlis(a: AlisRow): Alis {
+  return {
+    id: a.id,
+    cariId: a.cariId,
+    cariAd: a.cariAd,
+    tarih: tarihStr(a.tarih),
+    depo: a.depo,
+    belgeNo: a.belgeNo ?? undefined,
+    aciklama: a.aciklama ?? undefined,
+    toplam: Number(a.toplam),
+    satirlar: a.satirlar.map((s) => ({
+      id: s.id,
+      malzemeId: s.malzemeId,
+      malzemeAd: s.malzemeAd,
+      miktar: Number(s.miktar),
+      birim: s.birim,
+      birimFiyat: Number(s.birimFiyat),
+    })),
+  };
+}
+
+export async function getAlislar(): Promise<Alis[]> {
+  const rows = await db.alis.findMany({ include: { satirlar: true } });
+  return rows.map(mapAlis).sort((a, b) => b.id.localeCompare(a.id));
+}
+
+export async function getAlis(id: string): Promise<Alis | null> {
+  const row = await db.alis.findUnique({
+    where: { id },
+    include: { satirlar: true },
+  });
+  return row ? mapAlis(row) : null;
 }

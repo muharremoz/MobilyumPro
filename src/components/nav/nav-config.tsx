@@ -21,6 +21,7 @@ import { HistoryIcon } from "@/components/ui/icons/history";
 import { FolderTreeIcon } from "@/components/ui/icons/folder-tree";
 import { FrameIcon } from "@/components/ui/icons/frame";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
+import { ReceiptIcon } from "@/components/ui/icons/receipt";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 
 // Tüm pqoqubbw ikonları aynı imperative handle'ı paylaşır.
@@ -121,7 +122,10 @@ export const sections: Section[] = [
     id: "cari",
     label: "Cari Yönetimi",
     RailIcon: I(WalletIcon),
-    href: "/cari",
+    items: [
+      { label: "Cari Hesaplar", href: "/cari", icon: I(WalletIcon) },
+      { label: "Satın Alma", href: "/satin-alma", icon: I(ReceiptIcon) },
+    ],
   },
 ];
 

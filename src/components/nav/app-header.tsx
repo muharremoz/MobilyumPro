@@ -104,6 +104,28 @@ function getCrumbs(
       Icon: iconForHref("/cari"),
     };
   }
+  if (pathname === "/satin-alma/yeni") {
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Satın Alma", href: "/satin-alma" },
+        { label: "Yeni Alış" },
+      ],
+      Icon: iconForHref("/satin-alma"),
+    };
+  }
+  if (/^\/satin-alma\/[^/]+$/.test(pathname)) {
+    const id = pathname.split("/")[2];
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Satın Alma", href: "/satin-alma" },
+        { label: "Alış Detayı" },
+      ],
+      Icon: iconForHref("/satin-alma"),
+      meta: id,
+    };
+  }
   if (pathname.startsWith("/kullanicilar/yetkiler")) {
     return {
       crumbs: [

@@ -330,6 +330,29 @@ export type StokGrup = {
   durum: "Aktif" | "Pasif";
 };
 
+// Satın alma — tedarikçiden malzeme alışı.
+// Kaydedildiğinde stok girişi + cari Alacak işlemi otomatik oluşur.
+export type AlisSatiri = {
+  id: number;
+  malzemeId: string;
+  malzemeAd: string;
+  miktar: number;
+  birim: string;
+  birimFiyat: Para;
+};
+
+export type Alis = {
+  id: string;
+  cariId: string;
+  cariAd: string;
+  tarih: string;
+  depo: string;
+  belgeNo?: string;
+  aciklama?: string;
+  toplam: Para;
+  satirlar: AlisSatiri[];
+};
+
 // Depolar (üretim hedefi / stok lokasyonu).
 export type Depo = {
   id: string;
