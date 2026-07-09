@@ -44,6 +44,7 @@ export function InventoryPage({
   mevcutKullaniciId,
   gruplar,
   tanimlar,
+  tedarikciler,
 }: {
   bolum: string;
   urunler: Model[];
@@ -59,6 +60,8 @@ export function InventoryPage({
   gruplar?: StokGrup[];
   /** Düz tanımlar (Tanımlamalar → Marka/Renk/Kumaş/Birim...). */
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
+  /** Tedarikçi seçenekleri (cari kartlardan: Tedarikçi / Her İkisi). */
+  tedarikciler?: string[];
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -108,6 +111,7 @@ export function InventoryPage({
         mevcutKullaniciId={mevcutKullaniciId}
         birimler={tanimlar?.birim.map((t) => t.ad)}
         gruplar={gruplar}
+        tedarikciler={tedarikciler}
       />
     );
   if (bolum === "parcalar")

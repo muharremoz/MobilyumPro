@@ -100,6 +100,7 @@ export function Materials({
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
   birimler,
   gruplar = [],
+  tedarikciler = [],
 }: {
   malzemeler: Malzeme[];
   kolonAyari?: ListeKolonAyariDegeri;
@@ -110,6 +111,8 @@ export function Materials({
   birimler?: string[];
   /** Stok grup ağacı (Tanımlamalar → Gruplar). */
   gruplar?: StokGrup[];
+  /** Tedarikçi seçenekleri (cari kartlardan: Tedarikçi / Her İkisi). */
+  tedarikciler?: string[];
 }) {
   const birimSecenekleri =
     birimler && birimler.length > 0 ? birimler : BIRIMLER;
@@ -542,6 +545,7 @@ export function Materials({
         item={duzenlenen}
         gruplar={gruplar}
         birimler={birimSecenekleri}
+        tedarikciler={tedarikciler}
         onSave={kaydet}
       />
 
@@ -557,6 +561,7 @@ function MaterialSheet({
   item,
   gruplar = [],
   birimler = BIRIMLER,
+  tedarikciler = [],
   onSave,
 }: {
   open: boolean;
@@ -564,6 +569,7 @@ function MaterialSheet({
   item: Malzeme | null;
   gruplar?: StokGrup[];
   birimler?: string[];
+  tedarikciler?: string[];
   onSave: (m: Malzeme) => void;
 }) {
   const [form, setForm] = React.useState({
@@ -685,15 +691,15 @@ function MaterialSheet({
             }
           />
         </div>
-        <IconInput
-          label="Tedarikçi"
-          icon={UsersRoundIcon}
-          placeholder="Örn. Kastamonu Entegre"
-          value={form.tedarikci}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, tedarikci: e.target.value }))
-          }
-        />
+        <AnimatedField label="Tedarikçi" icon={UsersRoundIcon}>
+          <SearchSelect
+            items={tedarikciler}
+            value={form.tedarikci || null}
+            onValueChange={(v) => setForm((f) => ({ ...f, tedarikci: v ?? "" }))}
+            placeholder="Cari kartlardan seç"
+            emptyText="Tedarikçi tipli cari yok — önce Cari Hesaplar'dan ekleyin"
+          />
+        </AnimatedField>
         <div
           role="button"
           tabIndex={0}

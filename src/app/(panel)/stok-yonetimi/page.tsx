@@ -9,6 +9,7 @@ import {
   getKullanicilar,
   getGruplar,
   getTanimlar,
+  getCariler,
 } from "@/lib/db/queries";
 
 export default async function StokYonetimiPage({
@@ -33,6 +34,7 @@ export default async function StokYonetimiPage({
     kullanicilar,
     gruplar,
     tanimlar,
+    cariler,
   ] = await Promise.all([
     getModeller(),
     getMalzemeler(),
@@ -49,7 +51,12 @@ export default async function StokYonetimiPage({
     getKullanicilar(),
     getGruplar(),
     getTanimlar(),
+    getCariler(),
   ]);
+  // Malzeme formundaki tedarikçi seçenekleri — cari kartlardan.
+  const tedarikciler = cariler
+    .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")
+    .map((c) => c.ad);
   // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
   const mevcutKullaniciId =
     kullanicilar.find((k) => k.rol === "Yönetici")?.id ??
@@ -76,6 +83,7 @@ export default async function StokYonetimiPage({
       mevcutKullaniciId={mevcutKullaniciId}
       gruplar={gruplar}
       tanimlar={tanimlar}
+      tedarikciler={tedarikciler}
     />
   );
 }
