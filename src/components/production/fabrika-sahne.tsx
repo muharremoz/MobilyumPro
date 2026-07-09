@@ -118,7 +118,7 @@ function Palet({
   );
 }
 
-// ── İşçi — verilen elips üzerinde yürür ──────────────────────────────────
+// ── İşçi — verilen elips üzerinde yürür (kol/bacak salınımlı) ────────────
 function Isci({
   merkezX,
   merkezZ,
@@ -137,41 +137,104 @@ function Isci({
   yelek?: string;
 }) {
   const ref = React.useRef<Group>(null);
+  const solKol = React.useRef<Group>(null);
+  const sagKol = React.useRef<Group>(null);
+  const solBacak = React.useRef<Group>(null);
+  const sagBacak = React.useRef<Group>(null);
+
   useFrame(({ clock }) => {
     const g = ref.current;
     if (!g) return;
     const t = clock.elapsedTime * hiz + faz;
     const x = merkezX + Math.cos(t) * rx;
     const z = merkezZ + Math.sin(t) * rz;
-    // Yürüme yönüne dön + hafif zıplama.
+    // Yürüme yönüne dön; adım döngüsüyle gövde hafifçe iner-kalkar.
     g.rotation.y = Math.atan2(-(Math.sin(t) * rx), Math.cos(t) * rz);
-    g.position.set(x, Math.abs(Math.sin(t * 6)) * 0.04, z);
+    const adim = Math.sin(t * 6);
+    g.position.set(x, Math.abs(Math.cos(t * 6)) * 0.03, z);
+    // Karşıt kol-bacak salınımı (kalça/omuz pivotlu).
+    if (solBacak.current) solBacak.current.rotation.x = adim * 0.55;
+    if (sagBacak.current) sagBacak.current.rotation.x = -adim * 0.55;
+    if (solKol.current) solKol.current.rotation.x = -adim * 0.45;
+    if (sagKol.current) sagKol.current.rotation.x = adim * 0.45;
   });
+
+  const ten = "#e8b98e";
+  const pantolon = "#3f3f46";
+  const gomlek = "#52525b";
+
   return (
     <group ref={ref}>
-      {/* Gövde */}
-      <mesh castShadow position={[0, 0.55, 0]}>
-        <cylinderGeometry args={[0.22, 0.26, 0.7, 10]} />
+      {/* Bacaklar — kalça pivotlu */}
+      {(
+        [
+          [0.09, solBacak],
+          [-0.09, sagBacak],
+        ] as const
+      ).map(([dx, bacakRef]) => (
+        <group key={dx} ref={bacakRef} position={[dx, 0.78, 0]}>
+          <mesh castShadow position={[0, -0.37, 0]}>
+            <cylinderGeometry args={[0.065, 0.075, 0.72, 8]} />
+            <meshStandardMaterial color={pantolon} />
+          </mesh>
+          {/* Bot */}
+          <mesh castShadow position={[0, -0.75, 0.05]}>
+            <boxGeometry args={[0.13, 0.09, 0.27]} />
+            <meshStandardMaterial color="#262626" />
+          </mesh>
+        </group>
+      ))}
+      {/* Gövde — yelek */}
+      <mesh castShadow position={[0, 1.03, 0]}>
+        <cylinderGeometry args={[0.17, 0.2, 0.52, 12]} />
         <meshStandardMaterial color={yelek} />
       </mesh>
-      {/* Kafa */}
-      <mesh castShadow position={[0, 1.08, 0]}>
-        <sphereGeometry args={[0.17, 12, 12]} />
-        <meshStandardMaterial color="#e8b98e" />
+      {/* Yelek reflektör şeritleri */}
+      {[-0.08, 0.08].map((dx) => (
+        <mesh key={dx} position={[dx, 1.03, 0.17]}>
+          <boxGeometry args={[0.045, 0.42, 0.035]} />
+          <meshStandardMaterial
+            color="#f4f4f5"
+            emissive="#f4f4f5"
+            emissiveIntensity={0.15}
+          />
+        </mesh>
+      ))}
+      {/* Kollar — omuz pivotlu, gömlek kollu + ten eller */}
+      {(
+        [
+          [0.25, solKol],
+          [-0.25, sagKol],
+        ] as const
+      ).map(([dx, kolRef]) => (
+        <group key={dx} ref={kolRef} position={[dx, 1.24, 0]}>
+          <mesh castShadow position={[0, -0.23, 0]}>
+            <cylinderGeometry args={[0.05, 0.045, 0.48, 8]} />
+            <meshStandardMaterial color={gomlek} />
+          </mesh>
+          <mesh castShadow position={[0, -0.5, 0]}>
+            <sphereGeometry args={[0.055, 8, 8]} />
+            <meshStandardMaterial color={ten} />
+          </mesh>
+        </group>
+      ))}
+      {/* Boyun + kafa */}
+      <mesh position={[0, 1.32, 0]}>
+        <cylinderGeometry args={[0.06, 0.07, 0.1, 8]} />
+        <meshStandardMaterial color={ten} />
       </mesh>
-      {/* Baret */}
-      <mesh position={[0, 1.19, 0]}>
-        <sphereGeometry args={[0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+      <mesh castShadow position={[0, 1.46, 0]}>
+        <sphereGeometry args={[0.14, 14, 14]} />
+        <meshStandardMaterial color={ten} />
+      </mesh>
+      {/* Baret — tepe + siperlik */}
+      <mesh position={[0, 1.54, 0]}>
+        <sphereGeometry args={[0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshStandardMaterial color="#facc15" />
       </mesh>
-      {/* Bacaklar */}
-      <mesh position={[0.09, 0.12, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.28, 8]} />
-        <meshStandardMaterial color="#374151" />
-      </mesh>
-      <mesh position={[-0.09, 0.12, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.28, 8]} />
-        <meshStandardMaterial color="#374151" />
+      <mesh position={[0, 1.54, 0.03]}>
+        <cylinderGeometry args={[0.16, 0.16, 0.025, 14]} />
+        <meshStandardMaterial color="#eab308" />
       </mesh>
     </group>
   );
@@ -384,43 +447,6 @@ function CalismaMasasi({ x, z, renk = "#a8a29e" }: { x: number; z: number; renk?
         <boxGeometry args={[0.6, 0.22, 0.5]} />
         <meshStandardMaterial color="#d6b98c" />
       </mesh>
-    </group>
-  );
-}
-
-function Kamyon({ x, z }: { x: number; z: number }) {
-  return (
-    <group position={[x, 0, z]} rotation={[0, Math.PI / 2, 0]}>
-      {/* Dorse */}
-      <mesh castShadow position={[0, 1.15, -1.6]}>
-        <boxGeometry args={[1.9, 1.9, 4.6]} />
-        <meshStandardMaterial color="#f5f5f5" />
-      </mesh>
-      {/* Kabin */}
-      <mesh castShadow position={[0, 0.85, 1.6]}>
-        <boxGeometry args={[1.7, 1.3, 1.4]} />
-        <meshStandardMaterial color="#3b82f6" />
-      </mesh>
-      <mesh position={[0, 1.35, 1.9]}>
-        <boxGeometry args={[1.5, 0.5, 0.06]} />
-        <meshStandardMaterial color="#bfdbfe" />
-      </mesh>
-      {/* Tekerler */}
-      {(
-        [
-          [-0.85, 1.5],
-          [0.85, 1.5],
-          [-0.85, -0.6],
-          [0.85, -0.6],
-          [-0.85, -2.6],
-          [0.85, -2.6],
-        ] as const
-      ).map(([dx, dz], i) => (
-        <mesh key={i} position={[dx, 0.35, dz]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.24, 14]} />
-          <meshStandardMaterial color="#262626" />
-        </mesh>
-      ))}
     </group>
   );
 }
@@ -736,10 +762,7 @@ export default function FabrikaSahne({
               </>
             )}
             {ist.slug === "sevkiyat" && (
-              <>
-                <Kamyon x={cx} z={konum.z + konum.d - 3.4} />
-                <Isci merkezX={cx} merkezZ={konum.z + 4} rx={1.6} rz={2.6} hiz={0.45} faz={0.7} yelek="#10b981" />
-              </>
+              <Isci merkezX={cx} merkezZ={konum.z + 4} rx={1.6} rz={2.6} hiz={0.45} faz={0.7} yelek="#10b981" />
             )}
           </IstasyonAlani>
         );
