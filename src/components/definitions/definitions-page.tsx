@@ -27,6 +27,8 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { GrupAgaci } from "@/components/definitions/grup-agaci";
+import type { StokGrup } from "@/lib/data";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -47,7 +49,7 @@ import {
 
 export type Tanim = { id: string; ad: string; adet: number; durum: "Aktif" | "Pasif" };
 export type TabKey =
-  | "kategoriler"
+  | "gruplar"
   | "markalar"
   | "koleksiyonlar"
   | "renkler"
@@ -55,7 +57,7 @@ export type TabKey =
   | "birimler";
 
 export const TABS: Record<TabKey, { label: string; tekil: string }> = {
-  kategoriler: { label: "Kategoriler", tekil: "Kategori" },
+  gruplar: { label: "Gruplar", tekil: "Grup" },
   markalar: { label: "Markalar", tekil: "Marka" },
   koleksiyonlar: { label: "Koleksiyonlar", tekil: "Koleksiyon" },
   renkler: { label: "Renkler", tekil: "Renk" },
@@ -65,13 +67,13 @@ export const TABS: Record<TabKey, { label: string; tekil: string }> = {
 
 // Sol menü grupları (alt menü).
 export const MENU: { label: string; keys: TabKey[] }[] = [
-  { label: "Model", keys: ["kategoriler", "markalar", "koleksiyonlar"] },
+  { label: "Model", keys: ["gruplar", "markalar", "koleksiyonlar"] },
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
 ];
 
-// Tanımlar henüz DB'ye bağlı değil; temiz başlangıç için boş başlar.
-const ILK: Record<TabKey, Tanim[]> = {
-  kategoriler: [],
+// Düz tanımlar henüz DB'ye bağlı değil; temiz başlangıç için boş başlar.
+// (Gruplar DB'ye bağlıdır — GrupAgaci ile ayrıca çizilir.)
+const ILK: Record<Exclude<TabKey, "gruplar">, Tanim[]> = {
   markalar: [],
   koleksiyonlar: [],
   renkler: [],
@@ -102,6 +104,7 @@ export function DefinitionsPage({
   kullanicilar = [],
   mevcutKullaniciId = "",
   yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
+  gruplar = [],
 }: {
   /** Sol gruplu menüyü gizler (üst kapsayıcı kendi menüsünü kullanır). */
   hideMenu?: boolean;
@@ -113,9 +116,11 @@ export function DefinitionsPage({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
   yonetici?: boolean;
+  /** Stok grup ağacı (DB'den). */
+  gruplar?: StokGrup[];
 } = {}) {
-  const [data, setData] = React.useState<Record<TabKey, Tanim[]>>(ILK);
-  const [tabState, setTabState] = React.useState<TabKey>("kategoriler");
+  const [data, setData] = React.useState<Record<Exclude<TabKey, "gruplar">, Tanim[]>>(ILK);
+  const [tabState, setTabState] = React.useState<TabKey>("gruplar");
   const tab = tipProp ?? tabState;
   const setTab = (k: TabKey) => {
     setTabState(k);
@@ -148,7 +153,7 @@ export function DefinitionsPage({
   });
 
   const aktifTab = TABS[tab];
-  const liste = data[tab];
+  const liste = tab === "gruplar" ? [] : data[tab];
 
   // Tip değişince filtre/seçim/sayfa sıfırla; filtre değişince sayfaya dön.
   React.useEffect(() => {
@@ -215,6 +220,7 @@ export function DefinitionsPage({
   }
 
   function kaydet(degerler: { ad: string; durum: "Aktif" | "Pasif" }) {
+    if (tab === "gruplar") return;
     setData((d) => {
       const arr = d[tab];
       if (duzenlenen) {
@@ -243,6 +249,7 @@ export function DefinitionsPage({
   }
 
   function sil(ids: string[]) {
+    if (tab === "gruplar") return;
     setData((d) => ({ ...d, [tab]: d[tab].filter((x) => !ids.includes(x.id)) }));
     setSecili((s) => {
       const n = new Set(s);
@@ -296,7 +303,7 @@ export function DefinitionsPage({
                       >
                         <span>{TABS[k].label}</span>
                         <span className="text-xs text-muted-foreground/70">
-                          {data[k].length}
+                          {k === "gruplar" ? gruplar.length : data[k].length}
                         </span>
                       </button>
                     ))}
@@ -309,7 +316,12 @@ export function DefinitionsPage({
       </aside>
       )}
 
-      {/* Sağ içerik */}
+      {/* Sağ içerik — Gruplar sekmesi ağaç, diğerleri düz liste */}
+      {tab === "gruplar" ? (
+        <div className="min-w-0 flex-1">
+          <GrupAgaci gruplar={gruplar} />
+        </div>
+      ) : (
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         {/* Toplu işlem çubuğu */}
         {secili.size > 0 && (
@@ -500,6 +512,7 @@ export function DefinitionsPage({
           </div>
         </div>
       </div>
+      )}
 
       <DefinitionSheet
         open={sheetOpen}

@@ -211,6 +211,17 @@ export type Poset = {
   malzemeler: PosetSatiri[];
 };
 
+// Tanımlamalar — stok grup ağacı (grup → alt grup → alt-alt grup ...).
+export type StokGrup = {
+  id: string;
+  ad: string;
+  /** Elle girilen grup kodu (örn. 150, AKS, 01). */
+  kod: string;
+  /** Üst grubun id'si; null → kök grup. */
+  ustId: string | null;
+  durum: "Aktif" | "Pasif";
+};
+
 // Depolar (üretim hedefi / stok lokasyonu).
 export type Depo = {
   id: string;

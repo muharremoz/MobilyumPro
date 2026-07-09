@@ -12,10 +12,17 @@ import { StockCount } from "@/components/inventory/stock-count";
 import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
 import type { ListeKolonAyariDegeri } from "@/components/ui/kolon-ayarlari";
-import type { Model, Malzeme, Parca, Depo, StokHareket } from "@/lib/data";
+import type {
+  Model,
+  Malzeme,
+  Parca,
+  Depo,
+  StokHareket,
+  StokGrup,
+} from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
-  "kategoriler",
+  "gruplar",
   "markalar",
   "koleksiyonlar",
   "renkler",
@@ -33,6 +40,7 @@ export function InventoryPage({
   kolonAyarlari,
   kullanicilar,
   mevcutKullaniciId,
+  gruplar,
 }: {
   bolum: string;
   urunler: Model[];
@@ -44,6 +52,8 @@ export function InventoryPage({
   kolonAyarlari?: Record<string, ListeKolonAyariDegeri>;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
+  /** Stok grup ağacı (Tanımlamalar → Gruplar). */
+  gruplar?: StokGrup[];
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -113,6 +123,7 @@ export function InventoryPage({
         kolonAyari={kolonAyarlari?.["tanimlamalar"]}
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}
+        gruplar={gruplar}
       />
     );
   }

@@ -406,3 +406,17 @@ model StokHareket {
 
   @@map("stok_hareket")
 }
+
+// ── Tanımlamalar: stok grup ağacı (grup → alt grup → ...) ───────────────
+model Grup {
+  id    String  @id @default(cuid())
+  ad    String
+  kod   String
+  ustId String? @map("ust_id")
+  durum String  @default("Aktif")
+
+  ust    Grup?  @relation("GrupHiyerarsi", fields: [ustId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  altlar Grup[] @relation("GrupHiyerarsi")
+
+  @@map("grup")
+}

@@ -25,6 +25,7 @@ import type {
   CariIslemTuru,
   StokHareket,
   StokHareketTuru,
+  StokGrup,
 } from "../data";
 
 type Durum = "Aktif" | "Pasif";
@@ -543,5 +544,19 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
     musteri: e.musteri ?? undefined,
     hedefDepo: e.hedefDepo ?? undefined,
     not: e.not ?? undefined,
+  }));
+}
+
+/** Stok grup ağacı — düz liste döner; ağacı istemci kurar. */
+export async function getGruplar(): Promise<StokGrup[]> {
+  const rows = await db.grup.findMany({
+    orderBy: [{ kod: "asc" }, { ad: "asc" }],
+  });
+  return rows.map((g) => ({
+    id: g.id,
+    ad: g.ad,
+    kod: g.kod,
+    ustId: g.ustId,
+    durum: g.durum as Durum,
   }));
 }

@@ -1148,3 +1148,49 @@ export async function cariIslemEkle(
     return { ok: false, error: "İşlem eklenemedi." };
   }
 }
+
+// ── Stok grup ağacı (Tanımlamalar → Gruplar) ─────────────────────────────
+
+/** Grup ekle/güncelle. ustId null → kök grup. */
+export async function grupKaydet(g: {
+  id?: string;
+  ad: string;
+  kod: string;
+  ustId: string | null;
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    if (g.id) {
+      await db.grup.update({
+        where: { id: g.id },
+        data: { ad: g.ad, kod: g.kod },
+      });
+      revalidatePath("/stok-yonetimi");
+      return { ok: true, id: g.id };
+    }
+    const yeni = await db.grup.create({
+      data: { ad: g.ad, kod: g.kod, ustId: g.ustId },
+    });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true, id: yeni.id };
+  } catch (e) {
+    console.error("grupKaydet:", e);
+    return { ok: false, error: "Grup kaydedilemedi." };
+  }
+}
+
+/** Grubu siler; alt grubu varsa reddeder. */
+export async function grupSil(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const altSayisi = await db.grup.count({ where: { ustId: id } });
+    if (altSayisi > 0)
+      return { ok: false, error: "Önce alt grupları silin." };
+    await db.grup.delete({ where: { id } });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("grupSil:", e);
+    return { ok: false, error: "Grup silinemedi." };
+  }
+}
