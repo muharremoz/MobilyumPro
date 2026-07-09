@@ -121,6 +121,9 @@ export type Cari = {
   sinif: CariSinifi;
   /** Ana yetkili (hızlı erişim; detaylı liste yetkililer sekmesinde). */
   yetkili?: string;
+  yetkiliUnvan?: string;
+  yetkiliTelefon?: string;
+  yetkiliEmail?: string;
   telefon?: string;
   telefon2?: string;
   telefon3?: string;
@@ -296,8 +299,18 @@ export type Poset = {
   malzemeler: PosetSatiri[];
 };
 
-// Tanımlamalar — düz tanımlar (marka/koleksiyon/renk/kumaş/birim).
-export type TanimTip = "marka" | "koleksiyon" | "renk" | "kumas" | "birim";
+// Tanımlamalar — düz tanımlar (marka/koleksiyon/renk/kumaş/birim + adres
+// seçenekleri: ülke/bölge/şehir/semt — formlarda "yeni ekle" ile büyür).
+export type TanimTip =
+  | "marka"
+  | "koleksiyon"
+  | "renk"
+  | "kumas"
+  | "birim"
+  | "ulke"
+  | "bolge"
+  | "sehir"
+  | "semt";
 export type TanimKalemi = {
   id: string;
   ad: string;

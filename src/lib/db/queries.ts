@@ -216,6 +216,9 @@ function mapCari(c: CariRow): Cari {
     tip: c.tip as CariTip,
     sinif: c.sinif as CariSinifi,
     yetkili: c.yetkili ?? undefined,
+    yetkiliUnvan: c.yetkiliUnvan ?? undefined,
+    yetkiliTelefon: c.yetkiliTelefon ?? undefined,
+    yetkiliEmail: c.yetkiliEmail ?? undefined,
     telefon: c.telefon ?? undefined,
     telefon2: c.telefon2 ?? undefined,
     telefon3: c.telefon3 ?? undefined,
@@ -619,6 +622,10 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     renk: renkAdet,
     kumas: kumasAdet,
     birim: birimAdet,
+    ulke: new Map(),
+    bolge: new Map(),
+    sehir: new Map(),
+    semt: new Map(),
   };
 
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
@@ -627,6 +634,10 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     renk: [],
     kumas: [],
     birim: [],
+    ulke: [],
+    bolge: [],
+    sehir: [],
+    semt: [],
   };
   for (const r of rows) {
     const tip = r.tip as TanimTip;

@@ -208,7 +208,10 @@ model Cari {
   tip          String
   sinif        String
   // Ana yetkili kişi (hızlı erişim; detaylı liste CariYetkili'de)
-  yetkili      String?
+  yetkili        String?
+  yetkiliUnvan   String? @map("yetkili_unvan")
+  yetkiliTelefon String? @map("yetkili_telefon")
+  yetkiliEmail   String? @map("yetkili_email")
   telefon      String?
   telefon2     String?
   telefon3     String?

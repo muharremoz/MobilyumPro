@@ -67,6 +67,14 @@ import { PhoneIcon } from "@/components/ui/icons/phone";
 import { ReceiptIcon } from "@/components/ui/icons/receipt";
 import { TruckIcon } from "@/components/ui/icons/truck";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
   formatTL,
   formatTarih,
   type Cari,
@@ -83,10 +91,12 @@ import {
   type CariYetkili,
   type ParaBirimi,
   type SatisFiyatTipi,
+  type TanimTip,
 } from "@/lib/data";
 import {
   cariKaydet,
   cariIslemEkle,
+  tanimKaydet,
   cariBankaKaydet,
   cariBankaSil,
   cariSubeKaydet,
@@ -182,6 +192,9 @@ type Form = {
   tip: CariTip;
   sinif: CariSinifi;
   yetkili: string;
+  yetkiliUnvan: string;
+  yetkiliTelefon: string;
+  yetkiliEmail: string;
   telefon: string;
   telefon2: string;
   telefon3: string;
@@ -214,6 +227,9 @@ const bos: Form = {
   tip: "Müşteri",
   sinif: "Bireysel",
   yetkili: "",
+  yetkiliUnvan: "",
+  yetkiliTelefon: "",
+  yetkiliEmail: "",
   telefon: "",
   telefon2: "",
   telefon3: "",
@@ -248,16 +264,31 @@ type Tab =
   | "crm"
   | "dokumanlar";
 
+/** Adres combobox seçenekleri (Tanımlamalar'daki ulke/bolge/sehir/semt tanımları). */
+export type AdresSecenekleri = Record<
+  "ulke" | "bolge" | "sehir" | "semt",
+  string[]
+>;
+
+const BOS_ADRES_SECENEKLERI: AdresSecenekleri = {
+  ulke: [],
+  bolge: [],
+  sehir: [],
+  semt: [],
+};
+
 export function CariFormPage({
   cari,
   islemler: islemlerProp = [],
   detay,
   kullanicilar = [],
+  adresSecenekleri = BOS_ADRES_SECENEKLERI,
 }: {
   cari?: Cari;
   islemler?: CariIslem[];
   detay?: CariDetay;
   kullanicilar?: string[];
+  adresSecenekleri?: AdresSecenekleri;
 } = {}) {
   const router = useRouter();
   const duzenleme = !!cari;
@@ -269,6 +300,9 @@ export function CariFormPage({
         tip: cari.tip,
         sinif: cari.sinif,
         yetkili: cari.yetkili ?? "",
+        yetkiliUnvan: cari.yetkiliUnvan ?? "",
+        yetkiliTelefon: cari.yetkiliTelefon ?? "",
+        yetkiliEmail: cari.yetkiliEmail ?? "",
         telefon: cari.telefon ?? "",
         telefon2: cari.telefon2 ?? "",
         telefon3: cari.telefon3 ?? "",
@@ -361,6 +395,9 @@ export function CariFormPage({
       tip: form.tip,
       sinif: form.sinif,
       yetkili: t(form.yetkili),
+      yetkiliUnvan: t(form.yetkiliUnvan),
+      yetkiliTelefon: t(form.yetkiliTelefon),
+      yetkiliEmail: t(form.yetkiliEmail),
       telefon: t(form.telefon),
       telefon2: t(form.telefon2),
       telefon3: t(form.telefon3),
@@ -479,6 +516,7 @@ export function CariFormPage({
             duzenleme={duzenleme}
             kullanicilar={kullanicilar}
             durumRef={durumRef}
+            adresSecenekleri={adresSecenekleri}
           />
           <div className="flex justify-end gap-2">
             <Button
@@ -1023,6 +1061,18 @@ function HareketKarti({
 const textareaCls =
   "w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30";
 
+// Adres alanı → tanım tipi + form anahtarı + etiket eşlemesi.
+const ADRES_ALANLARI: {
+  alan: "ulke" | "bolge" | "sehir" | "semt";
+  etiket: string;
+  ornek: string;
+}[] = [
+  { alan: "ulke", etiket: "Ülke", ornek: "Örn. Türkiye" },
+  { alan: "bolge", etiket: "Bölge", ornek: "Örn. Marmara" },
+  { alan: "sehir", etiket: "Şehir", ornek: "Örn. İstanbul" },
+  { alan: "semt", etiket: "Semt", ornek: "Örn. Kadıköy" },
+];
+
 function GenelTab({
   form,
   setForm,
@@ -1031,6 +1081,7 @@ function GenelTab({
   duzenleme,
   kullanicilar,
   durumRef,
+  adresSecenekleri,
 }: {
   form: Form;
   setForm: React.Dispatch<React.SetStateAction<Form>>;
@@ -1039,7 +1090,36 @@ function GenelTab({
   duzenleme: boolean;
   kullanicilar: string[];
   durumRef: React.RefObject<AnimatedIconHandle | null>;
+  adresSecenekleri: AdresSecenekleri;
 }) {
+  // Adres seçenekleri — "yeni ekle" ile oturum içinde büyür (DB'ye de yazılır).
+  const [secenekler, setSecenekler] =
+    React.useState<AdresSecenekleri>(adresSecenekleri);
+  React.useEffect(() => setSecenekler(adresSecenekleri), [adresSecenekleri]);
+  const [yeniAlan, setYeniAlan] = React.useState<
+    "ulke" | "bolge" | "sehir" | "semt" | null
+  >(null);
+  const [yeniDeger, setYeniDeger] = React.useState("");
+
+  async function yeniSecenekEkle() {
+    if (!yeniAlan) return;
+    const v = yeniDeger.trim();
+    if (!v) {
+      toast.error("Değer gerekli");
+      return;
+    }
+    const alan = yeniAlan;
+    setSecenekler((s) => ({
+      ...s,
+      [alan]: s[alan].includes(v) ? s[alan] : [...s[alan], v],
+    }));
+    set(alan)(v);
+    setYeniAlan(null);
+    // Tanımlamalar'a kalıcı yaz.
+    const res = await tanimKaydet(alan as TanimTip, { ad: v, durum: "Aktif" });
+    if (!res.ok) toast.error(res.error ?? "Tanım kaydedilemedi.");
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {/* Sol: Genel + İletişim + Satış & Muhasebe kartları */}
@@ -1103,55 +1183,6 @@ function GenelTab({
                 />
               </AnimatedField>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Yetkili"
-                icon={UsersIcon}
-                placeholder="Ana irtibat kişisi"
-                value={form.yetkili}
-                onChange={(e) => set("yetkili")(e.target.value)}
-              />
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                  }))
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setForm((f) => ({
-                      ...f,
-                      durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                    }));
-                  }
-                }}
-                onMouseEnter={() => durumRef.current?.startAnimation()}
-                onMouseLeave={() => durumRef.current?.stopAnimation()}
-                className="flex cursor-pointer items-center justify-between gap-3 self-end rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              >
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <CircleCheckIcon
-                    ref={durumRef}
-                    size={15}
-                    className="text-muted-foreground"
-                  />
-                  Durum
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {form.durum}
-                  </span>
-                  <Switch
-                    checked={form.durum === "Aktif"}
-                    className="pointer-events-none data-checked:bg-emerald-600"
-                  />
-                </span>
-              </div>
-            </div>
             <AnimatedField label="Açıklama / Not" icon={AlignLeftIcon}>
               <textarea
                 rows={2}
@@ -1161,6 +1192,50 @@ function GenelTab({
                 className={textareaCls}
               />
             </AnimatedField>
+          </div>
+        </div>
+
+        {/* ── Yetkili (ana irtibat) ── */}
+        <div className="rounded-md border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-sm font-medium">Yetkili</span>
+            <span className="text-xs text-muted-foreground">
+              Ana irtibat — diğer kişiler Yetkililer sekmesinde
+            </span>
+          </div>
+          <div className="grid gap-3 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Ad Soyad"
+                icon={UsersIcon}
+                placeholder="Örn. Ahmet Yılmaz"
+                value={form.yetkili}
+                onChange={(e) => set("yetkili")(e.target.value)}
+              />
+              <IconInput
+                label="Yetki Ünvanı"
+                icon={UsersIcon}
+                placeholder="Örn. Satın Alma Müdürü"
+                value={form.yetkiliUnvan}
+                onChange={(e) => set("yetkiliUnvan")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Telefon"
+                icon={PhoneIcon}
+                placeholder="0532 000 00 00"
+                value={form.yetkiliTelefon}
+                onChange={(e) => set("yetkiliTelefon")(e.target.value)}
+              />
+              <IconInput
+                label="E-posta"
+                icon={SendIcon}
+                placeholder="ornek@firma.com"
+                value={form.yetkiliEmail}
+                onChange={(e) => set("yetkiliEmail")(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -1351,36 +1426,21 @@ function GenelTab({
           </div>
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Ülke"
-                icon={TruckIcon}
-                placeholder="Türkiye"
-                value={form.ulke}
-                onChange={(e) => set("ulke")(e.target.value)}
-              />
-              <IconInput
-                label="Bölge"
-                icon={TruckIcon}
-                placeholder="Örn. Marmara"
-                value={form.bolge}
-                onChange={(e) => set("bolge")(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Şehir"
-                icon={BlocksIcon}
-                placeholder="Örn. İstanbul"
-                value={form.sehir}
-                onChange={(e) => set("sehir")(e.target.value)}
-              />
-              <IconInput
-                label="Semt"
-                icon={BlocksIcon}
-                placeholder="Örn. Kadıköy"
-                value={form.semt}
-                onChange={(e) => set("semt")(e.target.value)}
-              />
+              {ADRES_ALANLARI.map(({ alan, etiket, ornek }) => (
+                <AnimatedField key={alan} label={etiket} icon={TruckIcon}>
+                  <SearchSelect
+                    items={secenekler[alan]}
+                    value={form[alan] || null}
+                    onValueChange={(v) => set(alan)(v ?? "")}
+                    placeholder={ornek}
+                    addLabel={`Yeni ${etiket.toLocaleLowerCase("tr")} ekle`}
+                    onAdd={() => {
+                      setYeniDeger("");
+                      setYeniAlan(alan);
+                    }}
+                  />
+                </AnimatedField>
+              ))}
             </div>
             <AnimatedField label="Adres" icon={BlocksIcon}>
               <textarea
@@ -1393,7 +1453,83 @@ function GenelTab({
             </AnimatedField>
           </div>
         </div>
+
+        {/* ── Durum ── */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() =>
+            setForm((f) => ({
+              ...f,
+              durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
+            }))
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setForm((f) => ({
+                ...f,
+                durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
+              }));
+            }
+          }}
+          onMouseEnter={() => durumRef.current?.startAnimation()}
+          onMouseLeave={() => durumRef.current?.stopAnimation()}
+          className="flex cursor-pointer items-center justify-between gap-3 rounded-md border bg-card px-4 py-3 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+        >
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <CircleCheckIcon
+              ref={durumRef}
+              size={15}
+              className="text-muted-foreground"
+            />
+            Durum
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{form.durum}</span>
+            <Switch
+              checked={form.durum === "Aktif"}
+              className="pointer-events-none data-checked:bg-emerald-600"
+            />
+          </span>
+        </div>
       </div>
+
+      {/* Yeni adres tanımı modalı (ülke/bölge/şehir/semt) */}
+      <Dialog
+        open={yeniAlan !== null}
+        onOpenChange={(o) => !o && setYeniAlan(null)}
+      >
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              Yeni {ADRES_ALANLARI.find((a) => a.alan === yeniAlan)?.etiket}
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder={
+              ADRES_ALANLARI.find((a) => a.alan === yeniAlan)?.ornek ?? ""
+            }
+            value={yeniDeger}
+            onChange={(e) => setYeniDeger(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                yeniSecenekEkle();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniAlan(null)}>
+              İptal
+            </Button>
+            <Button onClick={yeniSecenekEkle} disabled={!yeniDeger.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
