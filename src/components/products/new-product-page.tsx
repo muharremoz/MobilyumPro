@@ -153,6 +153,8 @@ export function NewProductPage({
   malzemeler,
   gruplar = [],
   markalar: markalarProp,
+  renkler = [],
+  kumaslar = [],
 }: {
   product?: Model;
   parcalar: Parca[];
@@ -160,6 +162,9 @@ export function NewProductPage({
   /** Stok grup ağacı (kategori seçimi bu ağaçtan yapılır). */
   gruplar?: StokGrup[];
   markalar: string[];
+  /** Varyant seçenekleri (Tanımlamalar → Renkler / Kumaşlar). */
+  renkler?: string[];
+  kumaslar?: string[];
 }) {
   const router = useRouter();
   const duzenleme = !!product;
@@ -775,22 +780,24 @@ export function NewProductPage({
                       {varyantlar.map((v, i) => (
                         <TableRow key={v.id}>
                           <TableCell>
-                            <Input
-                              placeholder="Renk"
-                              value={v.renk ?? ""}
-                              onChange={(e) =>
-                                varyantGuncelle(i, { renk: e.target.value })
+                            <SearchSelect
+                              items={renkler}
+                              value={v.renk || null}
+                              onValueChange={(deger) =>
+                                varyantGuncelle(i, { renk: deger ?? "" })
                               }
+                              placeholder="Renk seç"
                               className="h-8"
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              placeholder="Kumaş"
-                              value={v.kumas ?? ""}
-                              onChange={(e) =>
-                                varyantGuncelle(i, { kumas: e.target.value })
+                            <SearchSelect
+                              items={kumaslar}
+                              value={v.kumas || null}
+                              onValueChange={(deger) =>
+                                varyantGuncelle(i, { kumas: deger ?? "" })
                               }
+                              placeholder="Kumaş seç"
                               className="h-8"
                             />
                           </TableCell>

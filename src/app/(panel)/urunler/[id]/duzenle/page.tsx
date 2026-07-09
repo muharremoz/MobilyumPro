@@ -31,6 +31,8 @@ export default async function UrunDuzenleRoute({
       malzemeler={malzemeler}
       gruplar={gruplar}
       markalar={tanimlar.marka.map((t) => t.ad)}
+      renkler={tanimlar.renk.map((t) => t.ad)}
+      kumaslar={tanimlar.kumas.map((t) => t.ad)}
     />
   );
 }
