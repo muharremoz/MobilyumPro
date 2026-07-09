@@ -1042,11 +1042,12 @@ function GenelTab({
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      {/* Sol: Genel bilgiler */}
-      <div className="lg:col-span-2">
+      {/* Sol: Genel + İletişim + Satış & Muhasebe kartları */}
+      <div className="flex flex-col gap-4 lg:col-span-2">
+        {/* ── Genel ── */}
         <div className="rounded-md border bg-card">
           <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Genel Bilgiler</span>
+            <span className="text-sm font-medium">Genel</span>
           </div>
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
@@ -1102,129 +1103,13 @@ function GenelTab({
                 />
               </AnimatedField>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <IconInput
                 label="Yetkili"
                 icon={UsersIcon}
                 placeholder="Ana irtibat kişisi"
                 value={form.yetkili}
                 onChange={(e) => set("yetkili")(e.target.value)}
-              />
-              <IconInput
-                label="Telefon 1"
-                icon={PhoneIcon}
-                placeholder="0532 000 00 00"
-                value={form.telefon}
-                onChange={(e) => set("telefon")(e.target.value)}
-              />
-              <IconInput
-                label="Telefon 2"
-                icon={PhoneIcon}
-                placeholder=""
-                value={form.telefon2}
-                onChange={(e) => set("telefon2")(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <IconInput
-                label="Telefon 3"
-                icon={PhoneIcon}
-                placeholder=""
-                value={form.telefon3}
-                onChange={(e) => set("telefon3")(e.target.value)}
-              />
-              <IconInput
-                label="Fax"
-                icon={PhoneIcon}
-                placeholder=""
-                value={form.fax}
-                onChange={(e) => set("fax")(e.target.value)}
-              />
-              <IconInput
-                label="E-posta"
-                icon={SendIcon}
-                placeholder="ornek@firma.com"
-                value={form.email}
-                onChange={(e) => set("email")(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <IconInput
-                label="Web Sitesi"
-                icon={SendIcon}
-                placeholder="www.firma.com"
-                value={form.webSite}
-                onChange={(e) => set("webSite")(e.target.value)}
-              />
-              <AnimatedField label="Satış Fiyat Tipi" icon={BadgePercentIcon}>
-                <SearchSelect
-                  items={SATIS_FIYAT_TIPLERI}
-                  value={form.satisFiyatTipi}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      satisFiyatTipi:
-                        (v as SatisFiyatTipi) ?? "Satış Fiyatı 1",
-                    }))
-                  }
-                  placeholder="Fiyat tipi"
-                />
-              </AnimatedField>
-              <AnimatedField label="Para Birimi" icon={WalletIcon}>
-                <SearchSelect
-                  items={PARA_BIRIMLERI}
-                  value={form.paraBirimi}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      paraBirimi: (v as ParaBirimi) ?? "TL",
-                    }))
-                  }
-                  placeholder="Para birimi"
-                />
-              </AnimatedField>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <IconInput
-                label="İskonto Oranı (%)"
-                icon={BadgePercentIcon}
-                type="number"
-                min={0}
-                max={100}
-                placeholder="0"
-                value={form.iskontoOrani}
-                onChange={(e) => set("iskontoOrani")(e.target.value)}
-              />
-              <AnimatedField label="Temsilci" icon={UsersIcon}>
-                <SearchSelect
-                  items={kullanicilar}
-                  value={form.temsilci || null}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, temsilci: v ?? "" }))
-                  }
-                  placeholder="Satış temsilcisi"
-                />
-              </AnimatedField>
-              <div className="grid gap-0.5">
-                <IconInput
-                  label="Şube"
-                  icon={BlocksIcon}
-                  placeholder="Bağlı mağaza şubesi"
-                  value={form.sube}
-                  onChange={(e) => set("sube")(e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Çoklu şube kullanımında bağlı olduğu şube.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Muhasebe Kodu"
-                icon={ScanTextIcon}
-                placeholder="Örn. 120.01.001"
-                value={form.muhasebeKodu}
-                onChange={(e) => set("muhasebeKodu")(e.target.value)}
               />
               <div
                 role="button"
@@ -1269,13 +1154,147 @@ function GenelTab({
             </div>
             <AnimatedField label="Açıklama / Not" icon={AlignLeftIcon}>
               <textarea
-                rows={3}
+                rows={2}
                 placeholder="Cari ile ilgili özel notlar..."
                 value={form.not}
                 onChange={(e) => set("not")(e.target.value)}
                 className={textareaCls}
               />
             </AnimatedField>
+          </div>
+        </div>
+
+        {/* ── İletişim ── */}
+        <div className="rounded-md border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-sm font-medium">İletişim</span>
+          </div>
+          <div className="grid gap-3 p-4">
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Telefon 1"
+                icon={PhoneIcon}
+                placeholder="0532 000 00 00"
+                value={form.telefon}
+                onChange={(e) => set("telefon")(e.target.value)}
+              />
+              <IconInput
+                label="Telefon 2"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.telefon2}
+                onChange={(e) => set("telefon2")(e.target.value)}
+              />
+              <IconInput
+                label="Telefon 3"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.telefon3}
+                onChange={(e) => set("telefon3")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Fax"
+                icon={PhoneIcon}
+                placeholder=""
+                value={form.fax}
+                onChange={(e) => set("fax")(e.target.value)}
+              />
+              <IconInput
+                label="E-posta"
+                icon={SendIcon}
+                placeholder="ornek@firma.com"
+                value={form.email}
+                onChange={(e) => set("email")(e.target.value)}
+              />
+              <IconInput
+                label="Web Sitesi"
+                icon={SendIcon}
+                placeholder="www.firma.com"
+                value={form.webSite}
+                onChange={(e) => set("webSite")(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Satış & Muhasebe ── */}
+        <div className="rounded-md border bg-card">
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-sm font-medium">Satış &amp; Muhasebe</span>
+          </div>
+          <div className="grid gap-3 p-4">
+            <div className="grid grid-cols-3 gap-3">
+              <AnimatedField label="Satış Fiyat Tipi" icon={BadgePercentIcon}>
+                <SearchSelect
+                  items={SATIS_FIYAT_TIPLERI}
+                  value={form.satisFiyatTipi}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      satisFiyatTipi:
+                        (v as SatisFiyatTipi) ?? "Satış Fiyatı 1",
+                    }))
+                  }
+                  placeholder="Fiyat tipi"
+                />
+              </AnimatedField>
+              <AnimatedField label="Para Birimi" icon={WalletIcon}>
+                <SearchSelect
+                  items={PARA_BIRIMLERI}
+                  value={form.paraBirimi}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      paraBirimi: (v as ParaBirimi) ?? "TL",
+                    }))
+                  }
+                  placeholder="Para birimi"
+                />
+              </AnimatedField>
+              <IconInput
+                label="İskonto Oranı (%)"
+                icon={BadgePercentIcon}
+                type="number"
+                min={0}
+                max={100}
+                placeholder="0"
+                value={form.iskontoOrani}
+                onChange={(e) => set("iskontoOrani")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <AnimatedField label="Temsilci" icon={UsersIcon}>
+                <SearchSelect
+                  items={kullanicilar}
+                  value={form.temsilci || null}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, temsilci: v ?? "" }))
+                  }
+                  placeholder="Satış temsilcisi"
+                />
+              </AnimatedField>
+              <div className="grid gap-0.5">
+                <IconInput
+                  label="Şube"
+                  icon={BlocksIcon}
+                  placeholder="Bağlı mağaza şubesi"
+                  value={form.sube}
+                  onChange={(e) => set("sube")(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Çoklu şube kullanımında bağlı olduğu şube.
+                </p>
+              </div>
+              <IconInput
+                label="Muhasebe Kodu"
+                icon={ScanTextIcon}
+                placeholder="Örn. 120.01.001"
+                value={form.muhasebeKodu}
+                onChange={(e) => set("muhasebeKodu")(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>
