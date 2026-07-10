@@ -20,6 +20,8 @@ import {
   Landmark,
   Tag,
   History,
+  Activity,
+  Warehouse,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -253,6 +255,7 @@ type Tab =
   | "uretici"
   | "musteriler"
   | "hareketler"
+  | "analiz"
   | "dokumanlar";
 
 export function StokKartForm({
@@ -436,12 +439,20 @@ export function StokKartForm({
               Müşteriler
             </TabBtn>
             {kart?.grup !== "Hizmet" && (
-              <TabBtn
-                aktif={tab === "hareketler"}
-                onClick={() => setTab("hareketler")}
-              >
-                Stok Hareketleri
-              </TabBtn>
+              <>
+                <TabBtn
+                  aktif={tab === "hareketler"}
+                  onClick={() => setTab("hareketler")}
+                >
+                  Stok Hareketleri
+                </TabBtn>
+                <TabBtn
+                  aktif={tab === "analiz"}
+                  onClick={() => setTab("analiz")}
+                >
+                  Analiz
+                </TabBtn>
+              </>
             )}
             <TabBtn
               aktif={tab === "dokumanlar"}
@@ -499,6 +510,9 @@ export function StokKartForm({
         )}
         {duzenleme && kart && tab === "hareketler" && (
           <HareketlerTab hareketler={detay.hareketler} birim={kart.stokBirimi} />
+        )}
+        {duzenleme && kart && tab === "analiz" && (
+          <AnalizTab kart={kart} hareketler={detay.hareketler} />
         )}
         {duzenleme && kart && tab === "dokumanlar" && (
           <DokumanlarTab stokId={kart.id} kayitlar={detay.dokumanlar} />
@@ -608,6 +622,212 @@ function HareketlerTab({
           )}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ANALİZ SEKMESİ                                                     */
+/* ------------------------------------------------------------------ */
+function StatTile({
+  etiket,
+  deger,
+  renk,
+}: {
+  etiket: string;
+  deger: React.ReactNode;
+  renk?: string;
+}) {
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {etiket}
+      </div>
+      <div className={cn("mt-1 text-lg font-semibold tabular-nums", renk)}>
+        {deger}
+      </div>
+    </div>
+  );
+}
+
+function BarSatir({
+  etiket,
+  deger,
+  max,
+  birim,
+  renk,
+}: {
+  etiket: string;
+  deger: number;
+  max: number;
+  birim: string;
+  renk: string;
+}) {
+  const pct = Math.min(100, (deger / max) * 100);
+  return (
+    <div className="grid gap-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">{etiket}</span>
+        <span className="font-medium tabular-nums">
+          {deger.toLocaleString("tr-TR")} {birim}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn("h-full rounded-full", renk)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Kartın hareketlerinden hesaplanan stok analizi (salt okunur). */
+function AnalizTab({
+  kart,
+  hareketler,
+}: {
+  kart: StokKarti;
+  hareketler: StokHareket[];
+}) {
+  const analiz = React.useMemo(() => {
+    let giris = 0;
+    let cikis = 0;
+    let transfer = 0;
+    const depo = new Map<string, { giris: number; cikis: number }>();
+    for (const h of hareketler) {
+      const d = depo.get(h.depo) ?? { giris: 0, cikis: 0 };
+      if (h.tur === "Giriş") {
+        giris += h.miktar;
+        d.giris += h.miktar;
+      } else if (h.tur === "Çıkış") {
+        cikis += h.miktar;
+        d.cikis += h.miktar;
+      } else {
+        transfer += 1;
+      }
+      depo.set(h.depo, d);
+    }
+    return {
+      giris,
+      cikis,
+      transfer,
+      net: giris - cikis,
+      depolar: [...depo.entries()].sort(
+        (a, b) => b[1].giris + b[1].cikis - (a[1].giris + a[1].cikis),
+      ),
+    };
+  }, [hareketler]);
+
+  const birim = kart.stokBirimi;
+  const stokDegeri = kart.miktar * kart.maliyetFiyati;
+  const maxGC = Math.max(analiz.giris, analiz.cikis, 1);
+
+  if (hareketler.length === 0) {
+    return (
+      <div className="rounded-md border bg-card">
+        <KartBaslik ikon={Activity} baslik="Analiz" />
+        <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+          Analiz için henüz hareket yok.
+        </div>
+      </div>
+    );
+  }
+
+  const netRenk =
+    analiz.net > 0
+      ? "text-emerald-600"
+      : analiz.net < 0
+        ? "text-rose-600"
+        : undefined;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Özet stat'lar */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          etiket="Toplam Giriş"
+          deger={`+${analiz.giris.toLocaleString("tr-TR")} ${birim}`}
+          renk="text-emerald-600"
+        />
+        <StatTile
+          etiket="Toplam Çıkış"
+          deger={`−${analiz.cikis.toLocaleString("tr-TR")} ${birim}`}
+          renk="text-rose-600"
+        />
+        <StatTile
+          etiket="Net Değişim"
+          deger={`${analiz.net > 0 ? "+" : ""}${analiz.net.toLocaleString(
+            "tr-TR",
+          )} ${birim}`}
+          renk={netRenk}
+        />
+        <StatTile etiket="Stok Değeri" deger={formatTL(stokDegeri)} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Giriş / Çıkış karşılaştırma */}
+        <div className="rounded-md border bg-card">
+          <KartBaslik
+            ikon={Activity}
+            baslik="Giriş / Çıkış"
+            sag={
+              <span className="text-xs text-muted-foreground">
+                {hareketler.length} hareket
+              </span>
+            }
+          />
+          <div className="grid gap-3 p-4">
+            <BarSatir
+              etiket="Giriş"
+              deger={analiz.giris}
+              max={maxGC}
+              birim={birim}
+              renk="bg-emerald-500"
+            />
+            <BarSatir
+              etiket="Çıkış"
+              deger={analiz.cikis}
+              max={maxGC}
+              birim={birim}
+              renk="bg-rose-500"
+            />
+            {analiz.transfer > 0 && (
+              <p className="text-xs text-muted-foreground">
+                + {analiz.transfer} transfer hareketi
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Depo dağılımı */}
+        <div className="rounded-md border bg-card">
+          <KartBaslik ikon={Warehouse} baslik="Depo Dağılımı" />
+          <div className="grid gap-2 p-4">
+            {analiz.depolar.map(([ad, v]) => {
+              const net = v.giris - v.cikis;
+              return (
+                <div
+                  key={ad}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="truncate text-muted-foreground">{ad}</span>
+                  <span
+                    className={cn(
+                      "shrink-0 font-medium tabular-nums",
+                      net < 0 && "text-rose-600",
+                      net > 0 && "text-emerald-600",
+                    )}
+                  >
+                    {net > 0 ? "+" : ""}
+                    {net.toLocaleString("tr-TR")} {birim}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
