@@ -332,6 +332,8 @@ export type StokGrup = {
   /** Üst grubun id'si; null → kök grup. */
   ustId: string | null;
   durum: "Aktif" | "Pasif";
+  /** Bu grubu kullanan stok kartı sayısı (altGrup eşleşmesi; hesaplanır). */
+  kullanim?: number;
 };
 
 // Stok kartı — birleşik kart (hammadde/yarı mamül/mamül/hizmet).

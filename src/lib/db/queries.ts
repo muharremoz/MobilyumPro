@@ -588,15 +588,21 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
 
 /** Stok grup ağacı — düz liste döner; ağacı istemci kurar. */
 export async function getGruplar(): Promise<StokGrup[]> {
-  const rows = await db.grup.findMany({
-    orderBy: [{ kod: "asc" }, { ad: "asc" }],
-  });
+  const [rows, stokRows] = await Promise.all([
+    db.grup.findMany({ orderBy: [{ kod: "asc" }, { ad: "asc" }] }),
+    db.stok.findMany({ select: { altGrup: true } }),
+  ]);
+  // Kullanım: grubu (altGrup adı) kullanan stok kartı sayısı.
+  const kullanim = new Map<string, number>();
+  for (const s of stokRows)
+    if (s.altGrup) kullanim.set(s.altGrup, (kullanim.get(s.altGrup) ?? 0) + 1);
   return rows.map((g) => ({
     id: g.id,
     ad: g.ad,
     kod: g.kod,
     ustId: g.ustId,
     durum: g.durum as Durum,
+    kullanim: kullanim.get(g.ad) ?? 0,
   }));
 }
 
