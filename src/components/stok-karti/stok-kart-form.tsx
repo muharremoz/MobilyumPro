@@ -99,6 +99,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Attachment,
   AttachmentMedia,
   AttachmentContent,
@@ -1818,6 +1824,7 @@ function AltListeKart({
   ekleEtiket,
   onEkle,
   ikon,
+  bilgi,
   children,
 }: {
   baslik: string;
@@ -1826,6 +1833,8 @@ function AltListeKart({
   ekleEtiket: string;
   onEkle: () => void;
   ikon: React.ReactNode;
+  /** Başlıkta info ikonu + tooltip olarak gösterilecek yardım metni. */
+  bilgi?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1837,6 +1846,24 @@ function AltListeKart({
           <span className="text-xs text-muted-foreground">
             · {adet} {adetEtiket}
           </span>
+          {bilgi && (
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label="Bilgi"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <Info className="size-3.5" />
+                    </button>
+                  }
+                />
+                <TooltipContent className="max-w-xs">{bilgi}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
         <Button size="sm" onClick={onEkle}>
           <Plus className="size-4" /> {ekleEtiket}
@@ -2541,6 +2568,7 @@ function DokumanlarTab({
       ekleEtiket="Doküman Ekle"
       onEkle={ekleAc}
       ikon={<FileImage className="size-4 text-muted-foreground" />}
+      bilgi="Dosyalar bilgisayarınızdan seçilip sunucuya yüklenir (en fazla 20 MB). Görsele tıklayınca büyür, diğer dosyalar yeni sekmede açılır."
     >
       <DokumanSheet
         open={sheetAcik}
@@ -2550,14 +2578,6 @@ function DokumanlarTab({
         onSave={kaydetKayit}
       />
       <div className="flex flex-col gap-4 p-4">
-        <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          <Info className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            Dosyalar bilgisayarınızdan seçilip sunucuya yüklenir (en fazla 20
-            MB). Görsele tıklayınca büyür, diğer dosyalar yeni sekmede açılır.
-          </span>
-        </div>
-
         {/* Görseller — dikey chip (shadcn orijinali) */}
         {resimler.length > 0 && (
           <div className="flex flex-wrap items-start gap-3">
