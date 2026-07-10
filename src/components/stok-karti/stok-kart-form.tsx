@@ -14,6 +14,11 @@ import {
   FileText,
   ExternalLink,
   Info,
+  Layers,
+  Blocks,
+  Package,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { NestedCard } from "@/components/ui/nested-card";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { TabIcerik } from "@/components/ui/tab-icerik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
@@ -101,6 +105,31 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   Mamül: "bg-emerald-100 text-emerald-800",
   Hizmet: "bg-slate-100 text-slate-800",
 };
+
+/** Kart şeridi için grup stili: sol renk şeridi + avatar + ikon. */
+const GRUP_STIL: Record<
+  StokGrubu,
+  { serit: string; avatar: string; ikon: LucideIcon }
+> = {
+  Hammadde: { serit: "bg-blue-500", avatar: "bg-blue-100 text-blue-700", ikon: Layers },
+  "Yarı Mamül": { serit: "bg-violet-500", avatar: "bg-violet-100 text-violet-700", ikon: Blocks },
+  Mamül: { serit: "bg-emerald-500", avatar: "bg-emerald-100 text-emerald-700", ikon: Package },
+  Hizmet: { serit: "bg-slate-400", avatar: "bg-slate-100 text-slate-700", ikon: Wrench },
+};
+
+/** Ledger miktarına göre stok durumu rozeti (Hizmet'te yok). */
+function stokDurumu(
+  kart: StokKarti,
+): { etiket: string; renk: string } | null {
+  if (kart.grup === "Hizmet") return null;
+  if (kart.miktar <= 0)
+    return { etiket: "Tükendi", renk: "bg-rose-100 text-rose-700" };
+  if (kart.minStok != null && kart.miktar <= kart.minStok)
+    return { etiket: "Kritik Stok", renk: "bg-amber-100 text-amber-700" };
+  if (kart.maxStok != null && kart.miktar >= kart.maxStok)
+    return { etiket: "Fazla Stok", renk: "bg-sky-100 text-sky-700" };
+  return { etiket: "Normal", renk: "bg-emerald-100 text-emerald-700" };
+}
 
 const DOKUMAN_TIP_RENK: Record<StokDokumanTipi, string> = {
   "Ürün Resmi": "bg-emerald-100 text-emerald-800",
@@ -485,57 +514,163 @@ function TabBtn({
   );
 }
 
+/** Şeritteki mini metrik (etiket + değer). */
+function SeritMetrik({
+  etiket,
+  deger,
+}: {
+  etiket: string;
+  deger: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+        {etiket}
+      </div>
+      <div className="mt-0.5 truncate text-sm font-medium tabular-nums">
+        {deger}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Kart başlığı şeridi — hangi stok kartıyla çalıştığımızı gösterir.
- * FirmaKarti benzeri sade bir Nested şerit.
+ * Sol renk şeridi + grup avatarı + orta mini-metrikler + sağda miktar/durum.
  */
 function StokKartiSerit({ kart }: { kart: StokKarti }) {
+  const stil = GRUP_STIL[kart.grup];
+  const GrupIkon = stil.ikon;
+  const durum = stokDurumu(kart);
+  const paraGoster = (n: number, doviz: string) =>
+    doviz === "TL" ? formatTL(n) : `${n.toLocaleString("tr-TR")} ${doviz}`;
+
+  // Sadece dolu metrikleri göster.
+  const metrikler: { etiket: string; deger: React.ReactNode }[] = [];
+  if (kart.maliyetFiyati > 0)
+    metrikler.push({
+      etiket: "Maliyet",
+      deger: paraGoster(kart.maliyetFiyati, kart.maliyetBirimi),
+    });
+  if (kart.satisFiyat1 > 0)
+    metrikler.push({
+      etiket: "Satış Fiyatı",
+      deger: paraGoster(kart.satisFiyat1, kart.satisBirim1),
+    });
+  if (kart.kategori)
+    metrikler.push({ etiket: "Kategori", deger: kart.kategori });
+  if (kart.muhasebeKodu)
+    metrikler.push({ etiket: "Muhasebe Kodu", deger: kart.muhasebeKodu });
+
   return (
-    <NestedCard>
-      <div className="grid items-center gap-4 p-4 lg:grid-cols-[1fr_auto]">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-lg leading-tight font-semibold">
-              {kart.ad}
-            </h2>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {kart.id}
-            </span>
+    <div className="relative overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      {/* Sol renk şeridi (grup) */}
+      <span
+        aria-hidden
+        className={cn("absolute inset-y-0 left-0 w-1.5", stil.serit)}
+      />
+
+      <div className="flex flex-col gap-4 py-4 pr-4 pl-6 lg:flex-row lg:items-center">
+        {/* Kimlik: avatar + ad + kod + rozetler */}
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          <div
+            className={cn(
+              "flex size-12 shrink-0 items-center justify-center rounded-xl",
+              stil.avatar,
+            )}
+          >
+            <GrupIkon className="size-6" />
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
-              {kart.grup}
-            </Badge>
-            {kart.altGrup && (
-              <Badge variant="outline" className="font-normal">
-                {kart.altGrup}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <h2 className="truncate text-lg leading-tight font-semibold">
+                {kart.ad}
+              </h2>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {kart.kod || kart.id}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
+                {kart.grup}
               </Badge>
-            )}
-            {kart.marka && (
-              <Badge variant="outline" className="font-normal">
-                {kart.marka}
-              </Badge>
-            )}
-            {kart.durum === "Pasif" && <Badge variant="secondary">Pasif</Badge>}
+              {kart.altGrup && (
+                <Badge variant="outline" className="font-normal">
+                  {kart.altGrup}
+                </Badge>
+              )}
+              {kart.marka && (
+                <Badge variant="outline" className="font-normal">
+                  {kart.marka}
+                </Badge>
+              )}
+              {kart.durum === "Pasif" && (
+                <Badge variant="secondary" className="bg-muted">
+                  Pasif
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="text-right">
-          <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-            Mevcut Miktar
+        {/* Orta: mini metrikler */}
+        {metrikler.length > 0 && (
+          <div className="flex shrink-0 items-center gap-5 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+            {metrikler.map((m) => (
+              <SeritMetrik key={m.etiket} etiket={m.etiket} deger={m.deger} />
+            ))}
           </div>
-          <div className="mt-0.5 text-2xl font-semibold tabular-nums">
-            {kart.miktar.toLocaleString("tr-TR")}{" "}
-            <span className="text-base font-normal text-muted-foreground">
-              {kart.stokBirimi}
-            </span>
-          </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            Ledger'dan okunur — kart üzerinden değiştirilemez
-          </div>
+        )}
+
+        {/* Sağ: mevcut miktar + durum */}
+        <div className="shrink-0 border-t pt-3 text-left lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5 lg:text-right">
+          {kart.grup === "Hizmet" ? (
+            <>
+              <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Kalem Tipi
+              </div>
+              <div className="mt-0.5 text-2xl font-semibold">Hizmet</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                Stok takibi yapılmaz
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                Mevcut Miktar
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-1.5 lg:justify-end">
+                <span
+                  className={cn(
+                    "text-3xl leading-none font-semibold tabular-nums",
+                    kart.miktar <= 0 && "text-rose-600",
+                  )}
+                >
+                  {kart.miktar.toLocaleString("tr-TR")}
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {kart.stokBirimi}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2 lg:justify-end">
+                {durum && (
+                  <Badge variant="secondary" className={durum.renk}>
+                    {durum.etiket}
+                  </Badge>
+                )}
+                {(kart.minStok != null || kart.maxStok != null) && (
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {kart.minStok != null && `Min ${kart.minStok}`}
+                    {kart.minStok != null && kart.maxStok != null && " · "}
+                    {kart.maxStok != null && `Max ${kart.maxStok}`}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
-    </NestedCard>
+    </div>
   );
 }
 
