@@ -771,32 +771,34 @@ function GenelTab({
         <div className="rounded-md border bg-card">
           <KartBaslik ikon={Info} baslik="Genel" />
           <div className="grid gap-3 p-4">
-            <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Ad"
-                icon={LayersIcon}
-                placeholder="Örn. Ceviz Yemek Masası"
-                value={form.ad}
-                onChange={(e) => set("ad")(e.target.value)}
-              />
-              <div className="grid grid-cols-2 gap-3">
+            {/* Kimlik: Ad (geniş) · Kod · Kullanıcı Kodu */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="col-span-2">
                 <IconInput
-                  label="Kod"
-                  icon={ScanTextIcon}
-                  value={form.id}
-                  readOnly
-                  className="text-muted-foreground"
-                />
-                <IconInput
-                  label="Kullanıcı Kodu"
-                  icon={ScanTextIcon}
-                  placeholder="Serbest kod"
-                  value={form.kod}
-                  onChange={(e) => set("kod")(e.target.value)}
+                  label="Ad"
+                  icon={LayersIcon}
+                  placeholder="Örn. Ceviz Yemek Masası"
+                  value={form.ad}
+                  onChange={(e) => set("ad")(e.target.value)}
                 />
               </div>
+              <IconInput
+                label="Kod"
+                icon={ScanTextIcon}
+                value={form.id}
+                readOnly
+                className="text-muted-foreground"
+              />
+              <IconInput
+                label="Kullanıcı Kodu"
+                icon={ScanTextIcon}
+                placeholder="Serbest kod"
+                value={form.kod}
+                onChange={(e) => set("kod")(e.target.value)}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            {/* Sınıflama + birim */}
+            <div className="grid grid-cols-4 gap-3">
               <IconInput
                 label="Tür"
                 icon={FolderOpenIcon}
@@ -811,8 +813,6 @@ function GenelTab({
                 value={form.cins}
                 onChange={(e) => set("cins")(e.target.value)}
               />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
               <AnimatedField label="Grup" icon={FolderOpenIcon}>
                 <SearchSelect
                   items={GRUPLAR}
@@ -834,6 +834,9 @@ function GenelTab({
                   placeholder="Birim seç"
                 />
               </AnimatedField>
+            </div>
+            {/* Barkod + Açıklama (geniş) yan yana */}
+            <div className="grid grid-cols-4 items-start gap-3">
               <IconInput
                 label="Barkod"
                 icon={ScanTextIcon}
@@ -841,16 +844,18 @@ function GenelTab({
                 value={form.barkod}
                 onChange={(e) => set("barkod")(e.target.value)}
               />
+              <div className="col-span-3">
+                <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
+                  <textarea
+                    rows={2}
+                    placeholder="Stok kartı ile ilgili notlar..."
+                    value={form.aciklama}
+                    onChange={(e) => set("aciklama")(e.target.value)}
+                    className={textareaCls}
+                  />
+                </AnimatedField>
+              </div>
             </div>
-            <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
-              <textarea
-                rows={2}
-                placeholder="Stok kartı ile ilgili notlar..."
-                value={form.aciklama}
-                onChange={(e) => set("aciklama")(e.target.value)}
-                className={textareaCls}
-              />
-            </AnimatedField>
           </div>
         </div>
 
