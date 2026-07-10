@@ -731,9 +731,6 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
 /* ------------------------------------------------------------------ */
 /* GENEL SEKMESİ                                                      */
 /* ------------------------------------------------------------------ */
-const textareaCls =
-  "w-full resize-none rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30";
-
 function GenelTab({
   form,
   setForm,
@@ -851,7 +848,7 @@ function GenelTab({
                     placeholder="Stok kartı ile ilgili notlar..."
                     value={form.aciklama}
                     onChange={(e) => set("aciklama")(e.target.value)}
-                    className={cn(textareaCls, "h-10 py-2")}
+                    className="h-10 w-full resize-none rounded-md border-0 bg-white bg-clip-padding px-3 py-2.5 text-sm shadow-[0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-all duration-200 placeholder:text-[#8f8f8f] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)]"
                   />
                 </AnimatedField>
               </div>
