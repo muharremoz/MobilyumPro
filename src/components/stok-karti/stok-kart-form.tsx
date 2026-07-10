@@ -139,11 +139,12 @@ const GRUP_RENK: Record<StokGrubu, string> = {
 };
 
 /** Sınıflama'daki DB destekli comboboxlar (tanim tablosundan; "yeni ekle"). */
-type TanimAlan = "marka" | "model" | "bolum" | "renkKodu" | "birim";
+type TanimAlan = "tip" | "marka" | "model" | "bolum" | "renkKodu" | "birim";
 const TANIM_ALAN: Record<
   TanimAlan,
   { tip: TanimTip; formKey: keyof Form; etiket: string; ornek: string }
 > = {
+  tip: { tip: "tip", formKey: "grup", etiket: "Tip", ornek: "Örn. Ticari Mal" },
   marka: { tip: "marka", formKey: "marka", etiket: "Marka", ornek: "Örn. Bellona" },
   model: { tip: "model", formKey: "model", etiket: "Model", ornek: "Örn. 2026 Serisi" },
   bolum: { tip: "bolum", formKey: "bolum", etiket: "Bölüm", ornek: "Örn. Döşeme" },
@@ -1272,11 +1273,10 @@ function GenelTab({
   parcalar: { id: string; ad: string }[];
   tedarikciler: { id: string; ad: string }[];
 }) {
-  const tipSecenekleri = tipler.length > 0 ? tipler : GRUPLAR;
-
   // DB'den beslenen comboboxların seçenekleri — "yeni ekle" ile anında büyür.
   const [secenekler, setSecenekler] = React.useState<Record<TanimAlan, string[]>>(
     {
+      tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
       model: modeller,
       bolum: bolumler,
@@ -1286,13 +1286,14 @@ function GenelTab({
   );
   React.useEffect(() => {
     setSecenekler({
+      tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
       model: modeller,
       bolum: bolumler,
       renkKodu: renkKodlari,
       birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
     });
-  }, [markalar, modeller, bolumler, renkKodlari, birimler]);
+  }, [tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
 
   const [yeniAlan, setYeniAlan] = React.useState<TanimAlan | null>(null);
   const [yeniDeger, setYeniDeger] = React.useState("");
@@ -1375,7 +1376,7 @@ function GenelTab({
               />
               <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
-                  items={tipSecenekleri}
+                  items={secenekler.tip}
                   value={form.grup}
                   onValueChange={(v) =>
                     setForm((f) => ({
@@ -1384,6 +1385,11 @@ function GenelTab({
                     }))
                   }
                   placeholder="Tip seç"
+                  addLabel="Yeni tip ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("tip");
+                  }}
                 />
               </AnimatedField>
               <AnimatedField label="Stok Birimi" icon={BlocksIcon}>
