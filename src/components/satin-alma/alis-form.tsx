@@ -21,11 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/ui/search-select";
 import { KartBaslik } from "@/components/ui/kart-baslik";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   Dialog,
   DialogContent,
@@ -80,8 +79,13 @@ export function AlisForm({
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
   depolar: string[];
-  /** (malzeme, cari) → o tedarikçiden son alınan birim fiyat. */
-  sonFiyatlar?: { malzemeId: string; cariId: string; fiyat: number }[];
+  /** (malzeme, cari) → o tedarikçiden son alınan birim fiyat + tarih. */
+  sonFiyatlar?: {
+    malzemeId: string;
+    cariId: string;
+    fiyat: number;
+    tarih: string;
+  }[];
 }) {
   const router = useRouter();
 
@@ -115,18 +119,26 @@ export function AlisForm({
     () => new Map(tedarikciler.map((t) => [t.ad, t])),
     [tedarikciler],
   );
-  // (malzeme, cari) → son alınan fiyat.
+  // (malzeme, cari) → son alış kaydı (fiyat + tarih).
   const sonFiyatMap = React.useMemo(
     () =>
-      new Map(sonFiyatlar.map((s) => [`${s.malzemeId}:${s.cariId}`, s.fiyat])),
+      new Map(
+        sonFiyatlar.map((s) => [
+          `${s.malzemeId}:${s.cariId}`,
+          { fiyat: s.fiyat, tarih: s.tarih },
+        ]),
+      ),
     [sonFiyatlar],
   );
   /** Firmaya göre son alış fiyatı; yoksa malzemenin genel fiyatı. */
   const firmaSonFiyat = React.useCallback(
     (malzemeId: string, cariId: string, genel: number) =>
-      (cariId && sonFiyatMap.get(`${malzemeId}:${cariId}`)) || genel,
+      (cariId && sonFiyatMap.get(`${malzemeId}:${cariId}`)?.fiyat) || genel,
     [sonFiyatMap],
   );
+  /** Firmadan son alış kaydı (fiyat + tarih) — hovercard için. */
+  const firmaSonKayit = (malzemeId: string, cariId: string) =>
+    cariId ? sonFiyatMap.get(`${malzemeId}:${cariId}`) : undefined;
 
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
@@ -350,7 +362,6 @@ export function AlisForm({
                   <span className="text-right">Tutar</span>
                   <span />
                 </div>
-                <TooltipProvider delay={150}>
                 <div className="divide-y">
                   {satirlar.map((s, i) => {
                     const m = malzemeMap.get(s.malzemeId);
@@ -361,19 +372,67 @@ export function AlisForm({
                         className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 px-3 py-2"
                       >
                         <div className="min-w-0">
-                          <Tooltip>
-                            <TooltipTrigger
+                          <HoverCard>
+                            <HoverCardTrigger
                               render={
                                 <div className="w-fit max-w-full cursor-default truncate text-sm font-medium">
                                   {m?.ad ?? s.malzemeId}
                                 </div>
                               }
                             />
-                            <TooltipContent className="tabular-nums">
-                              Stok: {s.mevcutStok} {s.birim} · Son alış:{" "}
-                              {formatTL(s.sonFiyat)}
-                            </TooltipContent>
-                          </Tooltip>
+                            <HoverCardContent align="start" className="w-64">
+                              {(() => {
+                                const kayit = firmaSonKayit(
+                                  s.malzemeId,
+                                  s.cariId,
+                                );
+                                const firmaAd = cariMap.get(s.cariId)?.ad;
+                                return (
+                                  <div className="flex flex-col gap-1.5">
+                                    <div className="text-sm font-medium">
+                                      {m?.ad ?? s.malzemeId}
+                                    </div>
+                                    <div className="flex flex-col gap-1 text-xs">
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground">
+                                          Stok
+                                        </span>
+                                        <span className="tabular-nums">
+                                          {s.mevcutStok} {s.birim}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground">
+                                          Firma
+                                        </span>
+                                        <span className="truncate">
+                                          {firmaAd ?? "—"}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground">
+                                          Son alış
+                                        </span>
+                                        <span className="tabular-nums">
+                                          {kayit
+                                            ? formatTL(kayit.fiyat)
+                                            : formatTL(s.sonFiyat)}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground">
+                                          Tarih
+                                        </span>
+                                        <span className="tabular-nums">
+                                          {kayit?.tarih ?? "kayıt yok"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </HoverCardContent>
+                          </HoverCard>
                         </div>
                         {/* Firma (ayrı sütun) */}
                         <SearchSelect
@@ -454,7 +513,6 @@ export function AlisForm({
                     );
                   })}
                 </div>
-                </TooltipProvider>
               </>
             )}
           </div>

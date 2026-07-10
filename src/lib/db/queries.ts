@@ -870,7 +870,7 @@ export async function getAlis(id: string): Promise<Alis | null> {
  * Yeni Alış formunda satır firması seçilince "son fiyat" bundan gelir.
  */
 export async function getSonAlisFiyatlari(): Promise<
-  { malzemeId: string; cariId: string; fiyat: number }[]
+  { malzemeId: string; cariId: string; fiyat: number; tarih: string }[]
 > {
   const rows = await db.alisSatiri.findMany({
     select: {
@@ -883,7 +883,7 @@ export async function getSonAlisFiyatlari(): Promise<
   // En yeni: önce tarih, eşitse ALS-#### kodu (büyük = yeni).
   const enYeni = new Map<
     string,
-    { t: number; kod: string; fiyat: number }
+    { t: number; kod: string; fiyat: number; tarih: string }
   >();
   for (const r of rows) {
     if (!r.cariId) continue;
@@ -891,12 +891,17 @@ export async function getSonAlisFiyatlari(): Promise<
     const t = r.alis.tarih.getTime();
     const cur = enYeni.get(key);
     if (!cur || t > cur.t || (t === cur.t && r.alis.id > cur.kod)) {
-      enYeni.set(key, { t, kod: r.alis.id, fiyat: Number(r.birimFiyat) });
+      enYeni.set(key, {
+        t,
+        kod: r.alis.id,
+        fiyat: Number(r.birimFiyat),
+        tarih: tarihStr(r.alis.tarih),
+      });
     }
   }
   return [...enYeni.entries()].map(([key, v]) => {
     const [malzemeId, cariId] = key.split(":");
-    return { malzemeId, cariId, fiyat: v.fiyat };
+    return { malzemeId, cariId, fiyat: v.fiyat, tarih: v.tarih };
   });
 }
 
