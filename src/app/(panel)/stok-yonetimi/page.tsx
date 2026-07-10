@@ -10,6 +10,7 @@ import {
   getGruplar,
   getTanimlar,
   getCariler,
+  getIstasyonlar,
 } from "@/lib/db/queries";
 
 export default async function StokYonetimiPage({
@@ -35,6 +36,7 @@ export default async function StokYonetimiPage({
     gruplar,
     tanimlar,
     cariler,
+    istasyonlar,
   ] = await Promise.all([
     getModeller(),
     getMalzemeler(),
@@ -52,6 +54,7 @@ export default async function StokYonetimiPage({
     getGruplar(),
     getTanimlar(),
     getCariler(),
+    getIstasyonlar(),
   ]);
   // Malzeme formundaki tedarikçi seçenekleri — cari kartlardan.
   const tedarikciler = cariler
@@ -84,6 +87,7 @@ export default async function StokYonetimiPage({
       gruplar={gruplar}
       tanimlar={tanimlar}
       tedarikciler={tedarikciler}
+      istasyonlar={istasyonlar}
     />
   );
 }

@@ -10,6 +10,8 @@ import { StockMovements } from "@/components/inventory/stock-movements";
 import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
 import { Parts } from "@/components/inventory/parts";
+import { IstasyonTanim } from "@/components/production/istasyon-tanim";
+import type { Istasyon } from "@/lib/fabrika";
 import type { ListeKolonAyariDegeri } from "@/components/ui/kolon-ayarlari";
 import type {
   Model,
@@ -44,6 +46,7 @@ export function InventoryPage({
   gruplar,
   tanimlar,
   tedarikciler,
+  istasyonlar,
 }: {
   bolum: string;
   urunler: Model[];
@@ -61,6 +64,8 @@ export function InventoryPage({
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
   /** Tedarikçi seçenekleri (cari kartlardan: Tedarikçi / Her İkisi). */
   tedarikciler?: string[];
+  /** Üretim istasyonları (dinamik rota). */
+  istasyonlar?: Istasyon[];
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -101,6 +106,8 @@ export function InventoryPage({
     );
 
   // Üretim
+  if (bolum === "istasyonlar")
+    return <IstasyonTanim istasyonlar={istasyonlar} />;
   if (bolum === "parcalar")
     return (
       <Parts
