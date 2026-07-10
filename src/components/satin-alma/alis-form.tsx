@@ -367,11 +367,12 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <div className="grid grid-cols-[1fr_170px_84px_96px_64px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   <span>Malzeme</span>
                   <span>Firma</span>
                   <span>Miktar</span>
                   <span>Birim Fiyat</span>
+                  <span>Döviz</span>
                   <span className="text-right">Tutar</span>
                   <span />
                 </div>
@@ -382,7 +383,7 @@ export function AlisForm({
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 px-3 py-2"
+                        className="grid grid-cols-[1fr_170px_84px_96px_64px_110px_36px] items-center gap-2 px-3 py-2"
                       >
                         <div className="min-w-0">
                           <HoverCard>
@@ -484,20 +485,6 @@ export function AlisForm({
                           )}
                         </div>
                         <div className="relative">
-                          <select
-                            value={s.doviz}
-                            onChange={(e) =>
-                              satirGuncelle(i, {
-                                doviz: e.target.value as Doviz,
-                              })
-                            }
-                            aria-label="Döviz"
-                            className="absolute top-1/2 left-1 z-10 -translate-y-1/2 cursor-pointer rounded bg-muted px-1 py-0.5 text-xs font-medium text-muted-foreground outline-none"
-                          >
-                            <option value="TL">TL</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
-                          </select>
                           <Input
                             type="number"
                             min={0}
@@ -508,7 +495,7 @@ export function AlisForm({
                                 birimFiyat: Number(e.target.value),
                               })
                             }
-                            className="h-8 pr-5 pl-12 tabular-nums"
+                            className="h-8 pr-5 tabular-nums"
                           />
                           {Math.abs(fark) > 0.005 && (
                             <span
@@ -526,6 +513,18 @@ export function AlisForm({
                             </span>
                           )}
                         </div>
+                        <select
+                          value={s.doviz}
+                          onChange={(e) =>
+                            satirGuncelle(i, { doviz: e.target.value as Doviz })
+                          }
+                          aria-label="Döviz"
+                          className="h-8 cursor-pointer rounded-md border border-input bg-transparent px-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                        >
+                          <option value="TL">TL</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                        </select>
                         <span className="text-right text-sm font-medium tabular-nums">
                           {paraFmt(satirTutari(s), s.doviz)}
                         </span>
