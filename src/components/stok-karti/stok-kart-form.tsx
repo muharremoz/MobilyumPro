@@ -54,11 +54,13 @@ import { TruckIcon } from "@/components/ui/icons/truck";
 import { LayersIcon } from "@/components/ui/icons/layers";
 import {
   formatTL,
+  formatTarih,
   type Doviz,
   type StokDokuman,
   type StokDokumanTipi,
   type StokGrup,
   type StokGrubu,
+  type StokHareket,
   type StokKarti,
   type StokMusteri,
   type StokUretici,
@@ -81,6 +83,7 @@ export type StokDetay = {
   ureticiler: StokUretici[];
   musteriler: StokMusteri[];
   dokumanlar: StokDokuman[];
+  sonHareket?: StokHareket;
 };
 
 const GRUPLAR: StokGrubu[] = ["Hammadde", "Yarı Mamül", "Mamül", "Hizmet"];
@@ -101,18 +104,18 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   Hizmet: "bg-slate-100 text-slate-800",
 };
 
-/** Ledger miktarına göre stok durumu rozeti (Hizmet'te yok). */
+/** Ledger miktarına göre stok durumu rozeti + bar rengi (Hizmet'te yok). */
 function stokDurumu(
   kart: StokKarti,
-): { etiket: string; renk: string } | null {
+): { etiket: string; renk: string; bar: string } | null {
   if (kart.grup === "Hizmet") return null;
   if (kart.miktar <= 0)
-    return { etiket: "Tükendi", renk: "bg-rose-100 text-rose-700" };
+    return { etiket: "Tükendi", renk: "bg-rose-100 text-rose-700", bar: "bg-rose-500" };
   if (kart.minStok != null && kart.miktar <= kart.minStok)
-    return { etiket: "Kritik Stok", renk: "bg-amber-100 text-amber-700" };
+    return { etiket: "Kritik Stok", renk: "bg-amber-100 text-amber-700", bar: "bg-amber-500" };
   if (kart.maxStok != null && kart.miktar >= kart.maxStok)
-    return { etiket: "Fazla Stok", renk: "bg-sky-100 text-sky-700" };
-  return { etiket: "Normal", renk: "bg-emerald-100 text-emerald-700" };
+    return { etiket: "Fazla Stok", renk: "bg-sky-100 text-sky-700", bar: "bg-sky-500" };
+  return { etiket: "Normal", renk: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" };
 }
 
 const DOKUMAN_TIP_RENK: Record<StokDokumanTipi, string> = {
@@ -390,7 +393,7 @@ export function StokKartForm({
       {!duzenleme && <h1 className="text-xl font-semibold">Yeni Stok Kartı</h1>}
 
       {/* Kart başlığı — sadece düzenlemede */}
-      {duzenleme && kart && <StokKartiSerit kart={kart} />}
+      {duzenleme && kart && <StokKartiSerit kart={kart} detay={detay} />}
 
       {/* Sekmeler — alt kayıt sekmeleri yalnız düzenlemede (id ister) */}
       <div className="flex flex-wrap gap-1 border-b">
@@ -519,13 +522,31 @@ function SeritMetrik({
 }
 
 /**
- * Kart başlığı şeridi — hangi stok kartıyla çalıştığımızı gösterir.
- * Kimlik + orta mini-metrikler + sağda miktar/durum.
+ * Kart başlığı şeridi — görsel + kimlik + metrikler (değer/son hareket dahil)
+ * + miktar/durum/seviye barı + hızlı aksiyonlar.
  */
-function StokKartiSerit({ kart }: { kart: StokKarti }) {
+function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) {
   const durum = stokDurumu(kart);
+  const hizmet = kart.grup === "Hizmet";
   const paraGoster = (n: number, doviz: string) =>
     doviz === "TL" ? formatTL(n) : `${n.toLocaleString("tr-TR")} ${doviz}`;
+
+  // Kart görseli — önce "Ürün Resmi" tipi, yoksa ilk görsel doküman.
+  const gorsel =
+    detay.dokumanlar.find((d) => d.tip === "Ürün Resmi" && resimMi(d.url)) ??
+    detay.dokumanlar.find((d) => resimMi(d.url));
+
+  // Stok değeri (eldeki stoğun maliyet karşılığı).
+  const stokDegeri = kart.miktar * kart.maliyetFiyati;
+
+  // Seviye barı doluluğu (max tanımlıysa).
+  const maxVar = !hizmet && kart.maxStok != null && kart.maxStok > 0;
+  const doluluk = maxVar
+    ? Math.min(100, Math.max(0, (kart.miktar / (kart.maxStok as number)) * 100))
+    : 0;
+
+  // Son hareket
+  const sh = detay.sonHareket;
 
   // Sadece dolu metrikleri göster.
   const metrikler: { etiket: string; deger: React.ReactNode }[] = [];
@@ -539,59 +560,88 @@ function StokKartiSerit({ kart }: { kart: StokKarti }) {
       etiket: "Satış Fiyatı",
       deger: paraGoster(kart.satisFiyat1, kart.satisBirim1),
     });
-  if (kart.kategori)
-    metrikler.push({ etiket: "Kategori", deger: kart.kategori });
-  if (kart.muhasebeKodu)
-    metrikler.push({ etiket: "Muhasebe Kodu", deger: kart.muhasebeKodu });
+  if (!hizmet && stokDegeri > 0)
+    metrikler.push({ etiket: "Stok Değeri", deger: formatTL(stokDegeri) });
+  if (sh)
+    metrikler.push({
+      etiket: "Son Hareket",
+      deger: (
+        <span className="whitespace-nowrap">
+          {formatTarih(sh.tarih)} · {sh.tur}
+        </span>
+      ),
+    });
+
+  // Gruba göre hızlı aksiyon (Hizmet'te yok).
+  const aksiyonlar: { etiket: string; href: string }[] = [];
+  if (kart.grup === "Hammadde" || kart.grup === "Yarı Mamül")
+    aksiyonlar.push({ etiket: "Satın Al", href: "/satin-alma/yeni" });
+  if (kart.grup === "Mamül")
+    aksiyonlar.push({ etiket: "Üretim Planla", href: "/uretim/plan" });
+  if (!hizmet)
+    aksiyonlar.push({
+      etiket: "Hareketler",
+      href: "/stok-yonetimi?bolum=hareketler",
+    });
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
-        {/* Kimlik: ad + kod + rozetler */}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-            <h2 className="truncate text-lg leading-tight font-semibold">
-              {kart.ad}
-            </h2>
-            <span aria-hidden className="h-4 w-px bg-border" />
-            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
-              {kart.kod || kart.id}
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
-              {kart.grup}
-            </Badge>
-            {kart.altGrup && (
-              <Badge variant="outline" className="font-normal">
-                {kart.altGrup}
+        {/* Görsel + Kimlik */}
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          {gorsel && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={gorsel.url}
+              alt={kart.ad}
+              className="size-14 shrink-0 rounded-lg border object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+              <h2 className="truncate text-lg leading-tight font-semibold">
+                {kart.ad}
+              </h2>
+              <span aria-hidden className="h-4 w-px bg-border" />
+              <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
+                {kart.kod || kart.id}
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
+                {kart.grup}
               </Badge>
-            )}
-            {kart.marka && (
-              <Badge variant="outline" className="font-normal">
-                {kart.marka}
-              </Badge>
-            )}
-            {kart.durum === "Pasif" && (
-              <Badge variant="secondary" className="bg-muted">
-                Pasif
-              </Badge>
-            )}
+              {kart.altGrup && (
+                <Badge variant="outline" className="font-normal">
+                  {kart.altGrup}
+                </Badge>
+              )}
+              {kart.marka && (
+                <Badge variant="outline" className="font-normal">
+                  {kart.marka}
+                </Badge>
+              )}
+              {kart.durum === "Pasif" && (
+                <Badge variant="secondary" className="bg-muted">
+                  Pasif
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Orta: mini metrikler */}
+        {/* Metrikler */}
         {metrikler.length > 0 && (
-          <div className="flex shrink-0 items-center gap-5 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
             {metrikler.map((m) => (
               <SeritMetrik key={m.etiket} etiket={m.etiket} deger={m.deger} />
             ))}
           </div>
         )}
 
-        {/* Sağ: mevcut miktar + durum */}
-        <div className="shrink-0 border-t pt-3 text-left lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5 lg:text-right">
-          {kart.grup === "Hizmet" ? (
+        {/* Miktar + durum + seviye barı */}
+        <div className="shrink-0 border-t pt-3 text-left lg:w-52 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5 lg:text-right">
+          {hizmet ? (
             <>
               <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
                 Kalem Tipi
@@ -618,24 +668,55 @@ function StokKartiSerit({ kart }: { kart: StokKarti }) {
                 <span className="text-sm font-normal text-muted-foreground">
                   {kart.stokBirimi}
                 </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-2 lg:justify-end">
                 {durum && (
-                  <Badge variant="secondary" className={durum.renk}>
+                  <Badge
+                    variant="secondary"
+                    className={cn("ml-1", durum.renk)}
+                  >
                     {durum.etiket}
                   </Badge>
                 )}
-                {(kart.minStok != null || kart.maxStok != null) && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {kart.minStok != null && `Min ${kart.minStok}`}
-                    {kart.minStok != null && kart.maxStok != null && " · "}
-                    {kart.maxStok != null && `Max ${kart.maxStok}`}
-                  </span>
-                )}
               </div>
+              {maxVar ? (
+                <div className="mt-2">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn("h-full rounded-full", durum?.bar)}
+                      style={{ width: `${doluluk}%` }}
+                    />
+                  </div>
+                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground tabular-nums">
+                    <span>{kart.minStok != null ? `Min ${kart.minStok}` : "0"}</span>
+                    <span>Max {kart.maxStok}</span>
+                  </div>
+                </div>
+              ) : (
+                kart.minStok != null && (
+                  <div className="mt-1 text-[11px] text-muted-foreground tabular-nums lg:text-right">
+                    Min {kart.minStok}
+                  </div>
+                )
+              )}
             </>
           )}
         </div>
+
+        {/* Hızlı aksiyonlar */}
+        {aksiyonlar.length > 0 && (
+          <div className="flex shrink-0 flex-row gap-2 border-t pt-3 lg:flex-col lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+            {aksiyonlar.map((a, i) => (
+              <Button
+                key={a.href}
+                variant={i === 0 ? "default" : "outline"}
+                size="sm"
+                nativeButton={false}
+                render={<Link href={a.href} />}
+              >
+                {a.etiket}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

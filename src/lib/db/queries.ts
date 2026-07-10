@@ -894,23 +894,44 @@ export type StokKartiDetay = {
   ureticiler: StokUretici[];
   musteriler: StokMusteri[];
   dokumanlar: StokDokuman[];
+  /** Bu karta ait en son stok hareketi (varsa). */
+  sonHareket?: StokHareket;
 };
 
 export async function getStok(
   id: string,
 ): Promise<{ kart: StokKarti; detay: StokKartiDetay } | null> {
-  const [row, miktarlar, ureticiler, musteriler, dokumanlar] =
+  const [row, miktarlar, ureticiler, musteriler, dokumanlar, sonHareketRow] =
     await Promise.all([
       db.stok.findUnique({ where: { id } }),
       stokMiktarlari(),
       db.stokUretici.findMany({ where: { stokId: id } }),
       db.stokMusteri.findMany({ where: { stokId: id } }),
       db.stokDokuman.findMany({ where: { stokId: id } }),
+      db.stokHareket.findFirst({
+        where: { refId: id },
+        orderBy: [{ tarih: "desc" }, { id: "desc" }],
+      }),
     ]);
   if (!row) return null;
   return {
     kart: mapStok(row, miktarlar.get(id) ?? 0),
     detay: {
+      sonHareket: sonHareketRow
+        ? {
+            id: sonHareketRow.id,
+            tarih: tarihStr(sonHareketRow.tarih),
+            tur: sonHareketRow.tur as StokHareketTuru,
+            ref:
+              sonHareketRow.refTip === "model"
+                ? ({ tip: "model", id: sonHareketRow.refId } as const)
+                : ({ tip: "malzeme", id: sonHareketRow.refId } as const),
+            miktar: Number(sonHareketRow.miktar),
+            birim: sonHareketRow.birim,
+            depo: sonHareketRow.depo,
+            aciklama: sonHareketRow.aciklama,
+          }
+        : undefined,
       ureticiler: ureticiler.map((u) => ({
         id: u.id,
         stokId: u.stokId,
