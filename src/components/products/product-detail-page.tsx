@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { StripedPattern } from "@/components/magicui/striped-pattern";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { KartBaslik } from "@/components/ui/kart-baslik";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -203,7 +204,7 @@ export function ProductDetailPage({
       </div>
 
       {/* ── Sekmeler ──────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-1 border-b">
+      <div className="relative -mb-px flex flex-wrap gap-1 border-b">
         {SEKMELER.map((s) => (
           <TabBtn
             key={s.key}
@@ -244,18 +245,9 @@ function TabBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "cursor-pointer border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors",
-        aktif
-          ? "border-foreground font-medium text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <SekmeButonu aktif={aktif} onClick={onClick} layoutId="urunTabCizgi">
+      <span className="whitespace-nowrap">{children}</span>
+    </SekmeButonu>
   );
 }
 

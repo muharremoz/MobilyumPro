@@ -37,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { NestedCard } from "@/components/ui/nested-card";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { KartBaslik } from "@/components/ui/kart-baslik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
@@ -484,7 +485,7 @@ export function CariFormPage({
 
       {/* Sekmeler — sadece düzenlemede (alt kayıtlar cari id ister) */}
       {duzenleme && (
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className="relative -mb-px flex flex-wrap gap-1 border-b">
           <TabBtn aktif={tab === "islemler"} onClick={() => setTab("islemler")}>
             Cari İşlemler
           </TabBtn>
@@ -592,18 +593,9 @@ function TabBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "cursor-pointer border-b-2 px-4 py-2 text-sm transition-colors",
-        aktif
-          ? "border-foreground font-medium text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
-      )}
-    >
+    <SekmeButonu aktif={aktif} onClick={onClick} layoutId="cariTabCizgi">
       {children}
-    </button>
+    </SekmeButonu>
   );
 }
 
