@@ -13,9 +13,10 @@ import {
 import type { StokGrup } from "@/lib/data";
 
 /**
- * Ağaçlı grup seçici — Tanımlamalar → Gruplar ağacından tek seçim.
- * Değer olarak grubun ADI kullanılır (Model.kategori string alanına yazılır).
- * Yazarak arama: eşleşen gruplar üst yollarıyla düz liste halinde gösterilir.
+ * Ağaçlı grup seçici — Finder/Miller sütun stili.
+ * Bir grubu seçince alt grupları sağdaki sütunda açılır; üstte breadcrumb.
+ * Değer olarak grubun ADI kullanılır. Yazarak arama: sütunlar gizlenip
+ * eşleşen gruplar üst yollarıyla düz liste halinde gösterilir.
  */
 export function GrupSecici({
   gruplar,
@@ -32,7 +33,8 @@ export function GrupSecici({
 }) {
   const [acikPopover, setAcikPopover] = React.useState(false);
   const [arama, setArama] = React.useState("");
-  const [acik, setAcik] = React.useState<Set<string>>(new Set());
+  // Açık sütun yolu — sürüklenen (drill) grup id'leri; kök sütun her zaman var.
+  const [yolIds, setYolIds] = React.useState<string[]>([]);
 
   const altlar = React.useMemo(() => {
     const m = new Map<string | null, StokGrup[]>();
@@ -54,8 +56,22 @@ export function GrupSecici({
     [gruplar],
   );
 
-  /** Kök → grup yolu (kendisi hariç). */
-  const yol = React.useCallback(
+  /** Kök → grup atalarının id yolu (kendisi dahil). */
+  const atalarIds = React.useCallback(
+    (g: StokGrup): string[] => {
+      const ids: string[] = [g.id];
+      let ust = g.ustId ? byId.get(g.ustId) : undefined;
+      while (ust) {
+        ids.unshift(ust.id);
+        ust = ust.ustId ? byId.get(ust.ustId) : undefined;
+      }
+      return ids;
+    },
+    [byId],
+  );
+
+  /** Kök → grup yolu (adlar, kendisi hariç) — arama alt yazısı için. */
+  const yolAdlari = React.useCallback(
     (g: StokGrup): string[] => {
       const parcalar: string[] = [];
       let ust = g.ustId ? byId.get(g.ustId) : undefined;
@@ -68,34 +84,33 @@ export function GrupSecici({
     [byId],
   );
 
-  // Popover açılınca seçili değerin atalarını genişlet.
+  // Popover açılınca seçili değerin yoluna göre sütunları aç.
   React.useEffect(() => {
     if (!acikPopover) return;
     setArama("");
     const secili = gruplar.find((g) => g.ad === value);
-    if (!secili) return;
-    const n = new Set<string>();
-    let ust = secili.ustId ? byId.get(secili.ustId) : undefined;
-    while (ust) {
-      n.add(ust.id);
-      ust = ust.ustId ? byId.get(ust.ustId) : undefined;
-    }
-    setAcik(n);
-  }, [acikPopover, gruplar, value, byId]);
+    setYolIds(secili ? atalarIds(secili) : []);
+  }, [acikPopover, gruplar, value, atalarIds]);
 
-  function sec(g: StokGrup) {
+  function sec(g: StokGrup, kolon: number) {
     onValueChange?.(g.ad);
-    setAcikPopover(false);
+    const cocuklar = altlar.get(g.id) ?? [];
+    // Bu sütuna kadar olan yolu koru, tıklananı ekle.
+    setYolIds((prev) => [...prev.slice(0, kolon), g.id]);
+    if (cocuklar.length === 0) setAcikPopover(false); // yaprak → kapat
   }
 
-  function acKapa(id: string) {
-    setAcik((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+  // Görünen sütunlar: kök + yoldaki her (çocuğu olan) grubun çocukları.
+  const kolonlar: StokGrup[][] = [altlar.get(null) ?? []];
+  for (const id of yolIds) {
+    const cocuklar = altlar.get(id) ?? [];
+    if (cocuklar.length > 0) kolonlar.push(cocuklar);
   }
+
+  // Breadcrumb — yoldaki grup adları.
+  const breadcrumb = yolIds
+    .map((id) => byId.get(id)?.ad)
+    .filter(Boolean) as string[];
 
   const q = arama.trim().toLocaleLowerCase("tr");
   const eslesenler = q
@@ -106,56 +121,13 @@ export function GrupSecici({
       )
     : [];
 
-  function Satir({ grup, seviye }: { grup: StokGrup; seviye: number }) {
-    const cocuklar = altlar.get(grup.id) ?? [];
-    const acikMi = acik.has(grup.id);
-    const seciliMi = value === grup.ad;
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => sec(grup)}
-          className={cn(
-            "flex w-full cursor-pointer items-center gap-1 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-            seciliMi && "bg-accent/60 font-medium",
-          )}
-          style={{ paddingLeft: 6 + seviye * 18 }}
-        >
-          {cocuklar.length > 0 ? (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                acKapa(grup.id);
-              }}
-              className="inline-flex size-4 shrink-0 items-center justify-center rounded hover:bg-black/10"
-            >
-              <ChevronRight
-                className={cn(
-                  "size-3.5 text-muted-foreground transition-transform",
-                  acikMi && "rotate-90",
-                )}
-              />
-            </span>
-          ) : (
-            <span className="w-4 shrink-0" />
-          )}
-          <span className="truncate">{grup.ad}</span>
-          <span className="ml-auto font-mono text-[11px] text-muted-foreground">
-            {grup.kod}
-          </span>
-          {seciliMi && <Check className="size-4 shrink-0" />}
-        </button>
-        {acikMi &&
-          cocuklar.map((c) => (
-            <Satir key={c.id} grup={c} seviye={seviye + 1} />
-          ))}
-      </>
-    );
-  }
-
   const kokler = altlar.get(null) ?? [];
+
+  // Trigger etiketi — seçili grubun tam yolu.
+  const seciliGrup = gruplar.find((g) => g.ad === value);
+  const triggerEtiket = seciliGrup
+    ? [...yolAdlari(seciliGrup), seciliGrup.ad].join(" › ")
+    : "";
 
   return (
     <Popover open={acikPopover} onOpenChange={setAcikPopover}>
@@ -168,8 +140,13 @@ export function GrupSecici({
               className,
             )}
           >
-            <span className={cn("truncate", !value && "text-muted-foreground/70")}>
-              {value || placeholder}
+            <span
+              className={cn(
+                "truncate",
+                !value && "text-muted-foreground/70",
+              )}
+            >
+              {triggerEtiket || value || placeholder}
             </span>
             <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
           </button>
@@ -178,7 +155,7 @@ export function GrupSecici({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-(--anchor-width) min-w-64 gap-0 p-1.5"
+        className="w-auto min-w-(--anchor-width) gap-0 p-1.5"
       >
         <div className="relative mb-1.5">
           <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -190,16 +167,21 @@ export function GrupSecici({
             className="h-8 pl-7"
           />
         </div>
-        <div className="max-h-64 overflow-y-auto">
-          {q ? (
-            eslesenler.length > 0 ? (
+
+        {q ? (
+          // ── Arama modu: düz liste (yol alt yazısıyla) ──
+          <div className="max-h-64 min-w-64 overflow-y-auto">
+            {eslesenler.length > 0 ? (
               eslesenler.map((g) => {
-                const p = yol(g);
+                const p = yolAdlari(g);
                 return (
                   <button
                     key={g.id}
                     type="button"
-                    onClick={() => sec(g)}
+                    onClick={() => {
+                      onValueChange?.(g.ad);
+                      setAcikPopover(false);
+                    }}
                     className={cn(
                       "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                       value === g.ad && "bg-accent/60 font-medium",
@@ -223,15 +205,69 @@ export function GrupSecici({
               <p className="px-2 py-3 text-center text-sm text-muted-foreground">
                 Sonuç bulunamadı
               </p>
-            )
-          ) : kokler.length > 0 ? (
-            kokler.map((g) => <Satir key={g.id} grup={g} seviye={0} />)
-          ) : (
-            <p className="px-2 py-3 text-center text-sm text-muted-foreground">
-              Henüz grup tanımlanmamış — Tanımlamalar → Gruplar&apos;dan ekleyin.
-            </p>
-          )}
-        </div>
+            )}
+          </div>
+        ) : kokler.length > 0 ? (
+          // ── Sütun modu (Finder/Miller) ──
+          <>
+            {breadcrumb.length > 0 && (
+              <div className="mb-1.5 flex items-center gap-1 overflow-x-auto px-1 text-[11px] text-muted-foreground">
+                {breadcrumb.map((ad, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && (
+                      <ChevronRight className="size-3 shrink-0 opacity-60" />
+                    )}
+                    <span className="whitespace-nowrap">{ad}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+            <div className="flex max-h-72 gap-1 overflow-x-auto">
+              {kolonlar.map((kolon, ki) => (
+                <div
+                  key={ki}
+                  className={cn(
+                    "max-h-72 w-48 shrink-0 overflow-y-auto",
+                    ki > 0 && "border-l pl-1",
+                  )}
+                >
+                  {kolon.map((g) => {
+                    const cocuklar = altlar.get(g.id) ?? [];
+                    const yoldaMi = yolIds[ki] === g.id;
+                    const seciliMi = value === g.ad;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => sec(g, ki)}
+                        className={cn(
+                          "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          yoldaMi && "bg-accent",
+                          seciliMi && !yoldaMi && "bg-accent/60 font-medium",
+                        )}
+                      >
+                        <span className="truncate">{g.ad}</span>
+                        <span className="ml-auto flex shrink-0 items-center gap-1">
+                          {seciliMi && <Check className="size-3.5" />}
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {g.kod}
+                          </span>
+                          {cocuklar.length > 0 && (
+                            <ChevronRight className="size-3.5 text-muted-foreground" />
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="min-w-64 px-2 py-3 text-center text-sm text-muted-foreground">
+            Henüz grup tanımlanmamış — Tanımlamalar → Gruplar&apos;dan ekleyin.
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   );
