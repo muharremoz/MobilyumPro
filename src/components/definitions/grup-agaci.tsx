@@ -230,7 +230,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
             Henüz grup yok. &quot;Yeni Grup&quot; ile başlayın.
           </div>
         ) : (
-          <div className="flex max-h-[32rem] scroll-fade-x scrollbar-none overflow-x-auto">
+          <div className="flex max-h-[32rem] overflow-x-auto">
             {kolonlar.map((kolon, ki) => (
               <div
                 key={ki}
@@ -253,7 +253,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
                     <Plus className="size-4" />
                   </Button>
                 </div>
-                <div className="flex flex-1 flex-col gap-1.5 scroll-fade-y scrollbar-none overflow-y-auto px-2 pb-2">
+                <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
                   {kolon.items.length > 0 ? (
                     kolon.items.map((g) => (
                       <GrupKarti key={g.id} grup={g} kolon={ki} />
