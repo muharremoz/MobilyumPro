@@ -1440,7 +1440,7 @@ function GenelTab({
         <div className="rounded-md border bg-card">
           <KartBaslik ikon={Tags} baslik="Sınıflama" />
           <div className="grid gap-3 p-4">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               <AnimatedField label="Grup" icon={FolderOpenIcon}>
                 <GrupSecici
                   gruplar={gruplar}
@@ -1488,8 +1488,6 @@ function GenelTab({
                   }}
                 />
               </AnimatedField>
-            </div>
-            <div className="grid grid-cols-4 gap-3">
               <AnimatedField label="Renk Kodu" icon={ScanTextIcon}>
                 <SearchSelect
                   items={secenekler.renkKodu}
