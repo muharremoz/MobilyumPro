@@ -558,7 +558,7 @@ function StokKartiSerit({ kart }: { kart: StokKarti }) {
               {kart.kod || kart.id}
             </span>
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
               {kart.grup}
             </Badge>
