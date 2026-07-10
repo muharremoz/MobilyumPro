@@ -15,7 +15,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
-import { FormSheet } from "@/components/ui/form-sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { IconInput } from "@/components/ui/icon-input";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
@@ -406,47 +412,65 @@ function GrupSheet({
   }
 
   return (
-    <FormSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={
-        duzenlenen
-          ? "Grubu Düzenle"
-          : ustGrup
-            ? `Alt Grup — ${ustGrup.ad}`
-            : "Yeni Grup"
-      }
-      icon={FolderOpenIcon}
-      onSave={kaydet}
-    >
-      <div className="grid gap-2.5">
-        {ustGrup && (
-          <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Üst grup: <span className="font-medium text-foreground">{ustGrup.ad}</span>{" "}
-            <span className="font-mono">({ustGrup.kod})</span>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>
+            {duzenlenen
+              ? "Grubu Düzenle"
+              : ustGrup
+                ? `Alt Grup — ${ustGrup.ad}`
+                : "Yeni Grup"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2.5">
+          {ustGrup && (
+            <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Üst grup:{" "}
+              <span className="font-medium text-foreground">{ustGrup.ad}</span>{" "}
+              <span className="font-mono">({ustGrup.kod})</span>
+            </p>
+          )}
+          <IconInput
+            label="Grup Adı"
+            icon={FolderOpenIcon}
+            placeholder="Örn. Yatak Odası"
+            value={ad}
+            onChange={(e) => setAd(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                kaydet();
+              }
+            }}
+          />
+          <IconInput
+            label="Grup Kodu"
+            icon={ScanTextIcon}
+            placeholder="Örn. 152 veya YTK"
+            value={kod}
+            onChange={(e) => setKod(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                kaydet();
+              }
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            İpucu: üst gruplarda muhasebe hesap kodu (150 malzeme, 152 mamul,
+            153 ticari mal...), ara seviyede sıra (01, 02...), malzeme
+            altlarında kısaltma (AKS, ALU...) yaygındır. Detay için listedeki{" "}
+            <Info className="inline size-3 align-[-1px]" /> simgesine bakın.
           </p>
-        )}
-        <IconInput
-          label="Grup Adı"
-          icon={FolderOpenIcon}
-          placeholder="Örn. Yatak Odası"
-          value={ad}
-          onChange={(e) => setAd(e.target.value)}
-        />
-        <IconInput
-          label="Grup Kodu"
-          icon={ScanTextIcon}
-          placeholder="Örn. 152 veya YTK"
-          value={kod}
-          onChange={(e) => setKod(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          İpucu: üst gruplarda muhasebe hesap kodu (150 malzeme, 152 mamul,
-          153 ticari mal...), ara seviyede sıra (01, 02...), malzeme
-          altlarında kısaltma (AKS, ALU...) yaygındır. Detay için listedeki{" "}
-          <Info className="inline size-3 align-[-1px]" /> simgesine bakın.
-        </p>
-      </div>
-    </FormSheet>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            İptal
+          </Button>
+          <Button onClick={kaydet}>{duzenlenen ? "Kaydet" : "Ekle"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
