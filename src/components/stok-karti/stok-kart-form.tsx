@@ -14,11 +14,6 @@ import {
   FileText,
   ExternalLink,
   Info,
-  Layers,
-  Blocks,
-  Package,
-  Wrench,
-  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -104,17 +99,6 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   "Yarı Mamül": "bg-violet-100 text-violet-800",
   Mamül: "bg-emerald-100 text-emerald-800",
   Hizmet: "bg-slate-100 text-slate-800",
-};
-
-/** Kart şeridi için grup stili: sol renk şeridi + avatar + ikon. */
-const GRUP_STIL: Record<
-  StokGrubu,
-  { serit: string; avatar: string; ikon: LucideIcon }
-> = {
-  Hammadde: { serit: "bg-blue-500", avatar: "bg-blue-100 text-blue-700", ikon: Layers },
-  "Yarı Mamül": { serit: "bg-violet-500", avatar: "bg-violet-100 text-violet-700", ikon: Blocks },
-  Mamül: { serit: "bg-emerald-500", avatar: "bg-emerald-100 text-emerald-700", ikon: Package },
-  Hizmet: { serit: "bg-slate-400", avatar: "bg-slate-100 text-slate-700", ikon: Wrench },
 };
 
 /** Ledger miktarına göre stok durumu rozeti (Hizmet'te yok). */
@@ -536,11 +520,9 @@ function SeritMetrik({
 
 /**
  * Kart başlığı şeridi — hangi stok kartıyla çalıştığımızı gösterir.
- * Sol renk şeridi + grup avatarı + orta mini-metrikler + sağda miktar/durum.
+ * Kimlik + orta mini-metrikler + sağda miktar/durum.
  */
 function StokKartiSerit({ kart }: { kart: StokKarti }) {
-  const stil = GRUP_STIL[kart.grup];
-  const GrupIkon = stil.ikon;
   const durum = stokDurumu(kart);
   const paraGoster = (n: number, doviz: string) =>
     doviz === "TL" ? formatTL(n) : `${n.toLocaleString("tr-TR")} ${doviz}`;
@@ -563,53 +545,37 @@ function StokKartiSerit({ kart }: { kart: StokKarti }) {
     metrikler.push({ etiket: "Muhasebe Kodu", deger: kart.muhasebeKodu });
 
   return (
-    <div className="relative overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      {/* Sol renk şeridi (grup) */}
-      <span
-        aria-hidden
-        className={cn("absolute inset-y-0 left-0 w-1.5", stil.serit)}
-      />
-
-      <div className="flex flex-col gap-4 py-4 pr-4 pl-6 lg:flex-row lg:items-center">
-        {/* Kimlik: avatar + ad + kod + rozetler */}
-        <div className="flex min-w-0 flex-1 items-center gap-3.5">
-          <div
-            className={cn(
-              "flex size-12 shrink-0 items-center justify-center rounded-xl",
-              stil.avatar,
-            )}
-          >
-            <GrupIkon className="size-6" />
+    <div className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
+        {/* Kimlik: ad + kod + rozetler */}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <h2 className="truncate text-lg leading-tight font-semibold">
+              {kart.ad}
+            </h2>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {kart.kod || kart.id}
+            </span>
           </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <h2 className="truncate text-lg leading-tight font-semibold">
-                {kart.ad}
-              </h2>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                {kart.kod || kart.id}
-              </span>
-            </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
-                {kart.grup}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className={GRUP_RENK[kart.grup]}>
+              {kart.grup}
+            </Badge>
+            {kart.altGrup && (
+              <Badge variant="outline" className="font-normal">
+                {kart.altGrup}
               </Badge>
-              {kart.altGrup && (
-                <Badge variant="outline" className="font-normal">
-                  {kart.altGrup}
-                </Badge>
-              )}
-              {kart.marka && (
-                <Badge variant="outline" className="font-normal">
-                  {kart.marka}
-                </Badge>
-              )}
-              {kart.durum === "Pasif" && (
-                <Badge variant="secondary" className="bg-muted">
-                  Pasif
-                </Badge>
-              )}
-            </div>
+            )}
+            {kart.marka && (
+              <Badge variant="outline" className="font-normal">
+                {kart.marka}
+              </Badge>
+            )}
+            {kart.durum === "Pasif" && (
+              <Badge variant="secondary" className="bg-muted">
+                Pasif
+              </Badge>
+            )}
           </div>
         </div>
 
