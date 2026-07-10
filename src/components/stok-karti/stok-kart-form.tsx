@@ -438,7 +438,7 @@ export function StokKartForm({
         </TabBtn>
         {duzenleme && (
           <>
-            {(kart?.grup === "Mamül" || kart?.grup === "Yarı Mamül") && (
+            {kart?.grup !== "Hizmet" && (
               <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
                 Reçete
               </TabBtn>
