@@ -267,8 +267,9 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-[1fr_84px_96px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <div className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   <span>Malzeme</span>
+                  <span>Firma</span>
                   <span className="text-right">Miktar</span>
                   <span className="text-right">Birim Fiyat</span>
                   <span className="text-right">Tutar</span>
@@ -281,7 +282,7 @@ export function AlisForm({
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_84px_96px_110px_36px] items-center gap-2 px-3 py-2"
+                        className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 px-3 py-2"
                       >
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium">
@@ -291,28 +292,23 @@ export function AlisForm({
                             stok {s.mevcutStok} {s.birim} · son{" "}
                             {formatTL(s.sonFiyat)}
                           </div>
-                          {/* Satır bazında firma */}
-                          <div className="mt-1 max-w-56">
-                            <SearchSelect
-                              items={tedarikciler.map((t) => t.ad)}
-                              value={cariMap.get(s.cariId)?.ad ?? null}
-                              onValueChange={(ad) =>
-                                satirGuncelle(i, {
-                                  cariId: ad
-                                    ? (cariAdMap.get(ad)?.id ?? "")
-                                    : "",
-                                })
-                              }
-                              placeholder="Firma seç"
-                              emptyText="Tedarikçi yok"
-                              className={cn(
-                                "h-7 text-xs",
-                                !s.cariId &&
-                                  "ring-1 ring-rose-300 ring-offset-0",
-                              )}
-                            />
-                          </div>
                         </div>
+                        {/* Firma (ayrı sütun) */}
+                        <SearchSelect
+                          items={tedarikciler.map((t) => t.ad)}
+                          value={cariMap.get(s.cariId)?.ad ?? null}
+                          onValueChange={(ad) =>
+                            satirGuncelle(i, {
+                              cariId: ad ? (cariAdMap.get(ad)?.id ?? "") : "",
+                            })
+                          }
+                          placeholder="Firma seç"
+                          emptyText="Tedarikçi yok"
+                          className={cn(
+                            "h-8",
+                            !s.cariId && "ring-1 ring-rose-300 ring-offset-0",
+                          )}
+                        />
                         <Input
                           type="number"
                           min={0}
