@@ -376,16 +376,25 @@ export function AlisForm({
                             !s.cariId && "ring-1 ring-rose-300 ring-offset-0",
                           )}
                         />
-                        <Input
-                          type="number"
-                          min={0}
-                          step="any"
-                          value={s.miktar}
-                          onChange={(e) =>
-                            satirGuncelle(i, { miktar: Number(e.target.value) })
-                          }
-                          className="h-8 tabular-nums"
-                        />
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={s.miktar}
+                            onChange={(e) =>
+                              satirGuncelle(i, {
+                                miktar: Number(e.target.value),
+                              })
+                            }
+                            className="h-8 bg-amber-50 pr-8 tabular-nums"
+                          />
+                          {s.birim && (
+                            <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[11px] font-medium text-amber-700">
+                              {s.birim}
+                            </span>
+                          )}
+                        </div>
                         <div className="relative">
                           <Input
                             type="number"
