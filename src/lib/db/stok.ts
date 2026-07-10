@@ -159,7 +159,7 @@ async function dusumYaz(
   if (net.length === 0) return { ok: true, eksikler: [] };
 
   const [malzemeler, negatifIzin, depo] = await Promise.all([
-    db.malzeme.findMany({
+    db.stok.findMany({
       where: { id: { in: net.map((k) => k.malzemeId) } },
     }),
     parametreDegeri("negatif_stok").then(acikMi),
@@ -171,13 +171,13 @@ async function dusumYaz(
   for (const k of net) {
     const m = malzemeMap.get(k.malzemeId);
     if (!m) continue;
-    if (Number(m.stok) < k.miktar) {
+    if (Number(m.stokMiktar) < k.miktar) {
       eksikler.push({
         malzemeId: k.malzemeId,
         ad: m.ad,
-        birim: m.birim,
+        birim: m.stokBirimi,
         gereken: k.miktar,
-        eldeki: Number(m.stok),
+        eldeki: Number(m.stokMiktar),
       });
     }
   }
@@ -204,16 +204,16 @@ async function dusumYaz(
           refTip: "malzeme",
           refId: k.malzemeId,
           miktar: k.miktar,
-          birim: m.birim,
+          birim: m.stokBirimi,
           depo,
           aciklama: `${emir.id} · ${emir.modelAd} — ${aciklamaEk}`,
           emirId: emir.id,
           istasyon: k.istasyon ?? null,
         },
       });
-      await tx.malzeme.update({
+      await tx.stok.update({
         where: { id: k.malzemeId },
-        data: { stok: { decrement: k.miktar } },
+        data: { stokMiktar: { decrement: k.miktar } },
       });
     }
   });
@@ -307,9 +307,9 @@ export async function mamulGirisi(emir: {
         istasyon: "paketleme",
       },
     });
-    await tx.model.update({
+    await tx.stok.update({
       where: { id: emir.modelId },
-      data: { stok: { increment: emir.adet } },
+      data: { stokMiktar: { increment: emir.adet } },
     });
   });
 }
@@ -325,7 +325,7 @@ export type StokOzeti = {
 /** Açık emirlerin (Planlandı + Üretimde) henüz düşülmemiş ihtiyacı. */
 export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
   const [malzemeler, emirler, hareketler] = await Promise.all([
-    db.malzeme.findMany(),
+    db.stok.findMany({ where: { grup: { in: ["Hammadde", "Yarı Mamül"] } } }),
     db.uretimEmri.findMany({
       where: { durum: { in: ["Planlandı", "Üretimde"] } },
     }),
@@ -372,7 +372,7 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
 
   const sonuc = new Map<string, StokOzeti>();
   for (const m of malzemeler) {
-    const eldeki = Number(m.stok);
+    const eldeki = Number(m.stokMiktar);
     const r = rezerve.get(m.id) ?? 0;
     sonuc.set(m.id, {
       malzemeId: m.id,

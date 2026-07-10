@@ -16,28 +16,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Model (eski: ürün) ──────────────────────────────────────────────────
-model Model {
-  id            String  @id @map("id")
-  ad            String
-  kategori      String
-  fiyat         Decimal @default(0) @db.Decimal(14, 2)
-  stok          Int     @default(0)
-  durum         String  @default("Aktif")
-  gorsel        String? @db.NVarChar(Max)
-  marka         String?
-  barkod        String?
-  agirlik       Decimal? @db.Decimal(14, 3)
-  minStok       Int?    @map("min_stok")
-  gorsellerJson String? @map("gorseller") @db.NVarChar(Max)
-  varyantlarJson String? @map("varyantlar") @db.NVarChar(Max)
-
-  parcalar      ModelParca[]
-  uretimEmirleri UretimEmri[]
-
-  @@map("model")
-}
-
 // ── Parça (BOM kataloğu — kullanıcıya "Reçete" olarak sunulur) ──────────
 model Parca {
   id       String  @id
@@ -56,35 +34,18 @@ model Parca {
 
 // ── Reçete versiyonu (her kayıtta anlık kopya; tam geçmiş) ──────────────
 model ReceteVersiyon {
-  id         Int      @id @default(autoincrement())
-  parcaId    String   @map("parca_id")
-  versiyonNo Int      @map("versiyon_no")
-  tarih      DateTime @default(now())
-  aciklama   String?  @db.NVarChar(Max)
+  id           Int      @id @default(autoincrement())
+  parcaId      String   @map("parca_id")
+  versiyonNo   Int      @map("versiyon_no")
+  tarih        DateTime @default(now())
+  aciklama     String?  @db.NVarChar(Max)
   // Satırların anlık kopyası: [{tip, ref, miktar}] (JSON)
-  satirlarJson String @map("satirlar") @db.NVarChar(Max)
+  satirlarJson String   @map("satirlar") @db.NVarChar(Max)
 
   parca Parca @relation(fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([parcaId, versiyonNo])
   @@map("recete_versiyon")
-}
-
-// ── Malzeme (BOM tabanı; sınıflama grup ağacından) ──────────────────────
-model Malzeme {
-  id         String  @id
-  ad         String
-  // Stok grubu adı (Tanımlamalar → Gruplar ağacından)
-  grup       String?
-  birim      String
-  stok       Decimal @default(0) @db.Decimal(14, 3)
-  birimFiyat Decimal @default(0) @map("birim_fiyat") @db.Decimal(14, 2)
-  tedarikci  String?
-  durum      String  @default("Aktif")
-
-  receteSatirlari ReceteSatiri[]
-
-  @@map("malzeme")
 }
 
 // ── Reçete satırı (parçanın bileşenleri: malzeme veya alt-parça) ────────
@@ -100,9 +61,9 @@ model ReceteSatiri {
   // Bileşenin tüketildiği istasyon (fabrika rotası slug'ı; null → ilk istasyon)
   istasyon   String?
 
-  parca    Parca    @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  malzeme  Malzeme? @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  altParca Parca?   @relation("AltParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parca    Parca  @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stok     Stok?  @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  altParca Parca? @relation("AltParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("recete_satiri")
 }
@@ -114,7 +75,7 @@ model ModelParca {
   parcaId String  @map("parca_id")
   miktar  Decimal @db.Decimal(14, 3)
 
-  model Model @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stok  Stok  @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   parca Parca @relation(fields: [parcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("model_parca")
@@ -174,7 +135,7 @@ model UretimEmri {
   hedefDepo     String?   @map("hedef_depo")
   not           String?   @db.NVarChar(Max)
 
-  model Model @relation(fields: [modelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stok    Stok             @relation(fields: [modelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   adimlar UretimEmriAdim[]
 
   @@map("uretim_emri")
@@ -200,60 +161,60 @@ model UretimEmriAdim {
 
 // ── Cari (müşteri/tedarikçi hesabı) ─────────────────────────────────────
 model Cari {
-  id           String  @id
+  id             String   @id
   // Kısa ad (listede görünen)
-  ad           String
+  ad             String
   // Tam ad / ticari ad
-  tamAd        String? @map("tam_ad")
-  tip          String
-  sinif        String
+  tamAd          String?  @map("tam_ad")
+  tip            String
+  sinif          String
   // Ana yetkili kişi (hızlı erişim; detaylı liste CariYetkili'de)
   yetkili        String?
-  yetkiliUnvan   String? @map("yetkili_unvan")
-  yetkiliTelefon String? @map("yetkili_telefon")
-  yetkiliEmail   String? @map("yetkili_email")
-  telefon      String?
-  telefon2     String?
-  telefon3     String?
-  fax          String?
-  email        String?
-  webSite      String? @map("web_site")
+  yetkiliUnvan   String?  @map("yetkili_unvan")
+  yetkiliTelefon String?  @map("yetkili_telefon")
+  yetkiliEmail   String?  @map("yetkili_email")
+  telefon        String?
+  telefon2       String?
+  telefon3       String?
+  fax            String?
+  email          String?
+  webSite        String?  @map("web_site")
   // "Maliyet" | "Satış Fiyatı 1" | "Satış Fiyatı 2"
-  satisFiyatTipi String @default("Satış Fiyatı 1") @map("satis_fiyat_tipi")
-  iskontoOrani Decimal @default(0) @map("iskonto_orani") @db.Decimal(5, 2)
+  satisFiyatTipi String   @default("Satış Fiyatı 1") @map("satis_fiyat_tipi")
+  iskontoOrani   Decimal  @default(0) @map("iskonto_orani") @db.Decimal(5, 2)
   // Satış temsilcisi (kullanıcı adı)
-  temsilci     String?
+  temsilci       String?
   // Çoklu şube kullanımında hesabın bağlı olduğu mağaza şubesi
-  sube         String?
-  muhasebeKodu String? @map("muhasebe_kodu")
+  sube           String?
+  muhasebeKodu   String?  @map("muhasebe_kodu")
   // Fatura bilgileri
-  tcKimlik     String? @map("tc_kimlik")
-  vergiNo      String? @map("vergi_no")
-  vergiDairesi String? @map("vergi_dairesi")
-  unvan        String?
+  tcKimlik       String?  @map("tc_kimlik")
+  vergiNo        String?  @map("vergi_no")
+  vergiDairesi   String?  @map("vergi_dairesi")
+  unvan          String?
   // Adres
-  ulke         String?
-  bolge        String?
-  sehir        String?
-  semt         String?
-  adres        String? @db.NVarChar(Max)
+  ulke           String?
+  bolge          String?
+  sehir          String?
+  semt           String?
+  adres          String?  @db.NVarChar(Max)
   // Pozitif = cari bizden alacaklı, negatif = bize borçlu.
-  bakiye       Decimal @default(0) @db.Decimal(14, 2)
-  paraBirimi   String  @default("TL") @map("para_birimi")
-  durum        String  @default("Aktif")
-  not          String? @db.NVarChar(Max)
+  bakiye         Decimal  @default(0) @db.Decimal(14, 2)
+  paraBirimi     String   @default("TL") @map("para_birimi")
+  durum          String   @default("Aktif")
+  not            String?  @db.NVarChar(Max)
   // Denetim izi (oturum altyapısı gelince kullanıcı id'leri dolar)
-  createDate   DateTime @default(now()) @map("create_date")
-  createUserId String?  @map("create_user_id")
-  updateDate   DateTime @updatedAt @map("update_date")
-  updateUserId String?  @map("update_user_id")
+  createDate     DateTime @default(now()) @map("create_date")
+  createUserId   String?  @map("create_user_id")
+  updateDate     DateTime @updatedAt @map("update_date")
+  updateUserId   String?  @map("update_user_id")
 
-  islemler   CariIslem[]
-  bankalar   CariBanka[]
-  subeler    CariSube[]
-  yetkililer CariYetkili[]
+  islemler     CariIslem[]
+  bankalar     CariBanka[]
+  subeler      CariSube[]
+  yetkililer   CariYetkili[]
   crmKayitlari CariCrm[]
-  dokumanlar CariDokuman[]
+  dokumanlar   CariDokuman[]
 
   @@map("cari")
 }
@@ -363,9 +324,9 @@ model Rol {
 
 // ── Rol yetkisi (modül bazında erişim seviyesi) ─────────────────────────
 model RolYetki {
-  id    Int    @id @default(autoincrement())
-  rolAd String @map("rol_ad")
-  modul String
+  id       Int     @id @default(autoincrement())
+  rolAd    String  @map("rol_ad")
+  modul    String
   // Modül bazlı yetki bayrakları.
   isList   Boolean @default(false) @map("is_list")
   isAdd    Boolean @default(false) @map("is_add")
@@ -388,14 +349,14 @@ model Departman {
 
 // ── Kullanıcı yetkisi (kullanıcı bazında modül erişimi) ─────────────────
 model KullaniciYetki {
-  id          Int    @id @default(autoincrement())
-  kullaniciId String @map("kullanici_id")
+  id          Int     @id @default(autoincrement())
+  kullaniciId String  @map("kullanici_id")
   modul       String
   // Modül bazlı yetki bayrakları.
-  isList   Boolean @default(false) @map("is_list")
-  isAdd    Boolean @default(false) @map("is_add")
-  isUpdate Boolean @default(false) @map("is_update")
-  isDelete Boolean @default(false) @map("is_delete")
+  isList      Boolean @default(false) @map("is_list")
+  isAdd       Boolean @default(false) @map("is_add")
+  isUpdate    Boolean @default(false) @map("is_update")
+  isDelete    Boolean @default(false) @map("is_delete")
 
   kullanici Kullanici @relation(fields: [kullaniciId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -413,9 +374,9 @@ model YetkiSeti {
 }
 
 model YetkiSetiDetay {
-  id    Int    @id @default(autoincrement())
-  setId Int    @map("set_id")
-  modul String
+  id       Int     @id @default(autoincrement())
+  setId    Int     @map("set_id")
+  modul    String
   isList   Boolean @default(false) @map("is_list")
   isAdd    Boolean @default(false) @map("is_add")
   isUpdate Boolean @default(false) @map("is_update")
@@ -429,21 +390,21 @@ model YetkiSetiDetay {
 
 // ── Kullanıcı (giriş + yetkilendirme) ───────────────────────────────────
 model Kullanici {
-  id           String   @id
-  kullaniciAdi String   @unique @map("kullanici_adi")
-  adSoyad      String   @map("ad_soyad")
-  email        String?
-  telefon      String?
-  departman    String?
+  id               String   @id
+  kullaniciAdi     String   @unique @map("kullanici_adi")
+  adSoyad          String   @map("ad_soyad")
+  email            String?
+  telefon          String?
+  departman        String?
   // scrypt: "salt:hash" (hex) — düz şifre asla saklanmaz.
-  sifreHash    String   @map("sifre_hash")
-  rol          String   @default("Kullanıcı")
-  durum        String   @default("Aktif")
+  sifreHash        String   @map("sifre_hash")
+  rol              String   @default("Kullanıcı")
+  durum            String   @default("Aktif")
   // Geçmiş tarihe işlem (kayıt) girebilme yetkisi
-  eskiTarihliIslem Boolean @default(false) @map("eski_tarihli_islem")
-  olusturma    DateTime @db.Date
+  eskiTarihliIslem Boolean  @default(false) @map("eski_tarihli_islem")
+  olusturma        DateTime @db.Date
 
-  yetkiler     KullaniciYetki[]
+  yetkiler      KullaniciYetki[]
   cariYetkileri KullaniciCariYetki[]
 
   @@map("kullanici")
@@ -484,10 +445,10 @@ model SistemParametre {
 
 // ── Malzeme Poşeti (hazır malzeme seti) ─────────────────────────────────
 model Poset {
-  id        String         @id
-  ad        String
-  aciklama  String?
-  durum     String         @default("Aktif")
+  id         String         @id
+  ad         String
+  aciklama   String?
+  durum      String         @default("Aktif")
   malzemeler PosetMalzeme[]
 
   @@map("poset")
@@ -587,68 +548,72 @@ model AlisSatiri {
 //   Hammadde / Yarı Mamül → malzeme aynası, Mamül → model aynası.
 // Stok MİKTARI ledger'a aittir ve ayna tablolarda yaşar; kart okur.
 model Stok {
-  id           String  @id
+  id             String   @id
   // Kullanıcı kodu (boşsa id gösterilir)
-  kod          String?
-  ad           String
-  tur          String?
-  cins         String?
+  kod            String?
+  ad             String
+  tur            String?
+  cins           String?
   // Hammadde | Yarı Mamül | Mamül | Hizmet
-  grup         String
+  grup           String
   // Grup ağacından (Tanımlamalar → Gruplar) adlar
-  altGrup      String? @map("alt_grup")
-  detayGrup    String? @map("detay_grup")
-  kategori     String?
-  marka        String?
-  model        String?
-  stokBirimi   String  @default("adet") @map("stok_birimi")
-  puan         Decimal? @db.Decimal(10, 2)
-  yukseklik    Decimal? @db.Decimal(10, 2)
-  genislik     Decimal? @db.Decimal(10, 2)
-  boy          Decimal? @db.Decimal(10, 2)
-  agirlik      Decimal? @db.Decimal(10, 3)
-  minSiparis   Decimal? @map("min_siparis") @db.Decimal(14, 3)
-  minStok      Decimal? @map("min_stok") @db.Decimal(14, 3)
-  maxStok      Decimal? @map("max_stok") @db.Decimal(14, 3)
-  muhasebeKodu String? @map("muhasebe_kodu")
+  altGrup        String?  @map("alt_grup")
+  detayGrup      String?  @map("detay_grup")
+  kategori       String?
+  marka          String?
+  model          String?
+  stokBirimi     String   @default("adet") @map("stok_birimi")
+  puan           Decimal? @db.Decimal(10, 2)
+  yukseklik      Decimal? @db.Decimal(10, 2)
+  genislik       Decimal? @db.Decimal(10, 2)
+  boy            Decimal? @db.Decimal(10, 2)
+  agirlik        Decimal? @db.Decimal(10, 3)
+  minSiparis     Decimal? @map("min_siparis") @db.Decimal(14, 3)
+  minStok        Decimal? @map("min_stok") @db.Decimal(14, 3)
+  maxStok        Decimal? @map("max_stok") @db.Decimal(14, 3)
+  muhasebeKodu   String?  @map("muhasebe_kodu")
   // Reçete havuzdan seçilir (parca.id); rota şimdilik sabit fabrika rotası
-  receteParcaId String? @map("recete_parca_id")
-  rota          String? @default("fabrika")
+  receteParcaId  String?  @map("recete_parca_id")
+  rota           String?  @default("fabrika")
   // Varsayılan üretici (detaylı liste StokUretici'de)
-  ureticiCariId String? @map("uretici_cari_id")
-  ureticiKodu   String? @map("uretici_kodu")
-  bolum         String?
-  renkKodu      String? @map("renk_kodu")
-  barkod        String?
-  aciklama      String? @db.NVarChar(Max)
-  durum         String  @default("Aktif")
+  ureticiCariId  String?  @map("uretici_cari_id")
+  ureticiKodu    String?  @map("uretici_kodu")
+  bolum          String?
+  renkKodu       String?  @map("renk_kodu")
+  barkod         String?
+  aciklama       String?  @db.NVarChar(Max)
+  durum          String   @default("Aktif")
   // Eldeki miktar özeti (ledger yetkili; malzeme.stok/model.stok yerine)
-  stokMiktar    Decimal  @default(0) @map("stok_miktar") @db.Decimal(14, 3)
+  stokMiktar     Decimal  @default(0) @map("stok_miktar") @db.Decimal(14, 3)
   // Mamul: renk/kumaş varyantları + görsel galerisi (model'den taşındı)
-  varyantlarJson String? @map("varyantlar") @db.NVarChar(Max)
-  gorsel         String? @db.NVarChar(Max)
-  gorsellerJson  String? @map("gorseller") @db.NVarChar(Max)
-  createDate    DateTime @default(now()) @map("create_date")
-  createUserId  String?  @map("create_user_id")
-  updateDate    DateTime @updatedAt @map("update_date")
-  updateUserId  String?  @map("update_user_id")
+  varyantlarJson String?  @map("varyantlar") @db.NVarChar(Max)
+  gorsel         String?  @db.NVarChar(Max)
+  gorsellerJson  String?  @map("gorseller") @db.NVarChar(Max)
+  createDate     DateTime @default(now()) @map("create_date")
+  createUserId   String?  @map("create_user_id")
+  updateDate     DateTime @updatedAt @map("update_date")
+  updateUserId   String?  @map("update_user_id")
   // Fiyatlar (birimler döviz: TL/USD/EUR)
-  maliyetFiyati Decimal @default(0) @map("maliyet_fiyati") @db.Decimal(14, 2)
-  maliyetBirimi String  @default("TL") @map("maliyet_birimi")
-  satisFiyat1   Decimal @default(0) @map("satis_fiyat1") @db.Decimal(14, 2)
-  satisBirim1   String  @default("TL") @map("satis_birim1")
-  satisFiyat2   Decimal @default(0) @map("satis_fiyat2") @db.Decimal(14, 2)
-  satisBirim2   String  @default("TL") @map("satis_birim2")
-  satisFiyat3   Decimal @default(0) @map("satis_fiyat3") @db.Decimal(14, 2)
-  satisBirim3   String  @default("TL") @map("satis_birim3")
-  satisFiyat4   Decimal @default(0) @map("satis_fiyat4") @db.Decimal(14, 2)
-  satisBirim4   String  @default("TL") @map("satis_birim4")
-  satisFiyat5   Decimal @default(0) @map("satis_fiyat5") @db.Decimal(14, 2)
-  satisBirim5   String  @default("TL") @map("satis_birim5")
+  maliyetFiyati  Decimal  @default(0) @map("maliyet_fiyati") @db.Decimal(14, 2)
+  maliyetBirimi  String   @default("TL") @map("maliyet_birimi")
+  satisFiyat1    Decimal  @default(0) @map("satis_fiyat1") @db.Decimal(14, 2)
+  satisBirim1    String   @default("TL") @map("satis_birim1")
+  satisFiyat2    Decimal  @default(0) @map("satis_fiyat2") @db.Decimal(14, 2)
+  satisBirim2    String   @default("TL") @map("satis_birim2")
+  satisFiyat3    Decimal  @default(0) @map("satis_fiyat3") @db.Decimal(14, 2)
+  satisBirim3    String   @default("TL") @map("satis_birim3")
+  satisFiyat4    Decimal  @default(0) @map("satis_fiyat4") @db.Decimal(14, 2)
+  satisBirim4    String   @default("TL") @map("satis_birim4")
+  satisFiyat5    Decimal  @default(0) @map("satis_fiyat5") @db.Decimal(14, 2)
+  satisBirim5    String   @default("TL") @map("satis_birim5")
 
-  ureticiler StokUretici[]
-  musteriler StokMusteri[]
-  dokumanlar StokDokuman[]
+  ureticiler      StokUretici[]
+  musteriler      StokMusteri[]
+  dokumanlar      StokDokuman[]
+  // Birleşme: reçete bileşeni / mamul BOM / üretim emri artık Stok'a bağlı
+  receteSatirlari ReceteSatiri[]
+  modelParcalar   ModelParca[]
+  uretimEmirleri  UretimEmri[]
 
   @@map("stok")
 }

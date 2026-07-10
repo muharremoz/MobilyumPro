@@ -58,8 +58,9 @@ function parseJson<T>(s: string | null): T | undefined {
 }
 
 export async function getModeller(): Promise<Model[]> {
+  // Mamul kartları artık stok tablosunda (grup = "Mamül"); model tablosu kalktı.
   const [urunRows, upRows] = await Promise.all([
-    db.model.findMany(),
+    db.stok.findMany({ where: { grup: "Mamül" }, orderBy: { id: "asc" } }),
     db.modelParca.findMany(),
   ]);
   const bomByUrun = new Map<string, { parcaId: string; miktar: number }[]>();
@@ -71,16 +72,16 @@ export async function getModeller(): Promise<Model[]> {
   return urunRows.map((u) => ({
     id: u.id,
     ad: u.ad,
-    kategori: u.kategori as Kategori,
-    fiyat: Number(u.fiyat),
-    stok: u.stok,
+    kategori: (u.kategori ?? u.altGrup ?? u.grup) as Kategori,
+    fiyat: Number(u.satisFiyat1),
+    stok: Math.round(Number(u.stokMiktar)),
     durum: u.durum as Durum,
     gorsel: u.gorsel ?? undefined,
     parcalar: bomByUrun.get(u.id),
     marka: u.marka ?? undefined,
     barkod: u.barkod ?? undefined,
     agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
-    minStok: u.minStok ?? undefined,
+    minStok: u.minStok != null ? Math.round(Number(u.minStok)) : undefined,
     gorseller: parseJson<string[]>(u.gorsellerJson),
     varyantlar: parseJson<ModelVaryant[]>(u.varyantlarJson),
   }));
@@ -117,15 +118,19 @@ export async function getParcalar(): Promise<Parca[]> {
 }
 
 export async function getMalzemeler(): Promise<Malzeme[]> {
-  const rows = await db.malzeme.findMany();
+  // Malzeme kartları artık stok tablosunda (grup ∈ Hammadde/Yarı Mamül).
+  const rows = await db.stok.findMany({
+    where: { grup: { in: ["Hammadde", "Yarı Mamül"] } },
+    orderBy: { id: "asc" },
+  });
   return rows.map((m) => ({
     id: m.id,
     ad: m.ad,
-    grup: m.grup ?? undefined,
-    birim: m.birim,
-    stok: Number(m.stok),
-    birimFiyat: Number(m.birimFiyat),
-    tedarikci: m.tedarikci ?? undefined,
+    grup: m.altGrup ?? m.grup ?? undefined,
+    birim: m.stokBirimi,
+    stok: Number(m.stokMiktar),
+    birimFiyat: Number(m.maliyetFiyati),
+    tedarikci: m.ureticiCariId ?? undefined,
     durum: m.durum as Durum,
   }));
 }
@@ -418,10 +423,14 @@ export type DashboardOzet = {
 
 export async function getDashboardOzet(): Promise<DashboardOzet> {
   const [urunRows, siparisRows, musteriSayisi] = await Promise.all([
-    db.model.findMany(),
+    db.stok.findMany({
+      where: { grup: "Mamül" },
+      select: { stokMiktar: true },
+    }),
     db.siparis.findMany(),
     db.musteri.count(),
   ]);
+  const stokAdet = (u: { stokMiktar: unknown }) => Number(u.stokMiktar);
   return {
     toplamCiro: siparisRows
       .filter((s) => s.durum !== "İptal")
@@ -429,8 +438,8 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
     siparisSayisi: siparisRows.length,
     urunSayisi: urunRows.length,
     musteriSayisi,
-    kritikStok: urunRows.filter((u) => u.stok > 0 && u.stok <= 5).length,
-    tukenenStok: urunRows.filter((u) => u.stok === 0).length,
+    kritikStok: urunRows.filter((u) => stokAdet(u) > 0 && stokAdet(u) <= 5).length,
+    tukenenStok: urunRows.filter((u) => stokAdet(u) === 0).length,
   };
 }
 
@@ -614,12 +623,18 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     });
   }
 
-  const [rows, modeller, malzemeRows, stokRows] = await Promise.all([
+  const [rows, stokRows] = await Promise.all([
     db.tanim.findMany({ orderBy: { ad: "asc" } }),
-    db.model.findMany({ select: { marka: true, varyantlarJson: true } }),
-    db.malzeme.findMany({ select: { birim: true } }),
     db.stok.findMany({
-      select: { grup: true, marka: true, model: true, bolum: true, renkKodu: true },
+      select: {
+        grup: true,
+        marka: true,
+        model: true,
+        bolum: true,
+        renkKodu: true,
+        stokBirimi: true,
+        varyantlarJson: true,
+      },
     }),
   ]);
 
@@ -631,29 +646,23 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   const renkAdet = new Map<string, number>();
   const kumasAdet = new Map<string, number>();
   const birimAdet = new Map<string, number>();
-  for (const u of modeller) {
-    say(markaAdet, u.marka);
-    const varyantlar = parseJson<ModelVaryant[]>(u.varyantlarJson) ?? [];
-    for (const v of varyantlar) {
-      say(renkAdet, v.renk);
-      say(kumasAdet, v.kumas);
-    }
-  }
-  for (const m of malzemeRows) say(birimAdet, m.birim);
   const tipAdet = new Map<string, number>();
-  const stokMarkaAdet = new Map<string, number>();
   const modelAdet = new Map<string, number>();
   const bolumAdet = new Map<string, number>();
   const renkKoduAdet = new Map<string, number>();
   for (const s of stokRows) {
     say(tipAdet, s.grup);
-    say(stokMarkaAdet, s.marka);
+    say(markaAdet, s.marka);
     say(modelAdet, s.model);
     say(bolumAdet, s.bolum);
     say(renkKoduAdet, s.renkKodu);
+    say(birimAdet, s.stokBirimi);
+    const varyantlar = parseJson<ModelVaryant[]>(s.varyantlarJson) ?? [];
+    for (const v of varyantlar) {
+      say(renkAdet, v.renk);
+      say(kumasAdet, v.kumas);
+    }
   }
-  // Marka hem modellerde hem stok kartlarında kullanılır → topla.
-  for (const [ad, n] of stokMarkaAdet) markaAdet.set(ad, (markaAdet.get(ad) ?? 0) + n);
 
   const adetMap: Record<TanimTip, Map<string, number>> = {
     tip: tipAdet,
@@ -867,64 +876,15 @@ function mapStok(s: StokRow, miktar: number): StokKarti {
   };
 }
 
-/** Ayna tablolardan miktarlar: Hammadde/Yarı Mamül → malzeme, Mamül → model. */
+/** Stok kartı eldeki miktarları (birleşik tablo, stokMiktar özet kolonu). */
 async function stokMiktarlari(): Promise<Map<string, number>> {
-  const [malzemeler, modeller] = await Promise.all([
-    db.malzeme.findMany({ select: { id: true, stok: true } }),
-    db.model.findMany({ select: { id: true, stok: true } }),
-  ]);
+  const rows = await db.stok.findMany({ select: { id: true, stokMiktar: true } });
   const m = new Map<string, number>();
-  for (const x of malzemeler) m.set(x.id, Number(x.stok));
-  for (const x of modeller) m.set(x.id, Number(x.stok));
+  for (const x of rows) m.set(x.id, Number(x.stokMiktar));
   return m;
 }
 
-/**
- * Kartı olmayan malzeme/model kayıtlarından stok kartı üretir (idempotent).
- * Birleşik karta geçiş: eski ekranlardan eklenen kayıtlar da kart kazanır.
- */
-async function stokKartlariniTamamla(): Promise<void> {
-  const [stoklar, malzemeler, modeller] = await Promise.all([
-    db.stok.findMany({ select: { id: true } }),
-    db.malzeme.findMany(),
-    db.model.findMany(),
-  ]);
-  const mevcut = new Set(stoklar.map((s) => s.id));
-  for (const m of malzemeler) {
-    if (mevcut.has(m.id)) continue;
-    await db.stok.create({
-      data: {
-        id: m.id,
-        ad: m.ad,
-        grup: "Hammadde",
-        altGrup: m.grup ?? null,
-        stokBirimi: m.birim,
-        maliyetFiyati: m.birimFiyat,
-        durum: m.durum,
-      },
-    });
-  }
-  for (const u of modeller) {
-    if (mevcut.has(u.id)) continue;
-    await db.stok.create({
-      data: {
-        id: u.id,
-        ad: u.ad,
-        grup: "Mamül",
-        kategori: u.kategori,
-        marka: u.marka ?? null,
-        barkod: u.barkod ?? null,
-        agirlik: u.agirlik,
-        minStok: u.minStok,
-        satisFiyat1: u.fiyat,
-        durum: u.durum,
-      },
-    });
-  }
-}
-
 export async function getStoklar(): Promise<StokKarti[]> {
-  await stokKartlariniTamamla();
   const [rows, miktarlar] = await Promise.all([
     db.stok.findMany({ orderBy: { id: "asc" } }),
     stokMiktarlari(),

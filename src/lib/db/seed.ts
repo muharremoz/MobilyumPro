@@ -15,11 +15,11 @@ async function seed() {
   await db.siparis.deleteMany();
   await db.modelParca.deleteMany();
   await db.receteSatiri.deleteMany();
-  await db.model.deleteMany();
   await db.parca.deleteMany();
   await db.posetMalzeme.deleteMany();
   await db.poset.deleteMany();
-  await db.malzeme.deleteMany();
+  // Birleşme: tek fiziksel tablo — stok (malzeme/model kalktı)
+  await db.stok.deleteMany();
   await db.musteri.deleteMany();
   await db.depo.deleteMany();
   await db.cariIslem.deleteMany();

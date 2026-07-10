@@ -299,21 +299,20 @@ export async function eksikAdimlariOlustur(): Promise<{
   return { ok: true, eklenen: eksikler.length };
 }
 
-/** Malzeme ekle/güncelle (id varsa upsert). */
+/** Malzeme ekle/güncelle → stok tablosu (grup Hammadde varsayılan). */
 export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
-  const veri = {
+  const ortak = {
     ad: m.ad,
-    grup: m.grup ?? null,
-    birim: m.birim,
-    stok: m.stok,
-    birimFiyat: m.birimFiyat,
-    tedarikci: m.tedarikci ?? null,
+    altGrup: m.grup ?? null,
+    stokBirimi: m.birim,
+    maliyetFiyati: m.birimFiyat,
+    ureticiCariId: m.tedarikci ?? null,
     durum: m.durum,
   };
-  await db.malzeme.upsert({
+  await db.stok.upsert({
     where: { id: m.id },
-    create: { id: m.id, ...veri },
-    update: veri,
+    create: { id: m.id, grup: "Hammadde", stokMiktar: m.stok, ...ortak },
+    update: ortak,
   });
   revalidatePath("/stok-yonetimi");
   return { ok: true };
@@ -324,7 +323,7 @@ export async function malzemeSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.malzeme.deleteMany({ where: { id: { in: ids } } });
+    await db.stok.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     return { ok: true };
   } catch {
@@ -332,11 +331,11 @@ export async function malzemeSil(
   }
 }
 
-/** Ürün ekle/güncelle (düz alanlar + BOM/urun_parca). Yeni kayıtta URN-#### üretir. */
+/** Ürün ekle/güncelle → stok (grup Mamül) + BOM (model_parca). URN-#### üretir. */
 export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }> {
   let id = u.id;
   if (!id) {
-    const mevcut = await db.model.findMany({ select: { id: true } });
+    const mevcut = await db.stok.findMany({ select: { id: true } });
     let maxNo = 1000;
     for (const r of mevcut) {
       const m = /^URN-(\d+)$/.exec(r.id);
@@ -346,9 +345,9 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
   }
   const veri = {
     ad: u.ad,
+    grup: "Mamül",
     kategori: u.kategori,
-    fiyat: u.fiyat,
-    stok: u.stok,
+    satisFiyat1: u.fiyat,
     durum: u.durum,
     gorsel: u.gorsel ?? null,
     marka: u.marka ?? null,
@@ -359,9 +358,9 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
     varyantlarJson: u.varyantlar ? JSON.stringify(u.varyantlar) : null,
   };
   await db.$transaction(async (tx) => {
-    await tx.model.upsert({
+    await tx.stok.upsert({
       where: { id },
-      create: { id, ...veri },
+      create: { id, stokBirimi: "adet", stokMiktar: u.stok ?? 0, ...veri },
       update: veri,
     });
 
@@ -384,7 +383,7 @@ export async function modelSil(
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
   try {
-    await db.model.deleteMany({ where: { id: { in: ids } } });
+    await db.stok.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/urunler");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/");
@@ -1533,11 +1532,11 @@ export async function alisKaydet(
 
       // 2) Stok girişleri + hareketler (+ opsiyonel fiyat güncelleme)
       for (const s of satirlar) {
-        await tx.malzeme.update({
+        await tx.stok.update({
           where: { id: s.malzemeId },
           data: {
-            stok: { increment: s.miktar },
-            ...(a.fiyatGuncelle ? { birimFiyat: s.birimFiyat } : {}),
+            stokMiktar: { increment: s.miktar },
+            ...(a.fiyatGuncelle ? { maliyetFiyati: s.birimFiyat } : {}),
           },
         });
         shNo += 1;
@@ -1658,44 +1657,12 @@ export async function stokKaydet(
       satisBirim5: s.satisBirim5,
     };
 
-    await db.$transaction(async (tx) => {
-      await tx.stok.upsert({
-        where: { id },
-        create: { id, ...veri },
-        update: veri,
-      });
-
-      // Ayna senkronu — akışlar (reçete, üretim, satın alma) bozulmasın.
-      if (s.grup === "Hammadde" || s.grup === "Yarı Mamül") {
-        const ayna = {
-          ad: s.ad,
-          grup: s.altGrup ?? s.grup,
-          birim: s.stokBirimi,
-          birimFiyat: s.maliyetFiyati,
-          durum: s.durum,
-        };
-        await tx.malzeme.upsert({
-          where: { id },
-          create: { id, ...ayna, stok: 0 },
-          update: ayna,
-        });
-      } else if (s.grup === "Mamül") {
-        const ayna = {
-          ad: s.ad,
-          kategori: s.kategori ?? s.altGrup ?? s.grup,
-          fiyat: s.satisFiyat1,
-          marka: s.marka ?? null,
-          barkod: s.barkod ?? null,
-          agirlik: s.agirlik ?? null,
-          minStok: s.minStok != null ? Math.round(s.minStok) : null,
-          durum: s.durum,
-        };
-        await tx.model.upsert({
-          where: { id },
-          create: { id, ...ayna, stok: 0 },
-          update: ayna,
-        });
-      }
+    // Tek fiziksel tablo: stok. Miktar (stokMiktar) ledger'a ait; kayıt update'i
+    // create'te 0 ile başlar, güncellemede miktara dokunmaz.
+    await db.stok.upsert({
+      where: { id },
+      create: { id, ...veri, stokMiktar: 0 },
+      update: veri,
     });
 
     revalidatePath("/stok-karti");
@@ -1709,9 +1676,8 @@ export async function stokKaydet(
 }
 
 /**
- * Stok kartını siler: alt kayıtlar (üretici/müşteri/doküman) cascade,
- * ayna tablo (grup'a göre malzeme veya model) de silinir. Reçetede veya
- * üretimde kullanılan kalem FK ihlaliyle reddedilir (transaction rollback).
+ * Stok kartını siler: alt kayıtlar (üretici/müşteri/doküman) cascade gider.
+ * Reçetede, BOM'da veya üretimde kullanılan kalem FK ihlaliyle reddedilir.
  */
 export async function stokSil(
   id: string,
@@ -1719,17 +1685,10 @@ export async function stokSil(
   try {
     const stok = await db.stok.findUnique({
       where: { id },
-      select: { grup: true },
+      select: { id: true },
     });
     if (!stok) return { ok: false, error: "Kart bulunamadı." };
-    await db.$transaction(async (tx) => {
-      if (stok.grup === "Hammadde" || stok.grup === "Yarı Mamül") {
-        await tx.malzeme.deleteMany({ where: { id } });
-      } else if (stok.grup === "Mamül") {
-        await tx.model.deleteMany({ where: { id } });
-      }
-      await tx.stok.delete({ where: { id } });
-    });
+    await db.stok.delete({ where: { id } });
     revalidatePath("/stok-karti");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/urunler");
@@ -1850,55 +1809,3 @@ export async function stokDokumanSil(
   }
 }
 
-/**
- * Mevcut malzeme/model kayıtlarından stok kartı üretir (idempotent —
- * kartı olmayanlar için). Birleşik karta geçiş senkronu; pull sonrası
- * bir kez çalıştırmak yeterli (ayarlar gerektirmez).
- */
-export async function stokKartlariniSenkronla(): Promise<{
-  ok: boolean;
-  eklenen: number;
-}> {
-  const [stoklar, malzemeler, modeller] = await Promise.all([
-    db.stok.findMany({ select: { id: true } }),
-    db.malzeme.findMany(),
-    db.model.findMany(),
-  ]);
-  const var_ = new Set(stoklar.map((s) => s.id));
-  let eklenen = 0;
-  for (const m of malzemeler) {
-    if (var_.has(m.id)) continue;
-    await db.stok.create({
-      data: {
-        id: m.id,
-        ad: m.ad,
-        grup: "Hammadde",
-        altGrup: m.grup ?? null,
-        stokBirimi: m.birim,
-        maliyetFiyati: m.birimFiyat,
-        durum: m.durum,
-      },
-    });
-    eklenen++;
-  }
-  for (const u of modeller) {
-    if (var_.has(u.id)) continue;
-    await db.stok.create({
-      data: {
-        id: u.id,
-        ad: u.ad,
-        grup: "Mamül",
-        kategori: u.kategori,
-        marka: u.marka ?? null,
-        barkod: u.barkod ?? null,
-        agirlik: u.agirlik,
-        minStok: u.minStok,
-        satisFiyat1: u.fiyat,
-        durum: u.durum,
-      },
-    });
-    eklenen++;
-  }
-  if (eklenen > 0) revalidatePath("/stok-karti");
-  return { ok: true, eklenen };
-}
