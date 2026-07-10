@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { ReceteDetay } from "@/components/production/recete-detay";
 import {
+  getIstasyonlar,
   getMalzemeler,
   getModeller,
   getParcalar,
@@ -14,12 +15,14 @@ export default async function ReceteDetayRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [parcalar, malzemeler, modeller, versiyonlar] = await Promise.all([
-    getParcalar(),
-    getMalzemeler(),
-    getModeller(),
-    getReceteVersiyonlari(),
-  ]);
+  const [parcalar, malzemeler, modeller, versiyonlar, istasyonlar] =
+    await Promise.all([
+      getParcalar(),
+      getMalzemeler(),
+      getModeller(),
+      getReceteVersiyonlari(),
+      getIstasyonlar(),
+    ]);
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
 
@@ -30,6 +33,7 @@ export default async function ReceteDetayRoute({
       malzemeler={malzemeler}
       modeller={modeller}
       versiyonlar={versiyonlar[id] ?? []}
+      istasyonlar={istasyonlar}
     />
   );
 }

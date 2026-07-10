@@ -35,7 +35,7 @@ import {
   type ParcaKategori,
   type ReceteSatiri,
 } from "@/lib/data";
-import { ISTASYONLAR, ISTASYON_MAP, ROTA } from "@/lib/fabrika";
+import type { Istasyon } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
 import { parcaKaydet, receteGeriYukle } from "@/lib/db/actions";
 import { receteMaliyeti } from "@/components/production/recete-liste";
@@ -70,6 +70,7 @@ export function ReceteDetay({
   malzemeler,
   modeller,
   versiyonlar: versiyonlarProp,
+  istasyonlar = [],
 }: {
   /** null → yeni reçete oluşturma modu */
   recete: Parca | null;
@@ -77,9 +78,16 @@ export function ReceteDetay({
   malzemeler: Malzeme[];
   modeller: Model[];
   versiyonlar: ReceteVersiyonGorunum[];
+  /** Üretim istasyonları (bileşenin tüketim yeri seçimi). */
+  istasyonlar?: Istasyon[];
 }) {
   const router = useRouter();
   const yeniMi = recete === null;
+  const istasyonMap = React.useMemo(
+    () => new Map(istasyonlar.map((i) => [i.slug, i])),
+    [istasyonlar],
+  );
+  const ilkIstasyonSlug = istasyonlar[0]?.slug;
 
   const [ad, setAd] = React.useState(recete?.ad ?? "");
   const [kategori, setKategori] = React.useState<ParcaKategori>(
@@ -393,15 +401,14 @@ export function ReceteDetay({
                       </div>
                       {s.bilesen.tip === "malzeme" ? (
                         <SearchSelect
-                          items={ISTASYONLAR.map((x) => x.ad)}
+                          items={istasyonlar.map((x) => x.ad)}
                           value={
-                            ISTASYON_MAP.get(
-                              (s.istasyon ?? ROTA[0]) as (typeof ROTA)[number],
-                            )?.ad ?? null
+                            istasyonMap.get(s.istasyon ?? ilkIstasyonSlug ?? "")
+                              ?.ad ?? null
                           }
                           onValueChange={(ad) =>
                             satirGuncelle(i, {
-                              istasyon: ISTASYONLAR.find((x) => x.ad === ad)
+                              istasyon: istasyonlar.find((x) => x.ad === ad)
                                 ?.slug,
                             })
                           }
