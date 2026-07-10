@@ -1304,6 +1304,24 @@ export async function istasyonKaydet(i: {
   }
 }
 
+/** İstasyonların rota sırasını topluca günceller (sürükle-bırak). */
+export async function istasyonSiraKaydet(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.$transaction(
+      ids.map((id, i) =>
+        db.istasyon.update({ where: { id }, data: { sira: i + 1 } }),
+      ),
+    );
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("istasyonSiraKaydet:", e);
+    return { ok: false, error: "Sıralama kaydedilemedi." };
+  }
+}
+
 export async function istasyonSil(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {

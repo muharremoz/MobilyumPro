@@ -23,7 +23,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Istasyon } from "@/lib/fabrika";
-import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
+import {
+  istasyonKaydet,
+  istasyonSil,
+  istasyonSiraKaydet,
+} from "@/lib/db/actions";
 
 type Form = {
   id?: string;
@@ -49,6 +53,30 @@ export function IstasyonTanim({
   React.useEffect(() => setListe(istasyonlar), [istasyonlar]);
   const [acik, setAcik] = React.useState(false);
   const [form, setForm] = React.useState<Form>(BOS);
+  // Sürükle-bırak sıralama
+  const [surukleIdx, setSurukleIdx] = React.useState<number | null>(null);
+
+  function surukleGir(hedef: number) {
+    setSurukleIdx((kaynak) => {
+      if (kaynak === null || kaynak === hedef) return kaynak;
+      setListe((l) => {
+        const yeni = [...l];
+        const [tasinan] = yeni.splice(kaynak, 1);
+        yeni.splice(hedef, 0, tasinan);
+        return yeni;
+      });
+      return hedef;
+    });
+  }
+
+  async function surukleBirak() {
+    setSurukleIdx(null);
+    // Yeni sırayı yerelde uygula + DB'ye yaz.
+    const sirali = liste.map((i, idx) => ({ ...i, sira: idx + 1 }));
+    setListe(sirali);
+    const res = await istasyonSiraKaydet(sirali.map((i) => i.slug));
+    if (!res.ok) toast.error(res.error ?? "Sıralama kaydedilemedi.");
+  }
 
   function yeni() {
     setForm({ ...BOS, sira: liste.length + 1 });
@@ -129,29 +157,45 @@ export function IstasyonTanim({
             Henüz istasyon yok. &quot;Yeni İstasyon&quot; ile başlayın.
           </div>
         ) : (
-          <div className="divide-y">
-            {liste.map((i) => (
+          <div className="flex flex-col gap-2 p-3">
+            {liste.map((i, idx) => (
               <div
                 key={i.slug}
-                className="group flex items-center gap-3 px-3 py-2.5"
+                draggable
+                onDragStart={() => setSurukleIdx(idx)}
+                onDragEnter={() => surukleGir(idx)}
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnd={surukleBirak}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg border bg-card p-2.5 transition-shadow",
+                  surukleIdx === idx
+                    ? "opacity-60 shadow-md ring-1 ring-foreground/20"
+                    : "hover:border-foreground/15",
+                )}
               >
-                <GripVertical className="size-4 shrink-0 text-muted-foreground/40" />
-                <span className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground tabular-nums">
-                  {i.sira}
+                <span
+                  className="flex size-4 shrink-0 cursor-grab items-center justify-center text-muted-foreground/40 active:cursor-grabbing"
+                  aria-hidden
+                >
+                  <GripVertical className="size-4" />
                 </span>
                 <span
-                  className="size-4 shrink-0 rounded-full border"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white shadow-sm"
                   style={{ backgroundColor: i.renk }}
-                />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {i.ad}
+                >
+                  {i.sira}
                 </span>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-                  {i.slug}
-                </span>
-                <span className="hidden shrink-0 text-[11px] text-muted-foreground tabular-nums sm:inline">
-                  {i.konum.g}×{i.konum.d} m
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{i.ad}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="rounded bg-muted px-1 py-px font-mono">
+                      {i.slug}
+                    </span>
+                    <span className="tabular-nums">
+                      {i.konum.g}×{i.konum.d} m
+                    </span>
+                  </div>
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
