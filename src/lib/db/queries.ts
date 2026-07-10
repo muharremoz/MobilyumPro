@@ -618,7 +618,9 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     db.tanim.findMany({ orderBy: { ad: "asc" } }),
     db.model.findMany({ select: { marka: true, varyantlarJson: true } }),
     db.malzeme.findMany({ select: { birim: true } }),
-    db.stok.findMany({ select: { grup: true } }),
+    db.stok.findMany({
+      select: { grup: true, marka: true, model: true, bolum: true, renkKodu: true },
+    }),
   ]);
 
   const say = (m: Map<string, number>, k: string | null | undefined) => {
@@ -639,11 +641,26 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   }
   for (const m of malzemeRows) say(birimAdet, m.birim);
   const tipAdet = new Map<string, number>();
-  for (const s of stokRows) say(tipAdet, s.grup);
+  const stokMarkaAdet = new Map<string, number>();
+  const modelAdet = new Map<string, number>();
+  const bolumAdet = new Map<string, number>();
+  const renkKoduAdet = new Map<string, number>();
+  for (const s of stokRows) {
+    say(tipAdet, s.grup);
+    say(stokMarkaAdet, s.marka);
+    say(modelAdet, s.model);
+    say(bolumAdet, s.bolum);
+    say(renkKoduAdet, s.renkKodu);
+  }
+  // Marka hem modellerde hem stok kartlarında kullanılır → topla.
+  for (const [ad, n] of stokMarkaAdet) markaAdet.set(ad, (markaAdet.get(ad) ?? 0) + n);
 
   const adetMap: Record<TanimTip, Map<string, number>> = {
     tip: tipAdet,
     marka: markaAdet,
+    model: modelAdet,
+    bolum: bolumAdet,
+    renkKodu: renkKoduAdet,
     koleksiyon: new Map(),
     renk: renkAdet,
     kumas: kumasAdet,
@@ -657,6 +674,9 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
     tip: [],
     marka: [],
+    model: [],
+    bolum: [],
+    renkKodu: [],
     koleksiyon: [],
     renk: [],
     kumas: [],

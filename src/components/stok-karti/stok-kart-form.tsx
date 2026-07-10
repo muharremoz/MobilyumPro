@@ -79,6 +79,7 @@ import {
   type StokKarti,
   type StokMusteri,
   type StokUretici,
+  type TanimTip,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci } from "@/lib/bom";
 import {
@@ -89,7 +90,15 @@ import {
   stokMusteriSil,
   stokDokumanKaydet,
   stokDokumanSil,
+  tanimKaydet,
 } from "@/lib/db/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * Stok kartının alt kayıtları — queries.getStok(id).detay ile aynı şekil.
@@ -119,6 +128,19 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   "Yarı Mamül": "bg-violet-100 text-violet-800",
   Mamül: "bg-emerald-100 text-emerald-800",
   Hizmet: "bg-slate-100 text-slate-800",
+};
+
+/** Sınıflama'daki DB destekli comboboxlar (tanim tablosundan; "yeni ekle"). */
+type TanimAlan = "marka" | "model" | "bolum" | "renkKodu" | "birim";
+const TANIM_ALAN: Record<
+  TanimAlan,
+  { tip: TanimTip; formKey: keyof Form; etiket: string; ornek: string }
+> = {
+  marka: { tip: "marka", formKey: "marka", etiket: "Marka", ornek: "Örn. Bellona" },
+  model: { tip: "model", formKey: "model", etiket: "Model", ornek: "Örn. 2026 Serisi" },
+  bolum: { tip: "bolum", formKey: "bolum", etiket: "Bölüm", ornek: "Örn. Döşeme" },
+  renkKodu: { tip: "renkKodu", formKey: "renkKodu", etiket: "Renk Kodu", ornek: "Örn. RAL 9010" },
+  birim: { tip: "birim", formKey: "stokBirimi", etiket: "Stok Birimi", ornek: "Örn. adet" },
 };
 
 /** Üst şerit için gruba göre yumuşak gradient arka planı. */
@@ -164,6 +186,9 @@ const BOS_DETAY: StokDetay = {
 const BOS_GRUPLAR: StokGrup[] = [];
 const BOS_TIPLER: string[] = [];
 const BOS_MARKALAR: string[] = [];
+const BOS_MODELLER: string[] = [];
+const BOS_BOLUMLER: string[] = [];
+const BOS_RENK_KODLARI: string[] = [];
 const BOS_BIRIMLER: string[] = [];
 const BOS_PARCALAR: Parca[] = [];
 const BOS_MALZEMELER: Malzeme[] = [];
@@ -281,6 +306,9 @@ export function StokKartForm({
   gruplar = BOS_GRUPLAR,
   tipler = BOS_TIPLER,
   markalar = BOS_MARKALAR,
+  modeller = BOS_MODELLER,
+  bolumler = BOS_BOLUMLER,
+  renkKodlari = BOS_RENK_KODLARI,
   birimler = BOS_BIRIMLER,
   parcalar = BOS_PARCALAR,
   malzemeler = BOS_MALZEMELER,
@@ -297,6 +325,12 @@ export function StokKartForm({
   tipler?: string[];
   /** Tanımlamalar → Markalar. */
   markalar?: string[];
+  /** Tanımlamalar → Modeller. */
+  modeller?: string[];
+  /** Tanımlamalar → Bölümler. */
+  bolumler?: string[];
+  /** Tanımlamalar → Renk Kodları. */
+  renkKodlari?: string[];
   /** Tanımlamalar → Birimler (boşsa varsayılan liste). */
   birimler?: string[];
   /** Reçete havuzu (Parçalar, reçete satırlarıyla). */
@@ -503,6 +537,9 @@ export function StokKartForm({
                 gruplar={gruplar}
                 tipler={tipler}
                 markalar={markalar}
+                modeller={modeller}
+                bolumler={bolumler}
+                renkKodlari={renkKodlari}
                 birimler={birimler}
                 parcalar={parcalar}
                 tedarikciler={tedarikciler}
@@ -1215,6 +1252,9 @@ function GenelTab({
   gruplar,
   tipler,
   markalar,
+  modeller,
+  bolumler,
+  renkKodlari,
   birimler,
   parcalar,
   tedarikciler,
@@ -1226,13 +1266,58 @@ function GenelTab({
   gruplar: StokGrup[];
   tipler: string[];
   markalar: string[];
+  modeller: string[];
+  bolumler: string[];
+  renkKodlari: string[];
   birimler: string[];
   parcalar: { id: string; ad: string }[];
   tedarikciler: { id: string; ad: string }[];
 }) {
-  const birimSecenekleri =
-    birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER;
   const tipSecenekleri = tipler.length > 0 ? tipler : GRUPLAR;
+
+  // DB'den beslenen comboboxların seçenekleri — "yeni ekle" ile anında büyür.
+  const [secenekler, setSecenekler] = React.useState<Record<TanimAlan, string[]>>(
+    {
+      marka: markalar,
+      model: modeller,
+      bolum: bolumler,
+      renkKodu: renkKodlari,
+      birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
+    },
+  );
+  React.useEffect(() => {
+    setSecenekler({
+      marka: markalar,
+      model: modeller,
+      bolum: bolumler,
+      renkKodu: renkKodlari,
+      birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
+    });
+  }, [markalar, modeller, bolumler, renkKodlari, birimler]);
+
+  const [yeniAlan, setYeniAlan] = React.useState<TanimAlan | null>(null);
+  const [yeniDeger, setYeniDeger] = React.useState("");
+
+  async function yeniSecenekEkle() {
+    if (!yeniAlan) return;
+    const v = yeniDeger.trim();
+    if (!v) {
+      toast.error("Değer gerekli");
+      return;
+    }
+    const alan = yeniAlan;
+    setSecenekler((s) => ({
+      ...s,
+      [alan]: s[alan].includes(v) ? s[alan] : [...s[alan], v],
+    }));
+    set(TANIM_ALAN[alan].formKey)(v);
+    setYeniAlan(null);
+    const res = await tanimKaydet(TANIM_ALAN[alan].tip, {
+      ad: v,
+      durum: "Aktif",
+    });
+    if (!res.ok) toast.error(res.error ?? "Tanım kaydedilemedi.");
+  }
 
   const receteAd =
     parcalar.find((p) => p.id === form.receteParcaId)?.ad ?? null;
@@ -1304,10 +1389,15 @@ function GenelTab({
               </AnimatedField>
               <AnimatedField label="Stok Birimi" icon={BlocksIcon}>
                 <SearchSelect
-                  items={birimSecenekleri}
+                  items={secenekler.birim}
                   value={form.stokBirimi || null}
                   onValueChange={(v) => set("stokBirimi")(v ?? "")}
                   placeholder="Birim seç"
+                  addLabel="Yeni birim ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("birim");
+                  }}
                 />
               </AnimatedField>
             </div>
@@ -1348,44 +1438,60 @@ function GenelTab({
                   placeholder="Grup seç"
                 />
               </AnimatedField>
-              <IconInput
-                label="Kategori"
-                icon={FolderOpenIcon}
-                placeholder="Örn. Yemek Odası"
-                value={form.kategori}
-                onChange={(e) => set("kategori")(e.target.value)}
-              />
               <AnimatedField label="Marka" icon={BadgePercentIcon}>
                 <SearchSelect
-                  items={markalar}
+                  items={secenekler.marka}
                   value={form.marka || null}
                   onValueChange={(v) => set("marka")(v ?? "")}
                   placeholder="Marka seç"
+                  addLabel="Yeni marka ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("marka");
+                  }}
+                />
+              </AnimatedField>
+              <AnimatedField label="Model" icon={ScanTextIcon}>
+                <SearchSelect
+                  items={secenekler.model}
+                  value={form.model || null}
+                  onValueChange={(v) => set("model")(v ?? "")}
+                  placeholder="Model seç"
+                  addLabel="Yeni model ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("model");
+                  }}
+                />
+              </AnimatedField>
+              <AnimatedField label="Bölüm" icon={BlocksIcon}>
+                <SearchSelect
+                  items={secenekler.bolum}
+                  value={form.bolum || null}
+                  onValueChange={(v) => set("bolum")(v ?? "")}
+                  placeholder="Bölüm seç"
+                  addLabel="Yeni bölüm ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("bolum");
+                  }}
                 />
               </AnimatedField>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <IconInput
-                label="Model"
-                icon={ScanTextIcon}
-                placeholder="Örn. 2026 Serisi"
-                value={form.model}
-                onChange={(e) => set("model")(e.target.value)}
-              />
-              <IconInput
-                label="Bölüm"
-                icon={BlocksIcon}
-                placeholder="Örn. Döşeme"
-                value={form.bolum}
-                onChange={(e) => set("bolum")(e.target.value)}
-              />
-              <IconInput
-                label="Renk Kodu"
-                icon={ScanTextIcon}
-                placeholder="Örn. RAL 9010"
-                value={form.renkKodu}
-                onChange={(e) => set("renkKodu")(e.target.value)}
-              />
+              <AnimatedField label="Renk Kodu" icon={ScanTextIcon}>
+                <SearchSelect
+                  items={secenekler.renkKodu}
+                  value={form.renkKodu || null}
+                  onValueChange={(v) => set("renkKodu")(v ?? "")}
+                  placeholder="Renk kodu seç"
+                  addLabel="Yeni renk kodu ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("renkKodu");
+                  }}
+                />
+              </AnimatedField>
             </div>
           </div>
         </div>
@@ -1590,6 +1696,40 @@ function GenelTab({
           </span>
         </div>
       </div>
+
+      {/* Yeni tanım modalı (marka/model/bölüm/renk kodu/birim) */}
+      <Dialog
+        open={yeniAlan !== null}
+        onOpenChange={(o) => !o && setYeniAlan(null)}
+      >
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              Yeni {yeniAlan ? TANIM_ALAN[yeniAlan].etiket : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder={yeniAlan ? TANIM_ALAN[yeniAlan].ornek : ""}
+            value={yeniDeger}
+            onChange={(e) => setYeniDeger(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                yeniSecenekEkle();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniAlan(null)}>
+              İptal
+            </Button>
+            <Button onClick={yeniSecenekEkle} disabled={!yeniDeger.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -24,6 +24,9 @@ export default async function YeniStokKartiRoute() {
       gruplar={gruplar}
       tipler={tanimlar.tip.map((t) => t.ad)}
       markalar={tanimlar.marka.map((t) => t.ad)}
+      modeller={tanimlar.model.map((t) => t.ad)}
+      bolumler={tanimlar.bolum.map((t) => t.ad)}
+      renkKodlari={tanimlar.renkKodu.map((t) => t.ad)}
       birimler={tanimlar.birim.map((t) => t.ad)}
       parcalar={parcalar}
       malzemeler={malzemeler}

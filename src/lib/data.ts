@@ -304,6 +304,9 @@ export type Poset = {
 export type TanimTip =
   | "tip"
   | "marka"
+  | "model"
+  | "bolum"
+  | "renkKodu"
   | "koleksiyon"
   | "renk"
   | "kumas"
