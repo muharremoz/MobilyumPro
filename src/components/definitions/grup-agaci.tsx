@@ -150,7 +150,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
             <span className="size-1.5 rounded-full bg-muted-foreground/40" />
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate text-sm">{grup.ad}</span>
+        <span className="flex-1 whitespace-nowrap text-sm">{grup.ad}</span>
         {ustGrupMu && (
           <span className="shrink-0 text-xs text-muted-foreground/60 tabular-nums">
             {cocuklar.length}
@@ -260,7 +260,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
               <div
                 key={ki}
                 className={cn(
-                  "flex max-h-[28rem] w-72 shrink-0 flex-col overflow-y-auto p-1.5",
+                  "flex max-h-[28rem] w-fit min-w-60 max-w-lg shrink-0 flex-col overflow-y-auto p-1.5",
                   ki > 0 && "border-l",
                 )}
               >
