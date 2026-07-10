@@ -151,14 +151,12 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
           </span>
         )}
         <span className="flex-1 whitespace-nowrap text-sm">{grup.ad}</span>
-        {ustGrupMu && (
-          <span className="shrink-0 text-xs text-muted-foreground/60 tabular-nums">
-            {cocuklar.length}
-          </span>
-        )}
+        <span className="w-5 shrink-0 text-right text-xs text-muted-foreground/60 tabular-nums">
+          {ustGrupMu ? cocuklar.length : ""}
+        </span>
         <span
           className={cn(
-            "shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-medium",
+            "inline-flex min-w-12 shrink-0 justify-center rounded px-1.5 py-0.5 font-mono text-[11px] font-medium",
             renk.rozet,
           )}
         >
@@ -195,9 +193,11 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </span>
-        {ustGrupMu && (
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
-        )}
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          {ustGrupMu && (
+            <ChevronRight className="size-4 text-muted-foreground/50" />
+          )}
+        </span>
       </div>
     );
   }
