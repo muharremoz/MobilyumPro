@@ -683,17 +683,12 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
       ),
     });
 
-  // Gruba göre hızlı aksiyon (Hizmet'te yok).
+  // Gruba göre hızlı aksiyon (Hizmet'te yok). Hareket geçmişi artık sekmede.
   const aksiyonlar: { etiket: string; href: string }[] = [];
   if (kart.grup === "Hammadde" || kart.grup === "Yarı Mamül")
     aksiyonlar.push({ etiket: "Satın Al", href: "/satin-alma/yeni" });
   if (kart.grup === "Mamül")
     aksiyonlar.push({ etiket: "Üretim Planla", href: "/uretim/plan" });
-  if (!hizmet)
-    aksiyonlar.push({
-      etiket: "Hareketler",
-      href: "/stok-yonetimi?bolum=hareketler",
-    });
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
