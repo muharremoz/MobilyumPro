@@ -2550,7 +2550,7 @@ function DokumanlarTab({
 
         {/* Dokümanlar — shadcn orijinali: görseller dikey chip, dosyalar yatay kart */}
         {liste.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             {liste.map((d) => {
               const resim = resimMi(d.url);
               const uzanti = dosyaUzanti(d.url);
