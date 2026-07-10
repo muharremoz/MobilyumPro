@@ -217,3 +217,15 @@
 @media (prefers-reduced-motion: reduce) {
   .t-input { animation: none !important; transform: none !important; }
 }
+
+/* Kaydırma kenarlarında yumuşak solma (scroll-fade) + gizli scrollbar */
+@utility scroll-fade-y {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+@utility scroll-fade-x {
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}

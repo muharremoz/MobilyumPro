@@ -139,75 +139,68 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       <div
         onClick={() => sec(grup, kolon)}
         className={cn(
-          "group cursor-pointer rounded-lg border bg-card px-2.5 py-2 transition-colors",
+          "group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
           seciliMi
             ? "border-foreground/25 bg-accent"
-            : "hover:border-foreground/15 hover:bg-accent/40",
+            : "bg-card hover:border-foreground/15 hover:bg-accent/40",
         )}
       >
-        <div className="flex items-center gap-2">
-          {ustGrupMu ? (
-            <Folder className={cn("size-4 shrink-0", renk.ikon)} />
-          ) : (
-            <span className="flex size-4 shrink-0 items-center justify-center">
-              <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+        {ustGrupMu ? (
+          <Folder className={cn("size-4 shrink-0", renk.ikon)} />
+        ) : (
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium leading-tight">
+            {grup.ad}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex shrink-0 justify-center rounded px-1 py-px font-mono text-[10px] font-medium",
+                renk.rozet,
+              )}
+            >
+              {grup.kod}
             </span>
-          )}
-          <span className="flex-1 truncate text-sm font-medium">{grup.ad}</span>
-          <span onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="İşlemler"
-                    className="-my-1 opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => yeniGrup(grup)}>
-                  <Plus className="mr-2 size-4" /> Alt Grup Ekle
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => duzenle(grup)}>
-                  <Pencil className="mr-2 size-4" /> Düzenle
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => sil(grup)}
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {grup.kullanim ?? 0} kullanım
+            </span>
+          </div>
+        </div>
+        <span onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="İşlemler"
+                  className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
                 >
-                  <Trash2 className="mr-2 size-4" /> Sil
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </span>
-          {ustGrupMu && (
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
-          )}
-        </div>
-        {/* Kod + kullanım adedi */}
-        <div className="mt-1.5 flex items-center gap-2 pl-6">
-          <span
-            className={cn(
-              "inline-flex shrink-0 justify-center rounded px-1.5 py-0.5 font-mono text-[11px] font-medium",
-              renk.rozet,
-            )}
-          >
-            {grup.kod}
-          </span>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {grup.kullanim ?? 0} kullanım
-          </span>
-          {ustGrupMu && (
-            <span className="text-[11px] text-muted-foreground/70 tabular-nums">
-              · {cocuklar.length} alt grup
-            </span>
-          )}
-        </div>
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => yeniGrup(grup)}>
+                <Plus className="mr-2 size-4" /> Alt Grup Ekle
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => duzenle(grup)}>
+                <Pencil className="mr-2 size-4" /> Düzenle
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => sil(grup)}>
+                <Trash2 className="mr-2 size-4" /> Sil
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+        {ustGrupMu && (
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
+        )}
       </div>
     );
   }
@@ -237,16 +230,16 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
             Henüz grup yok. &quot;Yeni Grup&quot; ile başlayın.
           </div>
         ) : (
-          <div className="flex max-h-[32rem] overflow-x-auto">
+          <div className="flex max-h-[32rem] scroll-fade-x scrollbar-none overflow-x-auto">
             {kolonlar.map((kolon, ki) => (
               <div
                 key={ki}
                 className={cn(
-                  "flex max-h-[32rem] w-64 shrink-0 flex-col gap-2 overflow-y-auto p-2",
+                  "flex max-h-[32rem] w-64 shrink-0 flex-col",
                   ki > 0 && "border-l",
                 )}
               >
-                <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2 pb-1">
                   <span className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                     {kolon.ust ? kolon.ust.ad : "Kök Gruplar"}
                   </span>
@@ -260,19 +253,21 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
                     <Plus className="size-4" />
                   </Button>
                 </div>
-                {kolon.items.length > 0 ? (
-                  kolon.items.map((g) => (
-                    <GrupKarti key={g.id} grup={g} kolon={ki} />
-                  ))
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => yeniGrup(kolon.ust)}
-                    className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed py-6 text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                  >
-                    <Plus className="size-3.5" /> Alt grup ekle
-                  </button>
-                )}
+                <div className="flex flex-1 flex-col gap-1.5 scroll-fade-y scrollbar-none overflow-y-auto px-2 pb-2">
+                  {kolon.items.length > 0 ? (
+                    kolon.items.map((g) => (
+                      <GrupKarti key={g.id} grup={g} kolon={ki} />
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => yeniGrup(kolon.ust)}
+                      className="flex items-center justify-center gap-1.5 rounded-md border border-dashed py-6 text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" /> Alt grup ekle
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
