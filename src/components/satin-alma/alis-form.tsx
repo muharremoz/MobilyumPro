@@ -36,9 +36,6 @@ import { formatTL, type Doviz, type Malzeme } from "@/lib/data";
 import { alisKaydet, depoKaydet } from "@/lib/db/actions";
 
 const DOVIZ_SEMBOL: Record<Doviz, string> = { TL: "₺", USD: "$", EUR: "€" };
-function dovizSembol(d: Doviz | undefined): string {
-  return d ? (DOVIZ_SEMBOL[d] ?? "₺") : "₺";
-}
 function paraFmt(n: number, d: Doviz | undefined): string {
   // TL veya bilinmeyen/boş → ₺ biçimi.
   if (d !== "USD" && d !== "EUR") return formatTL(n);
@@ -487,9 +484,20 @@ export function AlisForm({
                           )}
                         </div>
                         <div className="relative">
-                          <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                            {dovizSembol(s.doviz)}
-                          </span>
+                          <select
+                            value={s.doviz}
+                            onChange={(e) =>
+                              satirGuncelle(i, {
+                                doviz: e.target.value as Doviz,
+                              })
+                            }
+                            aria-label="Döviz"
+                            className="absolute top-1/2 left-1 z-10 -translate-y-1/2 cursor-pointer rounded bg-muted px-1 py-0.5 text-xs font-medium text-muted-foreground outline-none"
+                          >
+                            <option value="TL">TL</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                          </select>
                           <Input
                             type="number"
                             min={0}
@@ -500,7 +508,7 @@ export function AlisForm({
                                 birimFiyat: Number(e.target.value),
                               })
                             }
-                            className="h-8 pr-5 pl-8 tabular-nums"
+                            className="h-8 pr-5 pl-12 tabular-nums"
                           />
                           {Math.abs(fark) > 0.005 && (
                             <span
