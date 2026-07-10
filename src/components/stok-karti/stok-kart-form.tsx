@@ -995,47 +995,51 @@ function GenelTab({
           <div className="flex items-center justify-between border-b px-4 py-2.5">
             <span className="text-sm font-medium">Ölçüler</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 p-4">
-            <IconInput
-              label="Puan"
-              icon={ScanTextIcon}
-              type="number"
-              placeholder="0"
-              value={form.puan}
-              onChange={(e) => set("puan")(e.target.value)}
-            />
-            <IconInput
-              label="Yükseklik (cm)"
-              icon={ScanTextIcon}
-              type="number"
-              placeholder="0"
-              value={form.yukseklik}
-              onChange={(e) => set("yukseklik")(e.target.value)}
-            />
-            <IconInput
-              label="Genişlik (cm)"
-              icon={ScanTextIcon}
-              type="number"
-              placeholder="0"
-              value={form.genislik}
-              onChange={(e) => set("genislik")(e.target.value)}
-            />
-            <IconInput
-              label="Boy (cm)"
-              icon={ScanTextIcon}
-              type="number"
-              placeholder="0"
-              value={form.boy}
-              onChange={(e) => set("boy")(e.target.value)}
-            />
-            <IconInput
-              label="Ağırlık (kg)"
-              icon={ScanTextIcon}
-              type="number"
-              placeholder="0"
-              value={form.agirlik}
-              onChange={(e) => set("agirlik")(e.target.value)}
-            />
+          <div className="grid gap-3 p-4">
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Yükseklik (cm)"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.yukseklik}
+                onChange={(e) => set("yukseklik")(e.target.value)}
+              />
+              <IconInput
+                label="Genişlik (cm)"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.genislik}
+                onChange={(e) => set("genislik")(e.target.value)}
+              />
+              <IconInput
+                label="Boy (cm)"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.boy}
+                onChange={(e) => set("boy")(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <IconInput
+                label="Ağırlık (kg)"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.agirlik}
+                onChange={(e) => set("agirlik")(e.target.value)}
+              />
+              <IconInput
+                label="Puan"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.puan}
+                onChange={(e) => set("puan")(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
