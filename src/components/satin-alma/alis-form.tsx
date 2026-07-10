@@ -339,8 +339,8 @@ export function AlisForm({
                 <div className="grid grid-cols-[1fr_170px_84px_96px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   <span>Malzeme</span>
                   <span>Firma</span>
-                  <span className="text-right">Miktar</span>
-                  <span className="text-right">Birim Fiyat</span>
+                  <span>Miktar</span>
+                  <span>Birim Fiyat</span>
                   <span className="text-right">Tutar</span>
                   <span />
                 </div>
@@ -384,7 +384,7 @@ export function AlisForm({
                           onChange={(e) =>
                             satirGuncelle(i, { miktar: Number(e.target.value) })
                           }
-                          className="h-8 text-right tabular-nums"
+                          className="h-8 tabular-nums"
                         />
                         <div className="relative">
                           <Input
@@ -397,7 +397,7 @@ export function AlisForm({
                                 birimFiyat: Number(e.target.value),
                               })
                             }
-                            className="h-8 pr-5 text-right tabular-nums"
+                            className="h-8 pr-5 tabular-nums"
                           />
                           {Math.abs(fark) > 0.005 && (
                             <span
