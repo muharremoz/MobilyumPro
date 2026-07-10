@@ -622,6 +622,12 @@ model Stok {
   barkod        String?
   aciklama      String? @db.NVarChar(Max)
   durum         String  @default("Aktif")
+  // Eldeki miktar özeti (ledger yetkili; malzeme.stok/model.stok yerine)
+  stokMiktar    Decimal  @default(0) @map("stok_miktar") @db.Decimal(14, 3)
+  // Mamul: renk/kumaş varyantları + görsel galerisi (model'den taşındı)
+  varyantlarJson String? @map("varyantlar") @db.NVarChar(Max)
+  gorsel         String? @db.NVarChar(Max)
+  gorsellerJson  String? @map("gorseller") @db.NVarChar(Max)
   createDate    DateTime @default(now()) @map("create_date")
   createUserId  String?  @map("create_user_id")
   updateDate    DateTime @updatedAt @map("update_date")
