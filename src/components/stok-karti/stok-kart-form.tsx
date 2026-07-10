@@ -1138,7 +1138,7 @@ function GenelTab({
 
         <div className="rounded-md border bg-card">
           <KartBaslik ikon={Gauge} baslik="Stok Limitleri" />
-          <div className="grid gap-3 p-4">
+          <div className="grid grid-cols-3 gap-3 p-4">
             <IconInput
               label="Min Sipariş"
               icon={BlocksIcon}
@@ -1147,24 +1147,22 @@ function GenelTab({
               value={form.minSiparis}
               onChange={(e) => set("minSiparis")(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-3">
-              <IconInput
-                label="Min Stok"
-                icon={BlocksIcon}
-                type="number"
-                placeholder="0"
-                value={form.minStok}
-                onChange={(e) => set("minStok")(e.target.value)}
-              />
-              <IconInput
-                label="Max Stok"
-                icon={BlocksIcon}
-                type="number"
-                placeholder="0"
-                value={form.maxStok}
-                onChange={(e) => set("maxStok")(e.target.value)}
-              />
-            </div>
+            <IconInput
+              label="Min Stok"
+              icon={BlocksIcon}
+              type="number"
+              placeholder="0"
+              value={form.minStok}
+              onChange={(e) => set("minStok")(e.target.value)}
+            />
+            <IconInput
+              label="Max Stok"
+              icon={BlocksIcon}
+              type="number"
+              placeholder="0"
+              value={form.maxStok}
+              onChange={(e) => set("maxStok")(e.target.value)}
+            />
           </div>
         </div>
 
