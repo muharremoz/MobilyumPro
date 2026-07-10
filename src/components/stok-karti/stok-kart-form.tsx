@@ -1480,12 +1480,7 @@ function GenelTab({
                   items={secenekler.bolum}
                   value={form.bolum || null}
                   onValueChange={(v) => set("bolum")(v ?? "")}
-                  placeholder="Bölüm seç"
-                  addLabel="Yeni bölüm ekle"
-                  onAdd={() => {
-                    setYeniDeger("");
-                    setYeniAlan("bolum");
-                  }}
+                  placeholder="İstasyon seç"
                 />
               </AnimatedField>
               <AnimatedField label="Renk Kodu" icon={ScanTextIcon}>

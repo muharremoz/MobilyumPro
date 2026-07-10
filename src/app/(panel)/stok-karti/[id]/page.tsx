@@ -4,6 +4,7 @@ import { StokKartForm } from "@/components/stok-karti/stok-kart-form";
 import {
   getCariler,
   getGruplar,
+  getIstasyonlar,
   getMalzemeler,
   getParcalar,
   getStok,
@@ -18,7 +19,7 @@ export default async function StokKartiDuzenleRoute({
   const { id } = await params;
   // "yeni" zaten ayrı route — buraya düşmemesi gerek ama emniyet için.
   if (id === "yeni") notFound();
-  const [stok, gruplar, tanimlar, parcalar, cariler, malzemeler] =
+  const [stok, gruplar, tanimlar, parcalar, cariler, malzemeler, istasyonlar] =
     await Promise.all([
       getStok(id),
       getGruplar(),
@@ -26,6 +27,7 @@ export default async function StokKartiDuzenleRoute({
       getParcalar(),
       getCariler(),
       getMalzemeler(),
+      getIstasyonlar(),
     ]);
   if (!stok) notFound();
   return (
@@ -36,7 +38,7 @@ export default async function StokKartiDuzenleRoute({
       tipler={tanimlar.tip.map((t) => t.ad)}
       markalar={tanimlar.marka.map((t) => t.ad)}
       modeller={tanimlar.model.map((t) => t.ad)}
-      bolumler={tanimlar.bolum.map((t) => t.ad)}
+      bolumler={istasyonlar.map((i) => i.ad)}
       renkKodlari={tanimlar.renkKodu.map((t) => t.ad)}
       birimler={tanimlar.birim.map((t) => t.ad)}
       parcalar={parcalar}
