@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { NestedCard } from "@/components/ui/nested-card";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { TabIcerik } from "@/components/ui/tab-icerik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -407,52 +408,54 @@ export function StokKartForm({
         )}
       </div>
 
-      {(tab === "genel" || tab === "fiyat") && (
-        <>
-          {tab === "genel" && (
-            <GenelTab
-              form={form}
-              setForm={setForm}
-              set={set}
-              durumRef={durumRef}
-              gruplar={gruplar}
-              markalar={markalar}
-              birimler={birimler}
-              parcalar={parcalar}
-              tedarikciler={tedarikciler}
-            />
-          )}
-          {tab === "fiyat" && <FiyatTab form={form} setForm={setForm} set={set} />}
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/stok-karti" />}
-            >
-              İptal
-            </Button>
-            <Button onClick={kaydet}>Kaydet</Button>
-          </div>
-        </>
-      )}
+      <TabIcerik tabKey={tab}>
+        {(tab === "genel" || tab === "fiyat") && (
+          <>
+            {tab === "genel" && (
+              <GenelTab
+                form={form}
+                setForm={setForm}
+                set={set}
+                durumRef={durumRef}
+                gruplar={gruplar}
+                markalar={markalar}
+                birimler={birimler}
+                parcalar={parcalar}
+                tedarikciler={tedarikciler}
+              />
+            )}
+            {tab === "fiyat" && <FiyatTab form={form} setForm={setForm} set={set} />}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/stok-karti" />}
+              >
+                İptal
+              </Button>
+              <Button onClick={kaydet}>Kaydet</Button>
+            </div>
+          </>
+        )}
 
-      {duzenleme && kart && tab === "uretici" && (
-        <UreticiTab
-          stokId={kart.id}
-          kayitlar={detay.ureticiler}
-          tedarikciler={tedarikciler}
-        />
-      )}
-      {duzenleme && kart && tab === "musteriler" && (
-        <MusterilerTab
-          stokId={kart.id}
-          kayitlar={detay.musteriler}
-          musteriCariler={musteriCariler}
-        />
-      )}
-      {duzenleme && kart && tab === "dokumanlar" && (
-        <DokumanlarTab stokId={kart.id} kayitlar={detay.dokumanlar} />
-      )}
+        {duzenleme && kart && tab === "uretici" && (
+          <UreticiTab
+            stokId={kart.id}
+            kayitlar={detay.ureticiler}
+            tedarikciler={tedarikciler}
+          />
+        )}
+        {duzenleme && kart && tab === "musteriler" && (
+          <MusterilerTab
+            stokId={kart.id}
+            kayitlar={detay.musteriler}
+            musteriCariler={musteriCariler}
+          />
+        )}
+        {duzenleme && kart && tab === "dokumanlar" && (
+          <DokumanlarTab stokId={kart.id} kayitlar={detay.dokumanlar} />
+        )}
+      </TabIcerik>
     </div>
   );
 }

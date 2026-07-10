@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { TabIcerik } from "@/components/ui/tab-icerik";
 import { ListHeader } from "@/components/ui/list-header";
 import {
   useKolonAyarlari,
@@ -599,6 +600,7 @@ function PartSheet({
         </div>
 
         <div className="flex-1 overflow-auto p-3.5">
+          <TabIcerik tabKey={tab}>
           {tab === "bilgi" && (
             <div className="grid gap-2.5">
               <IconInput
@@ -693,6 +695,7 @@ function PartSheet({
               onMiktar={satirMiktar}
             />
           )}
+          </TabIcerik>
         </div>
       </div>
     </FormSheet>

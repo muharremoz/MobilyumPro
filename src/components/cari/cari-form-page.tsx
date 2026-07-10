@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { NestedCard } from "@/components/ui/nested-card";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { TabIcerik } from "@/components/ui/tab-icerik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
@@ -512,67 +513,69 @@ export function CariFormPage({
         </div>
       )}
 
-      {duzenleme && tab === "islemler" && (
-        <IslemlerTab
-          paraBirimi={paraBirimi}
-          onPara={onPara}
-          islemler={islemlerWithBakiye}
-          onEkle={islemEkle}
-        />
-      )}
+      <TabIcerik tabKey={tab}>
+        {duzenleme && tab === "islemler" && (
+          <IslemlerTab
+            paraBirimi={paraBirimi}
+            onPara={onPara}
+            islemler={islemlerWithBakiye}
+            onEkle={islemEkle}
+          />
+        )}
 
-      {(tab === "genel" || !duzenleme) && (
-        <>
-          <GenelTab
-            form={form}
-            setForm={setForm}
-            set={set}
-            kurumsal={kurumsal}
-            duzenleme={duzenleme}
-            kullanicilar={kullanicilar}
-            durumRef={durumRef}
+        {(tab === "genel" || !duzenleme) && (
+          <>
+            <GenelTab
+              form={form}
+              setForm={setForm}
+              set={set}
+              kurumsal={kurumsal}
+              duzenleme={duzenleme}
+              kullanicilar={kullanicilar}
+              durumRef={durumRef}
+              adresSecenekleri={adresSecenekleri}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/cari" />}
+              >
+                İptal
+              </Button>
+              <Button onClick={kaydet}>Kaydet</Button>
+            </div>
+          </>
+        )}
+
+        {duzenleme && cari && tab === "banka" && (
+          <BankaTab cariId={cari.id} kayitlar={detay.bankalar} />
+        )}
+        {duzenleme && cari && tab === "subeler" && (
+          <SubelerTab
+            cariId={cari.id}
+            kayitlar={detay.subeler}
             adresSecenekleri={adresSecenekleri}
           />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/cari" />}
-            >
-              İptal
-            </Button>
-            <Button onClick={kaydet}>Kaydet</Button>
-          </div>
-        </>
-      )}
-
-      {duzenleme && cari && tab === "banka" && (
-        <BankaTab cariId={cari.id} kayitlar={detay.bankalar} />
-      )}
-      {duzenleme && cari && tab === "subeler" && (
-        <SubelerTab
-          cariId={cari.id}
-          kayitlar={detay.subeler}
-          adresSecenekleri={adresSecenekleri}
-        />
-      )}
-      {duzenleme && cari && tab === "yetkililer" && (
-        <YetkililerTab
-          cariId={cari.id}
-          kayitlar={detay.yetkililer}
-          subeler={detay.subeler.map((s) => s.subeAdi)}
-        />
-      )}
-      {duzenleme && cari && tab === "crm" && (
-        <CrmTab
-          cariId={cari.id}
-          kayitlar={detay.crmKayitlari}
-          kullanicilar={kullanicilar}
-        />
-      )}
-      {duzenleme && cari && tab === "dokumanlar" && (
-        <DokumanlarTab cariId={cari.id} kayitlar={detay.dokumanlar} />
-      )}
+        )}
+        {duzenleme && cari && tab === "yetkililer" && (
+          <YetkililerTab
+            cariId={cari.id}
+            kayitlar={detay.yetkililer}
+            subeler={detay.subeler.map((s) => s.subeAdi)}
+          />
+        )}
+        {duzenleme && cari && tab === "crm" && (
+          <CrmTab
+            cariId={cari.id}
+            kayitlar={detay.crmKayitlari}
+            kullanicilar={kullanicilar}
+          />
+        )}
+        {duzenleme && cari && tab === "dokumanlar" && (
+          <DokumanlarTab cariId={cari.id} kayitlar={detay.dokumanlar} />
+        )}
+      </TabIcerik>
     </div>
   );
 }

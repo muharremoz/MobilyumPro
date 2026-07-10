@@ -17,6 +17,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { StripedPattern } from "@/components/magicui/striped-pattern";
+import { TabIcerik } from "@/components/ui/tab-icerik";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -206,18 +207,20 @@ export function ProductDetailPage({
         ))}
       </div>
 
-      {tab === "genel" && <GenelTab product={product} />}
-      {tab === "detay" && <DetayTab product={product} />}
-      {tab === "entegrasyon" && <EntegrasyonTab product={product} />}
-      {tab === "agac" && (
-        <UrunAgaciTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
-      )}
-      {tab === "resimler" && <ResimlerTab product={product} />}
-      {tab === "kullanim" && <KullanimTab product={product} parcalar={parcalar} />}
-      {tab === "analiz" && <StokAnalizTab product={product} hareketler={hareketler} />}
-      {tab === "varyant" && (
-        <VaryantMaliyetTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
-      )}
+      <TabIcerik tabKey={tab}>
+        {tab === "genel" && <GenelTab product={product} />}
+        {tab === "detay" && <DetayTab product={product} />}
+        {tab === "entegrasyon" && <EntegrasyonTab product={product} />}
+        {tab === "agac" && (
+          <UrunAgaciTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
+        )}
+        {tab === "resimler" && <ResimlerTab product={product} />}
+        {tab === "kullanim" && <KullanimTab product={product} parcalar={parcalar} />}
+        {tab === "analiz" && <StokAnalizTab product={product} hareketler={hareketler} />}
+        {tab === "varyant" && (
+          <VaryantMaliyetTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
+        )}
+      </TabIcerik>
     </div>
   );
 }

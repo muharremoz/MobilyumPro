@@ -7,6 +7,7 @@ import { Plus, Trash2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { TabIcerik } from "@/components/ui/tab-icerik";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -790,24 +791,26 @@ export function Yetkilendirme({
       </div>
 
       {/* İçerik */}
-      {sekme === "kullanici" && (
-        <KullaniciSekmesi
-          kullanicilar={kullanicilar}
-          roller={roller}
-          rolYetkileri={rolYetkileri}
-          kullaniciYetkileri={kullaniciYetkileri}
-          setler={setler}
-        />
-      )}
-      {sekme === "set" && <SetSekmesi setler={setler} />}
-      {sekme === "cari" && (
-        <CariErisimSekmesi
-          kullanicilar={kullanicilar}
-          roller={roller}
-          cariler={cariler}
-          yetkiler={cariYetkileri}
-        />
-      )}
+      <TabIcerik tabKey={sekme}>
+        {sekme === "kullanici" && (
+          <KullaniciSekmesi
+            kullanicilar={kullanicilar}
+            roller={roller}
+            rolYetkileri={rolYetkileri}
+            kullaniciYetkileri={kullaniciYetkileri}
+            setler={setler}
+          />
+        )}
+        {sekme === "set" && <SetSekmesi setler={setler} />}
+        {sekme === "cari" && (
+          <CariErisimSekmesi
+            kullanicilar={kullanicilar}
+            roller={roller}
+            cariler={cariler}
+            yetkiler={cariYetkileri}
+          />
+        )}
+      </TabIcerik>
     </div>
   );
 }
