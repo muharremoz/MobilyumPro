@@ -865,6 +865,41 @@ export async function getAlis(id: string): Promise<Alis | null> {
   return row ? mapAlis(row) : null;
 }
 
+/**
+ * (malzeme, cari) → o tedarikçiden en son alınan birim fiyat.
+ * Yeni Alış formunda satır firması seçilince "son fiyat" bundan gelir.
+ */
+export async function getSonAlisFiyatlari(): Promise<
+  { malzemeId: string; cariId: string; fiyat: number }[]
+> {
+  const rows = await db.alisSatiri.findMany({
+    select: {
+      malzemeId: true,
+      cariId: true,
+      birimFiyat: true,
+      alis: { select: { tarih: true, id: true } },
+    },
+  });
+  // En yeni: önce tarih, eşitse ALS-#### kodu (büyük = yeni).
+  const enYeni = new Map<
+    string,
+    { t: number; kod: string; fiyat: number }
+  >();
+  for (const r of rows) {
+    if (!r.cariId) continue;
+    const key = `${r.malzemeId}:${r.cariId}`;
+    const t = r.alis.tarih.getTime();
+    const cur = enYeni.get(key);
+    if (!cur || t > cur.t || (t === cur.t && r.alis.id > cur.kod)) {
+      enYeni.set(key, { t, kod: r.alis.id, fiyat: Number(r.birimFiyat) });
+    }
+  }
+  return [...enYeni.entries()].map(([key, v]) => {
+    const [malzemeId, cariId] = key.split(":");
+    return { malzemeId, cariId, fiyat: v.fiyat };
+  });
+}
+
 // ── Stok kartları ───────────────────────────────────────────────────────
 
 type StokRow = Awaited<ReturnType<typeof db.stok.findMany>>[number];

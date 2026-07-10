@@ -62,10 +62,13 @@ export function AlisForm({
   tedarikciler,
   malzemeler,
   depolar,
+  sonFiyatlar = [],
 }: {
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
   depolar: string[];
+  /** (malzeme, cari) → o tedarikçiden son alınan birim fiyat. */
+  sonFiyatlar?: { malzemeId: string; cariId: string; fiyat: number }[];
 }) {
   const router = useRouter();
 
@@ -96,6 +99,18 @@ export function AlisForm({
     () => new Map(tedarikciler.map((t) => [t.ad, t])),
     [tedarikciler],
   );
+  // (malzeme, cari) → son alınan fiyat.
+  const sonFiyatMap = React.useMemo(
+    () =>
+      new Map(sonFiyatlar.map((s) => [`${s.malzemeId}:${s.cariId}`, s.fiyat])),
+    [sonFiyatlar],
+  );
+  /** Firmaya göre son alış fiyatı; yoksa malzemenin genel fiyatı. */
+  const firmaSonFiyat = React.useCallback(
+    (malzemeId: string, cariId: string, genel: number) =>
+      (cariId && sonFiyatMap.get(`${malzemeId}:${cariId}`)) || genel,
+    [sonFiyatMap],
+  );
 
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
@@ -122,6 +137,7 @@ export function AlisForm({
     // Varsayılan firma: malzemenin üretici carisi (varsa ve tedarikçilerde).
     const varsayilan =
       m.tedarikci && cariMap.has(m.tedarikci) ? m.tedarikci : "";
+    const fiyat = firmaSonFiyat(m.id, varsayilan, m.birimFiyat);
     setSatirlar((s) => [
       ...s,
       {
@@ -129,11 +145,24 @@ export function AlisForm({
         cariId: varsayilan,
         miktar: 1,
         birim: m.birim,
-        birimFiyat: m.birimFiyat,
-        sonFiyat: m.birimFiyat,
+        birimFiyat: fiyat,
+        sonFiyat: fiyat,
         mevcutStok: m.stok,
       },
     ]);
+  }
+
+  /** Satır firması değişince o firmadan son fiyatı uygula. */
+  function firmaSec(i: number, cariId: string) {
+    setSatirlar((prev) => {
+      const n = [...prev];
+      const s = n[i];
+      const m = malzemeMap.get(s.malzemeId);
+      const genel = m?.birimFiyat ?? s.sonFiyat;
+      const fiyat = firmaSonFiyat(s.malzemeId, cariId, genel);
+      n[i] = { ...s, cariId, sonFiyat: fiyat, birimFiyat: fiyat };
+      return n;
+    });
   }
   function satirGuncelle(i: number, degisim: Partial<Satir>) {
     setSatirlar((s) => {
@@ -298,9 +327,7 @@ export function AlisForm({
                           items={tedarikciler.map((t) => t.ad)}
                           value={cariMap.get(s.cariId)?.ad ?? null}
                           onValueChange={(ad) =>
-                            satirGuncelle(i, {
-                              cariId: ad ? (cariAdMap.get(ad)?.id ?? "") : "",
-                            })
+                            firmaSec(i, ad ? (cariAdMap.get(ad)?.id ?? "") : "")
                           }
                           placeholder="Firma seç"
                           emptyText="Tedarikçi yok"
