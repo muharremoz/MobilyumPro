@@ -23,6 +23,7 @@ import {
   Activity,
   Warehouse,
   Layers,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -2293,6 +2294,7 @@ function DokumanlarTab({
   React.useEffect(() => setListe(kayitlar), [kayitlar]);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokDokuman | null>(null);
+  const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
 
   // Görsel tipli/uzantılılar önizleme grid'inde, diğerleri satır listesinde.
   const resimler = liste.filter((d) => resimMi(d.url));
@@ -2381,14 +2383,19 @@ function DokumanlarTab({
                 key={d.id}
                 className="group relative overflow-hidden rounded-md border bg-muted/20"
               >
-                <a href={d.url} target="_blank" rel="noreferrer">
+                <button
+                  type="button"
+                  onClick={() => setBuyuk(d)}
+                  className="block w-full cursor-zoom-in"
+                  aria-label={`${d.ad} — büyüt`}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={d.url}
                     alt={d.ad}
-                    className="aspect-square w-full object-cover"
+                    className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-105"
                   />
-                </a>
+                </button>
                 <Badge
                   variant="secondary"
                   className={cn(
@@ -2456,7 +2463,55 @@ function DokumanlarTab({
           </div>
         )}
       </div>
+
+      {buyuk && (
+        <ResimLightbox kayit={buyuk} onKapat={() => setBuyuk(null)} />
+      )}
     </AltListeKart>
+  );
+}
+
+/** Görseli tam ekran karartılmış katmanda büyütür; tıkla/ESC ile kapanır. */
+function ResimLightbox({
+  kayit,
+  onKapat,
+}: {
+  kayit: StokDokuman;
+  onKapat: () => void;
+}) {
+  React.useEffect(() => {
+    const el = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onKapat();
+    };
+    document.addEventListener("keydown", el);
+    return () => document.removeEventListener("keydown", el);
+  }, [onKapat]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={kayit.ad}
+      onClick={onKapat}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 backdrop-blur-sm animate-in fade-in duration-150"
+    >
+      <button
+        type="button"
+        onClick={onKapat}
+        aria-label="Kapat"
+        className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+      >
+        <X className="size-5" />
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={kayit.url}
+        alt={kayit.ad}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[85vh] max-w-[90vw] cursor-default rounded-lg object-contain shadow-2xl"
+      />
+      <span className="text-sm font-medium text-white/90">{kayit.ad}</span>
+    </div>
   );
 }
 
