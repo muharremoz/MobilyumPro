@@ -19,6 +19,7 @@ import {
   Gauge,
   Landmark,
   Tag,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,6 +69,7 @@ import {
   type StokGrup,
   type StokGrubu,
   type StokHareket,
+  type StokHareketTuru,
   type StokKarti,
   type StokMusteri,
   type StokUretici,
@@ -90,6 +92,7 @@ export type StokDetay = {
   ureticiler: StokUretici[];
   musteriler: StokMusteri[];
   dokumanlar: StokDokuman[];
+  hareketler: StokHareket[];
   sonHareket?: StokHareket;
 };
 
@@ -137,7 +140,12 @@ const DOKUMAN_TIP_RENK: Record<StokDokumanTipi, string> = {
 // Varsayılan prop'lar MODÜL sabiti olmalı: inline `= []` / `?? []` her
 // render'da yeni referans üretir ve [prop] bağımlı useEffect'leri sonsuz
 // döngüye sokar.
-const BOS_DETAY: StokDetay = { ureticiler: [], musteriler: [], dokumanlar: [] };
+const BOS_DETAY: StokDetay = {
+  ureticiler: [],
+  musteriler: [],
+  dokumanlar: [],
+  hareketler: [],
+};
 const BOS_GRUPLAR: StokGrup[] = [];
 const BOS_MARKALAR: string[] = [];
 const BOS_BIRIMLER: string[] = [];
@@ -239,7 +247,13 @@ function s(n: number | undefined): string {
   return n != null && n !== 0 ? String(n) : "";
 }
 
-type Tab = "genel" | "fiyat" | "uretici" | "musteriler" | "dokumanlar";
+type Tab =
+  | "genel"
+  | "fiyat"
+  | "uretici"
+  | "musteriler"
+  | "hareketler"
+  | "dokumanlar";
 
 export function StokKartForm({
   kart,
@@ -421,6 +435,14 @@ export function StokKartForm({
             >
               Müşteriler
             </TabBtn>
+            {kart?.grup !== "Hizmet" && (
+              <TabBtn
+                aktif={tab === "hareketler"}
+                onClick={() => setTab("hareketler")}
+              >
+                Stok Hareketleri
+              </TabBtn>
+            )}
             <TabBtn
               aktif={tab === "dokumanlar"}
               onClick={() => setTab("dokumanlar")}
@@ -475,6 +497,9 @@ export function StokKartForm({
             musteriCariler={musteriCariler}
           />
         )}
+        {duzenleme && kart && tab === "hareketler" && (
+          <HareketlerTab hareketler={detay.hareketler} birim={kart.stokBirimi} />
+        )}
         {duzenleme && kart && tab === "dokumanlar" && (
           <DokumanlarTab stokId={kart.id} kayitlar={detay.dokumanlar} />
         )}
@@ -496,6 +521,94 @@ function TabBtn({
     <SekmeButonu aktif={aktif} onClick={onClick} layoutId="stokTabCizgi">
       {children}
     </SekmeButonu>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* STOK HAREKETLERİ SEKMESİ                                           */
+/* ------------------------------------------------------------------ */
+const HAREKET_RENK: Record<StokHareketTuru, string> = {
+  Giriş: "bg-emerald-100 text-emerald-800",
+  Çıkış: "bg-rose-100 text-rose-800",
+  Transfer: "bg-blue-100 text-blue-800",
+};
+
+/** Bu kartın stok hareketleri (salt okunur; ledger'dan). */
+function HareketlerTab({
+  hareketler,
+  birim,
+}: {
+  hareketler: StokHareket[];
+  birim: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border bg-card">
+      <KartBaslik
+        ikon={History}
+        baslik="Stok Hareketleri"
+        sag={
+          <span className="text-xs text-muted-foreground">
+            {hareketler.length} hareket
+          </span>
+        }
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Tarih</TableHead>
+            <TableHead>Tür</TableHead>
+            <TableHead className="text-right">Miktar</TableHead>
+            <TableHead>Depo</TableHead>
+            <TableHead>Açıklama</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {hareketler.map((h) => {
+            const isaret =
+              h.tur === "Giriş" ? "+" : h.tur === "Çıkış" ? "−" : "";
+            return (
+              <TableRow key={h.id}>
+                <TableCell className="whitespace-nowrap text-muted-foreground">
+                  {formatTarih(h.tarih)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className={HAREKET_RENK[h.tur]}>
+                    {h.tur}
+                  </Badge>
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    h.tur === "Giriş" && "text-emerald-600",
+                    h.tur === "Çıkış" && "text-rose-600",
+                  )}
+                >
+                  {isaret}
+                  {h.miktar.toLocaleString("tr-TR")}{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {h.birim || birim}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{h.depo}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {h.aciklama}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {hareketler.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="h-24 text-center text-muted-foreground"
+              >
+                Bu kart için stok hareketi yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 

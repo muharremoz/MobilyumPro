@@ -21,6 +21,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { ListHeader } from "@/components/ui/list-header";
 import {
   useKolonAyarlari,
@@ -590,7 +591,7 @@ function PartSheet({
     >
       <div className="flex h-full flex-col">
         {/* Sekme bar */}
-        <div className="flex gap-1 border-b px-3 pt-2">
+        <div className="relative -mb-px flex gap-1 border-b px-3 pt-2">
           <TabBtn aktif={tab === "bilgi"} onClick={() => setTab("bilgi")}>
             Bilgi
           </TabBtn>
@@ -712,18 +713,9 @@ function TabBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "cursor-pointer rounded-t-md border-b-2 px-3 py-2 text-sm transition-colors",
-        aktif
-          ? "border-foreground font-medium text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
-      )}
-    >
+    <SekmeButonu aktif={aktif} onClick={onClick} layoutId="parcaTabCizgi">
       {children}
-    </button>
+    </SekmeButonu>
   );
 }
 

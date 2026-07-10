@@ -894,6 +894,8 @@ export type StokKartiDetay = {
   ureticiler: StokUretici[];
   musteriler: StokMusteri[];
   dokumanlar: StokDokuman[];
+  /** Bu karta ait tüm stok hareketleri (yeni → eski). */
+  hareketler: StokHareket[];
   /** Bu karta ait en son stok hareketi (varsa). */
   sonHareket?: StokHareket;
 };
@@ -901,37 +903,37 @@ export type StokKartiDetay = {
 export async function getStok(
   id: string,
 ): Promise<{ kart: StokKarti; detay: StokKartiDetay } | null> {
-  const [row, miktarlar, ureticiler, musteriler, dokumanlar, sonHareketRow] =
+  const [row, miktarlar, ureticiler, musteriler, dokumanlar, hareketRows] =
     await Promise.all([
       db.stok.findUnique({ where: { id } }),
       stokMiktarlari(),
       db.stokUretici.findMany({ where: { stokId: id } }),
       db.stokMusteri.findMany({ where: { stokId: id } }),
       db.stokDokuman.findMany({ where: { stokId: id } }),
-      db.stokHareket.findFirst({
+      db.stokHareket.findMany({
         where: { refId: id },
         orderBy: [{ tarih: "desc" }, { id: "desc" }],
       }),
     ]);
   if (!row) return null;
+  const hareketler: StokHareket[] = hareketRows.map((h) => ({
+    id: h.id,
+    tarih: tarihStr(h.tarih),
+    tur: h.tur as StokHareketTuru,
+    ref:
+      h.refTip === "model"
+        ? ({ tip: "model", id: h.refId } as const)
+        : ({ tip: "malzeme", id: h.refId } as const),
+    miktar: Number(h.miktar),
+    birim: h.birim,
+    depo: h.depo,
+    aciklama: h.aciklama,
+  }));
   return {
     kart: mapStok(row, miktarlar.get(id) ?? 0),
     detay: {
-      sonHareket: sonHareketRow
-        ? {
-            id: sonHareketRow.id,
-            tarih: tarihStr(sonHareketRow.tarih),
-            tur: sonHareketRow.tur as StokHareketTuru,
-            ref:
-              sonHareketRow.refTip === "model"
-                ? ({ tip: "model", id: sonHareketRow.refId } as const)
-                : ({ tip: "malzeme", id: sonHareketRow.refId } as const),
-            miktar: Number(sonHareketRow.miktar),
-            birim: sonHareketRow.birim,
-            depo: sonHareketRow.depo,
-            aciklama: sonHareketRow.aciklama,
-          }
-        : undefined,
+      hareketler,
+      sonHareket: hareketler[0],
       ureticiler: ureticiler.map((u) => ({
         id: u.id,
         stokId: u.stokId,
