@@ -68,9 +68,20 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     [liste],
   );
 
-  /** Bir kolondaki grubu seç → o kolona kadar yolu koru, seçileni ekle. */
-  function sec(g: StokGrup, kolon: number) {
-    setYolIds((prev) => [...prev.slice(0, kolon), g.id]);
+  /** Kök → grup atalarının id yolu (kendisi dahil). */
+  function ataYolu(id: string): string[] {
+    const ids: string[] = [];
+    let cur: StokGrup | undefined = byId.get(id);
+    while (cur) {
+      ids.unshift(cur.id);
+      cur = cur.ustId ? byId.get(cur.ustId) : undefined;
+    }
+    return ids;
+  }
+
+  /** Bir gruba gir (panoyu o grubun alt gruplarına indir). */
+  function gir(g: StokGrup) {
+    setYolIds(ataYolu(g.id));
   }
 
   function yeniGrup(ust: StokGrup | null) {
@@ -130,17 +141,16 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     toast.success("Grup eklendi");
   }
 
-  function KolonSatiri({ grup, kolon }: { grup: StokGrup; kolon: number }) {
+  function KartSatiri({ grup }: { grup: StokGrup }) {
     const cocuklar = altlar.get(grup.id) ?? [];
     const ustGrupMu = cocuklar.length > 0;
-    const seciliMi = yolIds[kolon] === grup.id;
     const renk = kodRenk(grup.kod);
     return (
       <div
-        onClick={() => sec(grup, kolon)}
+        onClick={() => ustGrupMu && gir(grup)}
         className={cn(
-          "group flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 transition-colors",
-          seciliMi ? "bg-accent" : "hover:bg-accent/50",
+          "group flex min-h-8 items-center gap-2 rounded-md px-2 transition-colors",
+          ustGrupMu && "cursor-pointer hover:bg-accent/50",
         )}
       >
         {ustGrupMu ? (
@@ -202,16 +212,11 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     );
   }
 
-  // Görünen sütunlar: kök + seçili yoldaki her grubun çocukları.
-  const kokler = altlar.get(null) ?? [];
-  const kolonlar: { ust: StokGrup | null; items: StokGrup[] }[] = [
-    { ust: null, items: kokler },
-  ];
-  for (const id of yolIds) {
-    const g = byId.get(id);
-    if (!g) break;
-    kolonlar.push({ ust: g, items: altlar.get(id) ?? [] });
-  }
+  // Panoda gösterilecek kartlar = mevcut seviyenin grupları (kök ya da girilen
+  // grubun alt grupları); her kartın gövdesi kendi alt gruplarını listeler.
+  const mevcutUstId = yolIds.length ? yolIds[yolIds.length - 1] : null;
+  const kartlar = altlar.get(mevcutUstId) ?? [];
+  const mevcutUst = (mevcutUstId ? byId.get(mevcutUstId) : null) ?? null;
   const breadcrumb = yolIds
     .map((id) => byId.get(id)?.ad)
     .filter(Boolean) as string[];
@@ -221,74 +226,110 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Gruplar">
           <KodBilgisi />
-          <Button size="sm" onClick={() => yeniGrup(null)}>
-            <Plus className="size-4" /> Yeni Grup
+          <Button size="sm" onClick={() => yeniGrup(mevcutUst)}>
+            <Plus className="size-4" />{" "}
+            {mevcutUst ? "Alt Grup" : "Yeni Grup"}
           </Button>
         </ListHeader>
 
-        {breadcrumb.length > 0 && (
-          <div className="flex items-center gap-1 overflow-x-auto border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
-            <button
-              type="button"
-              onClick={() => setYolIds([])}
-              className="shrink-0 hover:text-foreground"
-            >
-              Kök
-            </button>
-            {breadcrumb.map((ad, i) => (
-              <React.Fragment key={i}>
-                <ChevronRight className="size-3 shrink-0 opacity-60" />
-                <button
-                  type="button"
-                  onClick={() => setYolIds((p) => p.slice(0, i + 1))}
-                  className="shrink-0 whitespace-nowrap hover:text-foreground"
-                >
-                  {ad}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-1 overflow-x-auto border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setYolIds([])}
+            className="shrink-0 hover:text-foreground"
+          >
+            Kök Gruplar
+          </button>
+          {breadcrumb.map((ad, i) => (
+            <React.Fragment key={i}>
+              <ChevronRight className="size-3 shrink-0 opacity-60" />
+              <button
+                type="button"
+                onClick={() => setYolIds((p) => p.slice(0, i + 1))}
+                className="shrink-0 whitespace-nowrap hover:text-foreground"
+              >
+                {ad}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
 
-        {kokler.length === 0 ? (
+        {kartlar.length === 0 ? (
           <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
-            Henüz grup yok. &quot;Yeni Grup&quot; ile başlayın.
+            {mevcutUst
+              ? "Bu grubun alt grubu yok."
+              : 'Henüz grup yok. "Yeni Grup" ile başlayın.'}
           </div>
         ) : (
-          <div className="flex max-h-[28rem] overflow-x-auto">
-            {kolonlar.map((kolon, ki) => (
-              <div
-                key={ki}
-                className={cn(
-                  "flex max-h-[28rem] w-fit min-w-60 max-w-lg shrink-0 flex-col overflow-y-auto p-1.5",
-                  ki > 0 && "border-l",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2 px-1.5 py-1">
-                  <span className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                    {kolon.ust ? kolon.ust.ad : "Kök Gruplar"}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Grup ekle"
-                    title={kolon.ust ? "Alt grup ekle" : "Kök grup ekle"}
-                    onClick={() => yeniGrup(kolon.ust)}
-                  >
-                    <Plus className="size-4" />
-                  </Button>
+          <div className="flex flex-wrap gap-3 p-3">
+            {kartlar.map((g) => {
+              const cocuklar = altlar.get(g.id) ?? [];
+              const renk = kodRenk(g.kod);
+              return (
+                <div
+                  key={g.id}
+                  className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border bg-card"
+                >
+                  {/* Kart başlığı — grubun kendisi */}
+                  <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                    <Folder className={cn("size-4 shrink-0", renk.ikon)} />
+                    <span className="flex-1 truncate text-sm font-medium">
+                      {g.ad}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex min-w-12 shrink-0 justify-center rounded px-1.5 py-0.5 font-mono text-[11px] font-medium",
+                        renk.rozet,
+                      )}
+                    >
+                      {g.kod}
+                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="İşlemler"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => yeniGrup(g)}>
+                          <Plus className="mr-2 size-4" /> Alt Grup Ekle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => duzenle(g)}>
+                          <Pencil className="mr-2 size-4" /> Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => sil(g)}
+                        >
+                          <Trash2 className="mr-2 size-4" /> Sil
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {/* Kart gövdesi — alt gruplar */}
+                  <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto p-1.5">
+                    {cocuklar.length > 0 ? (
+                      cocuklar.map((c) => <KartSatiri key={c.id} grup={c} />)
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => yeniGrup(g)}
+                        className="flex items-center justify-center gap-1.5 rounded-md py-4 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                      >
+                        <Plus className="size-3.5" /> Alt grup ekle
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {kolon.items.length > 0 ? (
-                  kolon.items.map((g) => (
-                    <KolonSatiri key={g.id} grup={g} kolon={ki} />
-                  ))
-                ) : (
-                  <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                    Alt grup yok
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
