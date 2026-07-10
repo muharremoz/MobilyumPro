@@ -2,7 +2,16 @@ import "server-only";
 
 import { db } from "./index";
 import { PARAMETRELER } from "../parametreler";
-import { ROTA, type IstasyonSlug } from "../fabrika";
+import { type IstasyonSlug } from "../fabrika";
+
+/** Rota sırasındaki istasyon slug'ları (DB); boşsa güvenli varsayılan. */
+async function rotaSluglari(): Promise<string[]> {
+  const rows = await db.istasyon.findMany({
+    orderBy: { sira: "asc" },
+    select: { id: true },
+  });
+  return rows.length > 0 ? rows.map((r) => r.id) : ["kesim"];
+}
 
 /**
  * Stok motoru — tek kaynak: stok_hareket defteri (ledger).
@@ -74,6 +83,7 @@ function parcayiPatlat(
   satirlar: ParcaSatirlari,
   topla: Map<string, Map<IstasyonSlug, number>>,
   gezilen: Set<string>,
+  ilkSlug: string,
 ) {
   if (gezilen.has(parcaId)) return; // döngü koruması
   const yeniGezilen = new Set(gezilen);
@@ -81,12 +91,12 @@ function parcayiPatlat(
   for (const s of satirlar.get(parcaId) ?? []) {
     const brut = s.miktar * (1 + s.fire / 100) * carpan;
     if (s.tip === "malzeme" && s.malzemeId) {
-      const istasyon = (s.istasyon ?? ROTA[0]) as IstasyonSlug;
+      const istasyon = (s.istasyon ?? ilkSlug) as IstasyonSlug;
       const ic = topla.get(s.malzemeId) ?? new Map<IstasyonSlug, number>();
       ic.set(istasyon, (ic.get(istasyon) ?? 0) + brut);
       topla.set(s.malzemeId, ic);
     } else if (s.tip === "parca" && s.altParcaId) {
-      parcayiPatlat(s.altParcaId, brut, satirlar, topla, yeniGezilen);
+      parcayiPatlat(s.altParcaId, brut, satirlar, topla, yeniGezilen, ilkSlug);
     }
   }
 }
@@ -96,13 +106,22 @@ export async function modelIhtiyaclari(
   modelId: string,
   adet: number,
 ): Promise<Ihtiyac[]> {
-  const [bom, satirlar] = await Promise.all([
+  const [bom, satirlar, rota] = await Promise.all([
     db.modelParca.findMany({ where: { modelId } }),
     parcaSatirlariniYukle(),
+    rotaSluglari(),
   ]);
+  const ilkSlug = rota[0];
   const topla = new Map<string, Map<IstasyonSlug, number>>();
   for (const mp of bom) {
-    parcayiPatlat(mp.parcaId, Number(mp.miktar) * adet, satirlar, topla, new Set());
+    parcayiPatlat(
+      mp.parcaId,
+      Number(mp.miktar) * adet,
+      satirlar,
+      topla,
+      new Set(),
+      ilkSlug,
+    );
   }
   const sonuc: Ihtiyac[] = [];
   for (const [malzemeId, ic] of topla) {
@@ -342,6 +361,8 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
 
   const rezerve = new Map<string, number>();
   const satirlar = await parcaSatirlariniYukle();
+  const rota = await rotaSluglari();
+  const ilkSlug = rota[0];
   const bomlar = await db.modelParca.findMany();
   const bomByModel = new Map<string, typeof bomlar>();
   for (const b of bomlar) {
@@ -359,6 +380,7 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
         satirlar,
         topla,
         new Set(),
+        ilkSlug,
       );
     }
     for (const [malzemeId, ic] of topla) {

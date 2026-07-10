@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
 import { sifreHashle } from "./sifre";
-import { ROTA, type IstasyonSlug } from "../fabrika";
+import { type IstasyonSlug } from "../fabrika";
+
+/** Üretim rotası — istasyon slug'ları (DB, sira sırasıyla); boşsa varsayılan. */
+async function rotaSluglari(): Promise<string[]> {
+  const rows = await db.istasyon.findMany({
+    orderBy: { sira: "asc" },
+    select: { id: true },
+  });
+  return rows.length > 0
+    ? rows.map((r) => r.id)
+    : ["kesim", "bantlama", "delik", "montaj", "paketleme", "sevkiyat"];
+}
 import {
   istasyonDusumu,
   mamulGirisi,
@@ -82,11 +93,12 @@ export async function uretimEmriOlustur(
 
   await db.uretimEmri.createMany({ data: rows });
 
-  // Fabrika rotası: her emir için istasyon adımlarını oluştur.
+  // Fabrika rotası: her emir için istasyon adımlarını oluştur (DB istasyonları).
   // "Üretimde" başlayan emirde ilk adım hemen İşleniyor olur.
+  const rota = await rotaSluglari();
   await db.uretimEmriAdim.createMany({
     data: rows.flatMap((r) =>
-      ROTA.map((istasyon, i) => ({
+      rota.map((istasyon, i) => ({
         emirId: r.id,
         istasyon,
         sira: i + 1,
@@ -284,9 +296,10 @@ export async function eksikAdimlariOlustur(): Promise<{
   const eksikler = emirler.filter((e) => e.adimlar.length === 0);
   if (eksikler.length === 0) return { ok: true, eklenen: 0 };
 
+  const rota = await rotaSluglari();
   await db.uretimEmriAdim.createMany({
     data: eksikler.flatMap((e) =>
-      ROTA.map((istasyon, i) => ({
+      rota.map((istasyon, i) => ({
         emirId: e.id,
         istasyon,
         sira: i + 1,
