@@ -513,18 +513,14 @@ export function AlisForm({
                             </span>
                           )}
                         </div>
-                        <select
+                        <SearchSelect
+                          items={["TL", "USD", "EUR"]}
                           value={s.doviz}
-                          onChange={(e) =>
-                            satirGuncelle(i, { doviz: e.target.value as Doviz })
+                          onValueChange={(v) =>
+                            satirGuncelle(i, { doviz: (v as Doviz) || "TL" })
                           }
-                          aria-label="Döviz"
-                          className="h-8 cursor-pointer rounded-md border border-input bg-transparent px-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                        >
-                          <option value="TL">TL</option>
-                          <option value="USD">USD</option>
-                          <option value="EUR">EUR</option>
-                        </select>
+                          className="h-8 px-2"
+                        />
                         <span className="text-right text-sm font-medium tabular-nums">
                           {paraFmt(satirTutari(s), s.doviz)}
                         </span>
