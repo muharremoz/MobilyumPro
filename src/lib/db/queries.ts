@@ -596,11 +596,29 @@ export async function getGruplar(): Promise<StokGrup[]> {
  * adet: marka → model sayısı, birim → malzeme sayısı, renk/kumaş → varyant
  * sayısı, koleksiyon → 0 (henüz bağlanan alan yok).
  */
+/** Stok "tip" tanımının varsayılan kalemleri (ayna senkronunun dayandığı set). */
+const VARSAYILAN_STOK_TIPLERI = ["Hammadde", "Yarı Mamül", "Mamül", "Hizmet"];
+
 export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
-  const [rows, modeller, malzemeRows] = await Promise.all([
+  // Stok tipleri her zaman bulunsun (idempotent). SQL Server createMany
+  // skipDuplicates desteklemez → var olanları çıkar, eksikleri ekle.
+  const mevcutTipler = await db.tanim.findMany({
+    where: { tip: "tip" },
+    select: { ad: true },
+  });
+  const mevcutSet = new Set(mevcutTipler.map((t) => t.ad));
+  const eksikTipler = VARSAYILAN_STOK_TIPLERI.filter((ad) => !mevcutSet.has(ad));
+  if (eksikTipler.length > 0) {
+    await db.tanim.createMany({
+      data: eksikTipler.map((ad) => ({ tip: "tip", ad })),
+    });
+  }
+
+  const [rows, modeller, malzemeRows, stokRows] = await Promise.all([
     db.tanim.findMany({ orderBy: { ad: "asc" } }),
     db.model.findMany({ select: { marka: true, varyantlarJson: true } }),
     db.malzeme.findMany({ select: { birim: true } }),
+    db.stok.findMany({ select: { grup: true } }),
   ]);
 
   const say = (m: Map<string, number>, k: string | null | undefined) => {
@@ -620,8 +638,11 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     }
   }
   for (const m of malzemeRows) say(birimAdet, m.birim);
+  const tipAdet = new Map<string, number>();
+  for (const s of stokRows) say(tipAdet, s.grup);
 
   const adetMap: Record<TanimTip, Map<string, number>> = {
+    tip: tipAdet,
     marka: markaAdet,
     koleksiyon: new Map(),
     renk: renkAdet,
@@ -634,6 +655,7 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   };
 
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
+    tip: [],
     marka: [],
     koleksiyon: [],
     renk: [],

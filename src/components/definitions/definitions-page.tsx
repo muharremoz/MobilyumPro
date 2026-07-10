@@ -51,6 +51,7 @@ import {
 export type Tanim = { id: string; ad: string; adet: number; durum: "Aktif" | "Pasif" };
 export type TabKey =
   | "gruplar"
+  | "tipler"
   | "markalar"
   | "koleksiyonlar"
   | "renkler"
@@ -59,6 +60,7 @@ export type TabKey =
 
 export const TABS: Record<TabKey, { label: string; tekil: string }> = {
   gruplar: { label: "Gruplar", tekil: "Grup" },
+  tipler: { label: "Tipler", tekil: "Tip" },
   markalar: { label: "Markalar", tekil: "Marka" },
   koleksiyonlar: { label: "Koleksiyonlar", tekil: "Koleksiyon" },
   renkler: { label: "Renkler", tekil: "Renk" },
@@ -68,7 +70,8 @@ export const TABS: Record<TabKey, { label: string; tekil: string }> = {
 
 // Sol menü grupları (alt menü).
 export const MENU: { label: string; keys: TabKey[] }[] = [
-  { label: "Model", keys: ["gruplar", "markalar", "koleksiyonlar"] },
+  { label: "Stok", keys: ["gruplar", "tipler"] },
+  { label: "Model", keys: ["markalar", "koleksiyonlar"] },
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
 ];
 
@@ -76,6 +79,7 @@ type DuzTab = Exclude<TabKey, "gruplar">;
 
 // Sekme → DB tanım tipi (tanim.tip kolonu).
 const TIP_MAP: Record<DuzTab, TanimTip> = {
+  tipler: "tip",
   markalar: "marka",
   koleksiyonlar: "koleksiyon",
   renkler: "renk",
@@ -84,6 +88,7 @@ const TIP_MAP: Record<DuzTab, TanimTip> = {
 };
 
 const BOS: Record<DuzTab, Tanim[]> = {
+  tipler: [],
   markalar: [],
   koleksiyonlar: [],
   renkler: [],
@@ -96,6 +101,7 @@ function tanimlardanData(
 ): Record<DuzTab, Tanim[]> {
   if (!tanimlar) return BOS;
   return {
+    tipler: tanimlar.tip,
     markalar: tanimlar.marka,
     koleksiyonlar: tanimlar.koleksiyon,
     renkler: tanimlar.renk,

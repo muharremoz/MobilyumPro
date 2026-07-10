@@ -33,6 +33,7 @@ export default async function StokKartiDuzenleRoute({
       kart={stok.kart}
       detay={stok.detay}
       gruplar={gruplar}
+      tipler={tanimlar.tip.map((t) => t.ad)}
       markalar={tanimlar.marka.map((t) => t.ad)}
       birimler={tanimlar.birim.map((t) => t.ad)}
       parcalar={parcalar}

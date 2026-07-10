@@ -162,6 +162,7 @@ const BOS_DETAY: StokDetay = {
   hareketler: [],
 };
 const BOS_GRUPLAR: StokGrup[] = [];
+const BOS_TIPLER: string[] = [];
 const BOS_MARKALAR: string[] = [];
 const BOS_BIRIMLER: string[] = [];
 const BOS_PARCALAR: Parca[] = [];
@@ -278,6 +279,7 @@ export function StokKartForm({
   detay = BOS_DETAY,
   sonrakiKod = "",
   gruplar = BOS_GRUPLAR,
+  tipler = BOS_TIPLER,
   markalar = BOS_MARKALAR,
   birimler = BOS_BIRIMLER,
   parcalar = BOS_PARCALAR,
@@ -289,8 +291,10 @@ export function StokKartForm({
   detay?: StokDetay;
   /** Yeni kart için sunucuda hesaplanan sıradaki kod (önizleme). */
   sonrakiKod?: string;
-  /** Tanımlamalar → Gruplar ağacı (Alt Grup / Detay Grup seçimi). */
+  /** Tanımlamalar → Gruplar ağacı (Grup seçimi). */
   gruplar?: StokGrup[];
+  /** Tanımlamalar → Stok Tipleri (Hammadde/Yarı Mamül/Mamül/Hizmet...). */
+  tipler?: string[];
   /** Tanımlamalar → Markalar. */
   markalar?: string[];
   /** Tanımlamalar → Birimler (boşsa varsayılan liste). */
@@ -497,6 +501,7 @@ export function StokKartForm({
                 set={set}
                 durumRef={durumRef}
                 gruplar={gruplar}
+                tipler={tipler}
                 markalar={markalar}
                 birimler={birimler}
                 parcalar={parcalar}
@@ -1208,6 +1213,7 @@ function GenelTab({
   set,
   durumRef,
   gruplar,
+  tipler,
   markalar,
   birimler,
   parcalar,
@@ -1218,6 +1224,7 @@ function GenelTab({
   set: (k: keyof Form) => (v: string) => void;
   durumRef: React.RefObject<AnimatedIconHandle | null>;
   gruplar: StokGrup[];
+  tipler: string[];
   markalar: string[];
   birimler: string[];
   parcalar: { id: string; ad: string }[];
@@ -1225,6 +1232,7 @@ function GenelTab({
 }) {
   const birimSecenekleri =
     birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER;
+  const tipSecenekleri = tipler.length > 0 ? tipler : GRUPLAR;
 
   const receteAd =
     parcalar.find((p) => p.id === form.receteParcaId)?.ad ?? null;
@@ -1281,9 +1289,9 @@ function GenelTab({
                 value={form.cins}
                 onChange={(e) => set("cins")(e.target.value)}
               />
-              <AnimatedField label="Grup" icon={FolderOpenIcon}>
+              <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
-                  items={GRUPLAR}
+                  items={tipSecenekleri}
                   value={form.grup}
                   onValueChange={(v) =>
                     setForm((f) => ({
@@ -1291,7 +1299,7 @@ function GenelTab({
                       grup: (v as StokGrubu) ?? "Hammadde",
                     }))
                   }
-                  placeholder="Grup seç"
+                  placeholder="Tip seç"
                 />
               </AnimatedField>
               <AnimatedField label="Stok Birimi" icon={BlocksIcon}>
@@ -1332,20 +1340,12 @@ function GenelTab({
           <KartBaslik ikon={Tags} baslik="Sınıflama" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-4 gap-3">
-              <AnimatedField label="Alt Grup" icon={FolderOpenIcon}>
+              <AnimatedField label="Grup" icon={FolderOpenIcon}>
                 <GrupSecici
                   gruplar={gruplar}
                   value={form.altGrup || null}
                   onValueChange={(v) => set("altGrup")(v ?? "")}
-                  placeholder="Alt grup seç"
-                />
-              </AnimatedField>
-              <AnimatedField label="Detay Grup" icon={FolderOpenIcon}>
-                <GrupSecici
-                  gruplar={gruplar}
-                  value={form.detayGrup || null}
-                  onValueChange={(v) => set("detayGrup")(v ?? "")}
-                  placeholder="Detay grup seç"
+                  placeholder="Grup seç"
                 />
               </AnimatedField>
               <IconInput

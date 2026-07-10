@@ -302,6 +302,7 @@ export type Poset = {
 // Tanımlamalar — düz tanımlar (marka/koleksiyon/renk/kumaş/birim + adres
 // seçenekleri: ülke/bölge/şehir/semt — formlarda "yeni ekle" ile büyür).
 export type TanimTip =
+  | "tip"
   | "marka"
   | "koleksiyon"
   | "renk"
