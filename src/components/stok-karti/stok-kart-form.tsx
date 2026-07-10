@@ -847,11 +847,11 @@ function GenelTab({
               <div className="col-span-3">
                 <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
                   <textarea
-                    rows={2}
+                    rows={1}
                     placeholder="Stok kartı ile ilgili notlar..."
                     value={form.aciklama}
                     onChange={(e) => set("aciklama")(e.target.value)}
-                    className={textareaCls}
+                    className={cn(textareaCls, "h-10 py-2")}
                   />
                 </AnimatedField>
               </div>
