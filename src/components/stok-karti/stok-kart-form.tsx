@@ -2445,6 +2445,13 @@ function resimMi(url: string): boolean {
   return RESIM_UZANTI.test(url.split("?")[0]);
 }
 
+/** Dosya uzantısını (büyük harf) döndürür; yoksa boş string. */
+function dosyaUzanti(url: string): string {
+  const ad = url.split("?")[0].split(/[\\/]/).pop() ?? "";
+  const nokta = ad.lastIndexOf(".");
+  return nokta > 0 ? ad.slice(nokta + 1).toUpperCase() : "";
+}
+
 /** Dosya adına göre doküman tipi önerir. */
 function tipTahmin(dosyaAdi: string): StokDokumanTipi {
   if (RESIM_UZANTI.test(dosyaAdi)) return "Ürün Resmi";
@@ -2465,10 +2472,6 @@ function DokumanlarTab({
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokDokuman | null>(null);
   const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
-
-  // Görsel tipli/uzantılılar önizleme grid'inde, diğerleri satır listesinde.
-  const resimler = liste.filter((d) => resimMi(d.url));
-  const digerleri = liste.filter((d) => !resimMi(d.url));
 
   function ekleAc() {
     setDuzenlenen(null);
@@ -2541,75 +2544,61 @@ function DokumanlarTab({
           <Info className="mt-0.5 size-3.5 shrink-0" />
           <span>
             Dosyalar bilgisayarınızdan seçilip sunucuya yüklenir (en fazla 20
-            MB). Görseller önizleme olarak, diğerleri liste halinde gösterilir.
+            MB). Görsele tıklayınca büyür, diğer dosyalar yeni sekmede açılır.
           </span>
         </div>
 
-        {/* Görseller — Attachment (dikey) önizleme grid'i */}
-        {resimler.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {resimler.map((d) => (
-              <Attachment
-                key={d.id}
-                orientation="vertical"
-                state="done"
-                className="w-full"
-              >
-                <AttachmentTrigger
-                  onClick={() => setBuyuk(d)}
-                  aria-label={`${d.ad} — büyüt`}
-                  className="cursor-zoom-in"
-                />
-                <AttachmentMedia variant="image">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={d.url} alt={d.ad} />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                  <AttachmentDescription>{d.tip}</AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <SatirMenu
-                    onDuzenle={() => duzenleAc(d)}
-                    onSil={() => sil(d)}
-                  />
-                </AttachmentActions>
-              </Attachment>
-            ))}
-          </div>
-        )}
-
-        {/* Diğer dokümanlar — Attachment (yatay) satır kartları */}
-        {digerleri.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {digerleri.map((d) => (
-              <Attachment
-                key={d.id}
-                orientation="horizontal"
-                state="done"
-                className="w-full"
-              >
-                <AttachmentTrigger
-                  render={
-                    <a href={d.url} target="_blank" rel="noreferrer" />
-                  }
-                  aria-label={`${d.ad} — aç`}
-                />
-                <AttachmentMedia>
-                  <FileText />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                  <AttachmentDescription>{d.tip}</AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <SatirMenu
-                    onDuzenle={() => duzenleAc(d)}
-                    onSil={() => sil(d)}
-                  />
-                </AttachmentActions>
-              </Attachment>
-            ))}
+        {/* Tüm dokümanlar — shadcn tarzı kompakt yatay Attachment kartları */}
+        {liste.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {liste.map((d) => {
+              const resim = resimMi(d.url);
+              const uzanti = dosyaUzanti(d.url);
+              return (
+                <Attachment
+                  key={d.id}
+                  orientation="horizontal"
+                  state="done"
+                  size="sm"
+                  className="w-full"
+                >
+                  {resim ? (
+                    <AttachmentTrigger
+                      onClick={() => setBuyuk(d)}
+                      aria-label={`${d.ad} — büyüt`}
+                      className="cursor-zoom-in"
+                    />
+                  ) : (
+                    <AttachmentTrigger
+                      render={
+                        <a href={d.url} target="_blank" rel="noreferrer" />
+                      }
+                      aria-label={`${d.ad} — aç`}
+                    />
+                  )}
+                  <AttachmentMedia variant={resim ? "image" : "icon"}>
+                    {resim ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={d.url} alt={d.ad} />
+                    ) : (
+                      <FileText />
+                    )}
+                  </AttachmentMedia>
+                  <AttachmentContent>
+                    <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                    <AttachmentDescription>
+                      {uzanti ? `${uzanti} · ${d.tip}` : d.tip}
+                    </AttachmentDescription>
+                  </AttachmentContent>
+                  <AttachmentActions>
+                    <SatirMenu
+                      onDuzenle={() => duzenleAc(d)}
+                      onSil={() => sil(d)}
+                    />
+                  </AttachmentActions>
+                </Attachment>
+              );
+            })}
           </div>
         )}
 
