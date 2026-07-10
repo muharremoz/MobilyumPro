@@ -12,7 +12,6 @@ import {
   Users,
   FileImage,
   FileText,
-  ExternalLink,
   Info,
   Tags,
   Ruler,
@@ -99,6 +98,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Attachment,
+  AttachmentMedia,
+  AttachmentContent,
+  AttachmentTitle,
+  AttachmentDescription,
+  AttachmentActions,
+  AttachmentTrigger,
+} from "@/components/ui/attachment";
 
 /**
  * Stok kartının alt kayıtları — queries.getStok(id).detay ile aynı şekil.
@@ -164,15 +172,6 @@ function stokDurumu(
     return { etiket: "Fazla Stok", renk: "bg-sky-100 text-sky-700", bar: "bg-sky-500" };
   return { etiket: "Normal", renk: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" };
 }
-
-const DOKUMAN_TIP_RENK: Record<StokDokumanTipi, string> = {
-  "Ürün Resmi": "bg-emerald-100 text-emerald-800",
-  "Teknik Resim": "bg-violet-100 text-violet-800",
-  PDF: "bg-rose-100 text-rose-800",
-  "Kalite Belgesi": "bg-amber-100 text-amber-800",
-  Video: "bg-blue-100 text-blue-800",
-  Diğer: "bg-slate-100 text-slate-800",
-};
 
 // Varsayılan prop'lar MODÜL sabiti olmalı: inline `= []` / `?? []` her
 // render'da yeni referans üretir ve [prop] bağımlı useEffect'leri sonsuz
@@ -2540,84 +2539,70 @@ function DokumanlarTab({
           </span>
         </div>
 
-        {/* Görseller — küçük önizleme grid'i */}
+        {/* Görseller — Attachment (dikey) önizleme grid'i */}
         {resimler.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {resimler.map((d) => (
-              <div
+              <Attachment
                 key={d.id}
-                className="group relative overflow-hidden rounded-md border bg-muted/20"
+                orientation="vertical"
+                state="done"
+                className="w-full"
               >
-                <button
-                  type="button"
+                <AttachmentTrigger
                   onClick={() => setBuyuk(d)}
-                  className="block w-full cursor-zoom-in"
                   aria-label={`${d.ad} — büyüt`}
-                >
+                  className="cursor-zoom-in"
+                />
+                <AttachmentMedia variant="image">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={d.url}
-                    alt={d.ad}
-                    className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  />
-                </button>
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    "absolute top-1.5 left-1.5 h-4 px-1 py-0 text-[9px]",
-                    DOKUMAN_TIP_RENK[d.tip],
-                  )}
-                >
-                  {d.tip}
-                </Badge>
-                <div className="flex items-center justify-between gap-1 border-t bg-card px-2 py-1">
-                  <span className="truncate text-xs" title={d.ad}>
-                    {d.ad}
-                  </span>
+                  <img src={d.url} alt={d.ad} />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                  <AttachmentDescription>{d.tip}</AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
                   <SatirMenu
                     onDuzenle={() => duzenleAc(d)}
                     onSil={() => sil(d)}
                   />
-                </div>
-              </div>
+                </AttachmentActions>
+              </Attachment>
             ))}
           </div>
         )}
 
-        {/* Diğer dokümanlar — satır listesi (tip rozetiyle) */}
+        {/* Diğer dokümanlar — Attachment (yatay) satır kartları */}
         {digerleri.length > 0 && (
-          <div className="overflow-hidden rounded-md border">
-            {digerleri.map((d, i) => (
-              <div
+          <div className="grid gap-2 sm:grid-cols-2">
+            {digerleri.map((d) => (
+              <Attachment
                 key={d.id}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2",
-                  i > 0 && "border-t",
-                )}
+                orientation="horizontal"
+                state="done"
+                className="w-full"
               >
-                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {d.ad}
-                </span>
-                <Badge
-                  variant="secondary"
-                  className={cn("h-4 px-1 py-0 text-[9px]", DOKUMAN_TIP_RENK[d.tip])}
-                >
-                  {d.tip}
-                </Badge>
-                <a
-                  href={d.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <ExternalLink className="size-3.5" /> Aç
-                </a>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(d)}
-                  onSil={() => sil(d)}
+                <AttachmentTrigger
+                  render={
+                    <a href={d.url} target="_blank" rel="noreferrer" />
+                  }
+                  aria-label={`${d.ad} — aç`}
                 />
-              </div>
+                <AttachmentMedia>
+                  <FileText />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                  <AttachmentDescription>{d.tip}</AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <SatirMenu
+                    onDuzenle={() => duzenleAc(d)}
+                    onSil={() => sil(d)}
+                  />
+                </AttachmentActions>
+              </Attachment>
             ))}
           </div>
         )}
