@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -23,11 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Istasyon } from "@/lib/fabrika";
-import {
-  istasyonKaydet,
-  istasyonSil,
-  istasyonSiraKaydet,
-} from "@/lib/db/actions";
+import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
 
 type Form = {
   id?: string;
@@ -53,30 +49,6 @@ export function IstasyonTanim({
   React.useEffect(() => setListe(istasyonlar), [istasyonlar]);
   const [acik, setAcik] = React.useState(false);
   const [form, setForm] = React.useState<Form>(BOS);
-  // Sürükle-bırak sıralama
-  const [surukleIdx, setSurukleIdx] = React.useState<number | null>(null);
-
-  function surukleGir(hedef: number) {
-    setSurukleIdx((kaynak) => {
-      if (kaynak === null || kaynak === hedef) return kaynak;
-      setListe((l) => {
-        const yeni = [...l];
-        const [tasinan] = yeni.splice(kaynak, 1);
-        yeni.splice(hedef, 0, tasinan);
-        return yeni;
-      });
-      return hedef;
-    });
-  }
-
-  async function surukleBirak() {
-    setSurukleIdx(null);
-    // Yeni sırayı yerelde uygula + DB'ye yaz.
-    const sirali = liste.map((i, idx) => ({ ...i, sira: idx + 1 }));
-    setListe(sirali);
-    const res = await istasyonSiraKaydet(sirali.map((i) => i.slug));
-    if (!res.ok) toast.error(res.error ?? "Sıralama kaydedilemedi.");
-  }
 
   function yeni() {
     setForm({ ...BOS, sira: liste.length + 1 });
@@ -153,118 +125,66 @@ export function IstasyonTanim({
         </ListHeader>
 
         {liste.length === 0 ? (
-          <button
-            type="button"
-            onClick={yeni}
-            className="flex h-28 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Plus className="size-4" /> İlk istasyonu ekle
-          </button>
+          <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+            Henüz istasyon yok. &quot;Yeni İstasyon&quot; ile başlayın.
+          </div>
         ) : (
-          // Dikey zaman çizelgesi — numaralı noktalar, aralarında bağ çizgisi.
-          <div className="p-4">
-            {liste.map((i, idx) => {
-              const sonMu = idx === liste.length - 1;
-              return (
-                <div
-                  key={i.slug}
-                  draggable
-                  onDragStart={() => setSurukleIdx(idx)}
-                  onDragEnter={() => surukleGir(idx)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDragEnd={surukleBirak}
-                  className={cn(
-                    "group flex gap-3",
-                    surukleIdx === idx && "opacity-60",
-                  )}
-                >
-                  {/* Sol ray: numara noktası + bağ çizgisi */}
-                  <div className="flex flex-col items-center">
-                    <span
-                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm"
-                      style={{ backgroundColor: i.renk }}
-                    >
-                      {i.sira}
-                    </span>
-                    {!sonMu && (
-                      <span className="my-1 w-0.5 flex-1 rounded bg-border" />
-                    )}
-                  </div>
-                  {/* İçerik kartı */}
-                  <div
-                    className={cn(
-                      "mb-3 flex flex-1 cursor-grab items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow active:cursor-grabbing",
-                      surukleIdx === idx
-                        ? "shadow-md ring-1 ring-foreground/20"
-                        : "hover:border-foreground/15",
-                    )}
-                  >
-                    <span
-                      className="size-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: i.renk }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{i.ad}</div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className="rounded bg-muted px-1 py-px font-mono">
-                          {i.slug}
-                        </span>
-                        <span className="tabular-nums">
-                          {i.konum.g}×{i.konum.d} m
-                        </span>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="İşlemler"
-                            className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem onClick={() => duzenle(i)}>
-                          <Pencil className="mr-2 size-4" /> Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => sil(i)}
-                        >
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              );
-            })}
-            {/* Sona yeni istasyon */}
-            <div className="flex gap-3">
-              <div className="flex w-8 shrink-0 justify-center">
-                <span className="flex size-8 items-center justify-center rounded-full border border-dashed text-muted-foreground/50">
-                  <Plus className="size-4" />
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={yeni}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-accent/40 hover:text-foreground"
+          <div className="divide-y">
+            {liste.map((i) => (
+              <div
+                key={i.slug}
+                className="group flex items-center gap-3 px-3 py-2.5"
               >
-                <Plus className="size-3.5" /> Yeni İstasyon
-              </button>
-            </div>
+                <GripVertical className="size-4 shrink-0 text-muted-foreground/40" />
+                <span className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground tabular-nums">
+                  {i.sira}
+                </span>
+                <span
+                  className="size-4 shrink-0 rounded-full border"
+                  style={{ backgroundColor: i.renk }}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {i.ad}
+                </span>
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  {i.slug}
+                </span>
+                <span className="hidden shrink-0 text-[11px] text-muted-foreground tabular-nums sm:inline">
+                  {i.konum.g}×{i.konum.d} m
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="İşlemler"
+                        className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onClick={() => duzenle(i)}>
+                      <Pencil className="mr-2 size-4" /> Düzenle
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => sil(i)}
+                    >
+                      <Trash2 className="mr-2 size-4" /> Sil
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
           </div>
         )}
       </div>
       <span className="text-sm text-muted-foreground">
-        {liste.length} istasyon · parçalar bu rotada sırayla ilerler ·
-        sürükleyerek sırala
+        {liste.length} istasyon · rota sırayla ilerler
       </span>
 
       <Dialog open={acik} onOpenChange={setAcik}>
