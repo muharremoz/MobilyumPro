@@ -2554,6 +2554,12 @@ function DokumanlarTab({
             {liste.map((d) => {
               const resim = resimMi(d.url);
               const uzanti = dosyaUzanti(d.url);
+              const aciklama =
+                d.tip === "Diğer"
+                  ? uzanti || "Dosya"
+                  : uzanti
+                    ? `${uzanti} · ${d.tip}`
+                    : d.tip;
               return (
                 <Attachment
                   key={d.id}
@@ -2584,9 +2590,7 @@ function DokumanlarTab({
                   </AttachmentMedia>
                   <AttachmentContent>
                     <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                    <AttachmentDescription>
-                      {uzanti ? `${uzanti} · ${d.tip}` : d.tip}
-                    </AttachmentDescription>
+                    <AttachmentDescription>{aciklama}</AttachmentDescription>
                   </AttachmentContent>
                   <AttachmentActions>
                     <SatirMenu
