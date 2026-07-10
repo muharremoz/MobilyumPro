@@ -367,7 +367,7 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-[1fr_170px_84px_96px_64px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <div className="grid grid-cols-[1fr_170px_84px_96px_84px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   <span>Malzeme</span>
                   <span>Firma</span>
                   <span>Miktar</span>
@@ -383,7 +383,7 @@ export function AlisForm({
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_170px_84px_96px_64px_110px_36px] items-center gap-2 px-3 py-2"
+                        className="grid grid-cols-[1fr_170px_84px_96px_84px_110px_36px] items-center gap-2 px-3 py-2"
                       >
                         <div className="min-w-0">
                           <HoverCard>
