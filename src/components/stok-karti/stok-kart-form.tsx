@@ -2548,19 +2548,17 @@ function DokumanlarTab({
           </span>
         </div>
 
-        {/* Tüm dokümanlar — shadcn tarzı kompakt yatay Attachment kartları */}
+        {/* Dokümanlar — shadcn orijinali: görseller dikey chip, dosyalar yatay kart */}
         {liste.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap gap-3">
             {liste.map((d) => {
               const resim = resimMi(d.url);
               const uzanti = dosyaUzanti(d.url);
               return (
                 <Attachment
                   key={d.id}
-                  orientation="horizontal"
+                  orientation={resim ? "vertical" : "horizontal"}
                   state="done"
-                  size="sm"
-                  className="w-full"
                 >
                   {resim ? (
                     <AttachmentTrigger
