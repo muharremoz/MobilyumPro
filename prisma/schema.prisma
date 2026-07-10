@@ -530,7 +530,8 @@ model Istasyon {
 // cariye Alacak işlemi düşer. Bu yüzden alış kaydı silinemez (v1).
 model Alis {
   id       String   @id
-  cariId   String   @map("cari_id")
+  // Tedarikçi fiş başında değil satır bazında; karışıksa null + cariAd "Muhtelif".
+  cariId   String?  @map("cari_id")
   cariAd   String   @map("cari_ad")
   tarih    DateTime @db.Date
   depo     String
@@ -546,6 +547,9 @@ model Alis {
 model AlisSatiri {
   id         Int     @id @default(autoincrement())
   alisId     String  @map("alis_id")
+  // Bu satırın alındığı tedarikçi (satır bazında firma).
+  cariId     String  @default("") @map("cari_id")
+  cariAd     String  @default("") @map("cari_ad")
   malzemeId  String  @map("malzeme_id")
   malzemeAd  String  @map("malzeme_ad")
   miktar     Decimal @db.Decimal(14, 3)

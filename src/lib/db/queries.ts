@@ -834,7 +834,7 @@ type AlisRow = Awaited<ReturnType<typeof db.alis.findMany>>[number] & {
 function mapAlis(a: AlisRow): Alis {
   return {
     id: a.id,
-    cariId: a.cariId,
+    cariId: a.cariId ?? "",
     cariAd: a.cariAd,
     tarih: tarihStr(a.tarih),
     depo: a.depo,

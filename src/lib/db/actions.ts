@@ -1552,14 +1552,15 @@ export async function cariDokumanSil(id: number, cariId: string): Promise<CariAl
 export type YeniAlisSatiri = {
   malzemeId: string;
   malzemeAd: string;
+  /** Bu satırın alındığı tedarikçi (satır bazında firma). */
+  cariId: string;
+  cariAd: string;
   miktar: number;
   birim: string;
   birimFiyat: number;
 };
 
 export type YeniAlis = {
-  cariId: string;
-  cariAd: string;
   tarih: string;
   depo: string;
   belgeNo?: string;
@@ -1571,9 +1572,9 @@ export type YeniAlis = {
 
 /**
  * Satın alma kaydı — tek transaction'da:
- *  1. alis + satırları yazılır (ALS-####)
- *  2. her satır: malzeme stoğu artar + stok hareketi (Giriş) yazılır
- *  3. cariye Alacak işlemi düşer (bakiye güncellenir)
+ *  1. alis + satırları yazılır (ALS-####); tedarikçi satır bazında.
+ *  2. her satır: stok artar + stok hareketi (Giriş) yazılır
+ *  3. HER tedarikçi için ayrı Alacak işlemi düşer (bakiyeleri güncellenir)
  * Alış silme v1'de yok (stok/cari geri alma gerektirir).
  */
 export async function alisKaydet(
@@ -1582,7 +1583,8 @@ export async function alisKaydet(
   const satirlar = a.satirlar.filter((s) => s.malzemeId && s.miktar > 0);
   if (satirlar.length === 0)
     return { ok: false, error: "En az bir malzeme satırı gerekli." };
-  if (!a.cariId) return { ok: false, error: "Tedarikçi seçin." };
+  if (satirlar.some((s) => !s.cariId))
+    return { ok: false, error: "Her satır için tedarikçi seçin." };
 
   try {
     // Kod üretimleri (ALS-####, SH-####, CI-####)
@@ -1602,21 +1604,31 @@ export async function alisKaydet(
     };
     const alisId = `ALS-${maxNo(alisler, "ALS", 1000) + 1}`;
     let shNo = maxNo(hareketler, "SH", 3000);
-    const ciId = `CI-${maxNo(islemler, "CI", 3000) + 1}`;
+    let ciNo = maxNo(islemler, "CI", 3000);
 
-    const toplam = satirlar.reduce(
-      (t, s) => t + s.miktar * s.birimFiyat,
-      0,
-    );
+    const toplam = satirlar.reduce((t, s) => t + s.miktar * s.birimFiyat, 0);
     const tarih = tarihDate(a.tarih);
 
+    // Tedarikçiye göre grupla (her tedarikçiye ayrı Alacak).
+    const gruplar = new Map<
+      string,
+      { ad: string; tutar: number; adet: number }
+    >();
+    for (const s of satirlar) {
+      const g = gruplar.get(s.cariId) ?? { ad: s.cariAd, tutar: 0, adet: 0 };
+      g.tutar += s.miktar * s.birimFiyat;
+      g.adet += 1;
+      gruplar.set(s.cariId, g);
+    }
+    const tekTedarikci = gruplar.size === 1 ? [...gruplar.values()][0].ad : null;
+
     await db.$transaction(async (tx) => {
-      // 1) Alış + satırlar
+      // 1) Alış + satırlar (tedarikçi karışıksa başlık "Muhtelif")
       await tx.alis.create({
         data: {
           id: alisId,
-          cariId: a.cariId,
-          cariAd: a.cariAd,
+          cariId: gruplar.size === 1 ? [...gruplar.keys()][0] : null,
+          cariAd: tekTedarikci ?? "Muhtelif",
           tarih,
           depo: a.depo,
           belgeNo: a.belgeNo ?? null,
@@ -1624,6 +1636,8 @@ export async function alisKaydet(
           toplam,
           satirlar: {
             create: satirlar.map((s) => ({
+              cariId: s.cariId,
+              cariAd: s.cariAd,
               malzemeId: s.malzemeId,
               malzemeAd: s.malzemeAd,
               miktar: s.miktar,
@@ -1654,37 +1668,40 @@ export async function alisKaydet(
             miktar: s.miktar,
             birim: s.birim,
             depo: a.depo,
-            aciklama: `Satın alma ${alisId} — ${a.cariAd}`,
+            aciklama: `Satın alma ${alisId} — ${s.cariAd}`,
           },
         });
       }
 
-      // 3) Cari Alacak işlemi + bakiye
-      await tx.cariIslem.create({
-        data: {
-          id: ciId,
-          cariId: a.cariId,
-          tarih,
-          tur: "Alacak",
-          tutar: toplam,
-          belge: a.belgeNo ?? alisId,
-          aciklama: `Satın alma ${alisId} (${satirlar.length} kalem)`,
-        },
-      });
-      const c = await tx.cari.findUnique({
-        where: { id: a.cariId },
-        select: { bakiye: true },
-      });
-      await tx.cari.update({
-        where: { id: a.cariId },
-        data: { bakiye: Number(c?.bakiye ?? 0) + toplam },
-      });
+      // 3) Her tedarikçi için Alacak işlemi + bakiye
+      for (const [cariId, g] of gruplar) {
+        ciNo += 1;
+        await tx.cariIslem.create({
+          data: {
+            id: `CI-${ciNo}`,
+            cariId,
+            tarih,
+            tur: "Alacak",
+            tutar: g.tutar,
+            belge: a.belgeNo ?? alisId,
+            aciklama: `Satın alma ${alisId} (${g.adet} kalem)`,
+          },
+        });
+        const c = await tx.cari.findUnique({
+          where: { id: cariId },
+          select: { bakiye: true },
+        });
+        await tx.cari.update({
+          where: { id: cariId },
+          data: { bakiye: Number(c?.bakiye ?? 0) + g.tutar },
+        });
+      }
     });
 
     revalidatePath("/satin-alma");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/cari");
-    revalidatePath(`/cari/${a.cariId}`);
+    for (const cariId of gruplar.keys()) revalidatePath(`/cari/${cariId}`);
     return { ok: true, id: alisId };
   } catch (e) {
     console.error("alisKaydet:", e);

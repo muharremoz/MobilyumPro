@@ -30,6 +30,8 @@ import { alisKaydet } from "@/lib/db/actions";
  */
 type Satir = {
   malzemeId: string;
+  /** Bu satırın alındığı tedarikçi (satır bazında firma). */
+  cariId: string;
   miktar: number;
   birim: string;
   birimFiyat: number;
@@ -67,7 +69,6 @@ export function AlisForm({
 }) {
   const router = useRouter();
 
-  const [cariId, setCariId] = React.useState("");
   const [tarih, setTarih] = React.useState(bugun);
   const [depo, setDepo] = React.useState(depolar[0] ?? "");
   const [belgeNo, setBelgeNo] = React.useState("");
@@ -87,21 +88,45 @@ export function AlisForm({
     () => new Map(malzemeler.map((m) => [araEtiket(m), m])),
     [malzemeler],
   );
-
-  const cari = tedarikciler.find((t) => t.id === cariId);
+  const cariMap = React.useMemo(
+    () => new Map(tedarikciler.map((t) => [t.id, t])),
+    [tedarikciler],
+  );
+  const cariAdMap = React.useMemo(
+    () => new Map(tedarikciler.map((t) => [t.ad, t])),
+    [tedarikciler],
+  );
 
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
   const satirTutari = (s: Satir) => s.miktar * s.birimFiyat;
   const toplam = gecerli.reduce((t, s) => t + satirTutari(s), 0);
   const toplamMiktar = gecerli.reduce((t, s) => t + s.miktar, 0);
+  const eksikFirma = gecerli.some((s) => !s.cariId);
+  // Tedarikçi bazında özet
+  const firmaOzeti = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of gecerli) {
+      if (!s.cariId) continue;
+      m.set(s.cariId, (m.get(s.cariId) ?? 0) + satirTutari(s));
+    }
+    return [...m.entries()].map(([id, tutar]) => ({
+      ad: cariMap.get(id)?.ad ?? id,
+      tutar,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satirlar, cariMap]);
 
   // ── Eylemler ──────────────────────────────────────────────────────────
   function malzemeEkle(m: Malzeme) {
+    // Varsayılan firma: malzemenin üretici carisi (varsa ve tedarikçilerde).
+    const varsayilan =
+      m.tedarikci && cariMap.has(m.tedarikci) ? m.tedarikci : "";
     setSatirlar((s) => [
       ...s,
       {
         malzemeId: m.id,
+        cariId: varsayilan,
         miktar: 1,
         birim: m.birim,
         birimFiyat: m.birimFiyat,
@@ -119,18 +144,16 @@ export function AlisForm({
   }
 
   async function kaydet() {
-    if (!cari) {
-      toast.error("Tedarikçi seçin");
-      return;
-    }
     if (gecerli.length === 0) {
       toast.error("En az bir malzeme satırı gerekli");
       return;
     }
+    if (eksikFirma) {
+      toast.error("Her satır için tedarikçi seçin");
+      return;
+    }
     setKaydediliyor(true);
     const res = await alisKaydet({
-      cariId: cari.id,
-      cariAd: cari.ad,
       tarih,
       depo,
       belgeNo: belgeNo.trim() || undefined,
@@ -138,6 +161,8 @@ export function AlisForm({
       satirlar: gecerli.map((s) => ({
         malzemeId: s.malzemeId,
         malzemeAd: malzemeMap.get(s.malzemeId)?.ad ?? s.malzemeId,
+        cariId: s.cariId,
+        cariAd: cariMap.get(s.cariId)?.ad ?? "",
         miktar: s.miktar,
         birim: s.birim,
         birimFiyat: s.birimFiyat,
@@ -173,7 +198,7 @@ export function AlisForm({
         <Button
           className="ml-auto"
           onClick={kaydet}
-          disabled={!cari || gecerli.length === 0 || kaydediliyor}
+          disabled={gecerli.length === 0 || eksikFirma || kaydediliyor}
         >
           {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
         </Button>
@@ -185,18 +210,7 @@ export function AlisForm({
           {/* Fiş bilgileri */}
           <div className="rounded-md border bg-card">
             <KartBaslik ikon={ReceiptText} baslik="Fiş Bilgileri" />
-            <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
-              <Alan label="Tedarikçi">
-                <SearchSelect
-                  items={tedarikciler.map((t) => t.ad)}
-                  value={cari?.ad ?? null}
-                  onValueChange={(ad) =>
-                    setCariId(tedarikciler.find((t) => t.ad === ad)?.id ?? "")
-                  }
-                  placeholder="Tedarikçi seçin"
-                  emptyText="Tedarikçi tipli cari yok"
-                />
-              </Alan>
+            <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-3">
               <Alan label="Tarih">
                 <Input
                   type="date"
@@ -276,6 +290,27 @@ export function AlisForm({
                           <div className="text-[11px] text-muted-foreground tabular-nums">
                             stok {s.mevcutStok} {s.birim} · son{" "}
                             {formatTL(s.sonFiyat)}
+                          </div>
+                          {/* Satır bazında firma */}
+                          <div className="mt-1 max-w-56">
+                            <SearchSelect
+                              items={tedarikciler.map((t) => t.ad)}
+                              value={cariMap.get(s.cariId)?.ad ?? null}
+                              onValueChange={(ad) =>
+                                satirGuncelle(i, {
+                                  cariId: ad
+                                    ? (cariAdMap.get(ad)?.id ?? "")
+                                    : "",
+                                })
+                              }
+                              placeholder="Firma seç"
+                              emptyText="Tedarikçi yok"
+                              className={cn(
+                                "h-7 text-xs",
+                                !s.cariId &&
+                                  "ring-1 ring-rose-300 ring-offset-0",
+                              )}
+                            />
                           </div>
                         </div>
                         <Input
@@ -358,6 +393,33 @@ export function AlisForm({
                 <span className="tabular-nums">{toplamMiktar}</span>
               </div>
             </div>
+
+            {firmaOzeti.length > 0 && (
+              <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
+                <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  Tedarikçiler ({firmaOzeti.length})
+                </p>
+                <div className="mt-1.5 flex flex-col gap-1 text-xs">
+                  {firmaOzeti.map((f) => (
+                    <div
+                      key={f.ad}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="min-w-0 truncate">{f.ad}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {formatTL(f.tutar)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {eksikFirma && (
+              <p className="mt-2 text-xs text-rose-600">
+                Bazı satırlarda firma seçilmedi.
+              </p>
+            )}
+
             <div className="my-3 h-px bg-border" />
             <div
               role="button"
