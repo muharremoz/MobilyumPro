@@ -121,6 +121,14 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   Hizmet: "bg-slate-100 text-slate-800",
 };
 
+/** Üst şerit için gruba göre yumuşak gradient arka planı. */
+const GRUP_GRADIENT: Record<StokGrubu, string> = {
+  Hammadde: "from-blue-50 via-card to-card",
+  "Yarı Mamül": "from-violet-50 via-card to-card",
+  Mamül: "from-emerald-50 via-card to-card",
+  Hizmet: "from-slate-50 via-card to-card",
+};
+
 /** Ledger miktarına göre stok durumu rozeti + bar rengi (Hizmet'te yok). */
 function stokDurumu(
   kart: StokKarti,
@@ -985,6 +993,7 @@ function SeritMetrik({
 function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) {
   const durum = stokDurumu(kart);
   const hizmet = kart.grup === "Hizmet";
+  const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
   const paraGoster = (n: number, doviz: string) =>
     doviz === "TL" ? formatTL(n) : `${n.toLocaleString("tr-TR")} ${doviz}`;
 
@@ -1037,17 +1046,29 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
     aksiyonlar.push({ etiket: "Üretim Planla", href: "/uretim/plan" });
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border bg-gradient-to-r shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        GRUP_GRADIENT[kart.grup],
+      )}
+    >
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
         {/* Görsel + Kimlik */}
         <div className="flex min-w-0 flex-1 items-center gap-3.5">
           {gorsel && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={gorsel.url}
-              alt={kart.ad}
-              className="size-14 shrink-0 rounded-lg border object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => setBuyuk(gorsel)}
+              className="shrink-0 cursor-zoom-in overflow-hidden rounded-lg border transition-transform hover:scale-105"
+              aria-label={`${kart.ad} — büyüt`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={gorsel.url}
+                alt={kart.ad}
+                className="size-14 object-cover"
+              />
+            </button>
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
@@ -1170,6 +1191,10 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
           </div>
         )}
       </div>
+
+      {buyuk && (
+        <ResimLightbox kayit={buyuk} onKapat={() => setBuyuk(null)} />
+      )}
     </div>
   );
 }
