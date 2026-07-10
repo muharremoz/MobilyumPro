@@ -1708,6 +1708,41 @@ export async function stokKaydet(
   }
 }
 
+/**
+ * Stok kartını siler: alt kayıtlar (üretici/müşteri/doküman) cascade,
+ * ayna tablo (grup'a göre malzeme veya model) de silinir. Reçetede veya
+ * üretimde kullanılan kalem FK ihlaliyle reddedilir (transaction rollback).
+ */
+export async function stokSil(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const stok = await db.stok.findUnique({
+      where: { id },
+      select: { grup: true },
+    });
+    if (!stok) return { ok: false, error: "Kart bulunamadı." };
+    await db.$transaction(async (tx) => {
+      if (stok.grup === "Hammadde" || stok.grup === "Yarı Mamül") {
+        await tx.malzeme.deleteMany({ where: { id } });
+      } else if (stok.grup === "Mamül") {
+        await tx.model.deleteMany({ where: { id } });
+      }
+      await tx.stok.delete({ where: { id } });
+    });
+    revalidatePath("/stok-karti");
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/urunler");
+    return { ok: true };
+  } catch (e) {
+    console.error("stokSil:", e);
+    return {
+      ok: false,
+      error: "Kart silinemedi — reçetede veya üretimde kullanılıyor olabilir.",
+    };
+  }
+}
+
 type StokAltSonuc = { ok: boolean; id?: number; error?: string };
 
 /** Üretici kaydı ekle/güncelle. */

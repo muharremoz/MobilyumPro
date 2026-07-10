@@ -7,9 +7,11 @@ import {
   Plus,
   MoreHorizontal,
   Eye,
+  Trash2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +29,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { stokSil } from "@/lib/db/actions";
 import {
   Table,
   TableBody,
@@ -130,6 +134,8 @@ export function StokKartListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
+  const [liste, setListe] = React.useState<StokKarti[]>(stoklar);
+  React.useEffect(() => setListe(stoklar), [stoklar]);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
     id: "",
@@ -166,7 +172,7 @@ export function StokKartListe({
     const qAltGrup = metinFiltre.altGrup.toLocaleLowerCase("tr");
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
-    const arr = stoklar.filter(
+    const arr = liste.filter(
       (s) =>
         (!qId ||
           (s.kod ?? s.id).toLocaleLowerCase("tr").includes(qId)) &&
@@ -192,7 +198,19 @@ export function StokKartListe({
         return (va - vb) * yon;
       return String(va).localeCompare(String(vb), "tr") * yon;
     });
-  }, [stoklar, metinFiltre, grupF, durumF, sayiFiltre, sort]);
+  }, [liste, metinFiltre, grupF, durumF, sayiFiltre, sort]);
+
+  async function sil(s: StokKarti) {
+    const onceki = liste;
+    setListe((l) => l.filter((x) => x.id !== s.id));
+    const res = await stokSil(s.id);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Stok kartı silinemedi.");
+      return;
+    }
+    toast.success("Stok kartı silindi");
+  }
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
   const aktifSayfa = Math.min(sayfa, toplamSayfa);
@@ -408,12 +426,17 @@ export function StokKartListe({
                       }
                     />
                     <DropdownMenuContent align="end" className="w-36">
-                      {/* Stok kartı silme v1'de yok — ayna senkron ve stok
-                          hareketi/üretim bağları geri alma gerektirir. */}
                       <DropdownMenuItem
                         onClick={() => router.push(`/stok-karti/${s.id}`)}
                       >
                         <Eye className="mr-2 size-4" /> Görüntüle
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => sil(s)}
+                      >
+                        <Trash2 className="mr-2 size-4" /> Sil
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
