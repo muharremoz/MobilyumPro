@@ -261,6 +261,8 @@ export type Malzeme = {
   birim: string; // m, m², adet, kg, lt
   stok: number;
   birimFiyat: Para;
+  /** Birim fiyatın dövizi (maliyet dövizi). */
+  doviz?: Doviz;
   tedarikci?: string;
   durum: "Aktif" | "Pasif";
 };

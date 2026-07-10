@@ -7,6 +7,7 @@ import type {
   ModelVaryant,
   Parca,
   Malzeme,
+  Doviz,
   Depo,
   Musteri,
   Siparis,
@@ -131,6 +132,7 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
     birim: m.stokBirimi,
     stok: Number(m.stokMiktar),
     birimFiyat: Number(m.maliyetFiyati),
+    doviz: m.maliyetBirimi as Doviz,
     tedarikci: m.ureticiCariId ?? undefined,
     durum: m.durum as Durum,
   }));

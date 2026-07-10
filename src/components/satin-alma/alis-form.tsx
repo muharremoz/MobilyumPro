@@ -32,8 +32,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatTL, type Malzeme } from "@/lib/data";
+import { formatTL, type Doviz, type Malzeme } from "@/lib/data";
 import { alisKaydet, depoKaydet } from "@/lib/db/actions";
+
+const DOVIZ_SEMBOL: Record<Doviz, string> = { TL: "₺", USD: "$", EUR: "€" };
+function paraFmt(n: number, d: Doviz): string {
+  if (d === "TL") return formatTL(n);
+  return `${DOVIZ_SEMBOL[d]}${n.toLocaleString("tr-TR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 /**
  * Yeni alış formu — fiş bilgileri kartı + hızlı malzeme ekleme + zengin
@@ -47,6 +56,8 @@ type Satir = {
   miktar: number;
   birim: string;
   birimFiyat: number;
+  /** Birim fiyatın dövizi. */
+  doviz: Doviz;
   /** Malzemenin son (kayıtlı) alış fiyatı — karşılaştırma için. */
   sonFiyat: number;
   /** Malzemenin mevcut stoğu — bilgi. */
@@ -174,6 +185,7 @@ export function AlisForm({
         miktar: 1,
         birim: m.birim,
         birimFiyat: fiyat,
+        doviz: m.doviz ?? "TL",
         sonFiyat: fiyat,
         mevcutStok: m.stok,
       },
@@ -374,6 +386,8 @@ export function AlisForm({
                         <div className="min-w-0">
                           <HoverCard>
                             <HoverCardTrigger
+                              delay={0}
+                              closeDelay={0}
                               render={
                                 <div className="w-fit max-w-full cursor-default truncate text-sm font-medium">
                                   {m?.ad ?? s.malzemeId}
@@ -414,9 +428,10 @@ export function AlisForm({
                                           Son alış
                                         </span>
                                         <span className="tabular-nums">
-                                          {kayit
-                                            ? formatTL(kayit.fiyat)
-                                            : formatTL(s.sonFiyat)}
+                                          {paraFmt(
+                                            kayit ? kayit.fiyat : s.sonFiyat,
+                                            s.doviz,
+                                          )}
                                         </span>
                                       </div>
                                       <div className="flex justify-between gap-2">
@@ -468,6 +483,9 @@ export function AlisForm({
                           )}
                         </div>
                         <div className="relative">
+                          <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                            {DOVIZ_SEMBOL[s.doviz]}
+                          </span>
                           <Input
                             type="number"
                             min={0}
@@ -478,7 +496,7 @@ export function AlisForm({
                                 birimFiyat: Number(e.target.value),
                               })
                             }
-                            className="h-8 pr-5 tabular-nums"
+                            className="h-8 pr-5 pl-8 tabular-nums"
                           />
                           {Math.abs(fark) > 0.005 && (
                             <span
@@ -486,7 +504,7 @@ export function AlisForm({
                                 "absolute top-1/2 right-1.5 -translate-y-1/2",
                                 fark > 0 ? "text-rose-500" : "text-emerald-600",
                               )}
-                              title={`Son alışa göre ${fark > 0 ? "pahalı" : "ucuz"}: ${formatTL(Math.abs(fark))}`}
+                              title={`Son alışa göre ${fark > 0 ? "pahalı" : "ucuz"}: ${paraFmt(Math.abs(fark), s.doviz)}`}
                             >
                               {fark > 0 ? (
                                 <TrendingUp className="size-3.5" />
@@ -497,7 +515,7 @@ export function AlisForm({
                           )}
                         </div>
                         <span className="text-right text-sm font-medium tabular-nums">
-                          {formatTL(satirTutari(s))}
+                          {paraFmt(satirTutari(s), s.doviz)}
                         </span>
                         <Button
                           variant="ghost"
