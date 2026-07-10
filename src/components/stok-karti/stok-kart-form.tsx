@@ -960,7 +960,7 @@ function GenelTab({
         <div className="rounded-md border bg-card">
           <KartBaslik ikon={Tags} baslik="Sınıflama" />
           <div className="grid gap-3 p-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <AnimatedField label="Alt Grup" icon={FolderOpenIcon}>
                 <GrupSecici
                   gruplar={gruplar}
@@ -977,8 +977,6 @@ function GenelTab({
                   placeholder="Detay grup seç"
                 />
               </AnimatedField>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
               <IconInput
                 label="Kategori"
                 icon={FolderOpenIcon}
@@ -994,6 +992,8 @@ function GenelTab({
                   placeholder="Marka seç"
                 />
               </AnimatedField>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
               <IconInput
                 label="Model"
                 icon={ScanTextIcon}
@@ -1001,8 +1001,6 @@ function GenelTab({
                 value={form.model}
                 onChange={(e) => set("model")(e.target.value)}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
               <IconInput
                 label="Bölüm"
                 icon={BlocksIcon}
@@ -1024,69 +1022,64 @@ function GenelTab({
         {/* ── Üretim ── */}
         <div className="rounded-md border bg-card">
           <KartBaslik ikon={Factory} baslik="Üretim" />
-          <div className="grid gap-3 p-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-0.5">
-                <AnimatedField label="Reçete" icon={LayersIcon}>
-                  {parcalar.length > 0 ? (
-                    <SearchSelect
-                      items={parcalar.map((p) => p.ad)}
-                      value={receteAd}
-                      onValueChange={(v) =>
-                        set("receteParcaId")(
-                          parcalar.find((p) => p.ad === v)?.id ?? "",
-                        )
-                      }
-                      placeholder="Reçete seç"
-                    />
-                  ) : (
-                    <Input
-                      readOnly
-                      value=""
-                      placeholder="Reçete yok — Reçete Oluşturma'dan ekleyin"
-                      className="text-muted-foreground"
-                    />
-                  )}
-                </AnimatedField>
-                <p className="text-[11px] text-muted-foreground">
-                  Reçete, Parçalar havuzundan seçilir.
-                </p>
-              </div>
-              <div className="grid gap-0.5">
-                <IconInput
-                  label="Rota"
-                  icon={TruckIcon}
-                  value="Standart Fabrika Rotası"
-                  readOnly
-                  className="text-muted-foreground"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Rota tanımları ileride; şimdilik tüm üretim fabrika rotasını
-                  izler.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <AnimatedField label="Varsayılan Üretici" icon={UsersIcon}>
-                <SearchSelect
-                  items={tedarikciler.map((c) => c.ad)}
-                  value={ureticiAd}
-                  onValueChange={(v) =>
-                    set("ureticiCariId")(
-                      tedarikciler.find((c) => c.ad === v)?.id ?? "",
-                    )
-                  }
-                  placeholder="Tedarikçi seç"
-                />
+          <div className="grid grid-cols-4 items-start gap-3 p-4">
+            <div className="grid gap-0.5">
+              <AnimatedField label="Reçete" icon={LayersIcon}>
+                {parcalar.length > 0 ? (
+                  <SearchSelect
+                    items={parcalar.map((p) => p.ad)}
+                    value={receteAd}
+                    onValueChange={(v) =>
+                      set("receteParcaId")(
+                        parcalar.find((p) => p.ad === v)?.id ?? "",
+                      )
+                    }
+                    placeholder="Reçete seç"
+                  />
+                ) : (
+                  <Input
+                    readOnly
+                    value=""
+                    placeholder="Reçete yok — havuzdan"
+                    className="text-muted-foreground"
+                  />
+                )}
               </AnimatedField>
-              <IconInput
-                label="Üretici Kodu"
-                icon={ScanTextIcon}
-                placeholder="Üreticideki stok kodu"
-                value={form.ureticiKodu}
-                onChange={(e) => set("ureticiKodu")(e.target.value)}
-              />
+              <p className="text-[11px] text-muted-foreground">
+                Parçalar havuzundan seçilir.
+              </p>
             </div>
+            <div className="grid gap-0.5">
+              <IconInput
+                label="Rota"
+                icon={TruckIcon}
+                value="Standart Fabrika Rotası"
+                readOnly
+                className="text-muted-foreground"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Tüm üretim fabrika rotasını izler.
+              </p>
+            </div>
+            <AnimatedField label="Varsayılan Üretici" icon={UsersIcon}>
+              <SearchSelect
+                items={tedarikciler.map((c) => c.ad)}
+                value={ureticiAd}
+                onValueChange={(v) =>
+                  set("ureticiCariId")(
+                    tedarikciler.find((c) => c.ad === v)?.id ?? "",
+                  )
+                }
+                placeholder="Tedarikçi seç"
+              />
+            </AnimatedField>
+            <IconInput
+              label="Üretici Kodu"
+              icon={ScanTextIcon}
+              placeholder="Üreticideki stok kodu"
+              value={form.ureticiKodu}
+              onChange={(e) => set("ureticiKodu")(e.target.value)}
+            />
           </div>
         </div>
       </div>
