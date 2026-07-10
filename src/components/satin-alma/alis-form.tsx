@@ -3,43 +3,66 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  X,
+  ReceiptText,
+  PackagePlus,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/ui/search-select";
+import { KartBaslik } from "@/components/ui/kart-baslik";
 import { formatTL, type Malzeme } from "@/lib/data";
 import { alisKaydet } from "@/lib/db/actions";
 
 /**
- * Yeni alış formu — poset-form yerleşimiyle birebir aynı desen: üst şerit
- * (geri + tedarikçi + tarih + depo + belge no + Kaydet), solda satır grid'i
- * (#fafafa başlık + alt ekleme şeridi), sağda alış özeti.
- *
- * Kaydet tek transaction'da stok girişi + stok hareketi + cari Alacak işler
- * (src/lib/db/actions.ts → alisKaydet).
+ * Yeni alış formu — fiş bilgileri kartı + hızlı malzeme ekleme + zengin
+ * satırlar (mevcut stok / son alış fiyatı) + sağda özet.
+ * Kaydet tek transaction'da stok girişi + stok hareketi + cari Alacak işler.
  */
 type Satir = {
   malzemeId: string;
   miktar: number;
   birim: string;
   birimFiyat: number;
+  /** Malzemenin son (kayıtlı) alış fiyatı — karşılaştırma için. */
+  sonFiyat: number;
+  /** Malzemenin mevcut stoğu — bilgi. */
+  mevcutStok: number;
 };
 
 const bugun = () => new Date().toISOString().slice(0, 10);
+
+function Alan({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
 
 export function AlisForm({
   tedarikciler,
   malzemeler,
   depolar,
 }: {
-  /** Tedarikçi tipli cariler (Tedarikçi / Her İkisi). */
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
-  /** Aktif depo adları. */
   depolar: string[];
 }) {
   const router = useRouter();
@@ -57,10 +80,11 @@ export function AlisForm({
     () => new Map(malzemeler.map((m) => [m.id, m])),
     [malzemeler],
   );
-  // SearchSelect etiketi ("Ad · birim") ↔ malzeme eşlemesi.
-  const etiket = (m: Malzeme) => `${m.ad} · ${m.birim}`;
+  // Hızlı ekleme etiketi: "Ad · birim · stok X · ₺fiyat".
+  const araEtiket = (m: Malzeme) =>
+    `${m.ad} · ${m.birim} · stok ${m.stok} · ${formatTL(m.birimFiyat)}`;
   const etiketMap = React.useMemo(
-    () => new Map(malzemeler.map((m) => [etiket(m), m])),
+    () => new Map(malzemeler.map((m) => [araEtiket(m), m])),
     [malzemeler],
   );
 
@@ -73,10 +97,17 @@ export function AlisForm({
   const toplamMiktar = gecerli.reduce((t, s) => t + s.miktar, 0);
 
   // ── Eylemler ──────────────────────────────────────────────────────────
-  function satirEkle() {
+  function malzemeEkle(m: Malzeme) {
     setSatirlar((s) => [
       ...s,
-      { malzemeId: "", miktar: 1, birim: "", birimFiyat: 0 },
+      {
+        malzemeId: m.id,
+        miktar: 1,
+        birim: m.birim,
+        birimFiyat: m.birimFiyat,
+        sonFiyat: m.birimFiyat,
+        mevcutStok: m.stok,
+      },
     ]);
   }
   function satirGuncelle(i: number, degisim: Partial<Satir>) {
@@ -124,10 +155,12 @@ export function AlisForm({
     router.push("/satin-alma");
   }
 
+  const aktifMalzemeler = malzemeler.filter((m) => m.durum === "Aktif");
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Üst şerit */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Üst şerit — geri + Kaydet */}
+      <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -136,144 +169,177 @@ export function AlisForm({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <div className="w-64">
-          <SearchSelect
-            items={tedarikciler.map((t) => t.ad)}
-            value={cari?.ad ?? null}
-            onValueChange={(ad) =>
-              setCariId(tedarikciler.find((t) => t.ad === ad)?.id ?? "")
-            }
-            placeholder="Tedarikçi seçin"
-            emptyText="Tedarikçi tipli cari yok — Cari Hesaplar'dan ekleyin"
-          />
-        </div>
-        <Input
-          type="date"
-          value={tarih}
-          onChange={(e) => setTarih(e.target.value)}
-          className="w-40"
-        />
-        <div className="w-44">
-          <SearchSelect
-            items={depolar}
-            value={depo || null}
-            onValueChange={(v) => setDepo(v ?? "")}
-            placeholder="Depo"
-          />
-        </div>
-        <Input
-          placeholder="Belge no (fatura/irsaliye, opsiyonel)"
-          value={belgeNo}
-          onChange={(e) => setBelgeNo(e.target.value)}
-          className="min-w-56 flex-1"
-        />
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            onClick={kaydet}
-            disabled={!cari || gecerli.length === 0 || kaydediliyor}
-          >
-            {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
-          </Button>
-        </div>
+        <span className="text-sm font-medium">Yeni Alış</span>
+        <Button
+          className="ml-auto"
+          onClick={kaydet}
+          disabled={!cari || gecerli.length === 0 || kaydediliyor}
+        >
+          {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
       </div>
 
       <div className="flex flex-col gap-3 xl:flex-row">
-        {/* ── Sol: satır grid'i ── */}
-        <div className="min-w-0 flex-1">
+        {/* ── Sol: fiş bilgileri + satırlar ── */}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {/* Fiş bilgileri */}
+          <div className="rounded-md border bg-card">
+            <KartBaslik ikon={ReceiptText} baslik="Fiş Bilgileri" />
+            <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
+              <Alan label="Tedarikçi">
+                <SearchSelect
+                  items={tedarikciler.map((t) => t.ad)}
+                  value={cari?.ad ?? null}
+                  onValueChange={(ad) =>
+                    setCariId(tedarikciler.find((t) => t.ad === ad)?.id ?? "")
+                  }
+                  placeholder="Tedarikçi seçin"
+                  emptyText="Tedarikçi tipli cari yok"
+                />
+              </Alan>
+              <Alan label="Tarih">
+                <Input
+                  type="date"
+                  value={tarih}
+                  onChange={(e) => setTarih(e.target.value)}
+                />
+              </Alan>
+              <Alan label="Depo">
+                <SearchSelect
+                  items={depolar}
+                  value={depo || null}
+                  onValueChange={(v) => setDepo(v ?? "")}
+                  placeholder="Depo"
+                />
+              </Alan>
+              <Alan label="Belge No">
+                <Input
+                  placeholder="Fatura/irsaliye (ops.)"
+                  value={belgeNo}
+                  onChange={(e) => setBelgeNo(e.target.value)}
+                />
+              </Alan>
+            </div>
+          </div>
+
+          {/* Satırlar */}
           <div className="overflow-hidden rounded-md border bg-card">
-            <div className="grid grid-cols-[1fr_90px_56px_100px_110px_36px] items-center gap-2 border-b bg-[#fafafa] px-3 py-2 text-xs font-medium text-foreground">
-              <span>Malzeme</span>
-              <span className="text-right">Miktar</span>
-              <span>Birim</span>
-              <span className="text-right">Birim Fiyat</span>
-              <span className="text-right">Tutar</span>
-              <span />
+            <KartBaslik
+              ikon={PackagePlus}
+              baslik="Malzemeler"
+              sag={
+                <span className="text-xs text-muted-foreground">
+                  {gecerli.length} kalem
+                </span>
+              }
+            />
+            {/* Hızlı ekleme */}
+            <div className="border-b bg-muted/30 p-2.5">
+              <SearchSelect
+                items={aktifMalzemeler.map(araEtiket)}
+                value={null}
+                onValueChange={(secim) => {
+                  const m = secim ? etiketMap.get(secim) : undefined;
+                  if (m) malzemeEkle(m);
+                }}
+                placeholder="Malzeme ara ve ekle…"
+                emptyText="Malzeme bulunamadı"
+              />
             </div>
-            <div className="divide-y">
-              {satirlar.map((s, i) => {
-                const malzeme = s.malzemeId
-                  ? malzemeMap.get(s.malzemeId)
-                  : undefined;
-                return (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[1fr_90px_56px_100px_110px_36px] items-center gap-2 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      {/* Aynı malzeme birden çok satırda seçilebilir (farklı fiyat). */}
-                      <SearchSelect
-                        items={malzemeler
-                          .filter((m) => m.durum === "Aktif")
-                          .map(etiket)}
-                        value={malzeme ? etiket(malzeme) : null}
-                        onValueChange={(secim) => {
-                          const ref = secim ? etiketMap.get(secim) : undefined;
-                          satirGuncelle(i, {
-                            malzemeId: ref?.id ?? "",
-                            birim: ref?.birim ?? "",
-                            birimFiyat: ref?.birimFiyat ?? 0,
-                          });
-                        }}
-                        placeholder="Malzeme seçin"
-                        className="h-8"
-                      />
-                    </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={s.miktar}
-                      onChange={(e) =>
-                        satirGuncelle(i, { miktar: Number(e.target.value) })
-                      }
-                      className="h-8 text-right tabular-nums"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {s.birim || "—"}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={s.birimFiyat}
-                      onChange={(e) =>
-                        satirGuncelle(i, {
-                          birimFiyat: Number(e.target.value),
-                        })
-                      }
-                      className="h-8 text-right tabular-nums"
-                    />
-                    <span className="text-right text-xs text-muted-foreground tabular-nums">
-                      {formatTL(satirTutari(s))}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Satırı kaldır"
-                      onClick={() =>
-                        setSatirlar((x) => x.filter((_, j) => j !== i))
-                      }
-                    >
-                      <X className="size-3.5" />
-                    </Button>
-                  </div>
-                );
-              })}
-              {satirlar.length === 0 && (
-                <p className="p-8 text-center text-sm text-muted-foreground">
-                  Henüz satır yok — aşağıdan malzeme ekleyin.
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 border-t bg-[#fafafa] px-3 py-2">
-              <Button variant="outline" size="sm" onClick={satirEkle}>
-                <Plus className="size-3.5" /> Satır ekle
-              </Button>
-            </div>
+
+            {satirlar.length === 0 ? (
+              <p className="p-10 text-center text-sm text-muted-foreground">
+                Yukarıdaki kutudan malzeme aratıp ekleyin.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-[1fr_84px_96px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  <span>Malzeme</span>
+                  <span className="text-right">Miktar</span>
+                  <span className="text-right">Birim Fiyat</span>
+                  <span className="text-right">Tutar</span>
+                  <span />
+                </div>
+                <div className="divide-y">
+                  {satirlar.map((s, i) => {
+                    const m = malzemeMap.get(s.malzemeId);
+                    const fark = s.birimFiyat - s.sonFiyat;
+                    return (
+                      <div
+                        key={i}
+                        className="grid grid-cols-[1fr_84px_96px_110px_36px] items-center gap-2 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {m?.ad ?? s.malzemeId}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground tabular-nums">
+                            stok {s.mevcutStok} {s.birim} · son{" "}
+                            {formatTL(s.sonFiyat)}
+                          </div>
+                        </div>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={s.miktar}
+                          onChange={(e) =>
+                            satirGuncelle(i, { miktar: Number(e.target.value) })
+                          }
+                          className="h-8 text-right tabular-nums"
+                        />
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={s.birimFiyat}
+                            onChange={(e) =>
+                              satirGuncelle(i, {
+                                birimFiyat: Number(e.target.value),
+                              })
+                            }
+                            className="h-8 pr-5 text-right tabular-nums"
+                          />
+                          {Math.abs(fark) > 0.005 && (
+                            <span
+                              className={cn(
+                                "absolute top-1/2 right-1.5 -translate-y-1/2",
+                                fark > 0 ? "text-rose-500" : "text-emerald-600",
+                              )}
+                              title={`Son alışa göre ${fark > 0 ? "pahalı" : "ucuz"}: ${formatTL(Math.abs(fark))}`}
+                            >
+                              {fark > 0 ? (
+                                <TrendingUp className="size-3.5" />
+                              ) : (
+                                <TrendingDown className="size-3.5" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-right text-sm font-medium tabular-nums">
+                          {formatTL(satirTutari(s))}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Satırı kaldır"
+                          onClick={() =>
+                            setSatirlar((x) => x.filter((_, j) => j !== i))
+                          }
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* ── Sağ: özet kolonu ── */}
+        {/* ── Sağ: özet ── */}
         <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
