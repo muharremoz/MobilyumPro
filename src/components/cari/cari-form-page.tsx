@@ -26,6 +26,7 @@ import {
   FileImage,
   ExternalLink,
   Info,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { NestedCard } from "@/components/ui/nested-card";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { KartBaslik } from "@/components/ui/kart-baslik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
@@ -1148,9 +1150,7 @@ function GenelTab({
       <div className="flex flex-col gap-4 lg:col-span-2">
         {/* ── Genel ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Genel</span>
-          </div>
+          <KartBaslik ikon={Info} baslik="Genel" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               <IconInput
@@ -1217,12 +1217,15 @@ function GenelTab({
 
         {/* ── Yetkili (ana irtibat) ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Yetkili</span>
-            <span className="text-xs text-muted-foreground">
-              Ana irtibat — diğer kişiler Yetkililer sekmesinde
-            </span>
-          </div>
+          <KartBaslik
+            ikon={UserRound}
+            baslik="Yetkili"
+            sag={
+              <span className="text-xs text-muted-foreground">
+                Ana irtibat — diğer kişiler Yetkililer sekmesinde
+              </span>
+            }
+          />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               <IconInput
@@ -1261,9 +1264,7 @@ function GenelTab({
 
         {/* ── İletişim ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">İletişim</span>
-          </div>
+          <KartBaslik ikon={Phone} baslik="İletişim" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-3 gap-3">
               <IconInput
@@ -1316,9 +1317,7 @@ function GenelTab({
 
         {/* ── Satış & Muhasebe ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Satış &amp; Muhasebe</span>
-          </div>
+          <KartBaslik ikon={Landmark} baslik="Satış & Muhasebe" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-3 gap-3">
               <AnimatedField label="Satış Fiyat Tipi" icon={BadgePercentIcon}>
@@ -1397,9 +1396,7 @@ function GenelTab({
       {/* Sağ: Fatura bilgileri + Adres */}
       <div className="flex flex-col gap-4 lg:col-span-1">
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Fatura Bilgileri</span>
-          </div>
+          <KartBaslik ikon={Receipt} baslik="Fatura Bilgileri" />
           <div className="grid gap-3 p-4">
             {!kurumsal && (
               <IconInput
@@ -1441,9 +1438,7 @@ function GenelTab({
         </div>
 
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Adres</span>
-          </div>
+          <KartBaslik ikon={MapPin} baslik="Adres" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               {ADRES_ALANLARI.map(({ alan, etiket, ornek }) => (

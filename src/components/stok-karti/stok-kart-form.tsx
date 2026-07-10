@@ -19,7 +19,6 @@ import {
   Gauge,
   Landmark,
   Tag,
-  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { KartBaslik } from "@/components/ui/kart-baslik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -504,27 +504,6 @@ function TabBtn({
     >
       {children}
     </button>
-  );
-}
-
-/** Form bölümü kart başlığı — hafif renkli arka plan + ikon. */
-function KartBaslik({
-  ikon: Ikon,
-  baslik,
-  sag,
-}: {
-  ikon: LucideIcon;
-  baslik: string;
-  sag?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2.5">
-      <span className="flex items-center gap-2 text-sm font-medium">
-        <Ikon className="size-4 text-muted-foreground" />
-        {baslik}
-      </span>
-      {sag}
-    </div>
   );
 }
 

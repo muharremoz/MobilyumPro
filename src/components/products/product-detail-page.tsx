@@ -13,11 +13,20 @@ import {
   ArrowUpFromLine,
   Repeat,
   ImageOff,
+  Info,
+  Ruler,
+  Boxes,
+  Image as ImageIcon,
+  CircleCheck,
+  Package,
+  Palette,
+  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { StripedPattern } from "@/components/magicui/striped-pattern";
 import { TabIcerik } from "@/components/ui/tab-icerik";
+import { KartBaslik } from "@/components/ui/kart-baslik";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -252,21 +261,20 @@ function TabBtn({
 
 function Kart({
   baslik,
+  ikon,
   sag,
   children,
   className,
 }: {
   baslik: string;
+  ikon: LucideIcon;
   sag?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("rounded-lg border bg-card", className)}>
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
-        <span className="text-sm font-medium">{baslik}</span>
-        {sag}
-      </div>
+      <KartBaslik ikon={ikon} baslik={baslik} sag={sag} />
       <div className="p-4">{children}</div>
     </div>
   );
@@ -290,7 +298,7 @@ function BilgiSatiri({
 /* ── Genel ───────────────────────────────────────────────────── */
 function GenelTab({ product }: { product: Model }) {
   return (
-    <Kart baslik="Genel Bilgiler">
+    <Kart baslik="Genel Bilgiler" ikon={Info}>
       <div className="grid gap-x-8 sm:grid-cols-2">
         <BilgiSatiri etiket="Model Adı" deger={product.ad} />
         <BilgiSatiri etiket="Model Kodu" deger={product.id} />
@@ -309,7 +317,7 @@ function GenelTab({ product }: { product: Model }) {
 function DetayTab({ product }: { product: Model }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <Kart baslik="Ölçü & Fiziksel">
+      <Kart baslik="Ölçü & Fiziksel" ikon={Ruler}>
         <div className="grid gap-1">
           <BilgiSatiri etiket="Birim" deger="Adet" />
           <BilgiSatiri
@@ -321,7 +329,7 @@ function DetayTab({ product }: { product: Model }) {
           <BilgiSatiri etiket="Min. Stok" deger={product.minStok ?? "—"} />
         </div>
       </Kart>
-      <Kart baslik="Ticari & Diğer">
+      <Kart baslik="Ticari & Diğer" ikon={Tags}>
         <div className="grid gap-1">
           <BilgiSatiri etiket="KDV Oranı" deger="%20" />
           <BilgiSatiri etiket="Garanti" deger="24 ay" />
@@ -350,6 +358,7 @@ function EntegrasyonTab({ product }: { product: Model }) {
   return (
     <Kart
       baslik="Entegrasyon Kodları"
+      ikon={Repeat}
       className="p-0 [&>div:last-child]:p-0"
     >
       <Table>
@@ -417,7 +426,7 @@ function UrunAgaciTab({
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <Kart baslik="Parçalar">
+      <Kart baslik="Parçalar" ikon={Boxes}>
         <div className="flex flex-col gap-1">
           {parcaSatirlari.map((ps) => {
             const p = parcalar.find((x) => x.id === ps.parcaId);
@@ -444,6 +453,7 @@ function UrunAgaciTab({
 
       <Kart
         baslik="Toplam Malzeme İhtiyacı"
+        ikon={Layers}
         sag={
           <span className="text-sm font-semibold tabular-nums">
             {formatTL(toplamMaliyet)}
@@ -490,6 +500,7 @@ function ResimlerTab({ product }: { product: Model }) {
   return (
     <Kart
       baslik="Model Resimleri"
+      ikon={ImageIcon}
       sag={
         <span className="text-xs text-muted-foreground">
           {gorseller.length} görsel
@@ -537,7 +548,7 @@ function KullanimTab({
   );
 
   return (
-    <Kart baslik="Kullanıldığı Reçeteler">
+    <Kart baslik="Kullanıldığı Reçeteler" ikon={FileText}>
       {kullananlar.length > 0 ? (
         <div className="flex flex-col gap-1">
           {kullananlar.map((p) => (
@@ -617,7 +628,7 @@ function StokAnalizTab({
         <Ozet etiket="Mevcut Stok" deger={String(product.stok)} />
         <Ozet etiket="Toplam Giriş" deger={String(giris)} tone="emerald" />
         <Ozet etiket="Toplam Çıkış" deger={String(cikis)} tone="rose" />
-        <Kart baslik="Durum">
+        <Kart baslik="Durum" ikon={CircleCheck}>
           <Badge variant="secondary" className={durum.c}>
             {durum.e}
           </Badge>
@@ -626,6 +637,7 @@ function StokAnalizTab({
 
       <Kart
         baslik="Son Hareketler"
+        ikon={History}
         sag={
           <span className="text-xs text-muted-foreground">
             {hareketler.length} hareket
@@ -710,7 +722,7 @@ function Ozet({
   tone?: "emerald" | "rose";
 }) {
   return (
-    <Kart baslik={etiket}>
+    <Kart baslik={etiket} ikon={Package}>
       <div
         className={cn(
           "text-2xl font-semibold tabular-nums",
@@ -748,6 +760,7 @@ function VaryantMaliyetTab({
     <div className="grid gap-3 lg:grid-cols-2">
       <Kart
         baslik="Varyantlar"
+        ikon={Palette}
         sag={
           <span className="text-xs text-muted-foreground">
             {varyantlar.length} varyant
@@ -787,7 +800,7 @@ function VaryantMaliyetTab({
         </Table>
       </Kart>
 
-      <Kart baslik="Maliyet & Kâr">
+      <Kart baslik="Maliyet & Kâr" ikon={Banknote}>
         {maliyet > 0 ? (
           <div className="grid gap-1">
             <BilgiSatiri etiket="Malzeme Maliyeti" deger={formatTL(maliyet)} />

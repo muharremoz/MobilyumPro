@@ -130,7 +130,7 @@ function Bolum({
 }) {
   return (
     <section className="overflow-hidden rounded-md border bg-card">
-      <div className="flex items-start justify-between gap-3 border-b px-5 py-3.5">
+      <div className="flex items-start justify-between gap-3 border-b bg-muted/40 px-5 py-3.5">
         <div className="flex flex-col gap-0.5">
           <span className="flex items-center gap-1.5 text-sm font-medium">
             {Ikon && <Ikon size={15} className="text-muted-foreground" />}
