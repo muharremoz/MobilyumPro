@@ -22,6 +22,7 @@ import {
   History,
   Activity,
   Warehouse,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,6 +67,8 @@ import {
   formatTL,
   formatTarih,
   type Doviz,
+  type Malzeme,
+  type Parca,
   type StokDokuman,
   type StokDokumanTipi,
   type StokGrup,
@@ -76,6 +79,7 @@ import {
   type StokMusteri,
   type StokUretici,
 } from "@/lib/data";
+import { modelMalzemeIhtiyaci } from "@/lib/bom";
 import {
   stokKaydet,
   stokUreticiKaydet,
@@ -151,7 +155,8 @@ const BOS_DETAY: StokDetay = {
 const BOS_GRUPLAR: StokGrup[] = [];
 const BOS_MARKALAR: string[] = [];
 const BOS_BIRIMLER: string[] = [];
-const BOS_PARCALAR: { id: string; ad: string }[] = [];
+const BOS_PARCALAR: Parca[] = [];
+const BOS_MALZEMELER: Malzeme[] = [];
 const BOS_CARILER: { id: string; ad: string }[] = [];
 /** Tanımlarda birim yoksa kullanılan varsayılan birim listesi. */
 const VARSAYILAN_BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
@@ -252,6 +257,7 @@ function s(n: number | undefined): string {
 type Tab =
   | "genel"
   | "fiyat"
+  | "recete"
   | "uretici"
   | "musteriler"
   | "hareketler"
@@ -266,6 +272,7 @@ export function StokKartForm({
   markalar = BOS_MARKALAR,
   birimler = BOS_BIRIMLER,
   parcalar = BOS_PARCALAR,
+  malzemeler = BOS_MALZEMELER,
   tedarikciler = BOS_CARILER,
   musteriCariler = BOS_CARILER,
 }: {
@@ -279,8 +286,10 @@ export function StokKartForm({
   markalar?: string[];
   /** Tanımlamalar → Birimler (boşsa varsayılan liste). */
   birimler?: string[];
-  /** Reçete havuzu (Parçalar). */
-  parcalar?: { id: string; ad: string }[];
+  /** Reçete havuzu (Parçalar, reçete satırlarıyla). */
+  parcalar?: Parca[];
+  /** Malzeme kataloğu (Reçete sekmesinde ad/fiyat çözümü için). */
+  malzemeler?: Malzeme[];
   /** Tedarikçi tipli cariler (Üretici seçimi). */
   tedarikciler?: { id: string; ad: string }[];
   /** Müşteri tipli cariler (Müşteriler sekmesi). */
@@ -429,6 +438,11 @@ export function StokKartForm({
         </TabBtn>
         {duzenleme && (
           <>
+            {(kart?.grup === "Mamül" || kart?.grup === "Yarı Mamül") && (
+              <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
+                Reçete
+              </TabBtn>
+            )}
             <TabBtn aktif={tab === "uretici"} onClick={() => setTab("uretici")}>
               Üretici
             </TabBtn>
@@ -508,6 +522,13 @@ export function StokKartForm({
             musteriCariler={musteriCariler}
           />
         )}
+        {duzenleme && kart && tab === "recete" && (
+          <ReceteTab
+            receteParcaId={form.receteParcaId}
+            parcalar={parcalar}
+            malzemeler={malzemeler}
+          />
+        )}
         {duzenleme && kart && tab === "hareketler" && (
           <HareketlerTab hareketler={detay.hareketler} birim={kart.stokBirimi} />
         )}
@@ -535,6 +556,110 @@ function TabBtn({
     <SekmeButonu aktif={aktif} onClick={onClick} layoutId="stokTabCizgi">
       {children}
     </SekmeButonu>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* REÇETE SEKMESİ                                                     */
+/* ------------------------------------------------------------------ */
+/** Kartın reçetesi — havuzdan seçili parçanın malzeme ihtiyacı + maliyeti. */
+function ReceteTab({
+  receteParcaId,
+  parcalar,
+  malzemeler,
+}: {
+  receteParcaId?: string;
+  parcalar: Parca[];
+  malzemeler: Malzeme[];
+}) {
+  const parca = receteParcaId
+    ? parcalar.find((p) => p.id === receteParcaId)
+    : undefined;
+  const ihtiyac = React.useMemo(
+    () =>
+      receteParcaId
+        ? modelMalzemeIhtiyaci(
+            [{ parcaId: receteParcaId, miktar: 1 }],
+            parcalar,
+            malzemeler,
+          )
+        : [],
+    [receteParcaId, parcalar, malzemeler],
+  );
+  const toplam = ihtiyac.reduce((t, i) => t + i.toplamFiyat, 0);
+
+  if (!parca) {
+    return (
+      <div className="rounded-md border bg-card">
+        <KartBaslik ikon={Layers} baslik="Reçete" />
+        <div className="flex h-24 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+          Bu kart için reçete seçilmemiş — Genel sekmesindeki Üretim bölümünden
+          seçin.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-md border bg-card">
+      <KartBaslik
+        ikon={Layers}
+        baslik={`Reçete — ${parca.ad}`}
+        sag={
+          <span className="text-xs text-muted-foreground">
+            1 birim üretim için
+          </span>
+        }
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Malzeme</TableHead>
+            <TableHead className="text-right">Miktar</TableHead>
+            <TableHead>Birim</TableHead>
+            <TableHead className="text-right">Birim Fiyat</TableHead>
+            <TableHead className="text-right">Tutar</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {ihtiyac.map((i) => (
+            <TableRow key={i.malzeme.id}>
+              <TableCell className="font-medium">{i.malzeme.ad}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {i.toplamMiktar.toLocaleString("tr-TR")}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {i.malzeme.birim}
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-muted-foreground">
+                {formatTL(i.malzeme.birimFiyat)}
+              </TableCell>
+              <TableCell className="text-right font-medium tabular-nums">
+                {formatTL(i.toplamFiyat)}
+              </TableCell>
+            </TableRow>
+          ))}
+          {ihtiyac.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="h-20 text-center text-muted-foreground"
+              >
+                Reçetede malzeme yok.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      {ihtiyac.length > 0 && (
+        <div className="flex items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2.5">
+          <span className="text-sm font-medium">Toplam Maliyet</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {formatTL(toplam)}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
