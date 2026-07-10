@@ -14,6 +14,12 @@ import {
   FileText,
   ExternalLink,
   Info,
+  Tags,
+  Ruler,
+  Gauge,
+  Landmark,
+  Tag,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -501,6 +507,27 @@ function TabBtn({
   );
 }
 
+/** Form bölümü kart başlığı — hafif renkli arka plan + ikon. */
+function KartBaslik({
+  ikon: Ikon,
+  baslik,
+  sag,
+}: {
+  ikon: LucideIcon;
+  baslik: string;
+  sag?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2.5">
+      <span className="flex items-center gap-2 text-sm font-medium">
+        <Ikon className="size-4 text-muted-foreground" />
+        {baslik}
+      </span>
+      {sag}
+    </div>
+  );
+}
+
 /** Şeritteki mini metrik (etiket + değer). */
 function SeritMetrik({
   etiket,
@@ -763,9 +790,7 @@ function GenelTab({
       <div className="flex flex-col gap-4 lg:col-span-2">
         {/* ── Genel ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Genel</span>
-          </div>
+          <KartBaslik ikon={Info} baslik="Genel" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               <IconInput
@@ -852,9 +877,7 @@ function GenelTab({
 
         {/* ── Sınıflama ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Sınıflama</span>
-          </div>
+          <KartBaslik ikon={Tags} baslik="Sınıflama" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               <AnimatedField label="Alt Grup" icon={FolderOpenIcon}>
@@ -919,9 +942,7 @@ function GenelTab({
 
         {/* ── Üretim ── */}
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Üretim</span>
-          </div>
+          <KartBaslik ikon={Factory} baslik="Üretim" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-0.5">
@@ -992,9 +1013,7 @@ function GenelTab({
       {/* Sağ: Ölçüler + Stok Limitleri + Muhasebe + Durum */}
       <div className="flex flex-col gap-4 lg:col-span-1">
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Ölçüler</span>
-          </div>
+          <KartBaslik ikon={Ruler} baslik="Ölçüler" />
           <div className="grid gap-3 p-4">
             <div className="grid grid-cols-3 gap-3">
               <IconInput
@@ -1044,9 +1063,7 @@ function GenelTab({
         </div>
 
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Stok Limitleri</span>
-          </div>
+          <KartBaslik ikon={Gauge} baslik="Stok Limitleri" />
           <div className="grid gap-3 p-4">
             <IconInput
               label="Min Sipariş"
@@ -1078,9 +1095,7 @@ function GenelTab({
         </div>
 
         <div className="rounded-md border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="text-sm font-medium">Muhasebe</span>
-          </div>
+          <KartBaslik ikon={Landmark} baslik="Muhasebe" />
           <div className="grid gap-3 p-4">
             <IconInput
               label="Muhasebe Kodu"
@@ -1163,12 +1178,15 @@ function FiyatTab({
 
   return (
     <div className="rounded-md border bg-card lg:max-w-xl">
-      <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <span className="text-sm font-medium">Fiyatlar</span>
-        <span className="text-xs text-muted-foreground">
-          Tutar + döviz — boş bırakılan fiyat 0 kabul edilir
-        </span>
-      </div>
+      <KartBaslik
+        ikon={Tag}
+        baslik="Fiyatlar"
+        sag={
+          <span className="text-xs text-muted-foreground">
+            Tutar + döviz — boş bırakılan fiyat 0 kabul edilir
+          </span>
+        }
+      />
       <div className="grid gap-2.5 p-4">
         {satirlar.map(({ etiket, fiyatKey, dovizKey }) => (
           <div
