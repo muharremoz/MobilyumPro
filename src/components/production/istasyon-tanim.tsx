@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -161,91 +161,104 @@ export function IstasyonTanim({
             <Plus className="size-4" /> İlk istasyonu ekle
           </button>
         ) : (
-          // Üretim hattı akışı — soldan sağa bağlı adımlar, aralarında ok.
-          <div className="flex items-stretch gap-1 overflow-x-auto p-4">
-            {liste.map((i, idx) => (
-              <React.Fragment key={i.slug}>
-                {idx > 0 && (
-                  <div className="flex shrink-0 items-center px-1 pt-8 text-muted-foreground/40">
-                    <ArrowRight className="size-4" />
-                  </div>
-                )}
+          // Dikey zaman çizelgesi — numaralı noktalar, aralarında bağ çizgisi.
+          <div className="p-4">
+            {liste.map((i, idx) => {
+              const sonMu = idx === liste.length - 1;
+              return (
                 <div
+                  key={i.slug}
                   draggable
                   onDragStart={() => setSurukleIdx(idx)}
                   onDragEnter={() => surukleGir(idx)}
                   onDragOver={(e) => e.preventDefault()}
                   onDragEnd={surukleBirak}
                   className={cn(
-                    "group relative flex w-44 shrink-0 cursor-grab flex-col overflow-hidden rounded-xl border bg-card transition-all active:cursor-grabbing",
-                    surukleIdx === idx
-                      ? "opacity-60 shadow-lg ring-2 ring-foreground/20"
-                      : "hover:shadow-md",
+                    "group flex gap-3",
+                    surukleIdx === idx && "opacity-60",
                   )}
                 >
-                  {/* Renkli üst şerit */}
-                  <div className="h-1.5" style={{ backgroundColor: i.renk }} />
-                  <div className="flex flex-1 flex-col gap-1 p-3">
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="flex size-6 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-sm"
-                        style={{ backgroundColor: i.renk }}
-                      >
-                        {i.sira}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="İşlemler"
-                              className="-mr-1 opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                            >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem onClick={() => duzenle(i)}>
-                            <Pencil className="mr-2 size-4" /> Düzenle
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => sil(i)}
+                  {/* Sol ray: numara noktası + bağ çizgisi */}
+                  <div className="flex flex-col items-center">
+                    <span
+                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm"
+                      style={{ backgroundColor: i.renk }}
+                    >
+                      {i.sira}
+                    </span>
+                    {!sonMu && (
+                      <span className="my-1 w-0.5 flex-1 rounded bg-border" />
+                    )}
+                  </div>
+                  {/* İçerik kartı */}
+                  <div
+                    className={cn(
+                      "mb-3 flex flex-1 cursor-grab items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-shadow active:cursor-grabbing",
+                      surukleIdx === idx
+                        ? "shadow-md ring-1 ring-foreground/20"
+                        : "hover:border-foreground/15",
+                    )}
+                  >
+                    <span
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: i.renk }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{i.ad}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="rounded bg-muted px-1 py-px font-mono">
+                          {i.slug}
+                        </span>
+                        <span className="tabular-nums">
+                          {i.konum.g}×{i.konum.d} m
+                        </span>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="İşlemler"
+                            className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
                           >
-                            <Trash2 className="mr-2 size-4" /> Sil
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div className="mt-0.5 truncate text-sm leading-tight font-semibold">
-                      {i.ad}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      <span className="rounded bg-muted px-1 py-px font-mono">
-                        {i.slug}
-                      </span>
-                      <span className="tabular-nums">
-                        {i.konum.g}×{i.konum.d} m
-                      </span>
-                    </div>
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => duzenle(i)}>
+                          <Pencil className="mr-2 size-4" /> Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => sil(i)}
+                        >
+                          <Trash2 className="mr-2 size-4" /> Sil
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-              </React.Fragment>
-            ))}
-            {/* Sona yeni istasyon ekle */}
-            <div className="flex shrink-0 items-center px-1 pt-8 text-muted-foreground/40">
-              <ArrowRight className="size-4" />
+              );
+            })}
+            {/* Sona yeni istasyon */}
+            <div className="flex gap-3">
+              <div className="flex w-8 shrink-0 justify-center">
+                <span className="flex size-8 items-center justify-center rounded-full border border-dashed text-muted-foreground/50">
+                  <Plus className="size-4" />
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={yeni}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-accent/40 hover:text-foreground"
+              >
+                <Plus className="size-3.5" /> Yeni İstasyon
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={yeni}
-              className="flex w-44 shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed py-6 text-xs text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-accent/40 hover:text-foreground"
-            >
-              <Plus className="size-5" /> Yeni İstasyon
-            </button>
           </div>
         )}
       </div>
