@@ -36,8 +36,12 @@ import { formatTL, type Doviz, type Malzeme } from "@/lib/data";
 import { alisKaydet, depoKaydet } from "@/lib/db/actions";
 
 const DOVIZ_SEMBOL: Record<Doviz, string> = { TL: "₺", USD: "$", EUR: "€" };
-function paraFmt(n: number, d: Doviz): string {
-  if (d === "TL") return formatTL(n);
+function dovizSembol(d: Doviz | undefined): string {
+  return d ? (DOVIZ_SEMBOL[d] ?? "₺") : "₺";
+}
+function paraFmt(n: number, d: Doviz | undefined): string {
+  // TL veya bilinmeyen/boş → ₺ biçimi.
+  if (d !== "USD" && d !== "EUR") return formatTL(n);
   return `${DOVIZ_SEMBOL[d]}${n.toLocaleString("tr-TR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -185,7 +189,7 @@ export function AlisForm({
         miktar: 1,
         birim: m.birim,
         birimFiyat: fiyat,
-        doviz: m.doviz ?? "TL",
+        doviz: m.doviz || "TL",
         sonFiyat: fiyat,
         mevcutStok: m.stok,
       },
@@ -484,7 +488,7 @@ export function AlisForm({
                         </div>
                         <div className="relative">
                           <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                            {DOVIZ_SEMBOL[s.doviz]}
+                            {dovizSembol(s.doviz)}
                           </span>
                           <Input
                             type="number"

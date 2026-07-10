@@ -132,7 +132,7 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
     birim: m.stokBirimi,
     stok: Number(m.stokMiktar),
     birimFiyat: Number(m.maliyetFiyati),
-    doviz: m.maliyetBirimi as Doviz,
+    doviz: (m.maliyetBirimi || "TL") as Doviz,
     tedarikci: m.ureticiCariId ?? undefined,
     durum: m.durum as Durum,
   }));
