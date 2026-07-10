@@ -2452,6 +2452,13 @@ function dosyaUzanti(url: string): string {
   return nokta > 0 ? ad.slice(nokta + 1).toUpperCase() : "";
 }
 
+/** Attachment açıklaması: "UZANTI · Tip" (tip Diğer ise sadece uzantı). */
+function dokumanAciklama(d: StokDokuman): string {
+  const uzanti = dosyaUzanti(d.url);
+  if (d.tip === "Diğer") return uzanti || "Dosya";
+  return uzanti ? `${uzanti} · ${d.tip}` : d.tip;
+}
+
 /** Dosya adına göre doküman tipi önerir. */
 function tipTahmin(dosyaAdi: string): StokDokumanTipi {
   if (RESIM_UZANTI.test(dosyaAdi)) return "Ürün Resmi";
@@ -2472,6 +2479,9 @@ function DokumanlarTab({
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokDokuman | null>(null);
   const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
+
+  const resimler = liste.filter((d) => resimMi(d.url));
+  const dosyalar = liste.filter((d) => !resimMi(d.url));
 
   function ekleAc() {
     setDuzenlenen(null);
@@ -2548,59 +2558,63 @@ function DokumanlarTab({
           </span>
         </div>
 
-        {/* Dokümanlar — shadcn orijinali: görseller dikey chip, dosyalar yatay kart */}
-        {liste.length > 0 && (
+        {/* Görseller — dikey chip (shadcn orijinali) */}
+        {resimler.length > 0 && (
           <div className="flex flex-wrap items-start gap-3">
-            {liste.map((d) => {
-              const resim = resimMi(d.url);
-              const uzanti = dosyaUzanti(d.url);
-              const aciklama =
-                d.tip === "Diğer"
-                  ? uzanti || "Dosya"
-                  : uzanti
-                    ? `${uzanti} · ${d.tip}`
-                    : d.tip;
-              return (
-                <Attachment
-                  key={d.id}
-                  orientation={resim ? "vertical" : "horizontal"}
-                  state="done"
-                >
-                  {resim ? (
-                    <AttachmentTrigger
-                      onClick={() => setBuyuk(d)}
-                      aria-label={`${d.ad} — büyüt`}
-                      className="cursor-zoom-in"
-                    />
-                  ) : (
-                    <AttachmentTrigger
-                      render={
-                        <a href={d.url} target="_blank" rel="noreferrer" />
-                      }
-                      aria-label={`${d.ad} — aç`}
-                    />
-                  )}
-                  <AttachmentMedia variant={resim ? "image" : "icon"}>
-                    {resim ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={d.url} alt={d.ad} />
-                    ) : (
-                      <FileText />
-                    )}
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                    <AttachmentDescription>{aciklama}</AttachmentDescription>
-                  </AttachmentContent>
-                  <AttachmentActions>
-                    <SatirMenu
-                      onDuzenle={() => duzenleAc(d)}
-                      onSil={() => sil(d)}
-                    />
-                  </AttachmentActions>
-                </Attachment>
-              );
-            })}
+            {resimler.map((d) => (
+              <Attachment key={d.id} orientation="vertical" state="done">
+                <AttachmentTrigger
+                  onClick={() => setBuyuk(d)}
+                  aria-label={`${d.ad} — büyüt`}
+                  className="cursor-zoom-in"
+                />
+                <AttachmentMedia variant="image">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={d.url} alt={d.ad} />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                  <AttachmentDescription>
+                    {dokumanAciklama(d)}
+                  </AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <SatirMenu
+                    onDuzenle={() => duzenleAc(d)}
+                    onSil={() => sil(d)}
+                  />
+                </AttachmentActions>
+              </Attachment>
+            ))}
+          </div>
+        )}
+
+        {/* Diğer dosyalar — yatay kart (altta) */}
+        {dosyalar.length > 0 && (
+          <div className="flex flex-wrap items-start gap-3">
+            {dosyalar.map((d) => (
+              <Attachment key={d.id} orientation="horizontal" state="done">
+                <AttachmentTrigger
+                  render={<a href={d.url} target="_blank" rel="noreferrer" />}
+                  aria-label={`${d.ad} — aç`}
+                />
+                <AttachmentMedia variant="icon">
+                  <FileText />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                  <AttachmentDescription>
+                    {dokumanAciklama(d)}
+                  </AttachmentDescription>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <SatirMenu
+                    onDuzenle={() => duzenleAc(d)}
+                    onSil={() => sil(d)}
+                  />
+                </AttachmentActions>
+              </Attachment>
+            ))}
           </div>
         )}
 
