@@ -387,10 +387,10 @@ export function AlisForm({
                                 miktar: Number(e.target.value),
                               })
                             }
-                            className="h-8 pr-9 tabular-nums"
+                            className="h-8 pr-11 tabular-nums"
                           />
                           {s.birim && (
-                            <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                            <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                               {s.birim}
                             </span>
                           )}
