@@ -9,7 +9,6 @@ import { StockTracker } from "@/components/inventory/stock-tracker";
 import { StockMovements } from "@/components/inventory/stock-movements";
 import { Warehouses } from "@/components/inventory/warehouses";
 import { StockCount } from "@/components/inventory/stock-count";
-import { Materials } from "@/components/inventory/materials";
 import { Parts } from "@/components/inventory/parts";
 import type { ListeKolonAyariDegeri } from "@/components/ui/kolon-ayarlari";
 import type {
@@ -102,18 +101,6 @@ export function InventoryPage({
     );
 
   // Üretim
-  if (bolum === "malzemeler")
-    return (
-      <Materials
-        malzemeler={malzemeler}
-        kolonAyari={kolonAyarlari?.["malzemeler"]}
-        kullanicilar={kullanicilar}
-        mevcutKullaniciId={mevcutKullaniciId}
-        birimler={tanimlar?.birim.map((t) => t.ad)}
-        gruplar={gruplar}
-        tedarikciler={tedarikciler}
-      />
-    );
   if (bolum === "parcalar")
     return (
       <Parts
