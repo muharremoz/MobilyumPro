@@ -5,20 +5,18 @@
  *
  * Koordinatlar plan düzleminde (x → sağ, z → aşağı), birim ≈ metre.
  */
-export type IstasyonSlug =
-  | "kesim"
-  | "bantlama"
-  | "delik"
-  | "montaj"
-  | "paketleme"
-  | "sevkiyat";
+// İstasyonlar artık DB'den tanımlanır (dinamik rota); slug serbest string.
+export type IstasyonSlug = string;
 
 export type Istasyon = {
   slug: IstasyonSlug;
   ad: string;
+  /** Üretim rotası sırası (1'den). */
+  sira?: number;
   /** Plan dikdörtgeni: [x, z] sol-üst köşe + [genişlik, derinlik] */
   konum: { x: number; z: number; g: number; d: number };
   renk: string; // bölüm kimlik rengi (etiket/panel vurgusu)
+  durum?: "Aktif" | "Pasif";
 };
 
 /** Üretim rotası — emirler bu sırayla ilerler. */

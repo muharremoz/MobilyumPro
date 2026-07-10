@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db, tarihStr } from "./index";
+import { ISTASYONLAR, type Istasyon } from "../fabrika";
 import type {
   Model,
   ModelVaryant,
@@ -603,6 +604,42 @@ export async function getGruplar(): Promise<StokGrup[]> {
     ustId: g.ustId,
     durum: g.durum as Durum,
     kullanim: kullanim.get(g.ad) ?? 0,
+  }));
+}
+
+/**
+ * Üretim istasyonları (rota + 3D + bölüm). Tablo boşsa fabrika.ts'teki
+ * varsayılan 6 istasyonu bir kez seed eder (idempotent).
+ */
+export async function getIstasyonlar(): Promise<Istasyon[]> {
+  const adet = await db.istasyon.count();
+  if (adet === 0) {
+    await db.istasyon.createMany({
+      data: ISTASYONLAR.map((i, idx) => ({
+        id: i.slug,
+        ad: i.ad,
+        sira: idx + 1,
+        renk: i.renk,
+        konumX: i.konum.x,
+        konumZ: i.konum.z,
+        konumG: i.konum.g,
+        konumD: i.konum.d,
+      })),
+    });
+  }
+  const rows = await db.istasyon.findMany({ orderBy: { sira: "asc" } });
+  return rows.map((r) => ({
+    slug: r.id,
+    ad: r.ad,
+    sira: r.sira,
+    konum: {
+      x: Number(r.konumX),
+      z: Number(r.konumZ),
+      g: Number(r.konumG),
+      d: Number(r.konumD),
+    },
+    renk: r.renk,
+    durum: r.durum as Durum,
   }));
 }
 

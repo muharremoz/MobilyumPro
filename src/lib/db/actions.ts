@@ -1231,6 +1231,79 @@ export async function grupSil(
   }
 }
 
+// ── Üretim istasyonları (dinamik rota) ──────────────────────────────────
+
+/** slug üret: ad → küçük harf, aksan/boşluk sadeleştir. */
+function istasyonSlug(ad: string): string {
+  return ad
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+export async function istasyonKaydet(i: {
+  id?: string;
+  ad: string;
+  sira: number;
+  renk: string;
+  konum: { x: number; z: number; g: number; d: number };
+  durum?: "Aktif" | "Pasif";
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const veri = {
+      ad: i.ad,
+      sira: i.sira,
+      renk: i.renk,
+      konumX: i.konum.x,
+      konumZ: i.konum.z,
+      konumG: i.konum.g,
+      konumD: i.konum.d,
+      durum: i.durum ?? "Aktif",
+    };
+    if (i.id) {
+      await db.istasyon.update({ where: { id: i.id }, data: veri });
+      revalidatePath("/stok-yonetimi");
+      return { ok: true, id: i.id };
+    }
+    // Yeni: slug'ı addan üret, çakışmada -2, -3 ekle.
+    let id = istasyonSlug(i.ad) || "istasyon";
+    const mevcut = new Set(
+      (await db.istasyon.findMany({ select: { id: true } })).map((x) => x.id),
+    );
+    if (mevcut.has(id)) {
+      let n = 2;
+      while (mevcut.has(`${id}-${n}`)) n++;
+      id = `${id}-${n}`;
+    }
+    await db.istasyon.create({ data: { id, ...veri } });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true, id };
+  } catch (e) {
+    console.error("istasyonKaydet:", e);
+    return { ok: false, error: "İstasyon kaydedilemedi." };
+  }
+}
+
+export async function istasyonSil(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.istasyon.delete({ where: { id } });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("istasyonSil:", e);
+    return { ok: false, error: "İstasyon silinemedi." };
+  }
+}
+
 // ── Düz tanımlar (marka/koleksiyon/renk/kumaş/birim) ─────────────────────
 
 /** Tanım ekle/güncelle. */

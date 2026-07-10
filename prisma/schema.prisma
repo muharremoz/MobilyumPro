@@ -510,6 +510,21 @@ model Tanim {
   @@map("tanim")
 }
 
+// ── Tanımlamalar: üretim istasyonları (rota + 3D fabrika + bölüm) ───────
+model Istasyon {
+  id     String  @id // slug: kesim, bantlama, delik...
+  ad     String
+  sira   Int // üretim rotası sırası
+  renk   String  @default("#737373")
+  konumX Decimal @default(0) @map("konum_x") @db.Decimal(6, 2)
+  konumZ Decimal @default(0) @map("konum_z") @db.Decimal(6, 2)
+  konumG Decimal @default(4) @map("konum_g") @db.Decimal(6, 2)
+  konumD Decimal @default(4) @map("konum_d") @db.Decimal(6, 2)
+  durum  String  @default("Aktif")
+
+  @@map("istasyon")
+}
+
 // ── Satın alma (tedarikçiden malzeme alışı) ─────────────────────────────
 // Kaydedildiğinde: malzeme stokları artar + stok hareketi (Giriş) yazılır +
 // cariye Alacak işlemi düşer. Bu yüzden alış kaydı silinemez (v1).
