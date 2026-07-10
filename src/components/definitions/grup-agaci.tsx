@@ -3,12 +3,14 @@
 import * as React from "react";
 import {
   Plus,
-  ChevronRight,
   MoreHorizontal,
   Pencil,
   Trash2,
-  CornerDownRight,
   Info,
+  Folder,
+  FolderOpen,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -125,42 +127,94 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     toast.success("Grup eklendi");
   }
 
-  function Satir({ grup, seviye }: { grup: StokGrup; seviye: number }) {
+  function Satir({
+    grup,
+    seviye,
+    prefix,
+    sonMu,
+  }: {
+    grup: StokGrup;
+    seviye: number;
+    /** Her ata seviyesi için dikey çizgi devam ediyor mu. */
+    prefix: boolean[];
+    /** Kardeşleri arasında sonuncu mu (└ yoksa ├). */
+    sonMu: boolean;
+  }) {
     const cocuklar = altlar.get(grup.id) ?? [];
+    const ustGrupMu = cocuklar.length > 0;
     const acikMi = acik.has(grup.id);
+    const renk = kodRenk(grup.kod);
     return (
       <>
         <div
-          className="group flex cursor-pointer items-center gap-1 border-b px-2 py-1.5 transition-colors last:border-b-0 hover:bg-accent/50"
-          style={{ paddingLeft: 8 + seviye * 22 }}
-          onClick={() => cocuklar.length > 0 && acKapa(grup.id)}
+          className="group flex min-h-9 cursor-pointer items-stretch gap-1.5 border-b px-2 transition-colors last:border-b-0 hover:bg-accent/50"
+          onClick={() => ustGrupMu && acKapa(grup.id)}
         >
-          {cocuklar.length > 0 ? (
-            <ChevronRight
-              className={cn(
-                "size-4 shrink-0 text-muted-foreground transition-transform",
-                acikMi && "rotate-90",
-              )}
-            />
-          ) : (
-            <span className="inline-flex w-4 shrink-0 justify-center">
-              {seviye > 0 && (
-                <CornerDownRight className="size-3 text-muted-foreground/40" />
+          {/* Ağaç bağlantı çizgileri */}
+          {prefix.map((devam, i) => (
+            <span key={i} className="relative w-4 shrink-0">
+              {devam && (
+                <span className="absolute top-0 bottom-0 left-1/2 w-px bg-border" />
               )}
             </span>
+          ))}
+          {seviye > 0 && (
+            <span className="relative w-4 shrink-0">
+              <span
+                className={cn(
+                  "absolute top-0 left-1/2 w-px bg-border",
+                  sonMu ? "h-1/2" : "bottom-0",
+                )}
+              />
+              <span className="absolute top-1/2 right-0 left-1/2 h-px bg-border" />
+            </span>
           )}
-          <span className={cn("truncate text-sm", seviye === 0 && "font-medium")}>
-            {grup.ad}
+
+          <span className="flex items-center gap-1.5 self-center">
+            {ustGrupMu ? (
+              acikMi ? (
+                <FolderOpen className={cn("size-4 shrink-0", renk.ikon)} />
+              ) : (
+                <Folder className={cn("size-4 shrink-0", renk.ikon)} />
+              )
+            ) : (
+              <span className="flex size-4 shrink-0 items-center justify-center">
+                <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+              </span>
+            )}
+            <span
+              className={cn("truncate text-sm", seviye === 0 && "font-medium")}
+            >
+              {grup.ad}
+            </span>
+            {ustGrupMu && (
+              <span className="text-xs text-muted-foreground/60 tabular-nums">
+                ({cocuklar.length})
+              </span>
+            )}
           </span>
-          {cocuklar.length > 0 && (
-            <span className="text-xs text-muted-foreground/60 tabular-nums">
-              ({cocuklar.length})
-            </span>
-          )}
-          <span className="ml-auto font-mono text-xs text-muted-foreground">
+
+          <span
+            className={cn(
+              "my-auto ml-auto rounded px-1.5 py-0.5 font-mono text-[11px] font-medium",
+              renk.rozet,
+            )}
+          >
             {grup.kod}
           </span>
-          <span onClick={(e) => e.stopPropagation()}>
+          <span
+            className="flex items-center self-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Alt grup ekle"
+              className="opacity-0 group-hover:opacity-100"
+              onClick={() => yeniGrup(grup)}
+            >
+              <Plus className="size-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -190,24 +244,61 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
           </span>
         </div>
         {acikMi &&
-          cocuklar.map((c) => <Satir key={c.id} grup={c} seviye={seviye + 1} />)}
+          cocuklar.map((c, i) => (
+            <Satir
+              key={c.id}
+              grup={c}
+              seviye={seviye + 1}
+              prefix={[...prefix, !sonMu]}
+              sonMu={i === cocuklar.length - 1}
+            />
+          ))}
       </>
     );
   }
 
   const kokler = altlar.get(null) ?? [];
+  // Alt grubu olan (aç/kapa edilebilir) tüm gruplar — Tümünü Aç/Kapat için.
+  const ustIdler = liste
+    .filter((g) => (altlar.get(g.id) ?? []).length > 0)
+    .map((g) => g.id);
+  const hepsiAcik = ustIdler.length > 0 && ustIdler.every((id) => acik.has(id));
+  function tumunuAcKapa() {
+    setAcik(hepsiAcik ? new Set() : new Set(ustIdler));
+  }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Gruplar">
+          {ustIdler.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={hepsiAcik ? "Tümünü kapat" : "Tümünü aç"}
+              title={hepsiAcik ? "Tümünü kapat" : "Tümünü aç"}
+              onClick={tumunuAcKapa}
+            >
+              {hepsiAcik ? (
+                <ChevronsDownUp className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronsUpDown className="size-4 text-muted-foreground" />
+              )}
+            </Button>
+          )}
           <KodBilgisi />
           <Button size="sm" onClick={() => yeniGrup(null)}>
             <Plus className="size-4" /> Yeni Grup
           </Button>
         </ListHeader>
-        {kokler.map((g) => (
-          <Satir key={g.id} grup={g} seviye={0} />
+        {kokler.map((g, i) => (
+          <Satir
+            key={g.id}
+            grup={g}
+            seviye={0}
+            prefix={[]}
+            sonMu={i === kokler.length - 1}
+          />
         ))}
         {kokler.length === 0 && (
           <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
@@ -226,6 +317,22 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       />
     </div>
   );
+}
+
+/** Grup koduna göre renk (Tekdüzen Hesap Planı: 150/151/152/153/157). */
+function kodRenk(kod: string): { rozet: string; ikon: string } {
+  const k = kod.trim();
+  if (k.startsWith("150"))
+    return { rozet: "bg-blue-100 text-blue-700", ikon: "text-blue-500" };
+  if (k.startsWith("151"))
+    return { rozet: "bg-violet-100 text-violet-700", ikon: "text-violet-500" };
+  if (k.startsWith("152"))
+    return { rozet: "bg-emerald-100 text-emerald-700", ikon: "text-emerald-500" };
+  if (k.startsWith("153"))
+    return { rozet: "bg-amber-100 text-amber-700", ikon: "text-amber-500" };
+  if (k.startsWith("157"))
+    return { rozet: "bg-slate-100 text-slate-700", ikon: "text-slate-500" };
+  return { rozet: "bg-muted text-muted-foreground", ikon: "text-muted-foreground" };
 }
 
 /** Kod mantığı bilgilendirmesi — sektör alışkanlığı (Tekdüzen Hesap Planı). */
