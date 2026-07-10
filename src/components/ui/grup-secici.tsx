@@ -123,11 +123,9 @@ export function GrupSecici({
 
   const kokler = altlar.get(null) ?? [];
 
-  // Trigger etiketi — seçili grubun tam yolu.
+  // Trigger etiketi — yalnızca seçili grubun adı (tam yol gösterilmez).
   const seciliGrup = gruplar.find((g) => g.ad === value);
-  const triggerEtiket = seciliGrup
-    ? [...yolAdlari(seciliGrup), seciliGrup.ad].join(" › ")
-    : "";
+  const triggerEtiket = seciliGrup?.ad ?? "";
 
   return (
     <Popover open={acikPopover} onOpenChange={setAcikPopover}>
