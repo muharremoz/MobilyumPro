@@ -20,8 +20,15 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/ui/search-select";
 import { KartBaslik } from "@/components/ui/kart-baslik";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatTL, type Malzeme } from "@/lib/data";
-import { alisKaydet } from "@/lib/db/actions";
+import { alisKaydet, depoKaydet } from "@/lib/db/actions";
 
 /**
  * Yeni alış formu — fiş bilgileri kartı + hızlı malzeme ekleme + zengin
@@ -73,7 +80,10 @@ export function AlisForm({
   const router = useRouter();
 
   const [tarih, setTarih] = React.useState(bugun);
+  const [depoListe, setDepoListe] = React.useState(depolar);
   const [depo, setDepo] = React.useState(depolar[0] ?? "");
+  const [yeniDepoAcik, setYeniDepoAcik] = React.useState(false);
+  const [yeniDepoAd, setYeniDepoAd] = React.useState("");
   const [belgeNo, setBelgeNo] = React.useState("");
   const [aciklama, setAciklama] = React.useState("");
   const [satirlar, setSatirlar] = React.useState<Satir[]>([]);
@@ -150,6 +160,31 @@ export function AlisForm({
         mevcutStok: m.stok,
       },
     ]);
+  }
+
+  async function depoEkle() {
+    const ad = yeniDepoAd.trim();
+    if (!ad) {
+      toast.error("Depo adı gerekli");
+      return;
+    }
+    const res = await depoKaydet({
+      id: "",
+      ad,
+      sehir: "",
+      kapasite: 0,
+      doluluk: 0,
+      durum: "Aktif",
+    });
+    if (!res.ok) {
+      toast.error("Depo eklenemedi.");
+      return;
+    }
+    setDepoListe((l) => (l.includes(ad) ? l : [...l, ad]));
+    setDepo(ad);
+    setYeniDepoAcik(false);
+    setYeniDepoAd("");
+    toast.success("Depo eklendi");
   }
 
   /** Satır firması değişince o firmadan son fiyatı uygula. */
@@ -249,10 +284,15 @@ export function AlisForm({
               </Alan>
               <Alan label="Depo">
                 <SearchSelect
-                  items={depolar}
+                  items={depoListe}
                   value={depo || null}
                   onValueChange={(v) => setDepo(v ?? "")}
                   placeholder="Depo"
+                  addLabel="Yeni depo ekle"
+                  onAdd={() => {
+                    setYeniDepoAd("");
+                    setYeniDepoAcik(true);
+                  }}
                 />
               </Alan>
               <Alan label="Belge No">
@@ -480,6 +520,35 @@ export function AlisForm({
           </div>
         </div>
       </div>
+
+      {/* Yeni depo modalı */}
+      <Dialog open={yeniDepoAcik} onOpenChange={setYeniDepoAcik}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Yeni Depo</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Depo adı"
+            value={yeniDepoAd}
+            onChange={(e) => setYeniDepoAd(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                depoEkle();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniDepoAcik(false)}>
+              İptal
+            </Button>
+            <Button onClick={depoEkle} disabled={!yeniDepoAd.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
