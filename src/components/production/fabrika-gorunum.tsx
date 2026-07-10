@@ -10,11 +10,9 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  ISTASYONLAR,
-  ISTASYON_MAP,
-  ROTA,
   aktifIstasyon,
   type FabrikaEmri,
+  type Istasyon,
   type IstasyonSlug,
 } from "@/lib/fabrika";
 import { emriIlerlet } from "@/lib/db/actions";
@@ -29,8 +27,24 @@ const FabrikaSahne = dynamic(() => import("./fabrika-sahne"), {
   ),
 });
 
-export function FabrikaGorunum({ emirler }: { emirler: FabrikaEmri[] }) {
+export function FabrikaGorunum({
+  emirler,
+  istasyonlar,
+}: {
+  emirler: FabrikaEmri[];
+  istasyonlar: Istasyon[];
+}) {
   const router = useRouter();
+  // Rota/harita DB istasyonlarından türetilir (eski sabitlerin yerine).
+  const ISTASYONLAR = istasyonlar;
+  const ISTASYON_MAP = React.useMemo(
+    () => new Map(istasyonlar.map((i) => [i.slug, i])),
+    [istasyonlar],
+  );
+  const ROTA = React.useMemo(
+    () => istasyonlar.map((i) => i.slug),
+    [istasyonlar],
+  );
   const [seciliIstasyon, setSeciliIstasyon] =
     React.useState<IstasyonSlug | null>(null);
   const [seciliEmirId, setSeciliEmirId] = React.useState<string | null>(null);
@@ -160,6 +174,7 @@ export function FabrikaGorunum({ emirler }: { emirler: FabrikaEmri[] }) {
       <div className="relative min-h-[420px] min-w-0 flex-1 overflow-hidden rounded-md border bg-[#fafafa]">
         <FabrikaSahne
           emirler={aktifler}
+          istasyonlar={istasyonlar}
           seciliIstasyon={seciliIstasyon}
           seciliEmirId={seciliEmirId}
           onIstasyonSec={setSeciliIstasyon}

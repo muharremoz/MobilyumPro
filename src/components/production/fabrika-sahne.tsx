@@ -15,7 +15,6 @@ import {
 import {
   DEPO,
   FABRIKA,
-  ISTASYONLAR,
   aktifIstasyon,
   type FabrikaEmri,
   type Istasyon,
@@ -31,6 +30,7 @@ import {
 
 type SahneProps = {
   emirler: FabrikaEmri[];
+  istasyonlar: Istasyon[];
   seciliIstasyon: IstasyonSlug | null;
   seciliEmirId: string | null;
   onIstasyonSec: (slug: IstasyonSlug | null) => void;
@@ -562,6 +562,7 @@ function Raf({ x, z, uzunluk }: { x: number; z: number; uzunluk: number }) {
 // ── Ana sahne ────────────────────────────────────────────────────────────
 export default function FabrikaSahne({
   emirler,
+  istasyonlar,
   seciliIstasyon,
   seciliEmirId,
   onIstasyonSec,
@@ -571,7 +572,7 @@ export default function FabrikaSahne({
   // ki istasyon değişince kayarak taşınabilsinler).
   const paletler = React.useMemo(() => {
     const gruplar = new Map<IstasyonSlug, FabrikaEmri[]>();
-    for (const i of ISTASYONLAR) gruplar.set(i.slug, []);
+    for (const i of istasyonlar) gruplar.set(i.slug, []);
     for (const e of emirler) {
       if (e.durum === "Tamamlandı") continue;
       const slug = aktifIstasyon(e);
@@ -583,7 +584,7 @@ export default function FabrikaSahne({
       isleniyor: boolean;
       istasyon: IstasyonSlug;
     }[] = [];
-    for (const ist of ISTASYONLAR) {
+    for (const ist of istasyonlar) {
       const grup = gruplar.get(ist.slug) ?? [];
       const { konum } = ist;
       const kolon = Math.floor((konum.g - 1.6) / 1.5) || 1;
@@ -687,7 +688,7 @@ export default function FabrikaSahne({
       </group>
 
       {/* İstasyonlar + bölüme özel dekor */}
-      {ISTASYONLAR.map((ist) => {
+      {istasyonlar.map((ist) => {
         const grup = paletler.gruplar.get(ist.slug) ?? [];
         const isleyen = grup.filter((e) =>
           e.adimlar.some(
