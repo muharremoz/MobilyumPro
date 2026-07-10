@@ -549,11 +549,12 @@ function StokKartiSerit({ kart }: { kart: StokKarti }) {
       <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
         {/* Kimlik: ad + kod + rozetler */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
             <h2 className="truncate text-lg leading-tight font-semibold">
               {kart.ad}
             </h2>
-            <span className="font-mono text-[11px] text-muted-foreground">
+            <span aria-hidden className="h-4 w-px bg-border" />
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
               {kart.kod || kart.id}
             </span>
           </div>
