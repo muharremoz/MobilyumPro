@@ -64,9 +64,11 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
 .\guncelle.ps1
 ```
 
-Çalışan dev'i durdurur → `git pull` → (değiştiyse) `npm install` ve Prisma
-`generate` + `db push` → dev'i tekrar başlatır. Şema değişince örnek veri
-`npm run db:seed` ile tazelenebilir.
+Çalışanı durdurur → `git pull` → (değiştiyse) `npm install` ve Prisma
+`generate` + `db push` → **production derleme (`npm run build`)** → başlatır
+(`npm run start`). Test PC production modda çalışır; sayfa geçişleri dev'e göre
+çok daha hızlıdır (bedeli: her güncellemede ~1-2 dk derleme). Şema değişince
+örnek veri `npm run db:seed` ile tazelenebilir.
 
 > Not: Test PC'de kod düzenleme yapma; tek kaynak dev (bu) makinedir. Yerel
 > değişiklik olursa `git pull` çakışır.

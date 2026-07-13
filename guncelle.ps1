@@ -49,6 +49,13 @@ if ($onceki -eq $sonra) {
   }
 }
 
+# Production derleme (dev'e gore cok daha hizli sayfa gecisi) + baslat
 Write-Host ""
-Write-Host "==> Dev sunucu baslatiliyor: http://localhost:1616" -ForegroundColor Green
-npm run dev
+Write-Host "==> Uygulama derleniyor (npm run build)..." -ForegroundColor Cyan
+npm run build
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "!! Derleme basarisiz. Yukaridaki hataya bak." -ForegroundColor Red
+  exit 1
+}
+Write-Host "==> Baslatiliyor: http://localhost:1616" -ForegroundColor Green
+npm run start

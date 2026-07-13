@@ -24,6 +24,8 @@ export default async function YeniStokKartiRoute() {
     <StokKartForm
       sonrakiKod={sonrakiKod}
       gruplar={gruplar}
+      turler={tanimlar.tur.map((t) => t.ad)}
+      cinsler={tanimlar.cins.map((t) => t.ad)}
       tipler={tanimlar.tip.map((t) => t.ad)}
       markalar={tanimlar.marka.map((t) => t.ad)}
       modeller={tanimlar.model.map((t) => t.ad)}

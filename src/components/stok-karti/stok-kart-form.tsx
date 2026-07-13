@@ -145,11 +145,21 @@ const GRUP_RENK: Record<StokGrubu, string> = {
 };
 
 /** Sınıflama'daki DB destekli comboboxlar (tanim tablosundan; "yeni ekle"). */
-type TanimAlan = "tip" | "marka" | "model" | "bolum" | "renkKodu" | "birim";
+type TanimAlan =
+  | "tur"
+  | "cins"
+  | "tip"
+  | "marka"
+  | "model"
+  | "bolum"
+  | "renkKodu"
+  | "birim";
 const TANIM_ALAN: Record<
   TanimAlan,
   { tip: TanimTip; formKey: keyof Form; etiket: string; ornek: string }
 > = {
+  tur: { tip: "tur", formKey: "tur", etiket: "Tür", ornek: "Örn. Mobilya" },
+  cins: { tip: "cins", formKey: "cins", etiket: "Cins", ornek: "Örn. Masa" },
   tip: { tip: "tip", formKey: "grup", etiket: "Tip", ornek: "Örn. Ticari Mal" },
   marka: { tip: "marka", formKey: "marka", etiket: "Marka", ornek: "Örn. Bellona" },
   model: { tip: "model", formKey: "model", etiket: "Model", ornek: "Örn. 2026 Serisi" },
@@ -190,6 +200,8 @@ const BOS_DETAY: StokDetay = {
   hareketler: [],
 };
 const BOS_GRUPLAR: StokGrup[] = [];
+const BOS_TURLER: string[] = [];
+const BOS_CINSLER: string[] = [];
 const BOS_TIPLER: string[] = [];
 const BOS_MARKALAR: string[] = [];
 const BOS_MODELLER: string[] = [];
@@ -310,6 +322,8 @@ export function StokKartForm({
   detay = BOS_DETAY,
   sonrakiKod = "",
   gruplar = BOS_GRUPLAR,
+  turler = BOS_TURLER,
+  cinsler = BOS_CINSLER,
   tipler = BOS_TIPLER,
   markalar = BOS_MARKALAR,
   modeller = BOS_MODELLER,
@@ -327,6 +341,10 @@ export function StokKartForm({
   sonrakiKod?: string;
   /** Tanımlamalar → Gruplar ağacı (Grup seçimi). */
   gruplar?: StokGrup[];
+  /** Tanımlamalar → Türler (ör. Mobilya). */
+  turler?: string[];
+  /** Tanımlamalar → Cinsler (ör. Masa). */
+  cinsler?: string[];
   /** Tanımlamalar → Stok Tipleri (Hammadde/Yarı Mamül/Mamül/Hizmet...). */
   tipler?: string[];
   /** Tanımlamalar → Markalar. */
@@ -541,6 +559,8 @@ export function StokKartForm({
                 set={set}
                 durumRef={durumRef}
                 gruplar={gruplar}
+                turler={turler}
+                cinsler={cinsler}
                 tipler={tipler}
                 markalar={markalar}
                 modeller={modeller}
@@ -1256,6 +1276,8 @@ function GenelTab({
   set,
   durumRef,
   gruplar,
+  turler,
+  cinsler,
   tipler,
   markalar,
   modeller,
@@ -1270,6 +1292,8 @@ function GenelTab({
   set: (k: keyof Form) => (v: string) => void;
   durumRef: React.RefObject<AnimatedIconHandle | null>;
   gruplar: StokGrup[];
+  turler: string[];
+  cinsler: string[];
   tipler: string[];
   markalar: string[];
   modeller: string[];
@@ -1282,6 +1306,8 @@ function GenelTab({
   // DB'den beslenen comboboxların seçenekleri — "yeni ekle" ile anında büyür.
   const [secenekler, setSecenekler] = React.useState<Record<TanimAlan, string[]>>(
     {
+      tur: turler,
+      cins: cinsler,
       tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
       model: modeller,
@@ -1292,6 +1318,8 @@ function GenelTab({
   );
   React.useEffect(() => {
     setSecenekler({
+      tur: turler,
+      cins: cinsler,
       tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
       model: modeller,
@@ -1299,7 +1327,7 @@ function GenelTab({
       renkKodu: renkKodlari,
       birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
     });
-  }, [tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
+  }, [turler, cinsler, tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
 
   const [yeniAlan, setYeniAlan] = React.useState<TanimAlan | null>(null);
   const [yeniDeger, setYeniDeger] = React.useState("");
@@ -1366,20 +1394,32 @@ function GenelTab({
             </div>
             {/* Sınıflama + birim */}
             <div className="grid grid-cols-4 gap-3">
-              <IconInput
-                label="Tür"
-                icon={FolderOpenIcon}
-                placeholder="Örn. Mobilya"
-                value={form.tur}
-                onChange={(e) => set("tur")(e.target.value)}
-              />
-              <IconInput
-                label="Cins"
-                icon={FolderOpenIcon}
-                placeholder="Örn. Masa"
-                value={form.cins}
-                onChange={(e) => set("cins")(e.target.value)}
-              />
+              <AnimatedField label="Tür" icon={FolderOpenIcon}>
+                <SearchSelect
+                  items={secenekler.tur}
+                  value={form.tur || null}
+                  onValueChange={(v) => set("tur")(v ?? "")}
+                  placeholder="Tür seç"
+                  addLabel="Yeni tür ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("tur");
+                  }}
+                />
+              </AnimatedField>
+              <AnimatedField label="Cins" icon={FolderOpenIcon}>
+                <SearchSelect
+                  items={secenekler.cins}
+                  value={form.cins || null}
+                  onValueChange={(v) => set("cins")(v ?? "")}
+                  placeholder="Cins seç"
+                  addLabel="Yeni cins ekle"
+                  onAdd={() => {
+                    setYeniDeger("");
+                    setYeniAlan("cins");
+                  }}
+                />
+              </AnimatedField>
               <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
                   items={secenekler.tip}

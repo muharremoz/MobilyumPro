@@ -133,8 +133,9 @@ Calistir "Prisma generate..." { npm run db:generate }
 Calistir "Veritabani semasi (db push)..." { npx prisma db push }
 Calistir "Ornek veri (seed)..." { npm run db:seed }
 
-# --- 7) Baslat --------------------------------------------------------------
+# --- 7) Production derleme + baslat (dev'e gore cok daha hizli sayfa gecisi) -
+Calistir "Uygulama derleniyor (npm run build)..." { npm run build }
 Write-Host ""
 Write-Host "=== Kurulum tamam. Baslatiliyor: http://localhost:1616 ===" -ForegroundColor Green
 Write-Host "Sonraki guncellemeler icin: .\guncelle.ps1" -ForegroundColor DarkGray
-npm run dev
+npm run start

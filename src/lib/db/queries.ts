@@ -674,6 +674,8 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     db.stok.findMany({
       select: {
         grup: true,
+        tur: true,
+        cins: true,
         marka: true,
         model: true,
         bolum: true,
@@ -693,11 +695,15 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   const kumasAdet = new Map<string, number>();
   const birimAdet = new Map<string, number>();
   const tipAdet = new Map<string, number>();
+  const turAdet = new Map<string, number>();
+  const cinsAdet = new Map<string, number>();
   const modelAdet = new Map<string, number>();
   const bolumAdet = new Map<string, number>();
   const renkKoduAdet = new Map<string, number>();
   for (const s of stokRows) {
     say(tipAdet, s.grup);
+    say(turAdet, s.tur);
+    say(cinsAdet, s.cins);
     say(markaAdet, s.marka);
     say(modelAdet, s.model);
     say(bolumAdet, s.bolum);
@@ -711,6 +717,8 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   }
 
   const adetMap: Record<TanimTip, Map<string, number>> = {
+    tur: turAdet,
+    cins: cinsAdet,
     tip: tipAdet,
     marka: markaAdet,
     model: modelAdet,
@@ -727,6 +735,8 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   };
 
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
+    tur: [],
+    cins: [],
     tip: [],
     marka: [],
     model: [],
