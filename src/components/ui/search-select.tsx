@@ -45,9 +45,11 @@ export function SearchSelect({
   const [acik, setAcik] = React.useState(false);
   // Popup, içteki input'a değil görünür kontrolün tamamına hizalansın.
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  // Yinelenen öğeler tekilleştirilir (aynı key hatası + kaybolan öğe önlenir).
+  const benzersiz = React.useMemo(() => Array.from(new Set(items)), [items]);
   return (
     <Combobox
-      items={items}
+      items={benzersiz}
       value={value}
       onValueChange={(v) => onValueChange?.(v as string | null)}
       open={acik}
