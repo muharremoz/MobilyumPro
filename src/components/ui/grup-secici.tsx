@@ -287,6 +287,8 @@ export function GrupSecici({
                     const cocuklar = altlar.get(g.id) ?? [];
                     const yoldaMi = yolIds[ki] === g.id;
                     const seciliMi = value === g.ad;
+                    // Seçili değer veya seçili yol üzerindeki grup → yeşil tema.
+                    const aktif = seciliMi || yoldaMi;
                     return (
                       <button
                         key={g.id}
@@ -294,10 +296,9 @@ export function GrupSecici({
                         onClick={() => sec(g, ki)}
                         className={cn(
                           "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors",
-                          seciliMi
+                          aktif
                             ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
                             : "hover:bg-accent hover:text-accent-foreground",
-                          !seciliMi && yoldaMi && "bg-accent",
                         )}
                       >
                         <span className="truncate">{g.ad}</span>
@@ -305,7 +306,7 @@ export function GrupSecici({
                           <span
                             className={cn(
                               "font-mono text-[11px]",
-                              seciliMi
+                              aktif
                                 ? "text-emerald-600"
                                 : "text-muted-foreground",
                             )}
@@ -316,7 +317,7 @@ export function GrupSecici({
                             <ChevronRight
                               className={cn(
                                 "size-3.5",
-                                seciliMi
+                                aktif
                                   ? "text-emerald-600"
                                   : "text-muted-foreground",
                               )}
