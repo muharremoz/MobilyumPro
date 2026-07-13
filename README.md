@@ -75,6 +75,17 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
 > `kur.ps1` yalnızca ilk kurulumda gerekir; sonraki güncellemeler için sadece
 > `guncelle.ps1` yeterli.
 
+**Masaüstü kısayolu (arada tek tıkla açmak için):**
+
+```powershell
+.\kisayol-olustur.ps1
+```
+
+Masaüstüne **MobilyumPro** kısayolu koyar. Çift tıklayınca `baslat.ps1` çalışır:
+sunucu kapalıysa başlatır, açıksa doğrudan tarayıcıda `http://localhost:1616`
+adresini açar. (Kısayolu bir kez oluşturmak yeter; güncelleme için yine
+`guncelle.ps1` kullanılır.)
+
 ## Sayfalar
 
 | Yol           | Açıklama                                                     |
