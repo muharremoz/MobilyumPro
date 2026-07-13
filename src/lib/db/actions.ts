@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db, tarihDate } from "./index";
+import { ean13, kodBarkod } from "@/lib/barkod";
 import { sifreHashle } from "./sifre";
 import { type IstasyonSlug } from "../fabrika";
 
@@ -1802,23 +1803,19 @@ export async function alisKaydet(
 // ── Stok kartı ──────────────────────────────────────────────────────────
 
 /** Sıradaki stok kodu (STK-####, 1000''den başlar). */
-export async function sonrakiStokKodu(): Promise<string> {
+/** Yeni malzeme/stok için sıradaki kod (STK-####) + otomatik EAN-13 barkod. */
+export async function sonrakiStokKodu(): Promise<{
+  kod: string;
+  barkod: string;
+}> {
   const rows = await db.stok.findMany({ select: { id: true } });
   let max = 1000;
   for (const r of rows) {
     const m = /^STK-(\d+)$/.exec(r.id);
     if (m) max = Math.max(max, Number(m[1]));
   }
-  return `STK-${max + 1}`;
-}
-
-/** 12 haneli tabandan EAN-13 kontrol basamağı ekleyerek 13 haneli barkod üretir. */
-function ean13(taban12: string): string {
-  let toplam = 0;
-  for (let i = 0; i < 12; i++)
-    toplam += Number(taban12[i]) * (i % 2 === 0 ? 1 : 3);
-  const kontrol = (10 - (toplam % 10)) % 10;
-  return taban12 + kontrol;
+  const kod = `STK-${max + 1}`;
+  return { kod, barkod: kodBarkod(kod) };
 }
 
 /**
@@ -1863,7 +1860,9 @@ export async function stokKaydet(
   yeni = false,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
-    const id = yeni ? await sonrakiStokKodu() : s.id;
+    const id = yeni ? (await sonrakiStokKodu()).kod : s.id;
+    // Yeni kartta barkod koddan otomatik üretilir; düzenlemede korunur.
+    const barkod = yeni ? kodBarkod(id) : (s.barkod ?? null);
     const veri = {
       kod: s.kod ?? null,
       ad: s.ad,
@@ -1880,6 +1879,7 @@ export async function stokKaydet(
       yukseklik: s.yukseklik ?? null,
       genislik: s.genislik ?? null,
       boy: s.boy ?? null,
+      kalinlik: s.kalinlik ?? null,
       agirlik: s.agirlik ?? null,
       minSiparis: s.minSiparis ?? null,
       minStok: s.minStok ?? null,
@@ -1891,7 +1891,7 @@ export async function stokKaydet(
       ureticiKodu: s.ureticiKodu ?? null,
       bolum: s.bolum ?? null,
       renkKodu: s.renkKodu ?? null,
-      barkod: s.barkod ?? null,
+      barkod,
       aciklama: s.aciklama ?? null,
       durum: s.durum,
       maliyetFiyati: s.maliyetFiyati,

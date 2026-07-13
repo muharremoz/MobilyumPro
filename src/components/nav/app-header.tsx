@@ -60,18 +60,6 @@ function getCrumbs(
       Icon: iconForHref("/urunler"),
     };
   }
-  if (/^\/urunler\/[^/]+\/duzenle$/.test(pathname)) {
-    const id = pathname.split("/")[2];
-    return {
-      crumbs: [
-        { label: "Üretim Yönetimi" },
-        { label: "Model", href: "/urunler" },
-        { label: id, href: `/urunler/${id}` },
-        { label: "Düzenle" },
-      ],
-      Icon: iconForHref("/urunler"),
-    };
-  }
   if (/^\/urunler\/[^/]+$/.test(pathname)) {
     const id = pathname.split("/")[2];
     return {

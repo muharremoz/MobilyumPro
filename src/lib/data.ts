@@ -378,6 +378,7 @@ export type StokKarti = {
   yukseklik?: number;
   genislik?: number;
   boy?: number;
+  kalinlik?: number;
   agirlik?: number;
   minSiparis?: number;
   minStok?: number;

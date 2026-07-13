@@ -602,6 +602,7 @@ model Stok {
   yukseklik      Decimal? @db.Decimal(10, 2)
   genislik       Decimal? @db.Decimal(10, 2)
   boy            Decimal? @db.Decimal(10, 2)
+  kalinlik       Decimal? @db.Decimal(10, 2)
   agirlik        Decimal? @db.Decimal(10, 3)
   minSiparis     Decimal? @map("min_siparis") @db.Decimal(14, 3)
   minStok        Decimal? @map("min_stok") @db.Decimal(14, 3)

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db, tarihStr } from "./index";
+import { kodBarkod } from "../barkod";
 import { ISTASYONLAR, type Istasyon } from "../fabrika";
 import type {
   Model,
@@ -62,10 +63,21 @@ function parseJson<T>(s: string | null): T | undefined {
 
 export async function getModeller(): Promise<Model[]> {
   // Mamul kartları artık stok tablosunda (grup = "Mamül"); model tablosu kalktı.
-  const [urunRows, upRows] = await Promise.all([
+  const [urunRows, upRows, dokRows] = await Promise.all([
     db.stok.findMany({ where: { grup: "Mamül" }, orderBy: { id: "asc" } }),
     db.modelParca.findMany(),
+    // Ana görsel artık dokümanlardan gelir (malzeme kartıyla aynı sistem).
+    db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
   ]);
+  const RESIM = /\.(jpe?g|png|webp)$/i;
+  const resimUrl = (u: string) =>
+    RESIM.test(u.split("?")[0]) || u.startsWith("data:image");
+  const gorselByModel = new Map<string, string>();
+  for (const d of dokRows) {
+    if (!resimUrl(d.url)) continue;
+    if (d.tip === "Ürün Resmi") gorselByModel.set(d.stokId, d.url);
+    else if (!gorselByModel.has(d.stokId)) gorselByModel.set(d.stokId, d.url);
+  }
   const bomByUrun = new Map<string, { parcaId: string; miktar: number }[]>();
   for (const r of upRows) {
     const arr = bomByUrun.get(r.modelId) ?? [];
@@ -79,10 +91,10 @@ export async function getModeller(): Promise<Model[]> {
     fiyat: Number(u.satisFiyat1),
     stok: Math.round(Number(u.stokMiktar)),
     durum: u.durum as Durum,
-    gorsel: u.gorsel ?? undefined,
+    gorsel: gorselByModel.get(u.id) ?? u.gorsel ?? undefined,
     parcalar: bomByUrun.get(u.id),
     marka: u.marka ?? undefined,
-    barkod: u.barkod ?? undefined,
+    barkod: u.barkod ?? kodBarkod(u.id),
     agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
     minStok: u.minStok != null ? Math.round(Number(u.minStok)) : undefined,
     gorseller: parseJson<string[]>(u.gorsellerJson),
@@ -970,6 +982,7 @@ function mapStok(s: StokRow, miktar: number): StokKarti {
     yukseklik: num(s.yukseklik),
     genislik: num(s.genislik),
     boy: num(s.boy),
+    kalinlik: num(s.kalinlik),
     agirlik: num(s.agirlik),
     minSiparis: num(s.minSiparis),
     minStok: num(s.minStok),
@@ -981,7 +994,7 @@ function mapStok(s: StokRow, miktar: number): StokKarti {
     ureticiKodu: s.ureticiKodu ?? undefined,
     bolum: s.bolum ?? undefined,
     renkKodu: s.renkKodu ?? undefined,
-    barkod: s.barkod ?? undefined,
+    barkod: s.barkod ?? kodBarkod(s.id),
     aciklama: s.aciklama ?? undefined,
     durum: s.durum as Durum,
     maliyetFiyati: Number(s.maliyetFiyati),

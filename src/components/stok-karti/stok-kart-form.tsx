@@ -23,6 +23,8 @@ import {
   Warehouse,
   Layers,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -231,6 +233,7 @@ type Form = {
   yukseklik: string;
   genislik: string;
   boy: string;
+  kalinlik: string;
   agirlik: string;
   minSiparis: string;
   minStok: string;
@@ -275,6 +278,7 @@ const bos: Form = {
   yukseklik: "",
   genislik: "",
   boy: "",
+  kalinlik: "",
   agirlik: "",
   minSiparis: "",
   minStok: "",
@@ -339,6 +343,7 @@ function formToKart(form: Form): Omit<StokKarti, "miktar"> {
     yukseklik: num(form.yukseklik),
     genislik: num(form.genislik),
     boy: num(form.boy),
+    kalinlik: num(form.kalinlik),
     agirlik: num(form.agirlik),
     minSiparis: num(form.minSiparis),
     minStok: num(form.minStok),
@@ -372,6 +377,7 @@ export function StokKartForm({
   kart,
   detay = BOS_DETAY,
   sonrakiKod = "",
+  sonrakiBarkod = "",
   gruplar = BOS_GRUPLAR,
   turler = BOS_TURLER,
   cinsler = BOS_CINSLER,
@@ -390,6 +396,8 @@ export function StokKartForm({
   detay?: StokDetay;
   /** Yeni kart için sunucuda hesaplanan sıradaki kod (önizleme). */
   sonrakiKod?: string;
+  /** Yeni kart için otomatik üretilen barkod (EAN-13, önizleme). */
+  sonrakiBarkod?: string;
   /** Tanımlamalar → Gruplar ağacı (Grup seçimi). */
   gruplar?: StokGrup[];
   /** Tanımlamalar → Türler (ör. Mobilya). */
@@ -437,6 +445,7 @@ export function StokKartForm({
         yukseklik: s(kart.yukseklik),
         genislik: s(kart.genislik),
         boy: s(kart.boy),
+        kalinlik: s(kart.kalinlik),
         agirlik: s(kart.agirlik),
         minSiparis: s(kart.minSiparis),
         minStok: s(kart.minStok),
@@ -463,7 +472,7 @@ export function StokKartForm({
         satisFiyat5: s(kart.satisFiyat5),
         satisBirim5: kart.satisBirim5,
       }
-    : { ...bos, id: sonrakiKod };
+    : { ...bos, id: sonrakiKod, barkod: sonrakiBarkod };
   const [form, setForm] = React.useState<Form>(baslangic);
   const [tab, setTab] = React.useState<Tab>("genel");
   const durumRef = React.useRef<AnimatedIconHandle>(null);
@@ -1300,7 +1309,11 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
       </div>
 
       {buyuk && (
-        <ResimLightbox kayit={buyuk} onKapat={() => setBuyuk(null)} />
+        <ResimLightbox
+          resimler={detay.dokumanlar.filter((d) => resimMi(d.url))}
+          aktifId={buyuk.id}
+          onKapat={() => setBuyuk(null)}
+        />
       )}
     </div>
   );
@@ -1496,9 +1509,10 @@ function GenelTab({
               <IconInput
                 label="Barkod"
                 icon={ScanTextIcon}
-                placeholder="Barkod numarası"
+                placeholder="Otomatik (EAN-13)"
                 value={form.barkod}
-                onChange={(e) => set("barkod")(e.target.value)}
+                readOnly
+                className="text-muted-foreground"
               />
               <div className="col-span-3">
                 <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
@@ -1675,7 +1689,15 @@ function GenelTab({
                 onChange={(e) => set("boy")(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <IconInput
+                label="Kalınlık (mm)"
+                icon={ScanTextIcon}
+                type="number"
+                placeholder="0"
+                value={form.kalinlik}
+                onChange={(e) => set("kalinlik")(e.target.value)}
+              />
               <IconInput
                 label="Ağırlık (kg)"
                 icon={ScanTextIcon}
@@ -2540,8 +2562,8 @@ function MusteriSheet({
 const RESIM_UZANTI = /\.(jpe?g|png|webp)$/i;
 const VIDEO_UZANTI = /\.(mp4|webm|mov|avi|mkv)$/i;
 
-function resimMi(url: string): boolean {
-  return RESIM_UZANTI.test(url.split("?")[0]);
+export function resimMi(url: string): boolean {
+  return RESIM_UZANTI.test(url.split("?")[0]) || url.startsWith("data:image");
 }
 
 /** Dosya uzantısını (büyük harf) döndürür; yoksa boş string. */
@@ -2566,7 +2588,7 @@ function tipTahmin(dosyaAdi: string): StokDokumanTipi {
   return "Diğer";
 }
 
-function DokumanlarTab({
+export function DokumanlarTab({
   stokId,
   kayitlar,
 }: {
@@ -2720,27 +2742,52 @@ function DokumanlarTab({
       </div>
 
       {buyuk && (
-        <ResimLightbox kayit={buyuk} onKapat={() => setBuyuk(null)} />
+        <ResimLightbox
+          resimler={resimler}
+          aktifId={buyuk.id}
+          onKapat={() => setBuyuk(null)}
+        />
       )}
     </AltListeKart>
   );
 }
 
-/** Görseli tam ekran karartılmış katmanda büyütür; tıkla/ESC ile kapanır. */
-function ResimLightbox({
-  kayit,
+/**
+ * Görseli tam ekran karartılmış katmanda büyütür; birden çok resimde slider
+ * (ok tuşları / yan oklar ile gezinilir). Tıkla dışına/ESC ile kapanır.
+ */
+export function ResimLightbox({
+  resimler,
+  aktifId,
   onKapat,
 }: {
-  kayit: StokDokuman;
+  resimler: StokDokuman[];
+  aktifId: StokDokuman["id"];
   onKapat: () => void;
 }) {
+  const [idx, setIdx] = React.useState(() => {
+    const i = resimler.findIndex((r) => r.id === aktifId);
+    return i >= 0 ? i : 0;
+  });
+  const coklu = resimler.length > 1;
+  const git = React.useCallback(
+    (yon: number) =>
+      setIdx((i) => (i + yon + resimler.length) % resimler.length),
+    [resimler.length],
+  );
+
   React.useEffect(() => {
     const el = (e: KeyboardEvent) => {
       if (e.key === "Escape") onKapat();
+      else if (e.key === "ArrowRight") git(1);
+      else if (e.key === "ArrowLeft") git(-1);
     };
     document.addEventListener("keydown", el);
     return () => document.removeEventListener("keydown", el);
-  }, [onKapat]);
+  }, [onKapat, git]);
+
+  const kayit = resimler[idx];
+  if (!kayit) return null;
 
   return (
     <div
@@ -2758,14 +2805,52 @@ function ResimLightbox({
       >
         <X className="size-5" />
       </button>
+
+      {coklu && (
+        <button
+          type="button"
+          aria-label="Önceki"
+          onClick={(e) => {
+            e.stopPropagation();
+            git(-1);
+          }}
+          className="absolute left-4 flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+        >
+          <ChevronLeft className="size-6" />
+        </button>
+      )}
+
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        key={kayit.id}
         src={kayit.url}
         alt={kayit.ad}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] max-w-[90vw] cursor-default rounded-lg object-contain shadow-2xl"
+        className="max-h-[85vh] max-w-[90vw] cursor-default rounded-lg object-contain shadow-2xl animate-in fade-in duration-150"
       />
-      <span className="text-sm font-medium text-white/90">{kayit.ad}</span>
+
+      {coklu && (
+        <button
+          type="button"
+          aria-label="Sonraki"
+          onClick={(e) => {
+            e.stopPropagation();
+            git(1);
+          }}
+          className="absolute right-4 flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+        >
+          <ChevronRight className="size-6" />
+        </button>
+      )}
+
+      <span className="text-sm font-medium text-white/90">
+        {kayit.ad}
+        {coklu && (
+          <span className="ml-2 text-white/60 tabular-nums">
+            {idx + 1}/{resimler.length}
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -2781,62 +2866,100 @@ function DokumanSheet({
   onOpenChange: (v: boolean) => void;
   kayit: StokDokuman | null;
   stokId: string;
-  onSave: (f: Omit<StokDokuman, "id" | "stokId">) => void;
+  onSave: (f: Omit<StokDokuman, "id" | "stokId">) => void | Promise<void>;
 }) {
   const [ad, setAd] = React.useState("");
   const [tip, setTip] = React.useState<StokDokumanTipi>("Diğer");
-  const [dosya, setDosya] = React.useState<File | null>(null);
+  const [dosyalar, setDosyalar] = React.useState<File[]>([]);
   const [yukleniyor, setYukleniyor] = React.useState(false);
   const dosyaRef = React.useRef<HTMLInputElement>(null);
+  const coklu = dosyalar.length > 1;
 
   React.useEffect(() => {
     if (!open) return;
     setAd(kayit?.ad ?? "");
     setTip(kayit?.tip ?? "Diğer");
-    setDosya(null);
+    setDosyalar([]);
     setYukleniyor(false);
   }, [open, kayit]);
 
-  function dosyaSecildi(f: File | null) {
-    setDosya(f);
-    if (!f) return;
-    // Ad boşsa dosya adından öner (uzantısız).
-    if (!ad.trim()) setAd(f.name.replace(/\.[^.]+$/, ""));
-    // Tip'i dosya uzantısına göre öner (yeni kayıtta).
-    if (!kayit) setTip(tipTahmin(f.name));
+  function dosyalarSecildi(fl: FileList | null) {
+    const arr = fl ? [...fl] : [];
+    setDosyalar(arr);
+    // Tek dosyada ad/tip öner (çokluda her dosyadan otomatik alınır).
+    if (arr.length === 1) {
+      const f = arr[0];
+      if (!ad.trim()) setAd(f.name.replace(/\.[^.]+$/, ""));
+      if (!kayit) setTip(tipTahmin(f.name));
+    }
+  }
+
+  async function dosyaYukle(f: File): Promise<string | null> {
+    try {
+      const fd = new FormData();
+      fd.append("dosya", f);
+      fd.append("klasor", `stok-${stokId}`);
+      const cevap = await fetch("/api/dosya", { method: "POST", body: fd });
+      const veri = await cevap.json();
+      if (!cevap.ok || !veri.url) {
+        toast.error(veri.error ?? `"${f.name}" yüklenemedi`);
+        return null;
+      }
+      return veri.url as string;
+    } catch {
+      toast.error(`"${f.name}" yüklenemedi`);
+      return null;
+    }
   }
 
   async function kaydet() {
-    if (!ad.trim()) {
-      toast.error("Doküman adı gerekli");
+    // Düzenleme: tek kayıt (ad + isteğe bağlı yeni dosya).
+    if (kayit) {
+      if (!ad.trim()) {
+        toast.error("Doküman adı gerekli");
+        return;
+      }
+      let url = kayit.url;
+      if (dosyalar[0]) {
+        setYukleniyor(true);
+        const u = await dosyaYukle(dosyalar[0]);
+        setYukleniyor(false);
+        if (!u) return;
+        url = u;
+      }
+      await onSave({ ad: ad.trim(), url, tip });
+      onOpenChange(false);
       return;
     }
-    if (!kayit && !dosya) {
+    // Yeni: bir veya birden çok dosya.
+    if (dosyalar.length === 0) {
       toast.error("Dosya seçin");
       return;
     }
-    let url = kayit?.url ?? "";
-    if (dosya) {
-      setYukleniyor(true);
-      try {
-        const fd = new FormData();
-        fd.append("dosya", dosya);
-        fd.append("klasor", `stok-${stokId}`);
-        const cevap = await fetch("/api/dosya", { method: "POST", body: fd });
-        const veri = await cevap.json();
-        if (!cevap.ok || !veri.url) {
-          toast.error(veri.error ?? "Dosya yüklenemedi");
-          return;
-        }
-        url = veri.url;
-      } catch {
-        toast.error("Dosya yüklenemedi");
-        return;
-      } finally {
-        setYukleniyor(false);
-      }
+    if (dosyalar.length === 1 && !ad.trim()) {
+      toast.error("Doküman adı gerekli");
+      return;
     }
-    onSave({ ad: ad.trim(), url, tip });
+    setYukleniyor(true);
+    try {
+      if (dosyalar.length === 1) {
+        const u = await dosyaYukle(dosyalar[0]);
+        if (!u) return;
+        await onSave({ ad: ad.trim(), url: u, tip });
+      } else {
+        for (const f of dosyalar) {
+          const u = await dosyaYukle(f);
+          if (!u) continue;
+          await onSave({
+            ad: f.name.replace(/\.[^.]+$/, ""),
+            url: u,
+            tip: tipTahmin(f.name),
+          });
+        }
+      }
+    } finally {
+      setYukleniyor(false);
+    }
     onOpenChange(false);
   }
 
@@ -2854,8 +2977,9 @@ function DokumanSheet({
           ref={dosyaRef}
           type="file"
           className="hidden"
+          multiple={!kayit}
           accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
-          onChange={(e) => dosyaSecildi(e.target.files?.[0] ?? null)}
+          onChange={(e) => dosyalarSecildi(e.target.files)}
         />
         <button
           type="button"
@@ -2864,12 +2988,19 @@ function DokumanSheet({
           className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed px-3 py-6 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40"
         >
           <FileImage className="size-5 text-muted-foreground" />
-          {dosya ? (
+          {coklu ? (
             <>
-              <span className="font-medium">{dosya.name}</span>
+              <span className="font-medium">{dosyalar.length} dosya seçildi</span>
               <span className="text-xs text-muted-foreground">
-                {(dosya.size / 1024 / 1024).toFixed(2)} MB · değiştirmek için
-                tıklayın
+                değiştirmek için tıklayın
+              </span>
+            </>
+          ) : dosyalar[0] ? (
+            <>
+              <span className="font-medium">{dosyalar[0].name}</span>
+              <span className="text-xs text-muted-foreground">
+                {(dosyalar[0].size / 1024 / 1024).toFixed(2)} MB · değiştirmek
+                için tıklayın
               </span>
             </>
           ) : (
@@ -2878,31 +3009,42 @@ function DokumanSheet({
                 {kayit ? "Dosyayı değiştir (isteğe bağlı)" : "Dosya seç"}
               </span>
               <span className="text-xs text-muted-foreground">
-                Görsel, PDF, video, Office… en fazla 20 MB
+                {kayit
+                  ? "Görsel, PDF, video, Office… en fazla 20 MB"
+                  : "Bir veya birden çok dosya · en fazla 20 MB"}
               </span>
             </>
           )}
         </button>
-        {kayit && !dosya && (
+        {kayit && dosyalar.length === 0 && (
           <p className="text-xs text-muted-foreground">
             Mevcut dosya korunur; yalnızca ad ve tipi değiştirebilirsiniz.
           </p>
         )}
-        <IconInput
-          label="Ad"
-          icon={ScanTextIcon}
-          placeholder="Örn. Ürün Fotoğrafı"
-          value={ad}
-          onChange={(e) => setAd(e.target.value)}
-        />
-        <AnimatedField label="Tip" icon={FolderOpenIcon}>
-          <SearchSelect
-            items={DOKUMAN_TIPLERI}
-            value={tip}
-            onValueChange={(v) => setTip((v as StokDokumanTipi) ?? "Diğer")}
-            placeholder="Doküman tipi"
-          />
-        </AnimatedField>
+        {coklu ? (
+          <p className="text-xs text-muted-foreground">
+            Adlar ve tipler dosyalardan otomatik alınır; ekledikten sonra tek
+            tek düzenleyebilirsiniz.
+          </p>
+        ) : (
+          <>
+            <IconInput
+              label="Ad"
+              icon={ScanTextIcon}
+              placeholder="Örn. Ürün Fotoğrafı"
+              value={ad}
+              onChange={(e) => setAd(e.target.value)}
+            />
+            <AnimatedField label="Tip" icon={FolderOpenIcon}>
+              <SearchSelect
+                items={DOKUMAN_TIPLERI}
+                value={tip}
+                onValueChange={(v) => setTip((v as StokDokumanTipi) ?? "Diğer")}
+                placeholder="Doküman tipi"
+              />
+            </AnimatedField>
+          </>
+        )}
         {yukleniyor && (
           <p className="text-xs text-muted-foreground">Yükleniyor…</p>
         )}

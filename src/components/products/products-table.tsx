@@ -669,7 +669,7 @@ export function ProductsTable({
                     <ContextMenuShortcut>⏎</ContextMenuShortcut>
                   </ContextMenuItem>
                   <ContextMenuItem
-                    onClick={() => router.push(`/urunler/${u.id}/duzenle`)}
+                    onClick={() => router.push(`/urunler/${u.id}`)}
                   >
                     <Pencil className="mr-2 size-4" /> Düzenle
                   </ContextMenuItem>

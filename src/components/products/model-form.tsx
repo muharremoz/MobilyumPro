@@ -9,9 +9,13 @@ import {
   Plus,
   Info,
   Layers,
-  Image as ImageIcon,
   Blocks,
   Banknote,
+  History,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Repeat,
+  CircleCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,7 +38,6 @@ import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
 import { BadgePercentIcon } from "@/components/ui/icons/badge-percent";
 import { BadgeAlertIcon } from "@/components/ui/icons/badge-alert";
-import { FrameIcon } from "@/components/ui/icons/frame";
 import {
   Dialog,
   DialogClose,
@@ -52,20 +55,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  formatTL,
+  formatTarih,
   type Malzeme,
   type Parca,
   type ParcaSatiri,
   type Model,
   type ModelVaryant,
   type StokGrup,
+  type StokHareket,
+  type StokHareketTuru,
+  type StokDokuman,
 } from "@/lib/data";
 import { GrupSecici } from "@/components/ui/grup-secici";
+import {
+  DokumanlarTab,
+  ResimLightbox,
+  resimMi,
+} from "@/components/stok-karti/stok-kart-form";
 import { cn } from "@/lib/utils";
 import { modelIhtiyacDokumu } from "@/lib/bom";
 import { ISTASYON_MAP } from "@/lib/fabrika";
 import { modelKaydet, modelKodOnizle, tanimKaydet } from "@/lib/db/actions";
 
-type Tab = "genel" | "recete" | "varyant" | "resim";
+type Tab = "genel" | "recete" | "varyant" | "resim" | "analiz";
 
 type Form = {
   ad: string;
@@ -93,39 +106,6 @@ const bos: Form = {
 
 const sayi = (n: number, hane = 2) =>
   n.toLocaleString("tr-TR", { maximumFractionDigits: hane });
-
-/**
- * Seçilen görsel dosyasını data-URL'e çevirir; büyükse en fazla 1280px
- * olacak şekilde küçültüp JPEG'e sıkıştırır (DB'de NVarChar(Max) saklanıyor).
- */
-function dosyayiGorseleCevir(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const MAKS = 1280;
-      const oran = Math.min(1, MAKS / Math.max(img.width, img.height));
-      if (oran === 1 && file.size < 300 * 1024) {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-        return;
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * oran);
-      canvas.height = Math.round(img.height * oran);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.85));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Görsel okunamadı"));
-    };
-    img.src = url;
-  });
-}
 
 /** Bölüm kartı — KartBaslik + gövde (stok kartı formuyla aynı iskelet). */
 function Kart({
@@ -185,6 +165,162 @@ function Metrik({
   );
 }
 
+/* ── Stok Analiz (edit modunda okuma sekmesi) ──────────────────── */
+const TUR_RENK: Record<StokHareketTuru, string> = {
+  Giriş: "bg-emerald-100 text-emerald-800",
+  Çıkış: "bg-rose-100 text-rose-800",
+  Transfer: "bg-blue-100 text-blue-800",
+};
+const TUR_IKON: Record<StokHareketTuru, React.ReactNode> = {
+  Giriş: <ArrowDownToLine className="size-3.5" />,
+  Çıkış: <ArrowUpFromLine className="size-3.5" />,
+  Transfer: <Repeat className="size-3.5" />,
+};
+const turDelta = (t: StokHareketTuru, m: number) =>
+  t === "Giriş" ? m : t === "Çıkış" ? -m : 0;
+
+function OzetKutu({
+  etiket,
+  deger,
+  tone,
+}: {
+  etiket: string;
+  deger: string;
+  tone?: "emerald" | "rose";
+}) {
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <div className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+        {etiket}
+      </div>
+      <div
+        className={cn(
+          "mt-1 text-2xl font-semibold tabular-nums",
+          tone === "emerald" && "text-emerald-600",
+          tone === "rose" && "text-rose-600",
+        )}
+      >
+        {deger}
+      </div>
+    </div>
+  );
+}
+
+function ModelAnaliz({
+  product,
+  hareketler: tumHareketler,
+}: {
+  product: Model;
+  hareketler: StokHareket[];
+}) {
+  const hareketler = React.useMemo(() => {
+    const arr = tumHareketler
+      .filter((h) => h.ref.tip === "model" && h.ref.id === product.id)
+      .sort((a, b) => a.tarih.localeCompare(b.tarih));
+    const net = arr.reduce((s, h) => s + turDelta(h.tur, h.miktar), 0);
+    let bakiye = product.stok - net;
+    return arr
+      .map((h) => {
+        bakiye += turDelta(h.tur, h.miktar);
+        return { ...h, bakiye };
+      })
+      .reverse();
+  }, [product, tumHareketler]);
+
+  const giris = hareketler
+    .filter((h) => h.tur === "Giriş")
+    .reduce((t, h) => t + h.miktar, 0);
+  const cikis = hareketler
+    .filter((h) => h.tur === "Çıkış")
+    .reduce((t, h) => t + h.miktar, 0);
+  const deger = product.fiyat * product.stok;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <OzetKutu etiket="Mevcut Stok" deger={String(product.stok)} />
+        <OzetKutu etiket="Toplam Giriş" deger={String(giris)} tone="emerald" />
+        <OzetKutu etiket="Toplam Çıkış" deger={String(cikis)} tone="rose" />
+        <OzetKutu etiket="Stok Değeri" deger={formatTL(deger)} />
+      </div>
+
+      <div className="rounded-md border bg-card">
+        <KartBaslik
+          ikon={History}
+          baslik="Son Hareketler"
+          sag={
+            <span className="text-xs text-muted-foreground">
+              {hareketler.length} hareket
+            </span>
+          }
+        />
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Belge</TableHead>
+              <TableHead>Tarih</TableHead>
+              <TableHead>Tür</TableHead>
+              <TableHead className="text-right">Miktar</TableHead>
+              <TableHead className="text-right">Bakiye</TableHead>
+              <TableHead>Depo</TableHead>
+              <TableHead>Açıklama</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {hareketler.map((h) => {
+              const d = turDelta(h.tur, h.miktar);
+              return (
+                <TableRow key={h.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {h.id}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatTarih(h.tarih)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className={TUR_RENK[h.tur]}>
+                      <span className="mr-1 inline-flex items-center">
+                        {TUR_IKON[h.tur]}
+                      </span>
+                      {h.tur}
+                    </Badge>
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right tabular-nums",
+                      d > 0 && "text-emerald-600",
+                      d < 0 && "text-rose-600",
+                    )}
+                  >
+                    {d > 0 ? `+${h.miktar}` : d < 0 ? `−${h.miktar}` : h.miktar}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {h.bakiye}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{h.depo}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {h.aciklama}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {hareketler.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-20 text-center text-muted-foreground"
+                >
+                  Bu model için kayıtlı hareket yok.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 export function ModelForm({
   product,
   parcalar,
@@ -193,6 +329,8 @@ export function ModelForm({
   markalar: markalarProp,
   renkler = [],
   kumaslar = [],
+  hareketler = [],
+  dokumanlar = [],
 }: {
   product?: Model;
   parcalar: Parca[];
@@ -203,6 +341,10 @@ export function ModelForm({
   /** Varyant seçenekleri (Tanımlamalar → Renkler / Kumaşlar). */
   renkler?: string[];
   kumaslar?: string[];
+  /** Stok hareketleri (yalnız düzenlemede — Stok Analiz sekmesi). */
+  hareketler?: StokHareket[];
+  /** Model dokümanları (malzeme kartıyla aynı sistem; yalnız düzenlemede). */
+  dokumanlar?: StokDokuman[];
 }) {
   const router = useRouter();
   const duzenleme = !!product;
@@ -247,14 +389,15 @@ export function ModelForm({
   const [urunParcalar, setUrunParcalar] = React.useState<ParcaSatiri[]>(
     product?.parcalar ? [...product.parcalar] : [],
   );
-  const [gorseller, setGorseller] = React.useState<string[]>(
-    product?.gorseller
-      ? [...product.gorseller]
-      : product?.gorsel
-        ? [product.gorsel]
-        : [],
+  // Ana görsel dokümanlardan gelir (malzeme kartıyla aynı sistem).
+  const anaGorselDok = React.useMemo(
+    () =>
+      dokumanlar.find((d) => d.tip === "Ürün Resmi" && resimMi(d.url)) ??
+      dokumanlar.find((d) => resimMi(d.url)) ??
+      null,
+    [dokumanlar],
   );
-  const [yeniGorsel, setYeniGorsel] = React.useState("");
+  const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
   const [varyantlar, setVaryantlar] = React.useState<ModelVaryant[]>(
     product?.varyantlar ? [...product.varyantlar] : [],
   );
@@ -291,8 +434,6 @@ export function ModelForm({
       // Mamul stoğu üretimden (ledger) gelir; formdan elle girilmez.
       stok: product?.stok ?? 0,
       durum: form.durum,
-      gorsel: gorseller[0] ?? undefined,
-      gorseller: gorseller.length ? gorseller : undefined,
       parcalar: urunParcalar.filter((p) => p.parcaId),
       marka: form.marka.trim() || undefined,
       barkod: (duzenleme ? form.barkod.trim() : onizleme.barkod) || undefined,
@@ -345,30 +486,6 @@ export function ModelForm({
     setUrunParcalar((ps) => ps.filter((_, j) => j !== i));
   }
 
-  // Görsel galerisi
-  const dosyaRef = React.useRef<HTMLInputElement>(null);
-  function gorselEkle() {
-    const v = yeniGorsel.trim();
-    if (!v) return;
-    setGorseller((g) => [...g, v]);
-    setYeniGorsel("");
-  }
-  async function dosyalarSecildi(files: FileList | null) {
-    if (!files?.length) return;
-    try {
-      const yeniler = await Promise.all(
-        [...files].map((f) => dosyayiGorseleCevir(f)),
-      );
-      setGorseller((g) => [...g, ...yeniler]);
-    } catch {
-      toast.error("Görsel okunamadı");
-    }
-    if (dosyaRef.current) dosyaRef.current.value = "";
-  }
-  function gorselSil(i: number) {
-    setGorseller((g) => g.filter((_, j) => j !== i));
-  }
-
   // Varyantlar (renk × kumaş)
   function varyantSatirEkle() {
     setVaryantlar((v) => [
@@ -410,7 +527,16 @@ export function ModelForm({
       etiket: "Varyantlar",
       sayac: varyantlar.length || undefined,
     },
-    { key: "resim", etiket: "Görseller", sayac: gorseller.length || undefined },
+    ...(duzenleme
+      ? [
+          {
+            key: "resim" as Tab,
+            etiket: "Dokümanlar",
+            sayac: dokumanlar.length || undefined,
+          },
+          { key: "analiz" as Tab, etiket: "Stok Analiz" },
+        ]
+      : []),
   ];
 
   return (
@@ -446,13 +572,20 @@ export function ModelForm({
       <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-emerald-50 via-card to-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-3.5">
-            {gorseller[0] && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={gorseller[0]}
-                alt={form.ad || "Model"}
-                className="size-14 shrink-0 rounded-lg border object-cover"
-              />
+            {anaGorselDok && (
+              <button
+                type="button"
+                onClick={() => setBuyuk(anaGorselDok)}
+                className="shrink-0 cursor-zoom-in overflow-hidden rounded-lg border transition-transform hover:scale-105"
+                aria-label={`${form.ad || "Model"} — büyüt`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={anaGorselDok.url}
+                  alt={form.ad || "Model"}
+                  className="size-14 object-cover"
+                />
+              </button>
             )}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
@@ -1054,85 +1187,14 @@ export function ModelForm({
           </Kart>
         )}
 
-        {/* ── GÖRSELLER ─────────────────────────────────────────── */}
-        {tab === "resim" && (
-          <Kart
-            baslik="Görseller"
-            ikon={ImageIcon}
-            sag={
-              <span className="text-xs text-muted-foreground">
-                {gorseller.length} görsel · ilki ana görsel
-              </span>
-            }
-          >
-            {gorseller.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {gorseller.map((g, i) => (
-                  <div
-                    key={`${g}-${i}`}
-                    className="group relative aspect-square overflow-hidden rounded-md border bg-muted/30"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={g}
-                      alt={`Görsel ${i + 1}`}
-                      className="size-full object-cover"
-                    />
-                    {i === 0 && (
-                      <span className="absolute top-1 left-1 rounded bg-foreground/80 px-1.5 py-0.5 text-[10px] font-medium text-background">
-                        Ana
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => gorselSil(i)}
-                      aria-label="Sil"
-                      className="absolute top-1 right-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <Trash className="size-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <input
-                ref={dosyaRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => dosyalarSecildi(e.target.files)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => dosyaRef.current?.click()}
-              >
-                <FrameIcon size={14} /> Bilgisayardan Seç
-              </Button>
-              <Input
-                placeholder="veya görsel URL'si yapıştır"
-                value={yeniGorsel}
-                onChange={(e) => setYeniGorsel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    gorselEkle();
-                  }
-                }}
-                className="h-8 min-w-40 flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={gorselEkle}
-                disabled={!yeniGorsel.trim()}
-              >
-                <Plus className="size-3.5" /> Ekle
-              </Button>
-            </div>
-          </Kart>
+        {/* ── DOKÜMANLAR (malzeme kartıyla aynı sistem) ─────────── */}
+        {tab === "resim" && product && (
+          <DokumanlarTab stokId={product.id} kayitlar={dokumanlar} />
+        )}
+
+        {/* ── STOK ANALİZ (yalnız düzenlemede) ──────────────────── */}
+        {tab === "analiz" && product && (
+          <ModelAnaliz product={product} hareketler={hareketler} />
         )}
       </TabIcerik>
 
@@ -1165,6 +1227,14 @@ export function ModelForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {buyuk && (
+        <ResimLightbox
+          resimler={dokumanlar.filter((d) => resimMi(d.url))}
+          aktifId={buyuk.id}
+          onKapat={() => setBuyuk(null)}
+        />
+      )}
     </div>
   );
 }

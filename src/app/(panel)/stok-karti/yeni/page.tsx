@@ -10,7 +10,7 @@ import {
 import { sonrakiStokKodu } from "@/lib/db/actions";
 
 export default async function YeniStokKartiRoute() {
-  const [sonrakiKod, gruplar, tanimlar, parcalar, cariler, malzemeler, istasyonlar] =
+  const [sonraki, gruplar, tanimlar, parcalar, cariler, malzemeler, istasyonlar] =
     await Promise.all([
       sonrakiStokKodu(),
       getGruplar(),
@@ -22,7 +22,8 @@ export default async function YeniStokKartiRoute() {
     ]);
   return (
     <StokKartForm
-      sonrakiKod={sonrakiKod}
+      sonrakiKod={sonraki.kod}
+      sonrakiBarkod={sonraki.barkod}
       gruplar={gruplar}
       turler={tanimlar.tur.map((t) => t.ad)}
       cinsler={tanimlar.cins.map((t) => t.ad)}
