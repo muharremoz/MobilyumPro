@@ -1,12 +1,15 @@
 # ============================================================================
-#  MobilyumPro - Test PC on kosul yukleyici (Node + Git + SQL Server Express)
-#  Kullanim: proje klasorunde ->  .\on-kosullar.ps1   (yonetici ister, kendini yukseltir)
-#  Yaptigi:
-#    1) winget ile Node.js LTS, Git, SQL Server 2022 Express kurar
-#    2) SQL'i ayarlar: mixed-mode auth + 'sa' parolasi + TCP 1433
-#    3) 'mobilyumpro' veritabanini olusturur
-#    4) .env dosyasini .env.example'dan parola ile doldurarak yazar
-#  Bu bir kez calistirilir; ardindan yeni terminal acip .\kurulum.ps1 calistir.
+#  MobilyumPro - Test PC TEK ADIM kurulum
+#  Kullanim: proje klasorunde ->  .\kur.ps1   (yonetici ister, kendini yukseltir)
+#  Yaptigi (bastan sona, tek script):
+#    1) winget ile Node.js LTS + Git + SQL Server 2022 Express kurar
+#    2) Ayni oturumda PATH'i tazeler (yeni terminal gerekmez)
+#    3) SQL'i ayarlar: mixed-mode auth + 'sa' parolasi + TCP 1433
+#    4) 'mobilyumpro' veritabanini olusturur
+#    5) .env'i parolayla yazar
+#    6) npm install + prisma generate/push + seed
+#    7) uygulamayi baslatir: http://localhost:1616
+#  Sonraki guncellemeler icin sadece:  .\guncelle.ps1
 # ============================================================================
 $ErrorActionPreference = "Stop"
 
@@ -22,25 +25,37 @@ if (-not $admin) {
 }
 
 Set-Location $PSScriptRoot
-Write-Host "=== MobilyumPro on kosullar ===" -ForegroundColor Cyan
+Write-Host "=== MobilyumPro tek adim kurulum ===" -ForegroundColor Cyan
+
+# Native komut hatalarini yakalayan yardimci
+function Calistir($aciklama, [scriptblock]$blok) {
+  Write-Host "==> $aciklama" -ForegroundColor Cyan
+  & $blok
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "!! Adim basarisiz oldu: $aciklama (kod $LASTEXITCODE)" -ForegroundColor Red
+    exit 1
+  }
+}
 
 # --- 1) winget ile paketler -------------------------------------------------
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
   Write-Host "!! winget bulunamadi. Windows 10/11 'App Installer' guncel olmali." -ForegroundColor Red
   exit 1
 }
-
 function Winget-Kur($id, $ad) {
   Write-Host "==> $ad kuruluyor ($id)..." -ForegroundColor Cyan
   winget install -e --id $id --accept-package-agreements --accept-source-agreements --silent
-  # winget zaten kuruluysa cikis kodu 0 disi olabilir; bunu hata sayma
+  # zaten kuruluysa cikis kodu 0 disi olabilir; hata sayma
 }
-
 Winget-Kur "OpenJS.NodeJS.LTS" "Node.js LTS"
 Winget-Kur "Git.Git" "Git"
 Winget-Kur "Microsoft.SQLServer.2022.Express" "SQL Server 2022 Express"
 
-# --- 2) SQL 'sa' parolasini iste -------------------------------------------
+# --- 2) Bu oturumda PATH'i tazele (node/npm/git hemen taninsin) -------------
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+# --- 3) SQL 'sa' parolasini iste -------------------------------------------
 Write-Host ""
 Write-Host "SQL Server 'sa' hesabi icin bir parola belirle." -ForegroundColor Yellow
 Write-Host "(En az 8 karakter; buyuk/kucuk harf + rakam icermeli.)" -ForegroundColor DarkGray
@@ -53,10 +68,8 @@ if ([string]::IsNullOrWhiteSpace($saPwd)) {
   exit 1
 }
 
-# --- 3) SQL Express'i ayarla (mixed mode + TCP 1433) ------------------------
+# --- 4) SQL Express'i ayarla (mixed mode + TCP 1433) ------------------------
 $svc = "MSSQL`$SQLEXPRESS"
-
-Write-Host "==> SQL Server servisi bekleniyor..." -ForegroundColor Cyan
 $s = Get-Service $svc -ErrorAction SilentlyContinue
 if (-not $s) {
   Write-Host "!! $svc servisi bulunamadi. SQL Express kurulumu tamamlanmamis olabilir." -ForegroundColor Red
@@ -64,7 +77,6 @@ if (-not $s) {
 }
 if ($s.Status -ne "Running") { Start-Service $svc }
 
-# Instance ID (or. MSSQL16.SQLEXPRESS) uzerinden registry ayarlari
 $instId = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL").SQLEXPRESS
 $base = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$instId\MSSQLServer"
 
@@ -81,20 +93,17 @@ Write-Host "==> SQL Server yeniden baslatiliyor..." -ForegroundColor Cyan
 Restart-Service $svc -Force
 Start-Sleep -Seconds 3
 
-# --- SQL komutlarini .NET SqlClient ile calistir (harici arac gerekmez) ----
 Add-Type -AssemblyName System.Data
 function Invoke-Sql($server, $query) {
   $cs = "Server=$server;Integrated Security=true;TrustServerCertificate=true;Encrypt=true"
   $conn = New-Object System.Data.SqlClient.SqlConnection $cs
   $conn.Open()
   try {
-    $cmd = $conn.CreateCommand()
-    $cmd.CommandText = $query
-    [void]$cmd.ExecuteNonQuery()
+    $cmd = $conn.CreateCommand(); $cmd.CommandText = $query; [void]$cmd.ExecuteNonQuery()
   } finally { $conn.Close() }
 }
 
-Write-Host "==> 'sa' hesabi etkinlestiriliyor ve parola atanıyor..." -ForegroundColor Cyan
+Write-Host "==> 'sa' etkinlestiriliyor ve parola atanıyor..." -ForegroundColor Cyan
 $saPwdSql = $saPwd.Replace("'", "''")
 try {
   Invoke-Sql "localhost\SQLEXPRESS" `
@@ -106,22 +115,26 @@ try {
 }
 
 Write-Host "==> 'mobilyumpro' veritabani olusturuluyor (varsa dokunulmaz)..." -ForegroundColor Cyan
-Invoke-Sql "localhost\SQLEXPRESS" `
-  "IF DB_ID('mobilyumpro') IS NULL CREATE DATABASE [mobilyumpro];"
+Invoke-Sql "localhost\SQLEXPRESS" "IF DB_ID('mobilyumpro') IS NULL CREATE DATABASE [mobilyumpro];"
 
-# --- 4) .env dosyasini yaz --------------------------------------------------
-Write-Host "==> .env yaziliyor..." -ForegroundColor Cyan
+# --- 5) .env yaz ------------------------------------------------------------
 if (Test-Path ".env") {
-  Write-Host "   .env zaten var; uzerine yazilmadi. Gerekirse elle guncelle." -ForegroundColor DarkGray
+  Write-Host "==> .env zaten var; uzerine yazilmadi." -ForegroundColor DarkGray
 } else {
+  Write-Host "==> .env yaziliyor..." -ForegroundColor Cyan
   $tpl = Get-Content ".env.example" -Raw
-  # ornekteki 'password={PAROLA}' -> 'password={<gercek parola>}'
-  $env = $tpl.Replace("{PAROLA}", "{$saPwd}")
-  [IO.File]::WriteAllText((Join-Path $PSScriptRoot ".env"), $env)
-  Write-Host "   .env olusturuldu (parola dolduruldu)." -ForegroundColor Green
+  $envContent = $tpl.Replace("{PAROLA}", "{$saPwd}")
+  [IO.File]::WriteAllText((Join-Path $PSScriptRoot ".env"), $envContent)
 }
 
+# --- 6) Uygulama bagimliliklari + veritabani semasi + ornek veri ------------
+Calistir "npm install..." { npm install }
+Calistir "Prisma generate..." { npm run db:generate }
+Calistir "Veritabani semasi (db push)..." { npx prisma db push }
+Calistir "Ornek veri (seed)..." { npm run db:seed }
+
+# --- 7) Baslat --------------------------------------------------------------
 Write-Host ""
-Write-Host "=== On kosullar tamam ===" -ForegroundColor Green
-Write-Host "Node/Git PATH'inin taninmasi icin YENI bir terminal ac ve calistir:" -ForegroundColor Yellow
-Write-Host "    .\kurulum.ps1" -ForegroundColor White
+Write-Host "=== Kurulum tamam. Baslatiliyor: http://localhost:1616 ===" -ForegroundColor Green
+Write-Host "Sonraki guncellemeler icin: .\guncelle.ps1" -ForegroundColor DarkGray
+npm run dev

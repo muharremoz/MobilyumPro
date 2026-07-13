@@ -22,7 +22,7 @@ npm run build    # production derleme
 Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
 (kendi SQL Server + kendi `.env`). Güncellemeler `git push` (dev PC) →
 `git pull` (test PC) ile akar. Node.js, Git ve SQL Server Express dahil hiçbir
-şeyi elle kurmana gerek yok — `on-kosullar.ps1` hepsini yükler.
+şeyi elle kurmana gerek yok — **tek script `kur.ps1`** hepsini yapar.
 
 **İlk kurulum (test PC'de, bir kez):**
 
@@ -32,7 +32,7 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
    winget install -e --id Git.Git
    ```
 
-2. **Yeni** terminal aç, repoyu klonla:
+2. **Yeni** terminal aç, repoyu klonla ve içine gir:
 
    ```powershell
    git clone https://github.com/muharremoz/MobilyumPro.git
@@ -45,24 +45,18 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
    > (yani `guncelle.ps1`) hiç sormadan çalışır. O makinede repoya erişebilen
    > bir GitHub hesabıyla giriş yapılmalı.
 
-3. Ön koşulları kur (yönetici ister, kendini yükseltir):
+3. Tek script'i çalıştır:
 
    ```powershell
-   .\on-kosullar.ps1
+   .\kur.ps1
    ```
 
-   Bu script: **Node.js LTS + Git + SQL Server 2022 Express**'i winget ile
-   kurar; SQL'i ayarlar (mixed-mode auth + istediğin `sa` parolası + TCP 1433);
-   `mobilyumpro` veritabanını oluşturur; `.env`'i parolayla doldurur.
-
-4. **Yeni** terminal aç (Node/Git PATH'i tanınsın), uygulamayı kur ve başlat:
-
-   ```powershell
-   .\kurulum.ps1
-   ```
-
-   `npm install` → `db:generate` → `db:push` → `db:seed` yapıp
-   `http://localhost:1616` adresinde başlatır.
+   `kur.ps1` baştan sona her şeyi yapar: yönetici izni ister → winget ile
+   **Node.js LTS + Git + SQL Server 2022 Express** kurar → aynı oturumda PATH'i
+   tazeler → SQL'i ayarlar (mixed-mode auth + istediğin `sa` parolası + TCP 1433)
+   → `mobilyumpro` veritabanını oluşturur → `.env`'i parolayla yazar →
+   `npm install` + prisma generate/push + seed → `http://localhost:1616`
+   adresinde başlatır. Yeni terminal açmana gerek yok.
 
 **Her güncellemede (test PC'de):**
 
@@ -76,8 +70,8 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
 
 > Not: Test PC'de kod düzenleme yapma; tek kaynak dev (bu) makinedir. Yerel
 > değişiklik olursa `git pull` çakışır.
-> `on-kosullar.ps1` yalnızca ilk kurulumda gerekir; sonraki güncellemeler için
-> sadece `guncelle.ps1` yeterli.
+> `kur.ps1` yalnızca ilk kurulumda gerekir; sonraki güncellemeler için sadece
+> `guncelle.ps1` yeterli.
 
 ## Sayfalar
 
