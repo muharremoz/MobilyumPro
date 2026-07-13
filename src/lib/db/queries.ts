@@ -8,6 +8,7 @@ import type {
   Parca,
   Malzeme,
   Doviz,
+  Kur,
   Depo,
   Musteri,
   Siparis,
@@ -852,6 +853,22 @@ function mapAlis(a: AlisRow): Alis {
       birimFiyat: Number(s.birimFiyat),
     })),
   };
+}
+
+/** Kayıtlı döviz kurları (TCMB) — kod sırasıyla. */
+export async function getKurlar(): Promise<Kur[]> {
+  const rows = await db.kur.findMany({ orderBy: { kod: "asc" } });
+  return rows.map((k) => ({
+    kod: k.kod,
+    ad: k.ad,
+    birim: k.birim,
+    forexAlis: Number(k.forexAlis),
+    forexSatis: Number(k.forexSatis),
+    banknoteAlis: Number(k.banknoteAlis),
+    banknoteSatis: Number(k.banknoteSatis),
+    tarih: k.tarih,
+    guncelleme: k.guncelleme.toISOString(),
+  }));
 }
 
 export async function getAlislar(): Promise<Alis[]> {

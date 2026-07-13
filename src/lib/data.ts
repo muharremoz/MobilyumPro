@@ -338,6 +338,19 @@ export type StokGrup = {
   kullanim?: number;
 };
 
+// Döviz kuru — TCMB günlük bülteninden.
+export type Kur = {
+  kod: string; // USD, EUR...
+  ad: string;
+  birim: number;
+  forexAlis: number;
+  forexSatis: number;
+  banknoteAlis: number;
+  banknoteSatis: number;
+  tarih: string; // TCMB bülten tarihi
+  guncelleme: string; // son çekilme (yerel)
+};
+
 // Stok kartı — birleşik kart (hammadde/yarı mamül/mamül/hizmet).
 // Miktar ledger'a aittir; kart açıklayıcı alanları ve fiyatları tutar.
 export type StokGrubu = "Hammadde" | "Yarı Mamül" | "Mamül" | "Hizmet";

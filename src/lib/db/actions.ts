@@ -1335,6 +1335,63 @@ export async function istasyonSil(
   }
 }
 
+// ── Döviz kurları (TCMB günlük bülteni) ─────────────────────────────────
+
+/** Projede kullanılan dövizler — TCMB today.xml'den bunlar çekilir. */
+const KUR_KODLARI = ["USD", "EUR", "GBP", "CHF"];
+
+/**
+ * TCMB günlük kur bültenini çekip `kur` tablosunu günceller.
+ * İnternet gerekir (offline'da son kayıtlı kurlar kullanılır).
+ */
+export async function kurlariGuncelle(): Promise<{
+  ok: boolean;
+  tarih?: string;
+  adet?: number;
+  error?: string;
+}> {
+  try {
+    const res = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml", {
+      cache: "no-store",
+    });
+    if (!res.ok) return { ok: false, error: "TCMB'ye ulaşılamadı." };
+    const xml = await res.text();
+    const tarih = /Tarih_Date[^>]*Tarih="([^"]+)"/.exec(xml)?.[1] ?? "";
+    const bloklar = xml.match(/<Currency[\s\S]*?<\/Currency>/g) ?? [];
+    let adet = 0;
+    for (const blok of bloklar) {
+      const kod = /Kod="([A-Z]+)"/.exec(blok)?.[1];
+      if (!kod || !KUR_KODLARI.includes(kod)) continue;
+      const sayi = (tag: string) => {
+        const m = new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(blok);
+        return m && m[1] ? Number(m[1]) : 0;
+      };
+      const ad = /<Isim>([^<]*)<\/Isim>/.exec(blok)?.[1]?.trim() ?? kod;
+      const birim = Number(/<Unit>([^<]*)<\/Unit>/.exec(blok)?.[1] ?? "1") || 1;
+      const veri = {
+        ad,
+        birim,
+        forexAlis: sayi("ForexBuying"),
+        forexSatis: sayi("ForexSelling"),
+        banknoteAlis: sayi("BanknoteBuying"),
+        banknoteSatis: sayi("BanknoteSelling"),
+        tarih,
+      };
+      await db.kur.upsert({
+        where: { kod },
+        create: { kod, ...veri },
+        update: veri,
+      });
+      adet++;
+    }
+    revalidatePath("/ayarlar/kurlar");
+    return { ok: true, tarih, adet };
+  } catch (e) {
+    console.error("kurlariGuncelle:", e);
+    return { ok: false, error: "Kurlar güncellenemedi (internet gerekli)." };
+  }
+}
+
 // ── Düz tanımlar (marka/koleksiyon/renk/kumaş/birim) ─────────────────────
 
 /** Tanım ekle/güncelle. */

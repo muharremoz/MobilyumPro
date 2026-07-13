@@ -510,6 +510,21 @@ model Tanim {
   @@map("tanim")
 }
 
+// ── Döviz kurları (TCMB günlük) ─────────────────────────────────────────
+model Kur {
+  kod           String   @id // USD, EUR, GBP...
+  ad            String
+  birim         Int      @default(1)
+  forexAlis     Decimal  @default(0) @map("forex_alis") @db.Decimal(14, 4)
+  forexSatis    Decimal  @default(0) @map("forex_satis") @db.Decimal(14, 4)
+  banknoteAlis  Decimal  @default(0) @map("banknote_alis") @db.Decimal(14, 4)
+  banknoteSatis Decimal  @default(0) @map("banknote_satis") @db.Decimal(14, 4)
+  tarih         String // TCMB bülten tarihi (gg.aa.yyyy)
+  guncelleme    DateTime @updatedAt @map("guncelleme")
+
+  @@map("kur")
+}
+
 // ── Tanımlamalar: üretim istasyonları (rota + 3D fabrika + bölüm) ───────
 model Istasyon {
   id     String  @id // slug: kesim, bantlama, delik...
