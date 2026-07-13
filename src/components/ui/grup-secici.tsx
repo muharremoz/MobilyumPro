@@ -295,17 +295,17 @@ export function GrupSecici({
                         className={cn(
                           "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                           seciliMi
-                            ? "bg-primary/10 font-semibold text-foreground ring-1 ring-primary/30"
+                            ? "bg-primary/10 font-semibold text-foreground"
                             : yoldaMi && "bg-accent",
                         )}
                       >
-                        {seciliMi && (
-                          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                            <Check className="size-3" />
-                          </span>
-                        )}
                         <span className="truncate">{g.ad}</span>
                         <span className="ml-auto flex shrink-0 items-center gap-1">
+                          {seciliMi && (
+                            <span className="flex size-4 origin-center animate-in items-center justify-center rounded-full bg-emerald-600 text-white duration-200 fade-in-0 zoom-in-50">
+                              <Check className="size-3" />
+                            </span>
+                          )}
                           <span className="font-mono text-[11px] text-muted-foreground">
                             {g.kod}
                           </span>
