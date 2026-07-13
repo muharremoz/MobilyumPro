@@ -2591,11 +2591,13 @@ function DokumanlarTab({
                     {dokumanAciklama(d)}
                   </AttachmentDescription>
                 </AttachmentContent>
-                <AttachmentActions>
-                  <SatirMenu
-                    onDuzenle={() => duzenleAc(d)}
-                    onSil={() => sil(d)}
-                  />
+                <AttachmentActions className="opacity-0 transition-opacity group-hover/attachment:opacity-100 focus-within:opacity-100 data-[popup-open]:opacity-100">
+                  <span className="rounded-md bg-white/85 shadow-sm backdrop-blur-sm">
+                    <SatirMenu
+                      onDuzenle={() => duzenleAc(d)}
+                      onSil={() => sil(d)}
+                    />
+                  </span>
                 </AttachmentActions>
               </Attachment>
             ))}
