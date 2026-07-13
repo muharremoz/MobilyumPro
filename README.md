@@ -39,6 +39,12 @@ Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
    cd MobilyumPro
    ```
 
+   > Repo **private** olduğu için ilk `git clone`'da Git Credential Manager
+   > bir tarayıcı açıp GitHub girişi ister (Git for Windows ile birlikte gelir).
+   > Bir kez giriş yap; kimlik Windows'ta saklanır, sonraki `git pull`'lar
+   > (yani `guncelle.ps1`) hiç sormadan çalışır. O makinede repoya erişebilen
+   > bir GitHub hesabıyla giriş yapılmalı.
+
 3. Ön koşulları kur (yönetici ister, kendini yükseltir):
 
    ```powershell
