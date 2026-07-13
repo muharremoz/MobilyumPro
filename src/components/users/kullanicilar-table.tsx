@@ -65,6 +65,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import type { KullaniciGorunum } from "@/lib/db/queries";
 import {
   kullaniciKaydet,
@@ -122,6 +123,7 @@ export function KullanicilarTable({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
     Record<MetinKolon, string>
@@ -225,6 +227,18 @@ export function KullanicilarTable({
     });
   }
   async function sil(ids: string[]) {
+    const tekAd =
+      ids.length === 1 ? liste.find((k) => k.id === ids[0])?.adSoyad : null;
+    if (
+      !(await onayla({
+        title:
+          ids.length === 1
+            ? `"${tekAd ?? "Kullanıcı"}" silinsin mi?`
+            : `${ids.length} kullanıcı silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const kaldirilan = liste.filter((k) => ids.includes(k.id));
     setListe((l) => l.filter((k) => !ids.includes(k.id)));
     setSecili((s) => {
@@ -601,6 +615,7 @@ export function KullanicilarTable({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kisiSecenekleri} />
+      {onayDialog}
     </div>
   );
 }

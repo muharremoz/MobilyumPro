@@ -57,10 +57,21 @@ import {
   type Parca,
   type ParcaKategori,
   type ReceteSatiri,
+  type StokDokuman,
 } from "@/lib/data";
 import type { Istasyon } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
-import { parcaKaydet, receteGeriYukle } from "@/lib/db/actions";
+import {
+  parcaKaydet,
+  parcaDokumanKaydet,
+  parcaDokumanSil,
+  receteGeriYukle,
+} from "@/lib/db/actions";
+import {
+  DokumanlarTab,
+  ResimLightbox,
+  resimMi,
+} from "@/components/stok-karti/stok-kart-form";
 import { receteMaliyeti } from "@/components/production/recete-liste";
 
 const KATEGORILER: ParcaKategori[] = [
@@ -74,7 +85,7 @@ const KATEGORILER: ParcaKategori[] = [
   "Diğer",
 ];
 
-type Tab = "genel" | "recete" | "kullanim" | "versiyon";
+type Tab = "genel" | "recete" | "kullanim" | "dokuman" | "versiyon";
 
 function tarihYaz(iso: string): string {
   const d = new Date(iso);
@@ -150,6 +161,7 @@ export function ParcaForm({
   modeller,
   versiyonlar: versiyonlarProp,
   istasyonlar = [],
+  dokumanlar = [],
 }: {
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
@@ -158,6 +170,7 @@ export function ParcaForm({
   modeller: Model[];
   versiyonlar: ReceteVersiyonGorunum[];
   istasyonlar?: Istasyon[];
+  dokumanlar?: StokDokuman[];
 }) {
   const router = useRouter();
   const yeniMi = recete === null;
@@ -167,12 +180,37 @@ export function ParcaForm({
   );
   const ilkIstasyonSlug = istasyonlar[0]?.slug;
 
+  // Header görseli — dokümanlardan (Ürün Resmi öncelikli, yoksa ilk resim).
+  const anaGorselDok = React.useMemo(
+    () =>
+      dokumanlar.find((d) => d.tip === "Ürün Resmi" && resimMi(d.url)) ??
+      dokumanlar.find((d) => resimMi(d.url)) ??
+      null,
+    [dokumanlar],
+  );
+  const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
+
   // Yeni parçada doğrudan reçete kurulur → Reçete tabı ile açılır.
   const [tab, setTab] = React.useState<Tab>(recete ? "genel" : "recete");
   const [ad, setAd] = React.useState(recete?.ad ?? "");
   const [kategori, setKategori] = React.useState<ParcaKategori>(
     recete?.kategori ?? "Diğer",
   );
+  // Kategori seçenekleri: varsayılanlar + mevcut parçalarda geçenler (+ eklenenler).
+  const [kategoriler, setKategoriler] = React.useState<string[]>(() =>
+    [...new Set([...KATEGORILER, ...parcalar.map((p) => p.kategori)])].filter(
+      Boolean,
+    ),
+  );
+  const [yeniKatAcik, setYeniKatAcik] = React.useState(false);
+  const [yeniKat, setYeniKat] = React.useState("");
+  function kategoriEkle() {
+    const v = yeniKat.trim();
+    if (!v) return;
+    setKategoriler((l) => (l.includes(v) ? l : [...l, v]));
+    setKategori(v);
+    setYeniKatAcik(false);
+  }
   const [aciklama, setAciklama] = React.useState(recete?.aciklama ?? "");
   const [durum, setDurum] = React.useState<"Aktif" | "Pasif">(
     recete?.durum ?? "Aktif",
@@ -302,7 +340,17 @@ export function ParcaForm({
 
   // ── Eylemler ──────────────────────────────────────────────────────────
   function satirEkle(tip: "malzeme" | "parca") {
-    setSatirlar((s) => [...s, { bilesen: { tip, ref: "" }, miktar: 1 }]);
+    setSatirlar((s) => [
+      ...s,
+      {
+        bilesen: { tip, ref: "" },
+        miktar: 1,
+        // Malzeme satırı ilk istasyonla (Kesim) dolu başlar; kullanıcı değiştirebilir.
+        ...(tip === "malzeme" && ilkIstasyonSlug
+          ? { istasyon: ilkIstasyonSlug }
+          : {}),
+      },
+    ]);
     setTab("recete");
   }
   function satirGuncelle(i: number, degisim: Partial<ReceteSatiri>) {
@@ -347,7 +395,12 @@ export function ParcaForm({
         kategori,
         aciklama: aciklama.trim() || undefined,
         durum,
-        recete: gecerli,
+        // Boş kalan malzeme satırlarına ilk istasyonu (Kesim) ata.
+        recete: gecerli.map((s) =>
+          s.bilesen.tip === "malzeme" && !s.istasyon && ilkIstasyonSlug
+            ? { ...s, istasyon: ilkIstasyonSlug }
+            : s,
+        ),
       },
       degisiklikNotu || undefined,
       bagliModeller.filter((b) => b.modelId),
@@ -451,7 +504,23 @@ export function ParcaForm({
       {/* Canlı şerit */}
       <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-violet-50 via-card to-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
+            {anaGorselDok && (
+              <button
+                type="button"
+                onClick={() => setBuyuk(anaGorselDok)}
+                className="shrink-0 cursor-zoom-in overflow-hidden rounded-lg border transition-transform hover:scale-105"
+                aria-label={`${ad || "Parça"} — büyüt`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={anaGorselDok.url}
+                  alt={ad || "Parça"}
+                  className="size-14 object-cover"
+                />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
               <input
                 value={ad}
@@ -474,6 +543,7 @@ export function ParcaForm({
                   Pasif
                 </Badge>
               )}
+            </div>
             </div>
           </div>
 
@@ -504,6 +574,14 @@ export function ParcaForm({
           Kullanım{!yeniMi && etkiSayisi ? ` (${etkiSayisi})` : ""}
         </TabBtn>
         <TabBtn
+          aktif={tab === "dokuman"}
+          onClick={() => setTab("dokuman")}
+          disabled={kayitLazim}
+          disabledTitle={kayitIpucu}
+        >
+          Dokümanlar{!yeniMi && dokumanlar.length ? ` (${dokumanlar.length})` : ""}
+        </TabBtn>
+        <TabBtn
           aktif={tab === "versiyon"}
           onClick={() => setTab("versiyon")}
           disabled={kayitLazim}
@@ -516,11 +594,11 @@ export function ParcaForm({
       <TabIcerik tabKey={tab}>
         {/* ── GENEL ─────────────────────────────────────────────── */}
         {tab === "genel" && (
-          <div className="grid items-start gap-4 lg:grid-cols-3">
-            <div className="flex flex-col gap-4 lg:col-span-2">
-              <div className="rounded-md border bg-card">
-                <KartBaslik ikon={Info} baslik="Genel" />
-                <div className="grid gap-3 p-4">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            {/* Sol: Genel bilgiler + durum */}
+            <div className="rounded-md border bg-card">
+              <KartBaslik ikon={Info} baslik="Genel" />
+              <div className="grid gap-3 p-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <IconInput
                       label="Parça Adı"
@@ -540,12 +618,15 @@ export function ParcaForm({
                   </div>
                   <AnimatedField label="Kategori" icon={FolderOpenIcon}>
                     <SearchSelect
-                      items={KATEGORILER}
+                      items={kategoriler}
                       value={kategori}
-                      onValueChange={(v) =>
-                        setKategori((v as ParcaKategori) ?? "Diğer")
-                      }
+                      onValueChange={(v) => setKategori(v ?? "Diğer")}
                       placeholder="Kategori"
+                      addLabel="Yeni kategori ekle"
+                      onAdd={() => {
+                        setYeniKat("");
+                        setYeniKatAcik(true);
+                      }}
                     />
                   </AnimatedField>
                   <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
@@ -557,10 +638,46 @@ export function ParcaForm({
                       className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
                     />
                   </AnimatedField>
+
+                  {/* Durum — Genel kartın içinde satır */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      setDurum((d) => (d === "Aktif" ? "Pasif" : "Aktif"))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDurum((d) => (d === "Aktif" ? "Pasif" : "Aktif"));
+                      }
+                    }}
+                    onMouseEnter={() => durumRef.current?.startAnimation()}
+                    onMouseLeave={() => durumRef.current?.stopAnimation()}
+                    className="mt-1 flex cursor-pointer items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                  >
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      <CircleCheckIcon
+                        ref={durumRef}
+                        size={15}
+                        className="text-muted-foreground"
+                      />
+                      Durum
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {durum}
+                      </span>
+                      <Switch
+                        checked={durum === "Aktif"}
+                        className="pointer-events-none data-checked:bg-emerald-600"
+                      />
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Bağlı Modeller — bu parça seçilen modellerin ağacına eklenir */}
+              {/* Sağ: Bağlı Modeller — bu parça seçilen modellerin ağacına eklenir */}
               <div className="rounded-md border bg-card">
                 <KartBaslik
                   ikon={RockingChair}
@@ -650,39 +767,6 @@ export function ParcaForm({
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Durum */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setDurum((d) => (d === "Aktif" ? "Pasif" : "Aktif"))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setDurum((d) => (d === "Aktif" ? "Pasif" : "Aktif"));
-                }
-              }}
-              onMouseEnter={() => durumRef.current?.startAnimation()}
-              onMouseLeave={() => durumRef.current?.stopAnimation()}
-              className="flex h-fit cursor-pointer items-center justify-between gap-3 rounded-md border bg-card px-4 py-3 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-            >
-              <span className="flex items-center gap-1.5 text-sm font-medium">
-                <CircleCheckIcon
-                  ref={durumRef}
-                  size={15}
-                  className="text-muted-foreground"
-                />
-                Durum
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{durum}</span>
-                <Switch
-                  checked={durum === "Aktif"}
-                  className="pointer-events-none data-checked:bg-emerald-600"
-                />
-              </span>
-            </div>
           </div>
         )}
 
@@ -1009,6 +1093,17 @@ export function ParcaForm({
           </div>
         )}
 
+        {/* ── DOKÜMANLAR ────────────────────────────────────────── */}
+        {tab === "dokuman" && recete && (
+          <DokumanlarTab
+            stokId={recete.id}
+            kayitlar={dokumanlar}
+            klasor={`parca-${recete.id}`}
+            kaydetFn={parcaDokumanKaydet}
+            silFn={parcaDokumanSil}
+          />
+        )}
+
         {/* ── VERSİYON ──────────────────────────────────────────── */}
         {tab === "versiyon" && (
           <div className="rounded-md border bg-card">
@@ -1153,6 +1248,43 @@ export function ParcaForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Yeni kategori */}
+      <Dialog open={yeniKatAcik} onOpenChange={setYeniKatAcik}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Kategori</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Örn. Baza"
+            value={yeniKat}
+            onChange={(e) => setYeniKat(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                kategoriEkle();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniKatAcik(false)}>
+              İptal
+            </Button>
+            <Button onClick={kategoriEkle} disabled={!yeniKat.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {buyuk && (
+        <ResimLightbox
+          resimler={dokumanlar.filter((d) => resimMi(d.url))}
+          aktifId={buyuk.id}
+          onKapat={() => setBuyuk(null)}
+        />
+      )}
     </div>
   );
 }

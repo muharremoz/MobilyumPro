@@ -5,6 +5,7 @@ import {
   getIstasyonlar,
   getMalzemeler,
   getModeller,
+  getParcaDokumanlar,
   getParcalar,
   getReceteVersiyonlari,
 } from "@/lib/db/queries";
@@ -15,13 +16,14 @@ export default async function ParcaDetayRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [parcalar, malzemeler, modeller, versiyonlar, istasyonlar] =
+  const [parcalar, malzemeler, modeller, versiyonlar, istasyonlar, dokumanlar] =
     await Promise.all([
       getParcalar(),
       getMalzemeler(),
       getModeller(),
       getReceteVersiyonlari(),
       getIstasyonlar(),
+      getParcaDokumanlar(id),
     ]);
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
@@ -34,6 +36,7 @@ export default async function ParcaDetayRoute({
       modeller={modeller}
       versiyonlar={versiyonlar[id] ?? []}
       istasyonlar={istasyonlar}
+      dokumanlar={dokumanlar}
     />
   );
 }

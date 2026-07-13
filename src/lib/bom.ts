@@ -7,6 +7,14 @@ import {
   type ParcaSatiri,
   type ReceteSatiri,
 } from "@/lib/data";
+import { ISTASYONLAR } from "@/lib/fabrika";
+
+/** Bölüm metnini (slug ya da ad) istasyon slug'ına çevir. */
+function bolumSlug(bolum: string | undefined): string | undefined {
+  if (!bolum) return undefined;
+  const i = ISTASYONLAR.find((x) => x.slug === bolum || x.ad === bolum);
+  return i?.slug;
+}
 
 export type MalzemeIhtiyac = {
   malzeme: Malzeme;
@@ -145,11 +153,17 @@ export function modelIhtiyacDokumu(
   for (const [mid, k] of topla) {
     const m = malzemeler.find((x) => x.id === mid);
     if (!m) continue;
+    // Reçetede istasyon belirtilmemişse malzemenin kendi bölümüne düş.
+    let istasyonlar = [...k.istasyonlar];
+    if (istasyonlar.length === 0) {
+      const b = bolumSlug(m.bolum);
+      if (b) istasyonlar = [b];
+    }
     sonuc.push({
       malzeme: m,
       netMiktar: k.net,
       brutMiktar: k.brut,
-      istasyonlar: [...k.istasyonlar],
+      istasyonlar,
       tutar: k.brut * m.birimFiyat,
     });
   }

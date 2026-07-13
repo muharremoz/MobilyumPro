@@ -9,7 +9,6 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  Pencil,
   Copy,
   Trash2,
   ExternalLink,
@@ -39,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -70,6 +70,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Model } from "@/lib/data";
 import { modelKaydet, modelSil } from "@/lib/db/actions";
 
@@ -218,6 +219,7 @@ export function ProductsTable({
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
 
   // Filtre + sıralama
   const filtreli = React.useMemo(() => {
@@ -275,6 +277,17 @@ export function ProductsTable({
   }
 
   async function sil(ids: string[]) {
+    const tekAd = ids.length === 1 ? liste.find((u) => u.id === ids[0])?.ad : null;
+    if (
+      !(await onayla({
+        title:
+          ids.length === 1
+            ? `"${tekAd ?? "Model"}" silinsin mi?`
+            : `${ids.length} model silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const kaldirilan = liste.filter((u) => ids.includes(u.id));
     setListe((l) => l.filter((u) => !ids.includes(u.id)));
     setSecili((s) => {
@@ -561,6 +574,7 @@ export function ProductsTable({
                 />
               </TableHead>
               {temelGorunur("kod") && <SortBaslik k="id">Kod</SortBaslik>}
+              <TableHead className="w-14">Görsel</TableHead>
               <SortBaslik k="ad">Model</SortBaslik>
               {temelGorunur("kategori") && (
                 <SortBaslik k="kategori">Kategori</SortBaslik>
@@ -609,6 +623,9 @@ export function ProductsTable({
                     {u.id}
                   </TableCell>
                 )}
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <GorselHucre gorseller={u.gorseller} alt={u.ad} />
+                </TableCell>
                 <TableCell className="font-medium">{u.ad}</TableCell>
                 {temelGorunur("kategori") && (
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -665,13 +682,8 @@ export function ProductsTable({
                   <ContextMenuItem
                     onClick={() => router.push(`/urunler/${u.id}`)}
                   >
-                    <ExternalLink className="mr-2 size-4" /> Detayı Aç
+                    <ExternalLink className="mr-2 size-4" /> Aç
                     <ContextMenuShortcut>⏎</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => router.push(`/urunler/${u.id}`)}
-                  >
-                    <Pencil className="mr-2 size-4" /> Düzenle
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => kopyala(u)}>
                     <CopyPlus className="mr-2 size-4" /> Çoğalt
@@ -783,7 +795,7 @@ export function ProductsTable({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={1 + gorunurTemelSayisi + gorunurEk.length}
+                  colSpan={2 + gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Sonuç bulunamadı.
@@ -827,6 +839,7 @@ export function ProductsTable({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

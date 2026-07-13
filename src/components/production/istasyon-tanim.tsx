@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Istasyon } from "@/lib/fabrika";
 import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
 
@@ -45,6 +46,7 @@ export function IstasyonTanim({
 }: {
   istasyonlar?: Istasyon[];
 }) {
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Istasyon[]>(istasyonlar);
   React.useEffect(() => setListe(istasyonlar), [istasyonlar]);
   const [acik, setAcik] = React.useState(false);
@@ -66,6 +68,13 @@ export function IstasyonTanim({
   }
 
   async function sil(i: Istasyon) {
+    if (
+      !(await onayla({
+        title: `"${i.ad}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.slug !== i.slug));
     const res = await istasyonSil(i.slug);
@@ -262,6 +271,7 @@ export function IstasyonTanim({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {onayDialog}
     </div>
   );
 }

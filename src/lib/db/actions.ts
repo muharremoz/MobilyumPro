@@ -1866,7 +1866,6 @@ export async function stokKaydet(
     const veri = {
       kod: s.kod ?? null,
       ad: s.ad,
-      tur: s.tur ?? null,
       cins: s.cins ?? null,
       grup: s.grup,
       altGrup: s.altGrup ?? null,
@@ -2054,6 +2053,35 @@ export async function stokDokumanSil(
   try {
     await db.stokDokuman.delete({ where: { id } });
     revalidatePath(`/stok-karti/${stokId}`);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Doküman silinemedi." };
+  }
+}
+
+// ── Parça dokümanları (StokDokuman UI'ıyla aynı; stokId alanı parcaId taşır) ──
+export async function parcaDokumanKaydet(
+  d: Omit<StokDokuman, "id"> & { id?: number },
+): Promise<StokAltSonuc> {
+  try {
+    const veri = { parcaId: d.stokId, ad: d.ad, url: d.url, tip: d.tip };
+    const kayit = d.id
+      ? await db.parcaDokuman.update({ where: { id: d.id }, data: veri })
+      : await db.parcaDokuman.create({ data: veri });
+    revalidatePath(`/parcalar/${d.stokId}`);
+    return { ok: true, id: kayit.id };
+  } catch {
+    return { ok: false, error: "Doküman kaydedilemedi." };
+  }
+}
+
+export async function parcaDokumanSil(
+  id: number,
+  parcaId: string,
+): Promise<StokAltSonuc> {
+  try {
+    await db.parcaDokuman.delete({ where: { id } });
+    revalidatePath(`/parcalar/${parcaId}`);
     return { ok: true };
   } catch {
     return { ok: false, error: "Doküman silinemedi." };

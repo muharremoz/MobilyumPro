@@ -70,15 +70,11 @@ export type ReceteSatiri = {
 };
 export type ParcaSatiri = { parcaId: string; miktar: number };
 
-export type ParcaKategori =
-  | "Karyola"
-  | "Komidin"
-  | "Şifonyer"
-  | "Gardırop"
-  | "Ayna"
-  | "Sehpa"
-  | "Koltuk"
-  | "Diğer";
+/**
+ * Parça kategorisi — serbest metin (varsayılan öneriler KATEGORILER'de).
+ * Kullanıcı formdan yeni kategori ekleyebilir.
+ */
+export type ParcaKategori = string;
 
 export type Parca = {
   id: string;
@@ -87,6 +83,10 @@ export type Parca = {
   aciklama?: string;
   durum: "Aktif" | "Pasif";
   recete: ReceteSatiri[];
+  /** Liste için ana görsel (dokümanlardan çözülür). */
+  gorsel?: string;
+  /** Liste görsel kolonu — tüm resimler (Ürün Resmi öncelikli). */
+  gorseller?: string[];
 };
 
 // Stok hareketleri — model (ürün) veya malzeme için.
@@ -264,6 +264,8 @@ export type Malzeme = {
   /** Birim fiyatın dövizi (maliyet dövizi). */
   doviz?: Doviz;
   tedarikci?: string;
+  /** Malzemenin tüketildiği varsayılan bölüm/istasyon (slug ya da ad). */
+  bolum?: string;
   durum: "Aktif" | "Pasif";
 };
 
@@ -304,7 +306,6 @@ export type Poset = {
 // Tanımlamalar — düz tanımlar (marka/koleksiyon/renk/kumaş/birim + adres
 // seçenekleri: ülke/bölge/şehir/semt — formlarda "yeni ekle" ile büyür).
 export type TanimTip =
-  | "tur"
   | "cins"
   | "tip"
   | "marka"
@@ -365,7 +366,10 @@ export type StokKarti = {
   /** Kullanıcı kodu (boşsa id gösterilir). */
   kod?: string;
   ad: string;
-  tur?: string;
+  /** Liste için ana görsel (dokümanlardan çözülür). */
+  gorsel?: string;
+  /** Liste görsel kolonu — tüm resimler (Ürün Resmi öncelikli). */
+  gorseller?: string[];
   cins?: string;
   grup: StokGrubu;
   altGrup?: string;

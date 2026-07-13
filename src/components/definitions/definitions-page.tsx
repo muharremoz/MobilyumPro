@@ -27,6 +27,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
 import type { StokGrup, TanimTip, TanimKalemi } from "@/lib/data";
 import { tanimKaydet, tanimSil } from "@/lib/db/actions";
@@ -151,6 +152,7 @@ export function DefinitionsPage({
   /** Düz tanımlar (DB'den, tip → kayıtlar). */
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
 } = {}) {
+  const { onayla, onayDialog } = useOnay();
   const [data, setData] = React.useState<Record<DuzTab, Tanim[]>>(() =>
     tanimlardanData(tanimlar),
   );
@@ -288,6 +290,18 @@ export function DefinitionsPage({
   async function sil(ids: string[]) {
     if (tab === "gruplar") return;
     const t = tab;
+    const tekAd =
+      ids.length === 1 ? data[t].find((x) => x.id === ids[0])?.ad : null;
+    if (
+      !(await onayla({
+        title:
+          ids.length === 1
+            ? `"${tekAd ?? aktifTab.tekil}" silinsin mi?`
+            : `${ids.length} kayıt silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = data;
     setData((d) => ({ ...d, [t]: d[t].filter((x) => !ids.includes(x.id)) }));
     setSecili((s) => {
@@ -569,6 +583,7 @@ export function DefinitionsPage({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

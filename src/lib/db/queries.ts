@@ -69,14 +69,15 @@ export async function getModeller(): Promise<Model[]> {
     // Ana görsel artık dokümanlardan gelir (malzeme kartıyla aynı sistem).
     db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
   ]);
-  const RESIM = /\.(jpe?g|png|webp)$/i;
-  const resimUrl = (u: string) =>
-    RESIM.test(u.split("?")[0]) || u.startsWith("data:image");
-  const gorselByModel = new Map<string, string>();
+  const docsByModel = new Map<string, { url: string; tip: string }[]>();
   for (const d of dokRows) {
-    if (!resimUrl(d.url)) continue;
-    if (d.tip === "Ürün Resmi") gorselByModel.set(d.stokId, d.url);
-    else if (!gorselByModel.has(d.stokId)) gorselByModel.set(d.stokId, d.url);
+    const arr = docsByModel.get(d.stokId) ?? [];
+    arr.push({ url: d.url, tip: d.tip });
+    docsByModel.set(d.stokId, arr);
+  }
+  const gorsellerByModel = new Map<string, string[]>();
+  for (const [id, docs] of docsByModel) {
+    gorsellerByModel.set(id, tumGorseller(docs));
   }
   const bomByUrun = new Map<string, { parcaId: string; miktar: number }[]>();
   for (const r of upRows) {
@@ -91,22 +92,32 @@ export async function getModeller(): Promise<Model[]> {
     fiyat: Number(u.satisFiyat1),
     stok: Math.round(Number(u.stokMiktar)),
     durum: u.durum as Durum,
-    gorsel: gorselByModel.get(u.id) ?? u.gorsel ?? undefined,
+    gorsel: gorsellerByModel.get(u.id)?.[0] ?? u.gorsel ?? undefined,
     parcalar: bomByUrun.get(u.id),
     marka: u.marka ?? undefined,
     barkod: u.barkod ?? kodBarkod(u.id),
     agirlik: u.agirlik != null ? Number(u.agirlik) : undefined,
     minStok: u.minStok != null ? Math.round(Number(u.minStok)) : undefined,
-    gorseller: parseJson<string[]>(u.gorsellerJson),
+    gorseller:
+      gorsellerByModel.get(u.id) ?? parseJson<string[]>(u.gorsellerJson),
     varyantlar: parseJson<ModelVaryant[]>(u.varyantlarJson),
   }));
 }
 
 export async function getParcalar(): Promise<Parca[]> {
-  const [parcaRows, receteRows] = await Promise.all([
+  const [parcaRows, receteRows, docs] = await Promise.all([
     db.parca.findMany(),
     db.receteSatiri.findMany(),
+    db.parcaDokuman.findMany({
+      select: { parcaId: true, url: true, tip: true },
+    }),
   ]);
+  const docsByParca = new Map<string, { url: string; tip: string }[]>();
+  for (const d of docs) {
+    const arr = docsByParca.get(d.parcaId) ?? [];
+    arr.push({ url: d.url, tip: d.tip });
+    docsByParca.set(d.parcaId, arr);
+  }
   const receteByParca = new Map<string, ReceteSatiri[]>();
   for (const r of receteRows) {
     const satir: ReceteSatiri = {
@@ -129,6 +140,25 @@ export async function getParcalar(): Promise<Parca[]> {
     aciklama: p.aciklama ?? undefined,
     durum: p.durum as Durum,
     recete: receteByParca.get(p.id) ?? [],
+    gorsel: tumGorseller(docsByParca.get(p.id) ?? [])[0],
+    gorseller: tumGorseller(docsByParca.get(p.id) ?? []),
+  }));
+}
+
+export async function getParcaDokumanlar(
+  parcaId: string,
+): Promise<StokDokuman[]> {
+  const rows = await db.parcaDokuman.findMany({
+    where: { parcaId },
+    orderBy: { id: "asc" },
+  });
+  // StokDokuman UI'ıyla aynı şekil; stokId alanı parcaId taşır.
+  return rows.map((d) => ({
+    id: d.id,
+    stokId: d.parcaId,
+    ad: d.ad,
+    url: d.url,
+    tip: d.tip as StokDokuman["tip"],
   }));
 }
 
@@ -147,6 +177,7 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
     birimFiyat: Number(m.maliyetFiyati),
     doviz: (m.maliyetBirimi || "TL") as Doviz,
     tedarikci: m.ureticiCariId ?? undefined,
+    bolum: m.bolum ?? undefined,
     durum: m.durum as Durum,
   }));
 }
@@ -698,7 +729,6 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     db.stok.findMany({
       select: {
         grup: true,
-        tur: true,
         cins: true,
         marka: true,
         model: true,
@@ -719,14 +749,12 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   const kumasAdet = new Map<string, number>();
   const birimAdet = new Map<string, number>();
   const tipAdet = new Map<string, number>();
-  const turAdet = new Map<string, number>();
   const cinsAdet = new Map<string, number>();
   const modelAdet = new Map<string, number>();
   const bolumAdet = new Map<string, number>();
   const renkKoduAdet = new Map<string, number>();
   for (const s of stokRows) {
     say(tipAdet, s.grup);
-    say(turAdet, s.tur);
     say(cinsAdet, s.cins);
     say(markaAdet, s.marka);
     say(modelAdet, s.model);
@@ -741,7 +769,6 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   }
 
   const adetMap: Record<TanimTip, Map<string, number>> = {
-    tur: turAdet,
     cins: cinsAdet,
     tip: tipAdet,
     marka: markaAdet,
@@ -759,7 +786,6 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   };
 
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
-    tur: [],
     cins: [],
     tip: [],
     marka: [],
@@ -962,14 +988,30 @@ export async function getSonAlisFiyatlari(): Promise<
 
 type StokRow = Awaited<ReturnType<typeof db.stok.findMany>>[number];
 
-function mapStok(s: StokRow, miktar: number): StokKarti {
+/** Bir url görsel mi (uzantı ya da data:image). */
+function resimUrlMu(url: string) {
+  return (
+    /\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i.test(url) ||
+    url.startsWith("data:image")
+  );
+}
+
+/** Dokümanlardan görsel url'lerini sırala (Ürün Resmi öncelikli). */
+function tumGorseller(docs: { url: string; tip: string }[]): string[] {
+  const resim = docs.filter((d) => resimUrlMu(d.url));
+  return [
+    ...resim.filter((d) => d.tip === "Ürün Resmi").map((d) => d.url),
+    ...resim.filter((d) => d.tip !== "Ürün Resmi").map((d) => d.url),
+  ];
+}
+
+function mapStok(s: StokRow, miktar: number, gorseller?: string[]): StokKarti {
   const num = (v: unknown) =>
     v == null ? undefined : Number(v) || undefined;
   return {
     id: s.id,
     kod: s.kod ?? undefined,
     ad: s.ad,
-    tur: s.tur ?? undefined,
     cins: s.cins ?? undefined,
     grup: s.grup as StokKarti["grup"],
     altGrup: s.altGrup ?? undefined,
@@ -995,6 +1037,8 @@ function mapStok(s: StokRow, miktar: number): StokKarti {
     bolum: s.bolum ?? undefined,
     renkKodu: s.renkKodu ?? undefined,
     barkod: s.barkod ?? kodBarkod(s.id),
+    gorsel: gorseller?.[0],
+    gorseller,
     aciklama: s.aciklama ?? undefined,
     durum: s.durum as Durum,
     maliyetFiyati: Number(s.maliyetFiyati),
@@ -1022,11 +1066,24 @@ async function stokMiktarlari(): Promise<Map<string, number>> {
 }
 
 export async function getStoklar(): Promise<StokKarti[]> {
-  const [rows, miktarlar] = await Promise.all([
+  const [rows, miktarlar, docs] = await Promise.all([
     db.stok.findMany({ orderBy: { id: "asc" } }),
     stokMiktarlari(),
+    db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
   ]);
-  return rows.map((s) => mapStok(s, miktarlar.get(s.id) ?? 0));
+  const docsByStok = new Map<string, { url: string; tip: string }[]>();
+  for (const d of docs) {
+    const arr = docsByStok.get(d.stokId) ?? [];
+    arr.push({ url: d.url, tip: d.tip });
+    docsByStok.set(d.stokId, arr);
+  }
+  return rows.map((s) =>
+    mapStok(
+      s,
+      miktarlar.get(s.id) ?? 0,
+      tumGorseller(docsByStok.get(s.id) ?? []),
+    ),
+  );
 }
 
 export type StokKartiDetay = {

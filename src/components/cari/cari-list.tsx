@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Cari, type CariTip } from "@/lib/data";
 import { cariSil } from "@/lib/db/actions";
 
@@ -86,6 +87,7 @@ export function CariList({
   yonetici?: boolean;
 }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Cari[]>(cariler);
   React.useEffect(() => setListe(cariler), [cariler]);
   // Kolon filtreleri (başlık popover'larından)
@@ -185,6 +187,17 @@ export function CariList({
     });
   }
   async function sil(ids: string[]) {
+    const tekAd = ids.length === 1 ? liste.find((c) => c.id === ids[0])?.ad : null;
+    if (
+      !(await onayla({
+        title:
+          ids.length === 1
+            ? `"${tekAd ?? "Cari hesap"}" silinsin mi?`
+            : `${ids.length} cari hesap silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((c) => !ids.includes(c.id)));
     setSecili((s) => {
@@ -480,6 +493,7 @@ export function CariList({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

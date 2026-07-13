@@ -4,12 +4,15 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  MoreHorizontal,
-  Pencil,
   Trash2,
-  Trash,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  CopyPlus,
+  Power,
+  Hash,
+  Type,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
+import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -27,12 +31,18 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Table,
   TableBody,
@@ -100,6 +110,7 @@ export function Parts({
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -169,6 +180,17 @@ export function Parts({
     });
   }
   async function sil(ids: string[]) {
+    const tekAd = ids.length === 1 ? liste.find((p) => p.id === ids[0])?.ad : null;
+    if (
+      !(await onayla({
+        title:
+          ids.length === 1
+            ? `"${tekAd ?? "Parça"}" silinsin mi?`
+            : `${ids.length} parça silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const kaldirilan = liste.filter((p) => ids.includes(p.id));
     setListe((l) => l.filter((p) => !ids.includes(p.id)));
     setSecili((s) => {
@@ -194,6 +216,25 @@ export function Parts({
     setListe((l) => [k, ...l]);
     await parcaKaydet(k);
     toast.success("Parça kopyalandı");
+  }
+  async function durumDegistir(p: Parca) {
+    const yeniDurum = p.durum === "Aktif" ? "Pasif" : "Aktif";
+    setListe((l) =>
+      l.map((x) => (x.id === p.id ? { ...x, durum: yeniDurum } : x)),
+    );
+    const res = await parcaKaydet({ ...p, durum: yeniDurum });
+    if (!res.ok) {
+      setListe((l) =>
+        l.map((x) => (x.id === p.id ? { ...x, durum: p.durum } : x)),
+      );
+      toast.error(res.error ?? "Durum güncellenemedi.");
+      return;
+    }
+    toast.success(yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi");
+  }
+  function panoyaKopyala(metin: string, etiket: string) {
+    navigator.clipboard?.writeText(metin);
+    toast.success(`${etiket} kopyalandı`);
   }
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
@@ -251,6 +292,7 @@ export function Parts({
                   Kod
                 </SiralaFiltreBaslik>
               )}
+              <TableHead className="w-14">Görsel</TableHead>
               <SiralaFiltreBaslik
                 sira={sira("ad")}
                 onSirala={sirala("ad")}
@@ -308,17 +350,20 @@ export function Parts({
                   Durum
                 </SiralaFiltreBaslik>
               )}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {sayfalik.map((p) => (
-              <TableRow
-                key={p.id}
-                data-state={secili.has(p.id) ? "selected" : undefined}
-                className="cursor-pointer"
-                onClick={() => router.push(`/parcalar/${p.id}`)}
-              >
+              <ContextMenu key={p.id}>
+                <ContextMenuTrigger
+                  render={
+                    <TableRow
+                      data-state={secili.has(p.id) ? "selected" : undefined}
+                      className="cursor-pointer"
+                      onClick={() => router.push(`/parcalar/${p.id}`)}
+                    />
+                  }
+                >
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={secili.has(p.id)}
@@ -331,6 +376,9 @@ export function Parts({
                     {p.id}
                   </TableCell>
                 )}
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <GorselHucre gorseller={p.gorseller} alt={p.ad} />
+                </TableCell>
                 <TableCell className="font-medium">{p.ad}</TableCell>
                 {kolon.temelGorunur("kategori") && (
                   <TableCell className="text-muted-foreground">
@@ -356,34 +404,59 @@ export function Parts({
                     </Badge>
                   </TableCell>
                 )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/parcalar/${p.id}`)}
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-52">
+                  <ContextMenuItem
+                    onClick={() => router.push(`/parcalar/${p.id}`)}
+                  >
+                    <ExternalLink className="mr-2 size-4" /> Aç
+                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => kopyala(p)}>
+                    <CopyPlus className="mr-2 size-4" /> Çoğalt
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => durumDegistir(p)}>
+                    <Power className="mr-2 size-4" />
+                    {p.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
+                  </ContextMenuItem>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Hash className="mr-2 size-4" /> Kopyala
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuItem
+                        onClick={() => panoyaKopyala(p.id, "Kod")}
                       >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => kopyala(p)}>
-                        <Plus className="mr-2 size-4" /> Kopyala
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil([p.id])}
+                        <Hash className="mr-2 size-4" /> Kod
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => panoyaKopyala(p.ad, "Ad")}
                       >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                        <Type className="mr-2 size-4" /> Ad
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() =>
+                          panoyaKopyala(
+                            `${window.location.origin}/parcalar/${p.id}`,
+                            "Bağlantı",
+                          )
+                        }
+                      >
+                        <Link2 className="mr-2 size-4" /> Bağlantı
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => sil([p.id])}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Sil
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>
@@ -431,6 +504,7 @@ export function Parts({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

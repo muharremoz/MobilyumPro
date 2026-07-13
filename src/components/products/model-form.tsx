@@ -9,6 +9,7 @@ import {
   Plus,
   Info,
   Layers,
+  Boxes,
   Blocks,
   Banknote,
   History,
@@ -905,17 +906,19 @@ export function ModelForm({
           </div>
         )}
 
-        {/* ── REÇETE & MALİYET ──────────────────────────────────── */}
+        {/* ── PARÇALAR & MALZEME İHTİYACI ─────────────────────────── */}
         {tab === "recete" && (
-          <Kart
-            baslik="Parçalar & Maliyet"
-            ikon={Layers}
-            sag={
-              <span className="text-xs text-muted-foreground">
-                {seciliParcalar.length} parça
-              </span>
-            }
-          >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            {/* Sol: Parça listesi */}
+            <Kart
+              baslik="Parçalar"
+              ikon={Layers}
+              sag={
+                <span className="text-xs text-muted-foreground">
+                  {seciliParcalar.length} parça
+                </span>
+              }
+            >
             {urunParcalar.length > 0 && (
               <div className="overflow-hidden rounded-md border">
                 <Table>
@@ -1011,26 +1014,41 @@ export function ModelForm({
                 sayfasından ekleyebilirsin.
               </p>
             )}
+            </Kart>
 
-            {/* Malzeme patlatması */}
-            {dokum.length > 0 && (
-              <div className="overflow-hidden rounded-md border">
-                <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
-                  <span className="text-xs font-medium">
-                    Malzeme İhtiyacı{" "}
-                    <span className="font-normal text-muted-foreground">
-                      (1 model için, fire dahil)
-                    </span>
-                  </span>
-                  {eksikSayisi > 0 && (
+            {/* Sağ: Malzeme ihtiyacı dökümü */}
+            <Kart
+              baslik="Malzeme İhtiyacı"
+              ikon={Boxes}
+              sag={
+                dokum.length > 0 ? (
+                  eksikSayisi > 0 ? (
                     <Badge
                       variant="secondary"
                       className="bg-rose-100 text-[10px] text-rose-800"
                     >
-                      {eksikSayisi} malzemede stok yetersiz
+                      {eksikSayisi} yetersiz
                     </Badge>
-                  )}
-                </div>
+                  ) : (
+                    <span className="text-xs text-emerald-700">
+                      Stok yeterli
+                    </span>
+                  )
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    fire dahil
+                  </span>
+                )
+              }
+            >
+              {dokum.length === 0 && (
+                <p className="py-8 text-center text-xs text-muted-foreground">
+                  Soldan parça ekleyince malzeme ihtiyacı (1 model için, fire
+                  dahil) burada listelenir.
+                </p>
+              )}
+              {dokum.length > 0 && (
+              <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -1096,8 +1114,9 @@ export function ModelForm({
                   </TableBody>
                 </Table>
               </div>
-            )}
-          </Kart>
+              )}
+            </Kart>
+          </div>
         )}
 
         {/* ── VARYANTLAR ────────────────────────────────────────── */}

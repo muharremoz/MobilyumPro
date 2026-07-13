@@ -5,11 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  MoreHorizontal,
-  Eye,
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  CopyPlus,
+  Power,
+  Hash,
+  Type,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,14 +29,20 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { GorselHucre } from "@/components/ui/liste-gorsel";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { stokSil } from "@/lib/db/actions";
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { stokKaydet, stokSil } from "@/lib/db/actions";
 import {
   Table,
   TableBody,
@@ -134,6 +144,7 @@ export function StokKartListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<StokKarti[]>(stoklar);
   React.useEffect(() => setListe(stoklar), [stoklar]);
   // Kolon filtreleri (başlık popover'larından)
@@ -201,6 +212,13 @@ export function StokKartListe({
   }, [liste, metinFiltre, grupF, durumF, sayiFiltre, sort]);
 
   async function sil(s: StokKarti) {
+    if (
+      !(await onayla({
+        title: `"${s.ad}" silinsin mi?`,
+        description: "Bu malzeme kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== s.id));
     const res = await stokSil(s.id);
@@ -210,6 +228,41 @@ export function StokKartListe({
       return;
     }
     toast.success("Stok kartı silindi");
+  }
+
+  async function kopyala(s: StokKarti) {
+    const { miktar: _miktar, ...rest } = s;
+    const res = await stokKaydet({ ...rest, ad: `${s.ad} (kopya)` }, true);
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Çoğaltılamadı.");
+      return;
+    }
+    setListe((l) => [
+      { ...s, id: res.id!, kod: undefined, ad: `${s.ad} (kopya)`, miktar: 0 },
+      ...l,
+    ]);
+    toast.success("Malzeme çoğaltıldı");
+  }
+
+  async function durumDegistir(s: StokKarti) {
+    const yeniDurum = s.durum === "Aktif" ? "Pasif" : "Aktif";
+    const onceki = liste;
+    setListe((l) =>
+      l.map((x) => (x.id === s.id ? { ...x, durum: yeniDurum } : x)),
+    );
+    const { miktar: _miktar, ...rest } = s;
+    const res = await stokKaydet({ ...rest, durum: yeniDurum }, false);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Durum güncellenemedi.");
+      return;
+    }
+    toast.success(yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi");
+  }
+
+  function panoyaKopyala(metin: string, etiket: string) {
+    navigator.clipboard?.writeText(metin);
+    toast.success(`${etiket} kopyalandı`);
   }
 
   const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
@@ -251,6 +304,7 @@ export function StokKartListe({
               >
                 Kod
               </SiralaFiltreBaslik>
+              <TableHead className="w-14">Görsel</TableHead>
               {kolon.temelGorunur("ad") && (
                 <SiralaFiltreBaslik
                   sira={sira("ad")}
@@ -352,18 +406,24 @@ export function StokKartListe({
               {gorunurEk.map((k) => (
                 <TableHead key={k.key}>{k.label}</TableHead>
               ))}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {sayfalik.map((s) => (
-              <TableRow
-                key={s.id}
-                className="cursor-pointer"
-                onClick={() => router.push(`/stok-karti/${s.id}`)}
-              >
+              <ContextMenu key={s.id}>
+                <ContextMenuTrigger
+                  render={
+                    <TableRow
+                      className="cursor-pointer"
+                      onClick={() => router.push(`/stok-karti/${s.id}`)}
+                    />
+                  }
+                >
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {s.kod ?? s.id}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <GorselHucre gorseller={s.gorseller} alt={s.ad} />
                 </TableCell>
                 {kolon.temelGorunur("ad") && (
                   <TableCell className="font-medium">{s.ad}</TableCell>
@@ -412,41 +472,71 @@ export function StokKartListe({
                 {gorunurEk.map((k) => (
                   <TableCell key={k.key}>{k.hucre(s)}</TableCell>
                 ))}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="İşlemler"
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-52">
+                  <ContextMenuItem
+                    onClick={() => router.push(`/stok-karti/${s.id}`)}
+                  >
+                    <ExternalLink className="mr-2 size-4" /> Aç
+                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => kopyala(s)}>
+                    <CopyPlus className="mr-2 size-4" /> Çoğalt
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => durumDegistir(s)}>
+                    <Power className="mr-2 size-4" />
+                    {s.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
+                  </ContextMenuItem>
+
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Hash className="mr-2 size-4" /> Kopyala
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      <ContextMenuItem
+                        onClick={() => panoyaKopyala(s.kod ?? s.id, "Kod")}
+                      >
+                        <Hash className="mr-2 size-4" /> Kod
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => panoyaKopyala(s.ad, "Ad")}
+                      >
+                        <Type className="mr-2 size-4" /> Ad
+                      </ContextMenuItem>
+                      {s.barkod && (
+                        <ContextMenuItem
+                          onClick={() => panoyaKopyala(s.barkod!, "Barkod")}
                         >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/stok-karti/${s.id}`)}
+                          <Hash className="mr-2 size-4" /> Barkod
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuItem
+                        onClick={() =>
+                          panoyaKopyala(
+                            `${window.location.origin}/stok-karti/${s.id}`,
+                            "Bağlantı",
+                          )
+                        }
                       >
-                        <Eye className="mr-2 size-4" /> Görüntüle
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil(s)}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                        <Link2 className="mr-2 size-4" /> Bağlantı
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => sil(s)}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Sil
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={1 + kolon.gorunurTemelSayisi + gorunurEk.length}
+                  colSpan={2 + kolon.gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Stok kartı bulunamadı.
@@ -486,6 +576,7 @@ export function StokKartListe({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

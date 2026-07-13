@@ -93,6 +93,7 @@ import {
   stokDokumanSil,
   tanimKaydet,
 } from "@/lib/db/actions";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -148,7 +149,6 @@ const GRUP_RENK: Record<StokGrubu, string> = {
 
 /** Sınıflama'daki DB destekli comboboxlar (tanim tablosundan; "yeni ekle"). */
 type TanimAlan =
-  | "tur"
   | "cins"
   | "tip"
   | "marka"
@@ -160,7 +160,6 @@ const TANIM_ALAN: Record<
   TanimAlan,
   { tip: TanimTip; formKey: keyof Form; etiket: string; ornek: string }
 > = {
-  tur: { tip: "tur", formKey: "tur", etiket: "Tür", ornek: "Örn. Mobilya" },
   cins: { tip: "cins", formKey: "cins", etiket: "Cins", ornek: "Örn. Masa" },
   tip: { tip: "tip", formKey: "grup", etiket: "Tip", ornek: "Örn. Ticari Mal" },
   marka: { tip: "marka", formKey: "marka", etiket: "Marka", ornek: "Örn. Bellona" },
@@ -202,7 +201,6 @@ const BOS_DETAY: StokDetay = {
   hareketler: [],
 };
 const BOS_GRUPLAR: StokGrup[] = [];
-const BOS_TURLER: string[] = [];
 const BOS_CINSLER: string[] = [];
 const BOS_TIPLER: string[] = [];
 const BOS_MARKALAR: string[] = [];
@@ -220,7 +218,6 @@ type Form = {
   id: string;
   kod: string;
   ad: string;
-  tur: string;
   cins: string;
   grup: StokGrubu;
   altGrup: string;
@@ -265,7 +262,6 @@ const bos: Form = {
   id: "",
   kod: "",
   ad: "",
-  tur: "",
   cins: "",
   grup: "Hammadde",
   altGrup: "",
@@ -330,7 +326,6 @@ function formToKart(form: Form): Omit<StokKarti, "miktar"> {
     id: form.id,
     kod: t(form.kod),
     ad: form.ad.trim(),
-    tur: t(form.tur),
     cins: t(form.cins),
     grup: form.grup,
     altGrup: t(form.altGrup),
@@ -379,7 +374,6 @@ export function StokKartForm({
   sonrakiKod = "",
   sonrakiBarkod = "",
   gruplar = BOS_GRUPLAR,
-  turler = BOS_TURLER,
   cinsler = BOS_CINSLER,
   tipler = BOS_TIPLER,
   markalar = BOS_MARKALAR,
@@ -400,8 +394,6 @@ export function StokKartForm({
   sonrakiBarkod?: string;
   /** Tanımlamalar → Gruplar ağacı (Grup seçimi). */
   gruplar?: StokGrup[];
-  /** Tanımlamalar → Türler (ör. Mobilya). */
-  turler?: string[];
   /** Tanımlamalar → Cinsler (ör. Masa). */
   cinsler?: string[];
   /** Tanımlamalar → Stok Tipleri (Hammadde/Yarı Mamül/Mamül/Hizmet...). */
@@ -432,7 +424,6 @@ export function StokKartForm({
         id: kart.id,
         kod: kart.kod ?? "",
         ad: kart.ad,
-        tur: kart.tur ?? "",
         cins: kart.cins ?? "",
         grup: kart.grup,
         altGrup: kart.altGrup ?? "",
@@ -512,7 +503,7 @@ export function StokKartForm({
     }
     if (!duzenleme) {
       toast.success(`Malzeme eklendi (${res.id})`);
-      router.push(`/stok-karti/${res.id}`);
+      router.push("/stok-karti");
       return;
     }
     toast.success("Malzeme güncellendi");
@@ -597,7 +588,6 @@ export function StokKartForm({
                 set={set}
                 durumRef={durumRef}
                 gruplar={gruplar}
-                turler={turler}
                 cinsler={cinsler}
                 tipler={tipler}
                 markalar={markalar}
@@ -1328,7 +1318,6 @@ function GenelTab({
   set,
   durumRef,
   gruplar,
-  turler,
   cinsler,
   tipler,
   markalar,
@@ -1344,7 +1333,6 @@ function GenelTab({
   set: (k: keyof Form) => (v: string) => void;
   durumRef: React.RefObject<AnimatedIconHandle | null>;
   gruplar: StokGrup[];
-  turler: string[];
   cinsler: string[];
   tipler: string[];
   markalar: string[];
@@ -1358,7 +1346,6 @@ function GenelTab({
   // DB'den beslenen comboboxların seçenekleri — "yeni ekle" ile anında büyür.
   const [secenekler, setSecenekler] = React.useState<Record<TanimAlan, string[]>>(
     {
-      tur: turler,
       cins: cinsler,
       tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
@@ -1370,7 +1357,6 @@ function GenelTab({
   );
   React.useEffect(() => {
     setSecenekler({
-      tur: turler,
       cins: cinsler,
       tip: tipler.length > 0 ? tipler : GRUPLAR,
       marka: markalar,
@@ -1379,7 +1365,7 @@ function GenelTab({
       renkKodu: renkKodlari,
       birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
     });
-  }, [turler, cinsler, tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
+  }, [cinsler, tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
 
   const [yeniAlan, setYeniAlan] = React.useState<TanimAlan | null>(null);
   const [yeniDeger, setYeniDeger] = React.useState("");
@@ -1445,20 +1431,7 @@ function GenelTab({
               />
             </div>
             {/* Sınıflama + birim */}
-            <div className="grid grid-cols-4 gap-3">
-              <AnimatedField label="Tür" icon={FolderOpenIcon}>
-                <SearchSelect
-                  items={secenekler.tur}
-                  value={form.tur || null}
-                  onValueChange={(v) => set("tur")(v ?? "")}
-                  placeholder="Tür seç"
-                  addLabel="Yeni tür ekle"
-                  onAdd={() => {
-                    setYeniDeger("");
-                    setYeniAlan("tur");
-                  }}
-                />
-              </AnimatedField>
+            <div className="grid grid-cols-3 gap-3">
               <AnimatedField label="Cins" icon={FolderOpenIcon}>
                 <SearchSelect
                   items={secenekler.cins}
@@ -2591,10 +2564,25 @@ function tipTahmin(dosyaAdi: string): StokDokumanTipi {
 export function DokumanlarTab({
   stokId,
   kayitlar,
+  klasor,
+  kaydetFn = stokDokumanKaydet,
+  silFn = stokDokumanSil,
 }: {
   stokId: string;
   kayitlar: StokDokuman[];
+  /** Yükleme klasörü (varsayılan `stok-<stokId>`). */
+  klasor?: string;
+  /** Kaydet aksiyonu (varsayılan stok; parça için override edilir). */
+  kaydetFn?: (
+    d: Omit<StokDokuman, "id"> & { id?: number },
+  ) => Promise<{ ok: boolean; id?: number; error?: string }>;
+  /** Sil aksiyonu (varsayılan stok; parça için override edilir). */
+  silFn?: (
+    id: number,
+    sahipId: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<StokDokuman[]>(kayitlar);
   React.useEffect(() => setListe(kayitlar), [kayitlar]);
   const [sheetAcik, setSheetAcik] = React.useState(false);
@@ -2619,7 +2607,7 @@ export function DokumanlarTab({
       setListe((l) =>
         l.map((x) => (x.id === duzenlenen.id ? { ...duzenlenen, ...f } : x)),
       );
-      const res = await stokDokumanKaydet({ ...f, id: duzenlenen.id, stokId });
+      const res = await kaydetFn({ ...f, id: duzenlenen.id, stokId });
       if (!res.ok) {
         setListe(onceki);
         toast.error(res.error ?? "Doküman kaydedilemedi");
@@ -2630,7 +2618,7 @@ export function DokumanlarTab({
     }
     const gecici = geciciId();
     setListe((l) => [...l, { ...f, id: gecici, stokId }]);
-    const res = await stokDokumanKaydet({ ...f, stokId });
+    const res = await kaydetFn({ ...f, stokId });
     if (!res.ok || !res.id) {
       setListe((l) => l.filter((x) => x.id !== gecici));
       toast.error(res.error ?? "Doküman kaydedilemedi");
@@ -2643,9 +2631,16 @@ export function DokumanlarTab({
   }
 
   async function sil(d: StokDokuman) {
+    if (
+      !(await onayla({
+        title: `"${d.ad}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== d.id));
-    const res = await stokDokumanSil(d.id, stokId);
+    const res = await silFn(d.id, stokId);
     if (!res.ok) {
       setListe(onceki);
       toast.error(res.error ?? "Doküman silinemedi");
@@ -2669,6 +2664,7 @@ export function DokumanlarTab({
         onOpenChange={setSheetAcik}
         kayit={duzenlenen}
         stokId={stokId}
+        klasor={klasor}
         onSave={kaydetKayit}
       />
       <div className="flex flex-col gap-4 p-4">
@@ -2748,6 +2744,7 @@ export function DokumanlarTab({
           onKapat={() => setBuyuk(null)}
         />
       )}
+      {onayDialog}
     </AltListeKart>
   );
 }
@@ -2860,12 +2857,15 @@ function DokumanSheet({
   onOpenChange,
   kayit,
   stokId,
+  klasor,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   kayit: StokDokuman | null;
   stokId: string;
+  /** Yükleme klasörü (varsayılan `stok-<stokId>`). */
+  klasor?: string;
   onSave: (f: Omit<StokDokuman, "id" | "stokId">) => void | Promise<void>;
 }) {
   const [ad, setAd] = React.useState("");
@@ -2898,7 +2898,7 @@ function DokumanSheet({
     try {
       const fd = new FormData();
       fd.append("dosya", f);
-      fd.append("klasor", `stok-${stokId}`);
+      fd.append("klasor", klasor ?? `stok-${stokId}`);
       const cevap = await fetch("/api/dosya", { method: "POST", body: fd });
       const veri = await cevap.json();
       if (!cevap.ok || !veri.url) {

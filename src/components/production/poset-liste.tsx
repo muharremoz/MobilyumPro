@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Poset } from "@/lib/data";
 import { posetSil } from "@/lib/db/actions";
 
@@ -62,6 +63,7 @@ export function PosetListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Poset[]>(posetler);
   // Kolon filtreleri (başlık popover'larından)
   const [kodFiltre, setKodFiltre] = React.useState("");
@@ -121,6 +123,14 @@ export function PosetListe({
   }, [liste, kodFiltre, adFiltre, aciklamaFiltre, malzemeAralik, durum, sort]);
 
   async function sil(id: string) {
+    const ad = liste.find((x) => x.id === id)?.ad;
+    if (
+      !(await onayla({
+        title: `"${ad ?? "Poşet"}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== id));
     const res = await posetSil([id]);
@@ -299,6 +309,7 @@ export function PosetListe({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

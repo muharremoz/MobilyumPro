@@ -46,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Malzeme, type Model, type Parca } from "@/lib/data";
 import { parcaSil, receteKopyala } from "@/lib/db/actions";
 
@@ -121,6 +122,7 @@ export function ReceteListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
   // Kolon filtreleri (başlık popover'larından)
   const [adFiltre, setAdFiltre] = React.useState("");
@@ -237,6 +239,13 @@ export function ReceteListe({
   );
 
   async function sil(p: Parca) {
+    if (
+      !(await onayla({
+        title: `"${p.ad}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const res = await parcaSil([p.id]);
     if (!res.ok) {
       toast.error(res.error ?? "Silinemedi.");
@@ -516,6 +525,7 @@ export function ReceteListe({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

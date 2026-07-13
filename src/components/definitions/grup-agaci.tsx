@@ -40,6 +40,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import type { StokGrup } from "@/lib/data";
 import { grupKaydet, grupSil, grupSiraKaydet } from "@/lib/db/actions";
 
@@ -161,6 +162,7 @@ function GrupSatiri({
 }
 
 export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
   // Sütunlu (Finder) gezinme yolu — seçili grup id'leri (kök → derin).
   const [yolIds, setYolIds] = React.useState<string[]>([]);
@@ -228,6 +230,13 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       toast.error("Önce alt grupları silin.");
       return;
     }
+    if (
+      !(await onayla({
+        title: `"${g.ad}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== g.id));
     setYolIds((prev) => {
@@ -362,6 +371,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
         ustGrup={ustGrup}
         onSave={kaydet}
       />
+      {onayDialog}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Depo } from "@/lib/data";
 import { depoKaydet, depoSil } from "@/lib/db/actions";
 
@@ -64,6 +65,7 @@ export function Warehouses({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
+  const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Depo[]>(depolar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
@@ -157,6 +159,14 @@ export function Warehouses({
   }
 
   async function sil(id: string) {
+    const ad = liste.find((x) => x.id === id)?.ad;
+    if (
+      !(await onayla({
+        title: `"${ad ?? "Depo"}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const onceki = liste;
     setListe((l) => l.filter((x) => x.id !== id));
     const sonuc = await depoSil([id]);
@@ -368,6 +378,7 @@ export function Warehouses({
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
+      {onayDialog}
     </div>
   );
 }

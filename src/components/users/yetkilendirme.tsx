@@ -7,6 +7,7 @@ import { Plus, Trash2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import { TabIcerik } from "@/components/ui/tab-icerik";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -391,6 +392,7 @@ function setTaslagi(s: YetkiSeti): Taslak {
 
 function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const [taslak, setTaslak] = React.useState<Taslak | null>(
     setler[0] ? setTaslagi(setler[0]) : null,
   );
@@ -432,6 +434,13 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
 
   async function sil() {
     if (!taslak?.id) return;
+    if (
+      !(await onayla({
+        title: `"${taslak.ad}" silinsin mi?`,
+        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      }))
+    )
+      return;
     const res = await yetkiSetiSil(taslak.id);
     if (!res.ok) {
       toast.error(res.error ?? "Set silinemedi.");
@@ -509,6 +518,7 @@ function SetSekmesi({ setler }: { setler: YetkiSeti[] }) {
           <BosDurum>Bir set seçin ya da &quot;Yeni Set&quot; oluşturun.</BosDurum>
         )}
       </div>
+      {onayDialog}
     </div>
   );
 }

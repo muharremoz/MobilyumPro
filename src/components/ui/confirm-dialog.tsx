@@ -16,6 +16,59 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+export type OnaySecenek = {
+  title: string;
+  description?: string;
+  icon?: AnimatedIcon;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+};
+
+/**
+ * Promise tabanlı onay — `const { onayla, onayDialog } = useOnay()`.
+ * Handler içinde: `if (!(await onayla({ title, description }))) return;`
+ * JSX'e `{onayDialog}` eklenir. Silme gibi işlemler için destructive varsayılan.
+ */
+export function useOnay() {
+  const [durum, setDurum] = React.useState<{
+    open: boolean;
+    opts: OnaySecenek;
+  }>({ open: false, opts: { title: "" } });
+  const cevapRef = React.useRef<((v: boolean) => void) | null>(null);
+
+  const onayla = React.useCallback((opts: OnaySecenek) => {
+    return new Promise<boolean>((resolve) => {
+      cevapRef.current = resolve;
+      setDurum({ open: true, opts });
+    });
+  }, []);
+
+  const bitir = React.useCallback((sonuc: boolean) => {
+    cevapRef.current?.(sonuc);
+    cevapRef.current = null;
+    setDurum((d) => ({ ...d, open: false }));
+  }, []);
+
+  const onayDialog = (
+    <ConfirmDialog
+      open={durum.open}
+      onOpenChange={(o) => {
+        if (!o) bitir(false);
+      }}
+      title={durum.opts.title}
+      description={durum.opts.description}
+      icon={durum.opts.icon}
+      confirmLabel={durum.opts.confirmLabel ?? "Sil"}
+      cancelLabel={durum.opts.cancelLabel ?? "İptal"}
+      destructive={durum.opts.destructive ?? true}
+      onConfirm={() => bitir(true)}
+    />
+  );
+
+  return { onayla, onayDialog };
+}
+
 /**
  * Standart onay (alert) dialog'u — orijinal shadcn AlertDialog tasarımı.
  * İkon, shadcn'in media slotunda (sol üstte kutu içinde) gösterilir.
