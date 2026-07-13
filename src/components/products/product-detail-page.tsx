@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { StripedPattern } from "@/components/magicui/striped-pattern";
 import { TabIcerik } from "@/components/ui/tab-icerik";
 import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { KartBaslik } from "@/components/ui/kart-baslik";
@@ -82,9 +81,11 @@ export function ProductDetailPage({
 }) {
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>("genel");
-  const aktif = product.durum === "Aktif";
   const parcaSayisi = product.parcalar?.length ?? 0;
   const deger = product.fiyat * product.stok;
+  const gorsel = product.gorsel ?? product.gorseller?.[0];
+  const durum = modelDurumu(product);
+  const sonHareket = hareketler[0];
 
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
@@ -111,97 +112,16 @@ export function ProductDetailPage({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ── Banner ────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-lg border bg-card">
-        <StripedPattern className="z-0 text-foreground/[0.07] [mask-image:linear-gradient(to_left,black,transparent_65%)]" />
-
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 px-4 py-3">
-          <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <h1 className="text-xl font-semibold tracking-tight">
-                {product.ad}
-              </h1>
-              <span className="text-sm font-medium text-muted-foreground">
-                {product.id}
-              </span>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-[5px] px-2 py-0.5 text-xs font-semibold",
-                  aktif
-                    ? "bg-emerald-50 text-emerald-600"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {aktif ? "AKTİF" : "PASİF"}
-              </span>
-              <span className="text-border">|</span>
-              <span className="text-sm text-muted-foreground">
-                {product.kategori}
-              </span>
-              {product.marka && (
-                <>
-                  <span className="text-border">|</span>
-                  <span className="text-sm text-muted-foreground">
-                    {product.marka}
-                  </span>
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-              {aksiyonlar.map((a) => {
-                const Icon = a.ikon;
-                return (
-                  <button
-                    key={a.etiket}
-                    type="button"
-                    onClick={a.onClick}
-                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <Icon className="size-4" />
-                    {a.etiket}
-                    {a.rozet !== undefined && (
-                      <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[11px] font-medium text-foreground">
-                        {a.rozet}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="shrink-0 self-center overflow-hidden rounded-md border bg-card">
-            <table className="text-sm">
-              <thead>
-                <tr className="border-b text-[10px] tracking-wide text-muted-foreground uppercase">
-                  <th className="px-3 py-1.5 text-left font-semibold">Fiyat</th>
-                  <th className="px-3 py-1.5 text-right font-semibold">Stok</th>
-                  <th className="px-3 py-1.5 text-right font-semibold">Değer</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="px-3 py-2 font-medium tabular-nums">
-                    {formatTL(product.fiyat)}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-3 py-2 text-right tabular-nums",
-                      product.stok === 0 && "text-rose-600",
-                    )}
-                  >
-                    {product.stok}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                    {formatTL(deger)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      {/* ── Banner (stok kartı şeridiyle aynı) ────────────────── */}
+      <ModelSerit
+        product={product}
+        deger={deger}
+        durum={durum}
+        gorsel={gorsel}
+        sonHareket={sonHareket}
+        aksiyonlar={aksiyonlar}
+        onGorsel={() => setTab("resimler")}
+      />
 
       {/* ── Sekmeler ──────────────────────────────────────────── */}
       <div className="relative -mb-px flex flex-wrap gap-1 border-b">
@@ -231,6 +151,232 @@ export function ProductDetailPage({
           <VaryantMaliyetTab product={product} parcalar={parcalar} malzemeler={malzemeler} />
         )}
       </TabIcerik>
+    </div>
+  );
+}
+
+/** Model stok durumu — mevcut miktarı kritik eşiğe göre etiketler. */
+type ModelDurum = { etiket: string; renk: string; bar: string };
+function modelDurumu(m: Model): ModelDurum {
+  const min = m.minStok ?? 0;
+  if (m.stok <= 0)
+    return {
+      etiket: "Tükendi",
+      renk: "bg-rose-100 text-rose-700",
+      bar: "bg-rose-500",
+    };
+  if (min > 0 && m.stok <= min)
+    return {
+      etiket: "Kritik Stok",
+      renk: "bg-amber-100 text-amber-700",
+      bar: "bg-amber-500",
+    };
+  return {
+    etiket: "Normal",
+    renk: "bg-emerald-100 text-emerald-700",
+    bar: "bg-emerald-500",
+  };
+}
+
+/** Şeritteki mini metrik (etiket + değer). */
+function SeritMetrik({
+  etiket,
+  deger,
+}: {
+  etiket: string;
+  deger: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+        {etiket}
+      </div>
+      <div className="mt-0.5 truncate text-sm font-medium tabular-nums">
+        {deger}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Model başlığı şeridi — stok kartındaki StokKartiSerit ile aynı görünüm:
+ * görsel + kimlik + metrikler + miktar/durum/seviye barı + hızlı aksiyonlar.
+ */
+function ModelSerit({
+  product,
+  deger,
+  durum,
+  gorsel,
+  sonHareket,
+  aksiyonlar,
+  onGorsel,
+}: {
+  product: Model;
+  deger: number;
+  durum: ModelDurum;
+  gorsel?: string;
+  sonHareket?: StokHareket;
+  aksiyonlar: {
+    ikon: LucideIcon;
+    etiket: string;
+    rozet?: number;
+    onClick: () => void;
+  }[];
+  onGorsel: () => void;
+}) {
+  const min = product.minStok ?? 0;
+  const maxVar = min > 0;
+  // Kritik eşiği referans alan doluluk (max yoksa 2× kritik kabul edilir).
+  const doluluk = maxVar
+    ? Math.min(100, Math.max(0, (product.stok / (min * 2)) * 100))
+    : 0;
+
+  const metrikler: { etiket: string; deger: React.ReactNode }[] = [];
+  if (product.fiyat > 0)
+    metrikler.push({ etiket: "Satış Fiyatı", deger: formatTL(product.fiyat) });
+  if (deger > 0)
+    metrikler.push({ etiket: "Stok Değeri", deger: formatTL(deger) });
+  if (sonHareket)
+    metrikler.push({
+      etiket: "Son Hareket",
+      deger: (
+        <span className="whitespace-nowrap">
+          {formatTarih(sonHareket.tarih)} · {sonHareket.tur}
+        </span>
+      ),
+    });
+
+  return (
+    <div className="overflow-hidden rounded-xl border bg-gradient-to-r from-emerald-50 via-card to-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
+        {/* Görsel + Kimlik + aksiyonlar */}
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          {gorsel ? (
+            <button
+              type="button"
+              onClick={onGorsel}
+              className="shrink-0 cursor-zoom-in overflow-hidden rounded-lg border transition-transform hover:scale-105"
+              aria-label={`${product.ad} — resimler`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={gorsel}
+                alt={product.ad}
+                className="size-14 object-cover"
+              />
+            </button>
+          ) : (
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
+              <ImageOff className="size-5" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+              <h1 className="truncate text-lg leading-tight font-semibold">
+                {product.ad}
+              </h1>
+              <span aria-hidden className="h-4 w-px bg-border" />
+              <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
+                {product.barkod || product.id}
+              </span>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <Badge
+                variant="secondary"
+                className="bg-emerald-100 text-emerald-700"
+              >
+                Mamül
+              </Badge>
+              {product.kategori && (
+                <Badge variant="outline" className="font-normal">
+                  {product.kategori}
+                </Badge>
+              )}
+              {product.marka && (
+                <Badge variant="outline" className="font-normal">
+                  {product.marka}
+                </Badge>
+              )}
+              {product.durum === "Pasif" && (
+                <Badge variant="secondary" className="bg-muted">
+                  Pasif
+                </Badge>
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+              {aksiyonlar.map((a) => {
+                const Icon = a.ikon;
+                return (
+                  <button
+                    key={a.etiket}
+                    type="button"
+                    onClick={a.onClick}
+                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Icon className="size-4" />
+                    {a.etiket}
+                    {a.rozet !== undefined && (
+                      <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[11px] font-medium text-foreground">
+                        {a.rozet}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Metrikler */}
+        {metrikler.length > 0 && (
+          <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+            {metrikler.map((m) => (
+              <SeritMetrik key={m.etiket} etiket={m.etiket} deger={m.deger} />
+            ))}
+          </div>
+        )}
+
+        {/* Miktar + durum + seviye barı */}
+        <div className="shrink-0 border-t pt-3 text-left lg:w-52 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5 lg:text-right">
+          <div className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Mevcut Miktar
+          </div>
+          <div className="mt-0.5 flex items-baseline gap-1.5 lg:justify-end">
+            <span
+              className={cn(
+                "text-3xl leading-none font-semibold tabular-nums",
+                product.stok <= 0 && "text-rose-600",
+              )}
+            >
+              {product.stok.toLocaleString("tr-TR")}
+            </span>
+            <span className="text-sm font-normal text-muted-foreground">
+              adet
+            </span>
+            <Badge variant="secondary" className={cn("ml-1", durum.renk)}>
+              {durum.etiket}
+            </Badge>
+          </div>
+          {maxVar ? (
+            <div className="mt-2">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn("h-full rounded-full", durum.bar)}
+                  style={{ width: `${doluluk}%` }}
+                />
+              </div>
+              <div className="mt-1 flex justify-between text-[10px] text-muted-foreground tabular-nums">
+                <span>Kritik: {min.toLocaleString("tr-TR")}</span>
+                <span>{formatTL(deger)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              Kritik eşik tanımlı değil
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
