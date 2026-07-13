@@ -21,28 +21,42 @@ npm run build    # production derleme
 
 Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
 (kendi SQL Server + kendi `.env`). Güncellemeler `git push` (dev PC) →
-`git pull` (test PC) ile akar.
-
-**Ön koşullar:** Node.js, Git, SQL Server (LocalDB/Express yeterli).
+`git pull` (test PC) ile akar. Node.js, Git ve SQL Server Express dahil hiçbir
+şeyi elle kurmana gerek yok — `on-kosullar.ps1` hepsini yükler.
 
 **İlk kurulum (test PC'de, bir kez):**
 
-```powershell
-git clone https://github.com/muharremoz/MobilyumPro.git
-cd MobilyumPro
-```
+1. **Yönetici** PowerShell'de Git'i kur (repoyu klonlamak için tek satır):
 
-SQL Server'da `mobilyumpro` adında boş bir veritabanı oluştur (SSMS'de
-`CREATE DATABASE mobilyumpro;` ya da Azure Data Studio). Sonra:
+   ```powershell
+   winget install -e --id Git.Git
+   ```
 
-```powershell
-.\kurulum.ps1
-```
+2. **Yeni** terminal aç, repoyu klonla:
 
-Script `.env`'i `.env.example`'dan oluşturur (ilk çalıştırmada Notepad'de
-açılır — `{PAROLA}` yerine SQL Server `sa` parolanı yaz, kaydet, script'i
-tekrar çalıştır). Ardından `npm install` → `db:generate` → `db:push` →
-`db:seed` yapıp `http://localhost:1616` adresinde başlatır.
+   ```powershell
+   git clone https://github.com/muharremoz/MobilyumPro.git
+   cd MobilyumPro
+   ```
+
+3. Ön koşulları kur (yönetici ister, kendini yükseltir):
+
+   ```powershell
+   .\on-kosullar.ps1
+   ```
+
+   Bu script: **Node.js LTS + Git + SQL Server 2022 Express**'i winget ile
+   kurar; SQL'i ayarlar (mixed-mode auth + istediğin `sa` parolası + TCP 1433);
+   `mobilyumpro` veritabanını oluşturur; `.env`'i parolayla doldurur.
+
+4. **Yeni** terminal aç (Node/Git PATH'i tanınsın), uygulamayı kur ve başlat:
+
+   ```powershell
+   .\kurulum.ps1
+   ```
+
+   `npm install` → `db:generate` → `db:push` → `db:seed` yapıp
+   `http://localhost:1616` adresinde başlatır.
 
 **Her güncellemede (test PC'de):**
 
@@ -56,6 +70,8 @@ tekrar çalıştır). Ardından `npm install` → `db:generate` → `db:push` �
 
 > Not: Test PC'de kod düzenleme yapma; tek kaynak dev (bu) makinedir. Yerel
 > değişiklik olursa `git pull` çakışır.
+> `on-kosullar.ps1` yalnızca ilk kurulumda gerekir; sonraki güncellemeler için
+> sadece `guncelle.ps1` yeterli.
 
 ## Sayfalar
 
