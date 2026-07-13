@@ -68,8 +68,7 @@ export const sections: Section[] = [
     label: "Stok Yönetimi",
     RailIcon: I(BoxesIcon),
     items: [
-      { groupHeader: "Stok", label: "Stok Kartları", href: "/stok-karti", icon: I(BoxesIcon) },
-      { label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
+      { groupHeader: "Stok", label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
       { label: "Stok Takip", href: "/stok-yonetimi?bolum=takip", icon: I(ActivityIcon) },
       { label: "Stok Hareketleri", href: "/stok-yonetimi?bolum=hareketler", icon: I(HistoryIcon) },
       { label: "Depolar", href: "/stok-yonetimi?bolum=depolar", icon: I(BlocksIcon) },
@@ -81,9 +80,10 @@ export const sections: Section[] = [
     label: "Üretim Yönetimi",
     RailIcon: I(HammerIcon),
     items: [
-      { label: "Model", href: "/urunler", icon: I(RockingChairIcon) },
+      { groupHeader: "Kartlar", label: "Malzeme", href: "/stok-karti", icon: I(BoxesIcon) },
       { label: "Parça", href: "/stok-yonetimi?bolum=parcalar", icon: I(CpuIcon) },
-      { label: "Üretim Planı", href: "/uretim/plan", icon: I(CalendarDaysIcon) },
+      { label: "Model", href: "/urunler", icon: I(RockingChairIcon) },
+      { groupHeader: "Üretim", label: "Üretim Planı", href: "/uretim/plan", icon: I(CalendarDaysIcon) },
       { label: "Üretim Takibi", href: "/uretim/emirler", icon: I(HammerIcon) },
       { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
       { label: "Reçete", href: "/uretim/recete", icon: I(LayersIcon) },

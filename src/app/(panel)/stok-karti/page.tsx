@@ -18,7 +18,8 @@ export default async function StokKartiRoute() {
     "";
   return (
     <StokKartListe
-      stoklar={stoklar}
+      // Malzeme listesi: Mamül (modeller) hariç — modeller "Model" sayfasında.
+      stoklar={stoklar.filter((s) => s.grup !== "Mamül")}
       kolonAyari={kolonAyari}
       kullanicilar={kullanicilar.map((k) => ({ id: k.id, ad: k.adSoyad }))}
       mevcutKullaniciId={mevcutKullaniciId}

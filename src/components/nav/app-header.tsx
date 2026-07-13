@@ -87,9 +87,9 @@ function getCrumbs(
   if (pathname === "/stok-karti/yeni") {
     return {
       crumbs: [
-        { label: "Stok Yönetimi" },
-        { label: "Stok Kartları", href: "/stok-karti" },
-        { label: "Yeni Stok Kartı" },
+        { label: "Üretim Yönetimi" },
+        { label: "Malzeme", href: "/stok-karti" },
+        { label: "Yeni Malzeme" },
       ],
       Icon: iconForHref("/stok-karti"),
     };
@@ -98,9 +98,9 @@ function getCrumbs(
     const id = pathname.split("/")[2];
     return {
       crumbs: [
-        { label: "Stok Yönetimi" },
-        { label: "Stok Kartları", href: "/stok-karti" },
-        { label: "Stok Kartı" },
+        { label: "Üretim Yönetimi" },
+        { label: "Malzeme", href: "/stok-karti" },
+        { label: "Malzeme" },
       ],
       Icon: iconForHref("/stok-karti"),
       meta: id,

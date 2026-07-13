@@ -227,14 +227,14 @@ export function StokKartListe({
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Stok Kartları">
+        <ListHeader title="Malzeme">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"
             nativeButton={false}
             render={<Link href="/stok-karti/yeni" />}
           >
-            <Plus className="size-4" /> Yeni Stok Kartı
+            <Plus className="size-4" /> Yeni Malzeme
           </Button>
         </ListHeader>
         <Table>

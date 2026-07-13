@@ -475,7 +475,7 @@ export function StokKartForm({
   const onizlemeKart: StokKarti = React.useMemo(
     () => ({
       ...formToKart(form),
-      ad: form.ad.trim() || "Yeni Stok Kartı",
+      ad: form.ad.trim() || "Yeni Malzeme",
       miktar: kart?.miktar ?? 0,
     }),
     [form, kart],
@@ -498,15 +498,15 @@ export function StokKartForm({
     const yeniKart = formToKart(form);
     const res = await stokKaydet(yeniKart, !duzenleme);
     if (!res.ok) {
-      toast.error(res.error ?? "Stok kartı kaydedilemedi");
+      toast.error(res.error ?? "Malzeme kaydedilemedi");
       return;
     }
     if (!duzenleme) {
-      toast.success(`Stok kartı eklendi (${res.id})`);
+      toast.success(`Malzeme eklendi (${res.id})`);
       router.push(`/stok-karti/${res.id}`);
       return;
     }
-    toast.success("Stok kartı güncellendi");
+    toast.success("Malzeme güncellendi");
     router.push("/stok-karti");
   }
 
@@ -1461,7 +1461,7 @@ function GenelTab({
               </AnimatedField>
               <AnimatedField label="Tip" icon={FolderOpenIcon}>
                 <SearchSelect
-                  items={secenekler.tip}
+                  items={secenekler.tip.filter((t) => t !== "Mamül")}
                   value={form.grup}
                   onValueChange={(v) =>
                     setForm((f) => ({
@@ -1504,7 +1504,7 @@ function GenelTab({
                 <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
                   <textarea
                     rows={1}
-                    placeholder="Stok kartı ile ilgili notlar..."
+                    placeholder="Malzeme ile ilgili notlar..."
                     value={form.aciklama}
                     onChange={(e) => set("aciklama")(e.target.value)}
                     className="h-10 w-full resize-none rounded-md border-0 bg-white bg-clip-padding px-3 py-2.5 text-sm shadow-[0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-all duration-200 placeholder:text-[#8f8f8f] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)]"
