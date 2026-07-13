@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronRight, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronRight, ChevronsUpDown, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { StokGrup } from "@/lib/data";
+import { grupKaydet } from "@/lib/db/actions";
 
 /**
  * Ağaçlı grup seçici — Finder/Miller sütun stili.
@@ -35,10 +37,17 @@ export function GrupSecici({
   const [arama, setArama] = React.useState("");
   // Açık sütun yolu — sürüklenen (drill) grup id'leri; kök sütun her zaman var.
   const [yolIds, setYolIds] = React.useState<string[]>([]);
+  // Yerel liste — inline "yeni ekle" ile anında büyür.
+  const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
+  React.useEffect(() => setListe(gruplar), [gruplar]);
+  // Hangi sütunda ekleme formu açık + girilen ad/kod.
+  const [ekleKolon, setEkleKolon] = React.useState<number | null>(null);
+  const [yeniAd, setYeniAd] = React.useState("");
+  const [yeniKod, setYeniKod] = React.useState("");
 
   const altlar = React.useMemo(() => {
     const m = new Map<string | null, StokGrup[]>();
-    for (const g of gruplar) {
+    for (const g of liste) {
       const arr = m.get(g.ustId) ?? [];
       arr.push(g);
       m.set(g.ustId, arr);
@@ -49,12 +58,31 @@ export function GrupSecici({
           a.kod.localeCompare(b.kod, "tr") || a.ad.localeCompare(b.ad, "tr"),
       );
     return m;
-  }, [gruplar]);
+  }, [liste]);
 
   const byId = React.useMemo(
-    () => new Map(gruplar.map((g) => [g.id, g])),
-    [gruplar],
+    () => new Map(liste.map((g) => [g.id, g])),
+    [liste],
   );
+
+  async function grupEkle(ustId: string | null) {
+    const ad = yeniAd.trim();
+    const kod = yeniKod.trim();
+    if (!ad || !kod) {
+      toast.error("Ad ve kod gerekli");
+      return;
+    }
+    const res = await grupKaydet({ ustId, ad, kod });
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Grup eklenemedi.");
+      return;
+    }
+    setListe((l) => [...l, { id: res.id!, ustId, ad, kod, durum: "Aktif" }]);
+    setYeniAd("");
+    setYeniKod("");
+    setEkleKolon(null);
+    toast.success("Grup eklendi");
+  }
 
   /** Kök → grup atalarının id yolu (kendisi dahil). */
   const atalarIds = React.useCallback(
@@ -88,9 +116,10 @@ export function GrupSecici({
   React.useEffect(() => {
     if (!acikPopover) return;
     setArama("");
-    const secili = gruplar.find((g) => g.ad === value);
+    setEkleKolon(null);
+    const secili = liste.find((g) => g.ad === value);
     setYolIds(secili ? atalarIds(secili) : []);
-  }, [acikPopover, gruplar, value, atalarIds]);
+  }, [acikPopover, liste, value, atalarIds]);
 
   function sec(g: StokGrup, kolon: number) {
     onValueChange?.(g.ad);
@@ -101,10 +130,12 @@ export function GrupSecici({
   }
 
   // Görünen sütunlar: kök + yoldaki her (çocuğu olan) grubun çocukları.
-  const kolonlar: StokGrup[][] = [altlar.get(null) ?? []];
+  const kolonlar: { ustId: string | null; items: StokGrup[] }[] = [
+    { ustId: null, items: altlar.get(null) ?? [] },
+  ];
   for (const id of yolIds) {
     const cocuklar = altlar.get(id) ?? [];
-    if (cocuklar.length > 0) kolonlar.push(cocuklar);
+    if (cocuklar.length > 0) kolonlar.push({ ustId: id, items: cocuklar });
   }
 
   // Breadcrumb — yoldaki grup adları.
@@ -114,7 +145,7 @@ export function GrupSecici({
 
   const q = arama.trim().toLocaleLowerCase("tr");
   const eslesenler = q
-    ? gruplar.filter(
+    ? liste.filter(
         (g) =>
           g.ad.toLocaleLowerCase("tr").includes(q) ||
           g.kod.toLocaleLowerCase("tr").includes(q),
@@ -124,7 +155,7 @@ export function GrupSecici({
   const kokler = altlar.get(null) ?? [];
 
   // Trigger etiketi — yalnızca seçili grubun adı (tam yol gösterilmez).
-  const seciliGrup = gruplar.find((g) => g.ad === value);
+  const seciliGrup = liste.find((g) => g.ad === value);
   const triggerEtiket = seciliGrup?.ad ?? "";
 
   return (
@@ -225,11 +256,11 @@ export function GrupSecici({
                 <div
                   key={ki}
                   className={cn(
-                    "max-h-72 w-48 shrink-0 overflow-y-auto",
+                    "flex max-h-72 w-48 shrink-0 flex-col overflow-y-auto",
                     ki > 0 && "border-l pl-1",
                   )}
                 >
-                  {kolon.map((g) => {
+                  {kolon.items.map((g) => {
                     const cocuklar = altlar.get(g.id) ?? [];
                     const yoldaMi = yolIds[ki] === g.id;
                     const seciliMi = value === g.ad;
@@ -257,6 +288,57 @@ export function GrupSecici({
                       </button>
                     );
                   })}
+                  {/* Sütuna yeni grup ekle */}
+                  {ekleKolon === ki ? (
+                    <div
+                      className="mt-1 flex flex-col gap-1 rounded-[5px] bg-muted/40 p-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Input
+                        autoFocus
+                        placeholder="Grup adı"
+                        value={yeniAd}
+                        onChange={(e) => setYeniAd(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") grupEkle(kolon.ustId);
+                          if (e.key === "Escape") setEkleKolon(null);
+                        }}
+                        className="h-7 text-sm"
+                      />
+                      <div className="flex gap-1">
+                        <Input
+                          placeholder="Kod"
+                          value={yeniKod}
+                          onChange={(e) => setYeniKod(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") grupEkle(kolon.ustId);
+                            if (e.key === "Escape") setEkleKolon(null);
+                          }}
+                          className="h-7 w-16 font-mono text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => grupEkle(kolon.ustId)}
+                          className="flex h-7 flex-1 items-center justify-center rounded-md bg-foreground text-xs font-medium text-background transition-opacity hover:opacity-90"
+                        >
+                          Ekle
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYeniAd("");
+                        setYeniKod("");
+                        setEkleKolon(ki);
+                      }}
+                      className="mt-1 flex items-center gap-1 rounded-[5px] px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <Plus className="size-3.5" />
+                      {ki === 0 ? "Yeni grup" : "Alt grup ekle"}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
