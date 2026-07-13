@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Reorder, useDragControls } from "motion/react";
+import { GripVertical } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
@@ -38,13 +41,125 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { StokGrup } from "@/lib/data";
-import { grupKaydet, grupSil } from "@/lib/db/actions";
+import { grupKaydet, grupSil, grupSiraKaydet } from "@/lib/db/actions";
 
 /**
  * Stok grup ağacı — Tanımlamalar → Gruplar.
  * Sınırsız derinlik: grup → alt grup → alt-alt grup... Kodlar elle girilir
  * (örn. 150, AKS, 01). Satır menüsünden alt grup eklenir.
  */
+/**
+ * Sürüklenebilir grup satırı (modül seviyesi → drag durumu stabil kalır).
+ * Sol taraftaki tutamaçtan sürüklenir; karta tıklama alt sütunu açar.
+ */
+function GrupSatiri({
+  grup,
+  ustGrupMu,
+  seciliMi,
+  onSec,
+  onYeniAlt,
+  onDuzenle,
+  onSil,
+}: {
+  grup: StokGrup;
+  ustGrupMu: boolean;
+  seciliMi: boolean;
+  onSec: () => void;
+  onYeniAlt: () => void;
+  onDuzenle: () => void;
+  onSil: () => void;
+}) {
+  const controls = useDragControls();
+  const renk = kodRenk(grup.kod);
+  return (
+    <Reorder.Item
+      as="div"
+      value={grup}
+      dragListener={false}
+      dragControls={controls}
+      className="select-none"
+    >
+      <div
+        onClick={onSec}
+        className={cn(
+          "group flex cursor-pointer items-center gap-1.5 rounded-md border bg-card px-2 py-1.5 transition-colors",
+          seciliMi
+            ? "border-foreground/25 bg-accent"
+            : "hover:border-foreground/15 hover:bg-accent/40",
+        )}
+      >
+        <span
+          role="button"
+          aria-label="Sürükle"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            controls.start(e);
+          }}
+          className="shrink-0 cursor-grab touch-none text-muted-foreground/30 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </span>
+        {ustGrupMu ? (
+          <Folder className={cn("size-4 shrink-0", renk.ikon)} />
+        ) : (
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium leading-tight">
+            {grup.ad}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex shrink-0 justify-center rounded px-1 py-px font-mono text-[10px] font-medium",
+                renk.rozet,
+              )}
+            >
+              {grup.kod}
+            </span>
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {grup.kullanim ?? 0} kullanım
+            </span>
+          </div>
+        </div>
+        <span onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="İşlemler"
+                  className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={onYeniAlt}>
+                <Plus className="mr-2 size-4" /> Alt Grup Ekle
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDuzenle}>
+                <Pencil className="mr-2 size-4" /> Düzenle
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onSil}>
+                <Trash2 className="mr-2 size-4" /> Sil
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+        {ustGrupMu && (
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
+        )}
+      </div>
+    </Reorder.Item>
+  );
+}
+
 export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
   const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
   // Sütunlu (Finder) gezinme yolu — seçili grup id'leri (kök → derin).
@@ -56,7 +171,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
 
   React.useEffect(() => setListe(gruplar), [gruplar]);
 
-  // ustId → alt gruplar (kod sırasıyla)
+  // ustId → alt gruplar (sürükle-bırak sırasıyla; eşitse kod)
   const altlar = React.useMemo(() => {
     const m = new Map<string | null, StokGrup[]>();
     for (const g of liste) {
@@ -65,9 +180,26 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       m.set(g.ustId, arr);
     }
     for (const arr of m.values())
-      arr.sort((a, b) => a.kod.localeCompare(b.kod, "tr") || a.ad.localeCompare(b.ad, "tr"));
+      arr.sort(
+        (a, b) =>
+          (a.sira ?? 0) - (b.sira ?? 0) ||
+          a.kod.localeCompare(b.kod, "tr") ||
+          a.ad.localeCompare(b.ad, "tr"),
+      );
     return m;
   }, [liste]);
+
+  // Sürükleme sırasında yerel sıra anında; kalıcı yazma bitişte (debounce).
+  const siraTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  function kolonSirala(yeni: StokGrup[]) {
+    const siraMap = new Map(yeni.map((g, i) => [g.id, i]));
+    setListe((l) =>
+      l.map((g) => (siraMap.has(g.id) ? { ...g, sira: siraMap.get(g.id)! } : g)),
+    );
+    const ids = yeni.map((g) => g.id);
+    if (siraTimer.current) clearTimeout(siraTimer.current);
+    siraTimer.current = setTimeout(() => void grupSiraKaydet(ids), 500);
+  }
 
   const byId = React.useMemo(
     () => new Map(liste.map((g) => [g.id, g])),
@@ -136,81 +268,6 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     toast.success("Grup eklendi");
   }
 
-  function GrupKarti({ grup, kolon }: { grup: StokGrup; kolon: number }) {
-    const cocuklar = altlar.get(grup.id) ?? [];
-    const ustGrupMu = cocuklar.length > 0;
-    const seciliMi = yolIds[kolon] === grup.id;
-    const renk = kodRenk(grup.kod);
-    return (
-      <div
-        onClick={() => sec(grup, kolon)}
-        className={cn(
-          "group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 transition-colors",
-          seciliMi
-            ? "border-foreground/25 bg-accent"
-            : "bg-card hover:border-foreground/15 hover:bg-accent/40",
-        )}
-      >
-        {ustGrupMu ? (
-          <Folder className={cn("size-4 shrink-0", renk.ikon)} />
-        ) : (
-          <span className="flex size-4 shrink-0 items-center justify-center">
-            <span className="size-1.5 rounded-full bg-muted-foreground/40" />
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium leading-tight">
-            {grup.ad}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <span
-              className={cn(
-                "inline-flex shrink-0 justify-center rounded px-1 py-px font-mono text-[10px] font-medium",
-                renk.rozet,
-              )}
-            >
-              {grup.kod}
-            </span>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {grup.kullanim ?? 0} kullanım
-            </span>
-          </div>
-        </div>
-        <span onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="İşlemler"
-                  className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                >
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => yeniGrup(grup)}>
-                <Plus className="mr-2 size-4" /> Alt Grup Ekle
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => duzenle(grup)}>
-                <Pencil className="mr-2 size-4" /> Düzenle
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => sil(grup)}>
-                <Trash2 className="mr-2 size-4" /> Sil
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </span>
-        {ustGrupMu && (
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
-        )}
-      </div>
-    );
-  }
-
   // Takip eden sütunlar: kök + seçili yoldaki her grubun alt grupları.
   const kolonlar: { ust: StokGrup | null; items: StokGrup[] }[] = [
     { ust: null, items: altlar.get(null) ?? [] },
@@ -259,11 +316,28 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
                     <Plus className="size-4" />
                   </Button>
                 </div>
-                <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
+                <div className="flex flex-1 flex-col overflow-y-auto px-2 pb-2">
                   {kolon.items.length > 0 ? (
-                    kolon.items.map((g) => (
-                      <GrupKarti key={g.id} grup={g} kolon={ki} />
-                    ))
+                    <Reorder.Group
+                      as="div"
+                      axis="y"
+                      values={kolon.items}
+                      onReorder={kolonSirala}
+                      className="flex flex-col gap-1.5"
+                    >
+                      {kolon.items.map((g) => (
+                        <GrupSatiri
+                          key={g.id}
+                          grup={g}
+                          ustGrupMu={(altlar.get(g.id) ?? []).length > 0}
+                          seciliMi={yolIds[ki] === g.id}
+                          onSec={() => sec(g, ki)}
+                          onYeniAlt={() => yeniGrup(g)}
+                          onDuzenle={() => duzenle(g)}
+                          onSil={() => sil(g)}
+                        />
+                      ))}
+                    </Reorder.Group>
                   ) : (
                     <button
                       type="button"

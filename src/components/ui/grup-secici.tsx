@@ -65,7 +65,9 @@ export function GrupSecici({
     for (const arr of m.values())
       arr.sort(
         (a, b) =>
-          a.kod.localeCompare(b.kod, "tr") || a.ad.localeCompare(b.ad, "tr"),
+          (a.sira ?? 0) - (b.sira ?? 0) ||
+          a.kod.localeCompare(b.kod, "tr") ||
+          a.ad.localeCompare(b.ad, "tr"),
       );
     return m;
   }, [liste]);

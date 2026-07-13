@@ -63,7 +63,7 @@ import { GrupSecici } from "@/components/ui/grup-secici";
 import { cn } from "@/lib/utils";
 import { modelIhtiyacDokumu } from "@/lib/bom";
 import { ISTASYON_MAP } from "@/lib/fabrika";
-import { modelKaydet, tanimKaydet } from "@/lib/db/actions";
+import { modelKaydet, modelKodOnizle, tanimKaydet } from "@/lib/db/actions";
 
 type Tab = "genel" | "recete" | "varyant" | "resim";
 
@@ -221,6 +221,26 @@ export function ModelForm({
     : bos;
   const [form, setForm] = React.useState<Form>(baslangic);
   const [tab, setTab] = React.useState<Tab>("genel");
+  // Yeni modelde kod/barkod seçilen grubun kodundan üretilir (canlı önizleme).
+  const [onizleme, setOnizleme] = React.useState<{
+    kod: string;
+    barkod: string;
+  }>({ kod: "", barkod: "" });
+  React.useEffect(() => {
+    if (duzenleme) return;
+    const grupKod = gruplar.find((g) => g.ad === form.kategori)?.kod ?? "";
+    if (!grupKod) {
+      setOnizleme({ kod: "", barkod: "" });
+      return;
+    }
+    let iptal = false;
+    modelKodOnizle(grupKod).then((r) => {
+      if (!iptal) setOnizleme(r);
+    });
+    return () => {
+      iptal = true;
+    };
+  }, [form.kategori, gruplar, duzenleme]);
   const [markalar, setMarkalar] = React.useState(markalarProp);
   const [tanimTip, setTanimTip] = React.useState<"marka" | null>(null);
   const [yeniTanim, setYeniTanim] = React.useState("");
@@ -264,7 +284,7 @@ export function ModelForm({
     }
     setKaydediliyor(true);
     const u: Model = {
-      id: form.id,
+      id: duzenleme ? form.id : onizleme.kod,
       ad: form.ad.trim(),
       kategori: form.kategori,
       fiyat: Number(form.fiyat) || 0,
@@ -275,7 +295,7 @@ export function ModelForm({
       gorseller: gorseller.length ? gorseller : undefined,
       parcalar: urunParcalar.filter((p) => p.parcaId),
       marka: form.marka.trim() || undefined,
-      barkod: form.barkod.trim() || undefined,
+      barkod: (duzenleme ? form.barkod.trim() : onizleme.barkod) || undefined,
       agirlik: form.agirlik ? Number(form.agirlik) : undefined,
       minStok: form.minStok ? Number(form.minStok) : undefined,
       varyantlar: varyantlar.length ? varyantlar : undefined,
@@ -441,7 +461,7 @@ export function ModelForm({
                 </h2>
                 <span aria-hidden className="h-4 w-px bg-border" />
                 <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
-                  {form.barkod.trim() || form.id || "URN-…"}
+                  {(duzenleme ? form.id : onizleme.kod) || "Kod: grup seçin"}
                 </span>
               </div>
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -570,17 +590,18 @@ export function ModelForm({
                   <IconInput
                     label="Kod"
                     icon={ScanTextIcon}
-                    placeholder="Otomatik (URN-####)"
-                    value={form.id}
-                    disabled={duzenleme}
-                    onChange={(e) => set("id")(e.target.value)}
+                    placeholder="Grup seçilince oluşur"
+                    value={duzenleme ? form.id : onizleme.kod}
+                    readOnly
+                    className="text-muted-foreground"
                   />
                   <IconInput
                     label="Barkod"
                     icon={ScanTextIcon}
-                    placeholder="8690000000000"
-                    value={form.barkod}
-                    onChange={(e) => set("barkod")(e.target.value)}
+                    placeholder="Grup seçilince oluşur"
+                    value={duzenleme ? form.barkod : onizleme.barkod}
+                    readOnly
+                    className="text-muted-foreground"
                   />
                   <AnimatedField label="Marka" icon={BadgePercentIcon}>
                     <SearchSelect

@@ -347,14 +347,13 @@ export async function malzemeSil(
 /** Ürün ekle/güncelle → stok (grup Mamül) + BOM (model_parca). URN-#### üretir. */
 export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }> {
   let id = u.id;
+  let barkod = u.barkod ?? null;
+  // Yeni model: kod/barkod istemcide seçilen grup kodundan önizlenip gönderilir.
+  // Emniyet: gelmezse (grup kodsuz/ırk durumu) sıradaki URN kodu üretilir.
   if (!id) {
-    const mevcut = await db.stok.findMany({ select: { id: true } });
-    let maxNo = 1000;
-    for (const r of mevcut) {
-      const m = /^URN-(\d+)$/.exec(r.id);
-      if (m) maxNo = Math.max(maxNo, Number(m[1]));
-    }
-    id = `URN-${maxNo + 1}`;
+    const kb = await grupSonrakiKod("");
+    id = kb.kod;
+    if (!barkod) barkod = kb.barkod;
   }
   const veri = {
     ad: u.ad,
@@ -364,7 +363,7 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
     durum: u.durum,
     gorsel: u.gorsel ?? null,
     marka: u.marka ?? null,
-    barkod: u.barkod ?? null,
+    barkod,
     agirlik: u.agirlik ?? null,
     minStok: u.minStok ?? null,
     gorsellerJson: u.gorseller ? JSON.stringify(u.gorseller) : null,
@@ -1217,6 +1216,22 @@ export async function cariIslemEkle(
 // ── Stok grup ağacı (Tanımlamalar → Gruplar) ─────────────────────────────
 
 /** Grup ekle/güncelle. ustId null → kök grup. */
+/** Aynı üst grup altındaki grupları verilen id sırasına göre yeniden sıralar. */
+export async function grupSiraKaydet(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.$transaction(
+      ids.map((id, i) => db.grup.update({ where: { id }, data: { sira: i } })),
+    );
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("grupSiraKaydet:", e);
+    return { ok: false, error: "Sıra kaydedilemedi." };
+  }
+}
+
 export async function grupKaydet(g: {
   id?: string;
   ad: string;
@@ -1232,8 +1247,10 @@ export async function grupKaydet(g: {
       revalidatePath("/stok-yonetimi");
       return { ok: true, id: g.id };
     }
+    // Yeni grup kolonun sonuna eklenir (sıra = mevcut kardeş sayısı).
+    const kardesSayisi = await db.grup.count({ where: { ustId: g.ustId } });
     const yeni = await db.grup.create({
-      data: { ad: g.ad, kod: g.kod, ustId: g.ustId },
+      data: { ad: g.ad, kod: g.kod, ustId: g.ustId, sira: kardesSayisi },
     });
     revalidatePath("/stok-yonetimi");
     return { ok: true, id: yeni.id };
@@ -1793,6 +1810,46 @@ export async function sonrakiStokKodu(): Promise<string> {
     if (m) max = Math.max(max, Number(m[1]));
   }
   return `STK-${max + 1}`;
+}
+
+/** 12 haneli tabandan EAN-13 kontrol basamağı ekleyerek 13 haneli barkod üretir. */
+function ean13(taban12: string): string {
+  let toplam = 0;
+  for (let i = 0; i < 12; i++)
+    toplam += Number(taban12[i]) * (i % 2 === 0 ? 1 : 3);
+  const kontrol = (10 - (toplam % 10)) % 10;
+  return taban12 + kontrol;
+}
+
+/**
+ * Bir grup koduna göre sıradaki model kodu (ör. YTK-000001, 6 hane) +
+ * otomatik EAN-13 barkod. Grup kodu boşsa "URN" öneki kullanılır.
+ */
+async function grupSonrakiKod(
+  grupKod: string,
+): Promise<{ kod: string; barkod: string }> {
+  const onek = grupKod || "URN";
+  const rows = await db.stok.findMany({
+    where: { id: { startsWith: onek + "-" } },
+    select: { id: true },
+  });
+  let max = 0;
+  for (const r of rows) {
+    const rest = r.id.slice(onek.length + 1);
+    if (/^\d+$/.test(rest)) max = Math.max(max, Number(rest));
+  }
+  const no = max + 1;
+  const kod = `${onek}-${String(no).padStart(6, "0")}`;
+  const barkod = ean13("869" + String(no).padStart(9, "0"));
+  return { kod, barkod };
+}
+
+/** Yeni model kodu önizlemesi — seçilen grubun koduna göre (istemci çağırır). */
+export async function modelKodOnizle(
+  grupKod: string,
+): Promise<{ kod: string; barkod: string }> {
+  if (!grupKod) return { kod: "", barkod: "" };
+  return grupSonrakiKod(grupKod);
 }
 
 /**

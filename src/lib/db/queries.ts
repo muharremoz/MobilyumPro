@@ -593,7 +593,7 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
 /** Stok grup ağacı — düz liste döner; ağacı istemci kurar. */
 export async function getGruplar(): Promise<StokGrup[]> {
   const [rows, stokRows] = await Promise.all([
-    db.grup.findMany({ orderBy: [{ kod: "asc" }, { ad: "asc" }] }),
+    db.grup.findMany({ orderBy: [{ sira: "asc" }, { kod: "asc" }, { ad: "asc" }] }),
     db.stok.findMany({ select: { altGrup: true } }),
   ]);
   // Kullanım: grubu (altGrup adı) kullanan stok kartı sayısı.
@@ -605,6 +605,7 @@ export async function getGruplar(): Promise<StokGrup[]> {
     ad: g.ad,
     kod: g.kod,
     ustId: g.ustId,
+    sira: g.sira,
     durum: g.durum as Durum,
     kullanim: kullanim.get(g.ad) ?? 0,
   }));

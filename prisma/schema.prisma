@@ -490,6 +490,7 @@ model Grup {
   ad    String
   kod   String
   ustId String? @map("ust_id")
+  sira  Int     @default(0) // aynı üst altındaki sürükle-bırak sırası
   durum String  @default("Aktif")
 
   ust    Grup?  @relation("GrupHiyerarsi", fields: [ustId], references: [id], onDelete: NoAction, onUpdate: NoAction)

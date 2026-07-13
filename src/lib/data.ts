@@ -335,6 +335,8 @@ export type StokGrup = {
   kod: string;
   /** Üst grubun id'si; null → kök grup. */
   ustId: string | null;
+  /** Aynı üst altındaki sürükle-bırak sırası (küçük → önce). */
+  sira?: number;
   durum: "Aktif" | "Pasif";
   /** Bu grubu kullanan stok kartı sayısı (altGrup eşleşmesi; hesaplanır). */
   kullanim?: number;

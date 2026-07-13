@@ -5,7 +5,6 @@ import {
   getGruplar,
   getTanimlar,
 } from "@/lib/db/queries";
-
 export default async function YeniUrunRoute() {
   const [parcalar, malzemeler, gruplar, tanimlar] = await Promise.all([
     getParcalar(),
