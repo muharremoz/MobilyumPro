@@ -6,11 +6,19 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { StokGrup } from "@/lib/data";
 import { grupKaydet } from "@/lib/db/actions";
 
@@ -40,8 +48,9 @@ export function GrupSecici({
   // Yerel liste — inline "yeni ekle" ile anında büyür.
   const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
   React.useEffect(() => setListe(gruplar), [gruplar]);
-  // Hangi sütunda ekleme formu açık + girilen ad/kod.
-  const [ekleKolon, setEkleKolon] = React.useState<number | null>(null);
+  // Yeni grup modalı — hangi üst gruba ekleneceği + girilen ad/kod.
+  const [ekleAcik, setEkleAcik] = React.useState(false);
+  const [ekleUstId, setEkleUstId] = React.useState<string | null>(null);
   const [yeniAd, setYeniAd] = React.useState("");
   const [yeniKod, setYeniKod] = React.useState("");
 
@@ -65,22 +74,30 @@ export function GrupSecici({
     [liste],
   );
 
-  async function grupEkle(ustId: string | null) {
+  function ekleAc(ustId: string | null) {
+    setEkleUstId(ustId);
+    setYeniAd("");
+    setYeniKod("");
+    setEkleAcik(true);
+  }
+
+  async function grupEkle() {
     const ad = yeniAd.trim();
     const kod = yeniKod.trim();
     if (!ad || !kod) {
       toast.error("Ad ve kod gerekli");
       return;
     }
-    const res = await grupKaydet({ ustId, ad, kod });
+    const res = await grupKaydet({ ustId: ekleUstId, ad, kod });
     if (!res.ok || !res.id) {
       toast.error(res.error ?? "Grup eklenemedi.");
       return;
     }
-    setListe((l) => [...l, { id: res.id!, ustId, ad, kod, durum: "Aktif" }]);
-    setYeniAd("");
-    setYeniKod("");
-    setEkleKolon(null);
+    setListe((l) => [
+      ...l,
+      { id: res.id!, ustId: ekleUstId, ad, kod, durum: "Aktif" },
+    ]);
+    setEkleAcik(false);
     toast.success("Grup eklendi");
   }
 
@@ -116,7 +133,6 @@ export function GrupSecici({
   React.useEffect(() => {
     if (!acikPopover) return;
     setArama("");
-    setEkleKolon(null);
     const secili = liste.find((g) => g.ad === value);
     setYolIds(secili ? atalarIds(secili) : []);
   }, [acikPopover, liste, value, atalarIds]);
@@ -159,7 +175,14 @@ export function GrupSecici({
   const triggerEtiket = seciliGrup?.ad ?? "";
 
   return (
-    <Popover open={acikPopover} onOpenChange={setAcikPopover}>
+    <Popover
+      open={acikPopover}
+      onOpenChange={(o) => {
+        // Yeni grup modalı açıkken popover kapanmasın.
+        if (!o && ekleAcik) return;
+        setAcikPopover(o);
+      }}
+    >
       <PopoverTrigger
         render={
           <button
@@ -271,13 +294,18 @@ export function GrupSecici({
                         onClick={() => sec(g, ki)}
                         className={cn(
                           "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                          yoldaMi && "bg-accent",
-                          seciliMi && !yoldaMi && "bg-accent/60 font-medium",
+                          seciliMi
+                            ? "bg-primary/10 font-semibold text-foreground ring-1 ring-primary/30"
+                            : yoldaMi && "bg-accent",
                         )}
                       >
+                        {seciliMi && (
+                          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                            <Check className="size-3" />
+                          </span>
+                        )}
                         <span className="truncate">{g.ad}</span>
                         <span className="ml-auto flex shrink-0 items-center gap-1">
-                          {seciliMi && <Check className="size-3.5" />}
                           <span className="font-mono text-[11px] text-muted-foreground">
                             {g.kod}
                           </span>
@@ -288,67 +316,77 @@ export function GrupSecici({
                       </button>
                     );
                   })}
-                  {/* Sütuna yeni grup ekle */}
-                  {ekleKolon === ki ? (
-                    <div
-                      className="mt-1 flex flex-col gap-1 rounded-[5px] bg-muted/40 p-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Input
-                        autoFocus
-                        placeholder="Grup adı"
-                        value={yeniAd}
-                        onChange={(e) => setYeniAd(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") grupEkle(kolon.ustId);
-                          if (e.key === "Escape") setEkleKolon(null);
-                        }}
-                        className="h-7 text-sm"
-                      />
-                      <div className="flex gap-1">
-                        <Input
-                          placeholder="Kod"
-                          value={yeniKod}
-                          onChange={(e) => setYeniKod(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") grupEkle(kolon.ustId);
-                            if (e.key === "Escape") setEkleKolon(null);
-                          }}
-                          className="h-7 w-16 font-mono text-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => grupEkle(kolon.ustId)}
-                          className="flex h-7 flex-1 items-center justify-center rounded-md bg-foreground text-xs font-medium text-background transition-opacity hover:opacity-90"
-                        >
-                          Ekle
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setYeniAd("");
-                        setYeniKod("");
-                        setEkleKolon(ki);
-                      }}
-                      className="mt-1 flex items-center gap-1 rounded-[5px] px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                      <Plus className="size-3.5" />
-                      {ki === 0 ? "Yeni grup" : "Alt grup ekle"}
-                    </button>
-                  )}
+                  {/* Sütuna yeni grup ekle — modal açar */}
+                  <button
+                    type="button"
+                    onClick={() => ekleAc(kolon.ustId)}
+                    className="mt-1 flex items-center gap-1 rounded-[5px] px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Plus className="size-3.5" />
+                    {ki === 0 ? "Yeni grup" : "Alt grup ekle"}
+                  </button>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <p className="min-w-64 px-2 py-3 text-center text-sm text-muted-foreground">
-            Henüz grup tanımlanmamış — Tanımlamalar → Gruplar&apos;dan ekleyin.
-          </p>
+          <div className="flex min-w-64 flex-col items-center gap-2 px-2 py-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Henüz grup tanımlanmamış.
+            </p>
+            <Button size="sm" onClick={() => ekleAc(null)}>
+              <Plus className="size-4" /> Yeni grup
+            </Button>
+          </div>
         )}
       </PopoverContent>
+
+      {/* Yeni grup modalı */}
+      <Dialog open={ekleAcik} onOpenChange={setEkleAcik}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              {ekleUstId
+                ? `Alt Grup — ${byId.get(ekleUstId)?.ad ?? ""}`
+                : "Yeni Grup"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2.5">
+            <Input
+              autoFocus
+              placeholder="Grup adı (örn. Yatak Odası)"
+              value={yeniAd}
+              onChange={(e) => setYeniAd(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  grupEkle();
+                }
+              }}
+            />
+            <Input
+              placeholder="Kod (örn. 152 veya YTK)"
+              value={yeniKod}
+              onChange={(e) => setYeniKod(e.target.value)}
+              className="font-mono"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  grupEkle();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEkleAcik(false)}>
+              İptal
+            </Button>
+            <Button onClick={grupEkle} disabled={!yeniAd.trim() || !yeniKod.trim()}>
+              Ekle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Popover>
   );
 }
