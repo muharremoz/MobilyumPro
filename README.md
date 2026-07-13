@@ -13,9 +13,49 @@ Mobilya mağazası için yönetim paneli (admin) arayüzü.
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:1616
 npm run build    # production derleme
 ```
+
+## İkinci PC (test) kurulumu
+
+Test makinesi kod'u GitHub üzerinden alır; **veritabanı her PC'de yereldir**
+(kendi SQL Server + kendi `.env`). Güncellemeler `git push` (dev PC) →
+`git pull` (test PC) ile akar.
+
+**Ön koşullar:** Node.js, Git, SQL Server (LocalDB/Express yeterli).
+
+**İlk kurulum (test PC'de, bir kez):**
+
+```powershell
+git clone https://github.com/muharremoz/MobilyumPro.git
+cd MobilyumPro
+```
+
+SQL Server'da `mobilyumpro` adında boş bir veritabanı oluştur (SSMS'de
+`CREATE DATABASE mobilyumpro;` ya da Azure Data Studio). Sonra:
+
+```powershell
+.\kurulum.ps1
+```
+
+Script `.env`'i `.env.example`'dan oluşturur (ilk çalıştırmada Notepad'de
+açılır — `{PAROLA}` yerine SQL Server `sa` parolanı yaz, kaydet, script'i
+tekrar çalıştır). Ardından `npm install` → `db:generate` → `db:push` →
+`db:seed` yapıp `http://localhost:1616` adresinde başlatır.
+
+**Her güncellemede (test PC'de):**
+
+```powershell
+.\guncelle.ps1
+```
+
+Çalışan dev'i durdurur → `git pull` → (değiştiyse) `npm install` ve Prisma
+`generate` + `db push` → dev'i tekrar başlatır. Şema değişince örnek veri
+`npm run db:seed` ile tazelenebilir.
+
+> Not: Test PC'de kod düzenleme yapma; tek kaynak dev (bu) makinedir. Yerel
+> değişiklik olursa `git pull` çakışır.
 
 ## Sayfalar
 
