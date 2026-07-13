@@ -19,7 +19,7 @@ export function AnimatedField({
 }) {
   return (
     <div className={cn("grid gap-0.5", className)}>
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );

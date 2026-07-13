@@ -26,7 +26,10 @@ export const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
 
     return (
       <div className="grid gap-0.5">
-        <label htmlFor={inputId} className="text-sm font-medium">
+        <label
+          htmlFor={inputId}
+          className="text-sm font-medium text-muted-foreground"
+        >
           {label}
         </label>
         <input
