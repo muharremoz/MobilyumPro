@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronRight, ChevronsUpDown, Plus, Search } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -293,24 +293,34 @@ export function GrupSecici({
                         type="button"
                         onClick={() => sec(g, ki)}
                         className={cn(
-                          "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors",
                           seciliMi
-                            ? "bg-primary/10 font-semibold text-foreground"
-                            : yoldaMi && "bg-accent",
+                            ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
+                            : "hover:bg-accent hover:text-accent-foreground",
+                          !seciliMi && yoldaMi && "bg-accent",
                         )}
                       >
                         <span className="truncate">{g.ad}</span>
                         <span className="ml-auto flex shrink-0 items-center gap-1">
-                          {seciliMi && (
-                            <span className="flex size-4 origin-center animate-in items-center justify-center rounded-full bg-emerald-600 text-white duration-200 fade-in-0 zoom-in-50">
-                              <Check className="size-3" />
-                            </span>
-                          )}
-                          <span className="font-mono text-[11px] text-muted-foreground">
+                          <span
+                            className={cn(
+                              "font-mono text-[11px]",
+                              seciliMi
+                                ? "text-emerald-600"
+                                : "text-muted-foreground",
+                            )}
+                          >
                             {g.kod}
                           </span>
                           {cocuklar.length > 0 && (
-                            <ChevronRight className="size-3.5 text-muted-foreground" />
+                            <ChevronRight
+                              className={cn(
+                                "size-3.5",
+                                seciliMi
+                                  ? "text-emerald-600"
+                                  : "text-muted-foreground",
+                              )}
+                            />
                           )}
                         </span>
                       </button>
