@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { ReceteDetay } from "@/components/production/recete-detay";
+import { ParcaForm } from "@/components/production/parca-form";
 import {
   getIstasyonlar,
   getMalzemeler,
@@ -9,7 +9,7 @@ import {
   getReceteVersiyonlari,
 } from "@/lib/db/queries";
 
-export default async function ReceteDetayRoute({
+export default async function ParcaDetayRoute({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -27,7 +27,7 @@ export default async function ReceteDetayRoute({
   if (!recete) notFound();
 
   return (
-    <ReceteDetay
+    <ParcaForm
       recete={recete}
       parcalar={parcalar}
       malzemeler={malzemeler}

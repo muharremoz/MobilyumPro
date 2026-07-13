@@ -53,8 +53,8 @@ function getCrumbs(
   if (pathname === "/urunler/yeni") {
     return {
       crumbs: [
-        { label: "Stok Yönetimi" },
-        { label: "Modeller", href: "/urunler" },
+        { label: "Üretim Yönetimi" },
+        { label: "Model", href: "/urunler" },
         { label: "Yeni Model" },
       ],
       Icon: iconForHref("/urunler"),
@@ -64,8 +64,8 @@ function getCrumbs(
     const id = pathname.split("/")[2];
     return {
       crumbs: [
-        { label: "Stok Yönetimi" },
-        { label: "Modeller", href: "/urunler" },
+        { label: "Üretim Yönetimi" },
+        { label: "Model", href: "/urunler" },
         { label: id, href: `/urunler/${id}` },
         { label: "Düzenle" },
       ],
@@ -76,8 +76,8 @@ function getCrumbs(
     const id = pathname.split("/")[2];
     return {
       crumbs: [
-        { label: "Stok Yönetimi" },
-        { label: "Modeller", href: "/urunler" },
+        { label: "Üretim Yönetimi" },
+        { label: "Model", href: "/urunler" },
         { label: "Model" },
       ],
       Icon: iconForHref("/urunler"),
@@ -103,6 +103,28 @@ function getCrumbs(
         { label: "Stok Kartı" },
       ],
       Icon: iconForHref("/stok-karti"),
+      meta: id,
+    };
+  }
+  if (pathname === "/parcalar/yeni") {
+    return {
+      crumbs: [
+        { label: "Üretim Yönetimi" },
+        { label: "Parça", href: "/stok-yonetimi?bolum=parcalar" },
+        { label: "Yeni Parça" },
+      ],
+      Icon: iconForHref("/uretim/emirler"),
+    };
+  }
+  if (/^\/parcalar\/[^/]+$/.test(pathname)) {
+    const id = pathname.split("/")[2];
+    return {
+      crumbs: [
+        { label: "Üretim Yönetimi" },
+        { label: "Parça", href: "/stok-yonetimi?bolum=parcalar" },
+        { label: "Parça" },
+      ],
+      Icon: iconForHref("/uretim/emirler"),
       meta: id,
     };
   }

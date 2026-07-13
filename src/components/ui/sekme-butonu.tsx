@@ -19,27 +19,40 @@ export function SekmeButonu({
   aktif,
   onClick,
   layoutId,
+  disabled,
+  disabledTitle,
   children,
 }: {
   aktif: boolean;
   onClick: () => void;
   /** Aynı sekme grubundaki tüm butonlarda aynı değer (ör. "stokTabCizgi"). */
   layoutId: string;
+  /** Pasif sekme — tıklanamaz, soluk görünür (ör. kayıttan önce). */
+  disabled?: boolean;
+  /** Pasifken üzerine gelince gösterilecek ipucu. */
+  disabledTitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      title={disabled ? disabledTitle : undefined}
       className={cn(
-        "relative cursor-pointer px-4 pt-1 pb-2.5 text-sm transition-colors",
-        aktif
-          ? "font-medium text-foreground"
-          : "text-muted-foreground hover:text-foreground",
+        "relative px-4 pt-1 pb-2.5 text-sm transition-colors",
+        disabled
+          ? "cursor-not-allowed text-muted-foreground/40"
+          : cn(
+              "cursor-pointer",
+              aktif
+                ? "font-medium text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            ),
       )}
     >
       {children}
-      {aktif && (
+      {aktif && !disabled && (
         <motion.span
           layoutId={layoutId}
           className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground"

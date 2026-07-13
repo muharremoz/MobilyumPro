@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronsUpDown, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -207,7 +208,7 @@ export function GrupSecici({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-auto min-w-(--anchor-width) gap-0 p-1.5"
+        className="w-auto gap-0 p-1.5"
       >
         <div className="relative mb-1.5">
           <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -275,12 +276,20 @@ export function GrupSecici({
               </div>
             )}
             <div className="flex max-h-72 gap-1 overflow-x-auto">
+              <AnimatePresence initial={false}>
               {kolonlar.map((kolon, ki) => (
+                <motion.div
+                  key={kolon.ustId ?? "__root"}
+                  initial={ki === 0 ? false : { width: 0, opacity: 0 }}
+                  animate={{ width: 192, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 550, damping: 42 }}
+                  className={cn("shrink-0 overflow-hidden", ki > 0 && "border-l")}
+                >
                 <div
-                  key={ki}
                   className={cn(
-                    "flex max-h-72 w-48 shrink-0 flex-col overflow-y-auto",
-                    ki > 0 && "border-l pl-1",
+                    "flex max-h-72 w-48 flex-col overflow-y-auto",
+                    ki > 0 && "pl-1",
                   )}
                 >
                   {kolon.items.map((g) => {
@@ -337,7 +346,9 @@ export function GrupSecici({
                     {ki === 0 ? "Yeni grup" : "Alt grup ekle"}
                   </button>
                 </div>
+                </motion.div>
               ))}
+              </AnimatePresence>
             </div>
           </>
         ) : (

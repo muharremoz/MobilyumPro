@@ -1,4 +1,4 @@
-import { ReceteDetay } from "@/components/production/recete-detay";
+import { ParcaForm } from "@/components/production/parca-form";
 import {
   getIstasyonlar,
   getMalzemeler,
@@ -6,7 +6,7 @@ import {
   getParcalar,
 } from "@/lib/db/queries";
 
-export default async function YeniReceteRoute() {
+export default async function YeniParcaRoute() {
   const [parcalar, malzemeler, modeller, istasyonlar] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
@@ -14,7 +14,7 @@ export default async function YeniReceteRoute() {
     getIstasyonlar(),
   ]);
   return (
-    <ReceteDetay
+    <ParcaForm
       recete={null}
       parcalar={parcalar}
       malzemeler={malzemeler}

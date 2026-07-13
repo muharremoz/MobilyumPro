@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { NewProductPage } from "@/components/products/new-product-page";
+import { ModelForm } from "@/components/products/model-form";
 import {
   getMalzemeler,
   getModeller,
@@ -25,7 +25,7 @@ export default async function UrunDuzenleRoute({
   const product = urunler.find((u) => u.id === id);
   if (!product) notFound();
   return (
-    <NewProductPage
+    <ModelForm
       product={product}
       parcalar={parcalar}
       malzemeler={malzemeler}

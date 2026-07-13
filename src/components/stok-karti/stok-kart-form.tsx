@@ -317,6 +317,57 @@ type Tab =
   | "analiz"
   | "dokumanlar";
 
+/** Form değerlerini StokKarti'ye çevirir — kaydetme + canlı önizleme şeridi. */
+function formToKart(form: Form): Omit<StokKarti, "miktar"> {
+  const t = (v: string) => v.trim() || undefined;
+  const num = (v: string) => (v.trim() ? Number(v) : undefined);
+  const fiyat = (v: string) => (v.trim() ? Number(v) : 0);
+  return {
+    id: form.id,
+    kod: t(form.kod),
+    ad: form.ad.trim(),
+    tur: t(form.tur),
+    cins: t(form.cins),
+    grup: form.grup,
+    altGrup: t(form.altGrup),
+    detayGrup: t(form.detayGrup),
+    kategori: t(form.kategori),
+    marka: t(form.marka),
+    model: t(form.model),
+    stokBirimi: form.stokBirimi.trim() || "adet",
+    puan: num(form.puan),
+    yukseklik: num(form.yukseklik),
+    genislik: num(form.genislik),
+    boy: num(form.boy),
+    agirlik: num(form.agirlik),
+    minSiparis: num(form.minSiparis),
+    minStok: num(form.minStok),
+    maxStok: num(form.maxStok),
+    muhasebeKodu: t(form.muhasebeKodu),
+    receteParcaId: t(form.receteParcaId),
+    rota: "Standart Fabrika Rotası",
+    ureticiCariId: t(form.ureticiCariId),
+    ureticiKodu: t(form.ureticiKodu),
+    bolum: t(form.bolum),
+    renkKodu: t(form.renkKodu),
+    barkod: t(form.barkod),
+    aciklama: t(form.aciklama),
+    durum: form.durum,
+    maliyetFiyati: fiyat(form.maliyetFiyati),
+    maliyetBirimi: form.maliyetBirimi,
+    satisFiyat1: fiyat(form.satisFiyat1),
+    satisBirim1: form.satisBirim1,
+    satisFiyat2: fiyat(form.satisFiyat2),
+    satisBirim2: form.satisBirim2,
+    satisFiyat3: fiyat(form.satisFiyat3),
+    satisBirim3: form.satisBirim3,
+    satisFiyat4: fiyat(form.satisFiyat4),
+    satisBirim4: form.satisBirim4,
+    satisFiyat5: fiyat(form.satisFiyat5),
+    satisBirim5: form.satisBirim5,
+  };
+}
+
 export function StokKartForm({
   kart,
   detay = BOS_DETAY,
@@ -420,6 +471,19 @@ export function StokKartForm({
   const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // Canlı önizleme şeridi — yeni modda formdan üretilir, alanlar doldukça güncellenir.
+  const onizlemeKart: StokKarti = React.useMemo(
+    () => ({
+      ...formToKart(form),
+      ad: form.ad.trim() || "Yeni Stok Kartı",
+      miktar: kart?.miktar ?? 0,
+    }),
+    [form, kart],
+  );
+  const seritKart = duzenleme && kart ? kart : onizlemeKart;
+  const seritDetay = duzenleme && kart ? detay : BOS_DETAY;
+  const hizmet = form.grup === "Hizmet";
+
   async function kaydet() {
     if (!form.ad.trim()) {
       toast.error("Ad gerekli");
@@ -431,53 +495,7 @@ export function StokKartForm({
       setTab("genel");
       return;
     }
-    const t = (v: string) => v.trim() || undefined;
-    const num = (v: string) => (v.trim() ? Number(v) : undefined);
-    const fiyat = (v: string) => (v.trim() ? Number(v) : 0);
-    const yeniKart: Omit<StokKarti, "miktar"> = {
-      id: form.id,
-      kod: t(form.kod),
-      ad: form.ad.trim(),
-      tur: t(form.tur),
-      cins: t(form.cins),
-      grup: form.grup,
-      altGrup: t(form.altGrup),
-      detayGrup: t(form.detayGrup),
-      kategori: t(form.kategori),
-      marka: t(form.marka),
-      model: t(form.model),
-      stokBirimi: form.stokBirimi.trim() || "adet",
-      puan: num(form.puan),
-      yukseklik: num(form.yukseklik),
-      genislik: num(form.genislik),
-      boy: num(form.boy),
-      agirlik: num(form.agirlik),
-      minSiparis: num(form.minSiparis),
-      minStok: num(form.minStok),
-      maxStok: num(form.maxStok),
-      muhasebeKodu: t(form.muhasebeKodu),
-      receteParcaId: t(form.receteParcaId),
-      rota: "Standart Fabrika Rotası",
-      ureticiCariId: t(form.ureticiCariId),
-      ureticiKodu: t(form.ureticiKodu),
-      bolum: t(form.bolum),
-      renkKodu: t(form.renkKodu),
-      barkod: t(form.barkod),
-      aciklama: t(form.aciklama),
-      durum: form.durum,
-      maliyetFiyati: fiyat(form.maliyetFiyati),
-      maliyetBirimi: form.maliyetBirimi,
-      satisFiyat1: fiyat(form.satisFiyat1),
-      satisBirim1: form.satisBirim1,
-      satisFiyat2: fiyat(form.satisFiyat2),
-      satisBirim2: form.satisBirim2,
-      satisFiyat3: fiyat(form.satisFiyat3),
-      satisBirim3: form.satisBirim3,
-      satisFiyat4: fiyat(form.satisFiyat4),
-      satisBirim4: form.satisBirim4,
-      satisFiyat5: fiyat(form.satisFiyat5),
-      satisBirim5: form.satisBirim5,
-    };
+    const yeniKart = formToKart(form);
     const res = await stokKaydet(yeniKart, !duzenleme);
     if (!res.ok) {
       toast.error(res.error ?? "Stok kartı kaydedilemedi");
@@ -492,14 +510,16 @@ export function StokKartForm({
     router.push("/stok-karti");
   }
 
+  // Kayıt gerektiren sekmeler yeni modda pasif (bir stok id'sine bağlılar).
+  const kayitLazim = !duzenleme;
+  const kayitIpucu = "Kart kaydedildikten sonra eklenebilir";
+
   return (
     <div className="flex flex-col gap-4">
-      {!duzenleme && <h1 className="text-xl font-semibold">Yeni Stok Kartı</h1>}
+      {/* Kart başlığı — hem düzenlemede hem yeni modda (canlı önizleme) */}
+      <StokKartiSerit kart={seritKart} detay={seritDetay} />
 
-      {/* Kart başlığı — sadece düzenlemede */}
-      {duzenleme && kart && <StokKartiSerit kart={kart} detay={detay} />}
-
-      {/* Sekmeler — alt kayıt sekmeleri yalnız düzenlemede (id ister) */}
+      {/* Sekmeler — hepsi görünür; kayıt gerektirenler yeni modda pasif */}
       <div className="relative -mb-px flex flex-wrap gap-1 border-b">
         <TabBtn aktif={tab === "genel"} onClick={() => setTab("genel")}>
           Genel
@@ -507,46 +527,55 @@ export function StokKartForm({
         <TabBtn aktif={tab === "fiyat"} onClick={() => setTab("fiyat")}>
           Fiyat
         </TabBtn>
-        {duzenleme && (
+        {!hizmet && (
+          <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
+            Reçete
+          </TabBtn>
+        )}
+        <TabBtn
+          aktif={tab === "uretici"}
+          onClick={() => setTab("uretici")}
+          disabled={kayitLazim}
+          disabledTitle={kayitIpucu}
+        >
+          Üretici
+        </TabBtn>
+        <TabBtn
+          aktif={tab === "musteriler"}
+          onClick={() => setTab("musteriler")}
+          disabled={kayitLazim}
+          disabledTitle={kayitIpucu}
+        >
+          Müşteriler
+        </TabBtn>
+        {!hizmet && (
           <>
-            {kart?.grup !== "Hizmet" && (
-              <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
-                Reçete
-              </TabBtn>
-            )}
-            <TabBtn aktif={tab === "uretici"} onClick={() => setTab("uretici")}>
-              Üretici
+            <TabBtn
+              aktif={tab === "hareketler"}
+              onClick={() => setTab("hareketler")}
+              disabled={kayitLazim}
+              disabledTitle={kayitIpucu}
+            >
+              Stok Hareketleri
             </TabBtn>
             <TabBtn
-              aktif={tab === "musteriler"}
-              onClick={() => setTab("musteriler")}
+              aktif={tab === "analiz"}
+              onClick={() => setTab("analiz")}
+              disabled={kayitLazim}
+              disabledTitle={kayitIpucu}
             >
-              Müşteriler
-            </TabBtn>
-            {kart?.grup !== "Hizmet" && (
-              <>
-                <TabBtn
-                  aktif={tab === "hareketler"}
-                  onClick={() => setTab("hareketler")}
-                >
-                  Stok Hareketleri
-                </TabBtn>
-                <TabBtn
-                  aktif={tab === "analiz"}
-                  onClick={() => setTab("analiz")}
-                >
-                  Analiz
-                </TabBtn>
-              </>
-            )}
-            <TabBtn
-              aktif={tab === "dokumanlar"}
-              onClick={() => setTab("dokumanlar")}
-            >
-              Dokümanlar
+              Analiz
             </TabBtn>
           </>
         )}
+        <TabBtn
+          aktif={tab === "dokumanlar"}
+          onClick={() => setTab("dokumanlar")}
+          disabled={kayitLazim}
+          disabledTitle={kayitIpucu}
+        >
+          Dokümanlar
+        </TabBtn>
       </div>
 
       <TabIcerik tabKey={tab}>
@@ -599,7 +628,7 @@ export function StokKartForm({
             musteriCariler={musteriCariler}
           />
         )}
-        {duzenleme && kart && tab === "recete" && (
+        {tab === "recete" && (
           <ReceteTab
             receteParcaId={form.receteParcaId}
             parcalar={parcalar}
@@ -623,14 +652,24 @@ export function StokKartForm({
 function TabBtn({
   aktif,
   onClick,
+  disabled,
+  disabledTitle,
   children,
 }: {
   aktif: boolean;
   onClick: () => void;
+  disabled?: boolean;
+  disabledTitle?: string;
   children: React.ReactNode;
 }) {
   return (
-    <SekmeButonu aktif={aktif} onClick={onClick} layoutId="stokTabCizgi">
+    <SekmeButonu
+      aktif={aktif}
+      onClick={onClick}
+      disabled={disabled}
+      disabledTitle={disabledTitle}
+      layoutId="stokTabCizgi"
+    >
       {children}
     </SekmeButonu>
   );

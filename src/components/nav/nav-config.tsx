@@ -69,7 +69,6 @@ export const sections: Section[] = [
     RailIcon: I(BoxesIcon),
     items: [
       { groupHeader: "Stok", label: "Stok Kartları", href: "/stok-karti", icon: I(BoxesIcon) },
-      { label: "Modeller", href: "/urunler", icon: I(RockingChairIcon) },
       { label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
       { label: "Stok Takip", href: "/stok-yonetimi?bolum=takip", icon: I(ActivityIcon) },
       { label: "Stok Hareketleri", href: "/stok-yonetimi?bolum=hareketler", icon: I(HistoryIcon) },
@@ -78,14 +77,25 @@ export const sections: Section[] = [
     ],
   },
   {
+    id: "uretim",
+    label: "Üretim Yönetimi",
+    RailIcon: I(HammerIcon),
+    items: [
+      { label: "Model", href: "/urunler", icon: I(RockingChairIcon) },
+      { label: "Parça", href: "/stok-yonetimi?bolum=parcalar", icon: I(CpuIcon) },
+      { label: "Üretim Planı", href: "/uretim/plan", icon: I(CalendarDaysIcon) },
+      { label: "Üretim Takibi", href: "/uretim/emirler", icon: I(HammerIcon) },
+      { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
+      { label: "Reçete", href: "/uretim/recete", icon: I(LayersIcon) },
+      { label: "Poşet", href: "/uretim/poset", icon: I(BoxesIcon) },
+    ],
+  },
+  {
     id: "tanimlamalar",
     label: "Tanımlamalar",
     RailIcon: I(SlidersHorizontalIcon),
     items: [
       { groupHeader: "Üretim", label: "İstasyonlar", href: "/stok-yonetimi?bolum=istasyonlar", icon: I(BlocksIcon) },
-      { label: "Parçalar", href: "/stok-yonetimi?bolum=parcalar", icon: I(CpuIcon) },
-      { label: "Reçete Oluşturma", href: "/uretim/recete", icon: I(ClipboardCheckIcon) },
-      { label: "Malzeme Poşeti", href: "/uretim/poset", icon: I(BoxesIcon) },
       { groupHeader: "Model", label: "Gruplar", href: "/stok-yonetimi?bolum=gruplar", icon: I(FolderTreeIcon) },
       { label: "Markalar", href: "/stok-yonetimi?bolum=markalar", icon: I(BadgePercentIcon) },
       { label: "Koleksiyonlar", href: "/stok-yonetimi?bolum=koleksiyonlar", icon: I(FrameIcon) },
@@ -101,22 +111,6 @@ export const sections: Section[] = [
     items: [
       { label: "Siparişler", href: "/siparisler", icon: I(CartIcon) },
       { label: "Müşteriler", href: "/musteriler", icon: I(UsersIcon) },
-    ],
-  },
-  {
-    id: "uretim-plan",
-    label: "Üretim Planı",
-    RailIcon: I(CalendarDaysIcon),
-    href: "/uretim/plan",
-  },
-  {
-    id: "uretim-takibi",
-    label: "Üretim Takibi",
-    RailIcon: I(HammerIcon),
-    items: [
-      { label: "Üretim Emirleri", href: "/uretim/emirler", icon: I(HammerIcon) },
-      { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
-      { label: "Reçeteler (BOM)", href: "/uretim/recete", icon: I(LayersIcon) },
     ],
   },
   {

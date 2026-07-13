@@ -433,6 +433,8 @@ function receteSnapshot(recete: Parca["recete"]): ReceteSnapshotSatir[] {
 export async function parcaKaydet(
   p: Omit<Parca, "id"> & { id?: string },
   aciklama?: string,
+  /** Bu parçanın bağlı olduğu modeller (verilirse ModelParca sıfırlanıp yazılır). */
+  modelBaglari?: { modelId: string; miktar: number }[],
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
     let id = p.id;
@@ -489,9 +491,23 @@ export async function parcaKaydet(
           },
         });
       }
+
+      // Bağlı modeller verildiyse bu parçanın model üyeliklerini sıfırla + yaz.
+      if (modelBaglari) {
+        await tx.modelParca.deleteMany({ where: { parcaId } });
+        const baglar = modelBaglari
+          .filter((b) => b.modelId)
+          .map((b) => ({ modelId: b.modelId, parcaId, miktar: b.miktar || 1 }));
+        if (baglar.length) await tx.modelParca.createMany({ data: baglar });
+      }
     });
     revalidatePath("/stok-yonetimi");
     revalidatePath("/uretim/recete");
+    if (modelBaglari) {
+      revalidatePath("/urunler");
+      revalidatePath("/parcalar");
+      revalidatePath("/");
+    }
     return { ok: true, id: parcaId };
   } catch {
     return { ok: false, error: "Reçete kaydedilemedi." };

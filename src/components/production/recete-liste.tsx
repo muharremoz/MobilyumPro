@@ -255,7 +255,7 @@ export function ReceteListe({
       return;
     }
     toast.success("Reçete kopyalandı");
-    router.push(`/uretim/recete/${res.id}`);
+    router.push(`/parcalar/${res.id}`);
   }
 
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
@@ -270,7 +270,7 @@ export function ReceteListe({
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             nativeButton={false}
-            render={<Link href="/uretim/recete/yeni" />}
+            render={<Link href="/parcalar/yeni" />}
           >
             Yeni Reçete
           </Button>
@@ -367,7 +367,7 @@ export function ReceteListe({
                   render={
                     <TableRow
                       className="cursor-pointer"
-                      onClick={() => router.push(`/uretim/recete/${p.id}`)}
+                      onClick={() => router.push(`/parcalar/${p.id}`)}
                     />
                   }
                 >
@@ -410,7 +410,7 @@ export function ReceteListe({
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-44">
                   <ContextMenuItem
-                    onClick={() => router.push(`/uretim/recete/${p.id}`)}
+                    onClick={() => router.push(`/parcalar/${p.id}`)}
                   >
                     <Pencil className="mr-2 size-4" /> Düzenle
                   </ContextMenuItem>

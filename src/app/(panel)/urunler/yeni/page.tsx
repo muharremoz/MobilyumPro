@@ -1,4 +1,4 @@
-import { NewProductPage } from "@/components/products/new-product-page";
+import { ModelForm } from "@/components/products/model-form";
 import {
   getMalzemeler,
   getParcalar,
@@ -14,7 +14,7 @@ export default async function YeniUrunRoute() {
     getTanimlar(),
   ]);
   return (
-    <NewProductPage
+    <ModelForm
       parcalar={parcalar}
       malzemeler={malzemeler}
       gruplar={gruplar}

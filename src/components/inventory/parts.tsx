@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   MoreHorizontal,
@@ -12,16 +13,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
-import { Switch } from "@/components/ui/switch";
-import { FormSheet } from "@/components/ui/form-sheet";
-import { TabIcerik } from "@/components/ui/tab-icerik";
-import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { ListHeader } from "@/components/ui/list-header";
 import {
   useKolonAyarlari,
@@ -31,13 +27,6 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
-import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
-import { AnimatedField } from "@/components/ui/animated-field";
-import { BlocksIcon } from "@/components/ui/icons/blocks";
-import { ScanTextIcon } from "@/components/ui/icons/scan-text";
-import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
-import { AlignLeftIcon } from "@/components/ui/icons/align-left";
-import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,12 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  type Parca,
-  type Malzeme,
-  type ParcaKategori,
-  type ReceteSatiri,
-} from "@/lib/data";
+import { type Parca, type Malzeme, type ParcaKategori } from "@/lib/data";
 import { flattenParca } from "@/lib/bom";
 import { parcaKaydet, parcaSil } from "@/lib/db/actions";
 
@@ -115,8 +99,7 @@ export function Parts({
   );
   const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
-  const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [duzenlenen, setDuzenlenen] = React.useState<Parca | null>(null);
+  const router = useRouter();
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -212,19 +195,6 @@ export function Parts({
     await parcaKaydet(k);
     toast.success("Parça kopyalandı");
   }
-  async function kaydet(p: Parca) {
-    setListe((l) => {
-      const i = l.findIndex((x) => x.id === p.id);
-      if (i >= 0) {
-        const n = [...l];
-        n[i] = p;
-        return n;
-      }
-      return [p, ...l];
-    });
-    await parcaKaydet(p);
-  }
-
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
   const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
@@ -253,13 +223,7 @@ export function Parts({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Parçalar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
+          <Button size="sm" onClick={() => router.push("/parcalar/yeni")}>
             <Plus className="size-4" /> Yeni Parça
           </Button>
         </ListHeader>
@@ -353,10 +317,7 @@ export function Parts({
                 key={p.id}
                 data-state={secili.has(p.id) ? "selected" : undefined}
                 className="cursor-pointer"
-                onClick={() => {
-                  setDuzenlenen(p);
-                  setSheetOpen(true);
-                }}
+                onClick={() => router.push(`/parcalar/${p.id}`)}
               >
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -406,10 +367,7 @@ export function Parts({
                     />
                     <DropdownMenuContent align="end" className="w-36">
                       <DropdownMenuItem
-                        onClick={() => {
-                          setDuzenlenen(p);
-                          setSheetOpen(true);
-                        }}
+                        onClick={() => router.push(`/parcalar/${p.id}`)}
                       >
                         <Pencil className="mr-2 size-4" /> Düzenle
                       </DropdownMenuItem>
@@ -471,412 +429,8 @@ export function Parts({
         </div>
       </div>
 
-      <PartSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        item={duzenlenen}
-        tumParcalar={liste}
-        tumMalzemeler={malzemeler}
-        onSave={kaydet}
-      />
-
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
-    </div>
-  );
-}
-
-function PartSheet({
-  open,
-  onOpenChange,
-  item,
-  tumParcalar,
-  tumMalzemeler,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  item: Parca | null;
-  tumParcalar: Parca[];
-  tumMalzemeler: Malzeme[];
-  onSave: (p: Parca) => void;
-}) {
-  const [form, setForm] = React.useState({
-    id: "",
-    ad: "",
-    kategori: "Karyola" as ParcaKategori,
-    aciklama: "",
-    durum: "Aktif" as "Aktif" | "Pasif",
-  });
-  const [recete, setRecete] = React.useState<ReceteSatiri[]>([]);
-  const [tab, setTab] = React.useState<"bilgi" | "recete">("bilgi");
-  const durumRef = React.useRef<AnimatedIconHandle>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    if (item) {
-      setForm({
-        id: item.id,
-        ad: item.ad,
-        kategori: item.kategori,
-        aciklama: item.aciklama ?? "",
-        durum: item.durum,
-      });
-      setRecete(item.recete);
-    } else {
-      setForm({
-        id: "",
-        ad: "",
-        kategori: "Karyola",
-        aciklama: "",
-        durum: "Aktif",
-      });
-      setRecete([]);
-    }
-    setTab("bilgi");
-  }, [open, item]);
-
-  function kaydet() {
-    if (!form.ad.trim()) {
-      toast.error("Parça adı gerekli");
-      return;
-    }
-    onSave({
-      id: form.id.trim() || `PRC-${Math.floor(2000 + Math.random() * 8000)}`,
-      ad: form.ad.trim(),
-      kategori: form.kategori,
-      aciklama: form.aciklama.trim() || undefined,
-      durum: form.durum,
-      recete,
-    });
-    toast.success(item ? "Parça güncellendi" : "Parça eklendi");
-    onOpenChange(false);
-  }
-
-  // Reçeteye ekle
-  function malzemeEkle(malzemeId: string) {
-    setRecete((r) => [
-      ...r,
-      { bilesen: { tip: "malzeme", ref: malzemeId }, miktar: 1 },
-    ]);
-  }
-  function parcaEkle(parcaId: string) {
-    setRecete((r) => [
-      ...r,
-      { bilesen: { tip: "parca", ref: parcaId }, miktar: 1 },
-    ]);
-  }
-  function satirSil(i: number) {
-    setRecete((r) => r.filter((_, j) => j !== i));
-  }
-  function satirMiktar(i: number, v: string) {
-    const n = Number(v);
-    setRecete((r) =>
-      r.map((s, j) =>
-        j === i ? { ...s, miktar: isNaN(n) ? 0 : n } : s,
-      ),
-    );
-  }
-
-  const baskaParcalar = tumParcalar.filter((p) => p.id !== item?.id);
-
-  return (
-    <FormSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={item ? "Parçayı Düzenle" : "Yeni Parça"}
-      icon={BlocksIcon}
-      onSave={kaydet}
-      contentClassName="p-0"
-    >
-      <div className="flex h-full flex-col">
-        {/* Sekme bar */}
-        <div className="relative -mb-px flex gap-1 border-b px-3 pt-2">
-          <TabBtn aktif={tab === "bilgi"} onClick={() => setTab("bilgi")}>
-            Bilgi
-          </TabBtn>
-          <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
-            Reçete ({recete.length})
-          </TabBtn>
-        </div>
-
-        <div className="flex-1 overflow-auto p-3.5">
-          <TabIcerik tabKey={tab}>
-          {tab === "bilgi" && (
-            <div className="grid gap-2.5">
-              <IconInput
-                label="Parça Adı"
-                icon={BlocksIcon}
-                placeholder="Örn. Komidin 2 Çekmeceli"
-                value={form.ad}
-                onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))}
-              />
-              <IconInput
-                label="Kod"
-                icon={ScanTextIcon}
-                placeholder="PRC-0000"
-                value={form.id}
-                onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
-              />
-              <AnimatedField label="Kategori" icon={FolderOpenIcon}>
-                <SearchSelect
-                  items={KATEGORILER}
-                  value={form.kategori}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      kategori: (v as ParcaKategori) ?? "Diğer",
-                    }))
-                  }
-                  placeholder="Kategori"
-                />
-              </AnimatedField>
-              <AnimatedField label="Açıklama" icon={AlignLeftIcon}>
-                <textarea
-                  rows={3}
-                  placeholder="Kısa açıklama..."
-                  value={form.aciklama}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, aciklama: e.target.value }))
-                  }
-                  className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                />
-              </AnimatedField>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                  }))
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setForm((f) => ({
-                      ...f,
-                      durum: f.durum === "Aktif" ? "Pasif" : "Aktif",
-                    }));
-                  }
-                }}
-                onMouseEnter={() => durumRef.current?.startAnimation()}
-                onMouseLeave={() => durumRef.current?.stopAnimation()}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              >
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <CircleCheckIcon
-                    ref={durumRef}
-                    size={15}
-                    className="text-muted-foreground"
-                  />
-                  Durum
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {form.durum}
-                  </span>
-                  <Switch
-                    checked={form.durum === "Aktif"}
-                    className="pointer-events-none data-checked:bg-emerald-600"
-                  />
-                </span>
-              </div>
-            </div>
-          )}
-
-          {tab === "recete" && (
-            <RecipeEditor
-              recete={recete}
-              parcalar={baskaParcalar}
-              malzemeler={tumMalzemeler}
-              onMalzemeEkle={malzemeEkle}
-              onParcaEkle={parcaEkle}
-              onSatirSil={satirSil}
-              onMiktar={satirMiktar}
-            />
-          )}
-          </TabIcerik>
-        </div>
-      </div>
-    </FormSheet>
-  );
-}
-
-function TabBtn({
-  aktif,
-  onClick,
-  children,
-}: {
-  aktif: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <SekmeButonu aktif={aktif} onClick={onClick} layoutId="parcaTabCizgi">
-      {children}
-    </SekmeButonu>
-  );
-}
-
-function RecipeEditor({
-  recete,
-  parcalar,
-  malzemeler,
-  onMalzemeEkle,
-  onParcaEkle,
-  onSatirSil,
-  onMiktar,
-}: {
-  recete: ReceteSatiri[];
-  parcalar: Parca[];
-  malzemeler: Malzeme[];
-  onMalzemeEkle: (id: string) => void;
-  onParcaEkle: (id: string) => void;
-  onSatirSil: (i: number) => void;
-  onMiktar: (i: number, v: string) => void;
-}) {
-  // Malzeme/parça ekleme için seçim kutuları (aranabilir).
-  const [malzemeSec, setMalzemeSec] = React.useState<string | null>(null);
-  const [parcaSec, setParcaSec] = React.useState<string | null>(null);
-
-  const malzemeMap = React.useMemo(
-    () => new Map(malzemeler.map((m) => [m.id, m])),
-    [],
-  );
-  const parcaMap = React.useMemo(
-    () => new Map(parcalar.map((p) => [p.id, p])),
-    [parcalar],
-  );
-
-  function malzemeEtiket(id: string) {
-    const m = malzemeMap.get(id);
-    return m ? `${m.ad} · ${m.birim}` : id;
-  }
-  function parcaEtiket(id: string) {
-    const p = parcaMap.get(id);
-    return p ? `${p.ad}` : id;
-  }
-
-  function handleMalzeme(v: string | null) {
-    if (!v) return;
-    // SearchSelect tam ad'ı geri verir — eşleşen malzemeyi bul.
-    const m = malzemeler.find((x) => malzemeEtiket(x.id) === v);
-    if (m) {
-      onMalzemeEkle(m.id);
-      setMalzemeSec(null);
-    }
-  }
-  function handleParca(v: string | null) {
-    if (!v) return;
-    const p = parcalar.find((x) => parcaEtiket(x.id) === v);
-    if (p) {
-      onParcaEkle(p.id);
-      setParcaSec(null);
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Bileşen ekleme */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="grid gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            Malzeme ekle
-          </label>
-          <SearchSelect
-            items={malzemeler.map((m) => malzemeEtiket(m.id))}
-            value={malzemeSec}
-            onValueChange={handleMalzeme}
-            placeholder="Malzeme seç"
-            searchPlaceholder="Malzeme ara..."
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            Parça ekle (alt-parça)
-          </label>
-          <SearchSelect
-            items={parcalar.map((p) => parcaEtiket(p.id))}
-            value={parcaSec}
-            onValueChange={handleParca}
-            placeholder="Parça seç"
-            searchPlaceholder="Parça ara..."
-          />
-        </div>
-      </div>
-
-      {/* Reçete tablosu */}
-      <div className="overflow-hidden rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tip</TableHead>
-              <TableHead>Bileşen</TableHead>
-              <TableHead className="w-28 text-right">Miktar</TableHead>
-              <TableHead className="w-16">Birim</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recete.map((s, i) => {
-              const tipM = s.bilesen.tip === "malzeme";
-              const m = tipM ? malzemeMap.get(s.bilesen.ref) : undefined;
-              const p = !tipM ? parcaMap.get(s.bilesen.ref) : undefined;
-              return (
-                <TableRow key={`${s.bilesen.tip}-${s.bilesen.ref}-${i}`}>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        tipM
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-violet-100 text-violet-800"
-                      }
-                    >
-                      {tipM ? "Malzeme" : "Parça"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {tipM ? m?.ad ?? "?" : p?.ad ?? "?"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      value={s.miktar}
-                      onChange={(e) => onMiktar(i, e.target.value)}
-                      className="h-8 w-20 text-right tabular-nums"
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {tipM ? m?.birim ?? "" : "adet"}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => onSatirSil(i)}
-                      aria-label="Sil"
-                    >
-                      <Trash className="size-3.5 text-rose-600" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {recete.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-20 text-center text-sm text-muted-foreground"
-                >
-                  Henüz bileşen yok. Üstten Malzeme veya Parça ekleyin.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
     </div>
   );
 }

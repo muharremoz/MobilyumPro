@@ -653,6 +653,8 @@ export async function getIstasyonlar(): Promise<Istasyon[]> {
  */
 /** Stok "tip" tanımının varsayılan kalemleri (ayna senkronunun dayandığı set). */
 const VARSAYILAN_STOK_TIPLERI = ["Hammadde", "Yarı Mamül", "Mamül", "Hizmet"];
+/** Birim tanımının başlangıç tohumu (yalnız tablo boşken bir kez eklenir). */
+const VARSAYILAN_BIRIMLER = ["adet", "m", "m²", "m³", "kg", "lt", "takım"];
 
 export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   // Stok tipleri her zaman bulunsun (idempotent). SQL Server createMany
@@ -666,6 +668,15 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
   if (eksikTipler.length > 0) {
     await db.tanim.createMany({
       data: eksikTipler.map((ad) => ({ tip: "tip", ad })),
+    });
+  }
+
+  // Birimler bir KEZ tohumlanır: hiç birim yoksa varsayılanları ekle. Tip'ten
+  // farklı olarak eksikleri sürekli geri eklemez — kullanıcı istediğini silebilsin.
+  const birimSayisi = await db.tanim.count({ where: { tip: "birim" } });
+  if (birimSayisi === 0) {
+    await db.tanim.createMany({
+      data: VARSAYILAN_BIRIMLER.map((ad) => ({ tip: "birim", ad })),
     });
   }
 
