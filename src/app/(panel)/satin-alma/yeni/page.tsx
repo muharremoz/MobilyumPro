@@ -6,7 +6,29 @@ import {
   getSonAlisFiyatlari,
 } from "@/lib/db/queries";
 
-export default async function YeniAlisRoute() {
+/**
+ * "kalem" parametresi (üretim planından gelir): "malzemeId:miktar,..."
+ * biçiminde; satın alma satırlarını önceden doldurmak için ayrıştırılır.
+ */
+function kalemAyristir(
+  raw?: string,
+): { malzemeId: string; miktar: number }[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((p) => {
+      const [id, m] = p.split(":");
+      return { malzemeId: (id ?? "").trim(), miktar: Number(m) || 1 };
+    })
+    .filter((k) => k.malzemeId);
+}
+
+export default async function YeniAlisRoute({
+  searchParams,
+}: {
+  searchParams: Promise<{ kalem?: string }>;
+}) {
+  const { kalem } = await searchParams;
   const [cariler, malzemeler, depolar, sonFiyatlar] = await Promise.all([
     getCariler(),
     getMalzemeler(),
@@ -23,6 +45,7 @@ export default async function YeniAlisRoute() {
       malzemeler={malzemeler}
       depolar={depolar.filter((d) => d.durum === "Aktif").map((d) => d.ad)}
       sonFiyatlar={sonFiyatlar}
+      baslangicKalemler={kalemAyristir(kalem)}
     />
   );
 }

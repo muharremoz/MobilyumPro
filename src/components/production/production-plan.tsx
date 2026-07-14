@@ -180,9 +180,16 @@ export function ProductionPlan({
       toast.error("Satın alma için en az bir eksik malzeme seçin.");
       return;
     }
-    toast.success(
-      `${secilenEksik.length} malzeme için satın alma talebi oluşturuldu (demo) — tahmini ${formatTL(eksikMaliyet)}`,
-    );
+    // Seçili eksikleri, ihtiyaç miktarıyla (gerekli − stok, açık kadar) satın
+    // alma formuna aktar. Tedarikçi/fiyat/depo orada onaylanıp gerçek alış
+    // kaydedilir.
+    const kalem = secilenEksik
+      .map((m) => {
+        const acik = Math.max(0, m.toplamMiktar - m.malzeme.stok);
+        return `${m.malzeme.id}:${Math.round(acik * 100) / 100}`;
+      })
+      .join(",");
+    router.push(`/satin-alma/yeni?kalem=${encodeURIComponent(kalem)}`);
   }
 
   const gonderEngel = !modelGecerli

@@ -67,6 +67,45 @@ type Satir = {
 
 const bugun = () => new Date().toISOString().slice(0, 10);
 
+/**
+ * Üretim planından gelen kalemleri (malzemeId + miktar) satın alma satırlarına
+ * çevirir. Varsayılan tedarikçi malzemenin üretici carisi (tedarikçilerde ise);
+ * fiyat o firmadan son alış, yoksa malzemenin genel birim fiyatı.
+ */
+function ilkSatirlar(
+  kalemler: { malzemeId: string; miktar: number }[] | undefined,
+  malzemeler: Malzeme[],
+  tedarikciler: { id: string; ad: string }[],
+  sonFiyatlar: { malzemeId: string; cariId: string; fiyat: number }[],
+): Satir[] {
+  if (!kalemler?.length) return [];
+  const mMap = new Map(malzemeler.map((m) => [m.id, m]));
+  const cariIdSet = new Set(tedarikciler.map((t) => t.id));
+  const sfMap = new Map(
+    sonFiyatlar.map((s) => [`${s.malzemeId}:${s.cariId}`, s.fiyat]),
+  );
+  const rows: Satir[] = [];
+  for (const k of kalemler) {
+    const m = mMap.get(k.malzemeId);
+    if (!m) continue;
+    const varsayilan =
+      m.tedarikci && cariIdSet.has(m.tedarikci) ? m.tedarikci : "";
+    const fiyat =
+      (varsayilan && sfMap.get(`${m.id}:${varsayilan}`)) || m.birimFiyat;
+    rows.push({
+      malzemeId: m.id,
+      cariId: varsayilan,
+      miktar: k.miktar > 0 ? k.miktar : 1,
+      birim: m.birim,
+      birimFiyat: fiyat,
+      doviz: m.doviz || "TL",
+      sonFiyat: fiyat,
+      mevcutStok: m.stok,
+    });
+  }
+  return rows;
+}
+
 function Alan({
   label,
   children,
@@ -87,6 +126,7 @@ export function AlisForm({
   malzemeler,
   depolar,
   sonFiyatlar = [],
+  baslangicKalemler,
 }: {
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
@@ -98,6 +138,8 @@ export function AlisForm({
     fiyat: number;
     tarih: string;
   }[];
+  /** Üretim planından aktarılan, önceden doldurulacak satırlar. */
+  baslangicKalemler?: { malzemeId: string; miktar: number }[];
 }) {
   const router = useRouter();
 
@@ -107,8 +149,12 @@ export function AlisForm({
   const [yeniDepoAcik, setYeniDepoAcik] = React.useState(false);
   const [yeniDepoAd, setYeniDepoAd] = React.useState("");
   const [belgeNo, setBelgeNo] = React.useState("");
-  const [aciklama, setAciklama] = React.useState("");
-  const [satirlar, setSatirlar] = React.useState<Satir[]>([]);
+  const [aciklama, setAciklama] = React.useState(
+    baslangicKalemler?.length ? "Üretim planı malzeme ihtiyacı" : "",
+  );
+  const [satirlar, setSatirlar] = React.useState<Satir[]>(() =>
+    ilkSatirlar(baslangicKalemler, malzemeler, tedarikciler, sonFiyatlar),
+  );
   const [fiyatGuncelle, setFiyatGuncelle] = React.useState(true);
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
