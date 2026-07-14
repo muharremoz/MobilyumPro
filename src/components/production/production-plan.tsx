@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ListHeader } from "@/components/ui/list-header";
 import { SearchSelect } from "@/components/ui/search-select";
 import {
   Table,
@@ -44,14 +45,6 @@ type Secim = { id: number; urunId: string; adet: string };
 type MusteriSecim = { id: string; ad: string; sehir: string };
 
 const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg border bg-card p-3.5 shadow-sm">
-      {children}
-    </section>
-  );
-}
 
 export function ProductionPlan({
   urunler,
@@ -248,95 +241,103 @@ export function ProductionPlan({
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5">
-      {/* Üretim nedeni — nested kart */}
-      <Panel>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Alan label="Üretim nedeni">
-          <SearchSelect
-            items={["Stok için", "Müşteri için"]}
-            value={neden === "stok" ? "Stok için" : "Müşteri için"}
-            onValueChange={(v) =>
-              setNeden(v === "Müşteri için" ? "siparis" : "stok")
-            }
-            placeholder="Neden"
-            searchPlaceholder="Ara..."
-          />
-        </Alan>
-
-        {neden === "stok" ? (
-          <Alan label="Hedef depo">
+    <div className="flex flex-col gap-3">
+      {/* Plan bilgileri — standart liste kartı kabuğu */}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Plan Bilgileri" />
+        <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Alan label="Üretim nedeni">
             <SearchSelect
-              items={aktifDepolar.map((d) => `${d.ad} · ${d.sehir}`)}
-              value={
-                depoId
-                  ? (() => {
-                      const d = aktifDepolar.find((x) => x.id === depoId);
-                      return d ? `${d.ad} · ${d.sehir}` : null;
-                    })()
-                  : null
+              items={["Stok için", "Müşteri için"]}
+              value={neden === "stok" ? "Stok için" : "Müşteri için"}
+              onValueChange={(v) =>
+                setNeden(v === "Müşteri için" ? "siparis" : "stok")
               }
-              onValueChange={(v) => {
-                if (!v) return setDepoId(null);
-                const ad = v.split(" · ")[0];
-                setDepoId(aktifDepolar.find((x) => x.ad === ad)?.id ?? null);
-              }}
-              placeholder="Depo seç"
-              searchPlaceholder="Depo ara..."
+              placeholder="Neden"
+              searchPlaceholder="Ara..."
             />
           </Alan>
-        ) : (
-          <Alan label="Müşteri">
-            <SearchSelect
-              items={musteriler.map((m) => `${m.ad} · ${m.sehir}`)}
-              value={
-                musteriId
-                  ? (() => {
-                      const m = musteriler.find((x) => x.id === musteriId);
-                      return m ? `${m.ad} · ${m.sehir}` : null;
-                    })()
-                  : null
-              }
-              onValueChange={(v) => {
-                if (!v) return setMusteriId(null);
-                const ad = v.split(" · ")[0];
-                setMusteriId(musteriler.find((x) => x.ad === ad)?.id ?? null);
-              }}
-              placeholder="Müşteri seç"
-              searchPlaceholder="Müşteri ara..."
+
+          {neden === "stok" ? (
+            <Alan label="Hedef depo">
+              <SearchSelect
+                items={aktifDepolar.map((d) => `${d.ad} · ${d.sehir}`)}
+                value={
+                  depoId
+                    ? (() => {
+                        const d = aktifDepolar.find((x) => x.id === depoId);
+                        return d ? `${d.ad} · ${d.sehir}` : null;
+                      })()
+                    : null
+                }
+                onValueChange={(v) => {
+                  if (!v) return setDepoId(null);
+                  const ad = v.split(" · ")[0];
+                  setDepoId(aktifDepolar.find((x) => x.ad === ad)?.id ?? null);
+                }}
+                placeholder="Depo seç"
+                searchPlaceholder="Depo ara..."
+              />
+            </Alan>
+          ) : (
+            <Alan label="Müşteri">
+              <SearchSelect
+                items={musteriler.map((m) => `${m.ad} · ${m.sehir}`)}
+                value={
+                  musteriId
+                    ? (() => {
+                        const m = musteriler.find((x) => x.id === musteriId);
+                        return m ? `${m.ad} · ${m.sehir}` : null;
+                      })()
+                    : null
+                }
+                onValueChange={(v) => {
+                  if (!v) return setMusteriId(null);
+                  const ad = v.split(" · ")[0];
+                  setMusteriId(musteriler.find((x) => x.ad === ad)?.id ?? null);
+                }}
+                placeholder="Müşteri seç"
+                searchPlaceholder="Müşteri ara..."
+              />
+            </Alan>
+          )}
+
+          <Alan label="Termin tarihi">
+            <Input
+              type="date"
+              value={termin}
+              onChange={(e) => setTermin(e.target.value)}
+              className="h-9"
             />
           </Alan>
-        )}
 
-        <Alan label="Termin tarihi">
-          <Input
-            type="date"
-            value={termin}
-            onChange={(e) => setTermin(e.target.value)}
-            className="h-9"
-          />
-        </Alan>
-
-        <Alan label="Öncelik">
-          <SearchSelect
-            items={ONCELIKLER}
-            value={oncelik}
-            onValueChange={(v) => setOncelik((v as UretimOncelik) ?? "Normal")}
-            placeholder="Öncelik"
-            searchPlaceholder="Ara..."
-          />
-        </Alan>
+          <Alan label="Öncelik">
+            <SearchSelect
+              items={ONCELIKLER}
+              value={oncelik}
+              onValueChange={(v) => setOncelik((v as UretimOncelik) ?? "Normal")}
+              placeholder="Öncelik"
+              searchPlaceholder="Ara..."
+            />
+          </Alan>
         </div>
-      </Panel>
+      </div>
 
-      {/* Üretim planı tablosu — nested kart */}
-      <Panel>
-        <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">Üretim Planı</h2>
-
-        <Table className="table-fixed">
+      {/* Üretim planı tablosu — standart liste kartı kabuğu */}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <ListHeader title="Üretim Planı">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={satirEkle}
+            disabled={eklenebilir.length === 0}
+          >
+            <Plus className="size-4" /> Model Ekle
+          </Button>
+        </ListHeader>
+        <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow>
               <TableHead className="w-10">#</TableHead>
               <TableHead>Model</TableHead>
               <TableHead className="w-44">Kategori</TableHead>
@@ -347,7 +348,17 @@ export function ProductionPlan({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {secimler.map((s, i) => {
+            {secimler.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  Henüz model eklenmedi. “Model Ekle” ile başlayın.
+                </TableCell>
+              </TableRow>
+            ) : (
+              secimler.map((s, i) => {
                 const m = urunMap.get(s.urunId);
                 const durum = modelDurum(s.urunId, s.adet);
                 return (
@@ -357,7 +368,7 @@ export function ProductionPlan({
                     </TableCell>
                     <TableCell>
                       {s.urunId ? (
-                        <span className="block truncate font-medium" title={m?.ad}>
+                        <span className="font-medium" title={m?.ad}>
                           {m?.ad}
                         </span>
                       ) : (
@@ -392,11 +403,17 @@ export function ProductionPlan({
                     </TableCell>
                     <TableCell>
                       {durum === "eksik" ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        <Badge
+                          variant="secondary"
+                          className="bg-amber-100 text-amber-800"
+                        >
                           Eksik var
                         </Badge>
                       ) : durum === "yeterli" ? (
-                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-100 text-emerald-800"
+                        >
                           Eksik yok
                         </Badge>
                       ) : (
@@ -429,68 +446,65 @@ export function ProductionPlan({
                     </TableCell>
                   </TableRow>
                 );
-              })}
+              })
+            )}
           </TableBody>
         </Table>
+      </div>
 
-        <button
-          type="button"
-          onClick={satirEkle}
-          disabled={eklenebilir.length === 0}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-dashed py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="size-4" /> Model ekle
-        </button>
-        </div>
-      </Panel>
-
-      {/* Malzeme ihtiyacı — nested kart */}
+      {/* Malzeme ihtiyacı — standart liste kartı kabuğu */}
       {yeterlilik && (
-        <Panel>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Malzeme İhtiyacı</h2>
-              {yeterli ? (
-                <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800">
-                  <CheckCircle2 className="size-3" /> Stok yeterli
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800">
-                  <AlertTriangle className="size-3" /> {yeterlilik.eksik.length} malzeme eksik
-                </Badge>
-              )}
-            </div>
-
-            <MalzemeTablosu
-              ihtiyac={yeterlilik.ihtiyac.slice(0, gorunen)}
-              secim={
-                yeterli
-                  ? undefined
-                  : {
-                      has: (id) => seciliEksik.has(id),
-                      toggle: eksikSecimDegis,
-                      tumu: tumuEksikSecili,
-                      bazi: baziEksikSecili,
-                      tumSec: tumEksikSec,
-                    }
-              }
-            />
-
-            {gorunen < yeterlilik.ihtiyac.length && (
-              <button
-                type="button"
-                onClick={() =>
-                  setGorunen((g) => Math.min(g + 5, yeterlilik.ihtiyac.length))
-                }
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-md border border-dashed py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground"
+        <div className="overflow-hidden rounded-md border bg-card">
+          <ListHeader title="Malzeme İhtiyacı">
+            {yeterli ? (
+              <Badge
+                variant="secondary"
+                className="gap-1 bg-emerald-100 text-emerald-800"
               >
-                <ChevronDown className="size-4" /> Devamını gör (
-                {yeterlilik.ihtiyac.length - gorunen} kaldı)
-              </button>
+                <CheckCircle2 className="size-3" /> Stok yeterli
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="gap-1 bg-amber-100 text-amber-800"
+              >
+                <AlertTriangle className="size-3" /> {yeterlilik.eksik.length}{" "}
+                malzeme eksik
+              </Badge>
             )}
+          </ListHeader>
 
-            {!yeterli && (
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border border-amber-300/60 bg-amber-50/70 px-2.5 py-1.5">
+          <MalzemeTablosu
+            ihtiyac={yeterlilik.ihtiyac.slice(0, gorunen)}
+            secim={
+              yeterli
+                ? undefined
+                : {
+                    has: (id) => seciliEksik.has(id),
+                    toggle: eksikSecimDegis,
+                    tumu: tumuEksikSecili,
+                    bazi: baziEksikSecili,
+                    tumSec: tumEksikSec,
+                  }
+            }
+          />
+
+          {gorunen < yeterlilik.ihtiyac.length && (
+            <button
+              type="button"
+              onClick={() =>
+                setGorunen((g) => Math.min(g + 5, yeterlilik.ihtiyac.length))
+              }
+              className="flex w-full items-center justify-center gap-2 border-t py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+            >
+              <ChevronDown className="size-4" /> Devamını gör (
+              {yeterlilik.ihtiyac.length - gorunen} kaldı)
+            </button>
+          )}
+
+          {!yeterli && (
+            <div className="border-t p-3">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border border-amber-300/60 bg-amber-50/70 px-2.5 py-1.5">
                 <AlertTriangle className="size-4 shrink-0 text-amber-600" />
                 <span className="text-sm text-amber-900">
                   <strong>
@@ -514,38 +528,36 @@ export function ProductionPlan({
                   <ShoppingCart className="size-3" /> Satın Alma Oluştur
                 </Button>
               </div>
-            )}
-
-            <div className="mt-1 flex items-center justify-between border-t pt-2 text-sm">
-              <span className="text-muted-foreground tabular-nums">
-                {secimler.length} model · {toplamAdet} adet
-              </span>
-              <span className="font-semibold tabular-nums">
-                {formatTL(yeterlilik.toplamMaliyet)}
-              </span>
             </div>
+          )}
+
+          <div className="flex items-center justify-between border-t px-3 py-2 text-sm">
+            <span className="text-muted-foreground tabular-nums">
+              {secimler.length} model · {toplamAdet} adet
+            </span>
+            <span className="font-semibold tabular-nums">
+              {formatTL(yeterlilik.toplamMaliyet)}
+            </span>
           </div>
-        </Panel>
+        </div>
       )}
 
       {/* Alt aksiyon */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => olustur("Planlandı")}
-            disabled={!modelGecerli || kaydediliyor}
-          >
-            <FileText className="size-4" /> Taslak Kaydet
-          </Button>
-          <Button
-            onClick={() => olustur("Üretimde")}
-            disabled={!!gonderEngel || kaydediliyor}
-            title={gonderEngel ?? undefined}
-          >
-            <Hammer className="size-4" /> Üretime Gönder
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => olustur("Planlandı")}
+          disabled={!modelGecerli || kaydediliyor}
+        >
+          <FileText className="size-4" /> Taslak Kaydet
+        </Button>
+        <Button
+          onClick={() => olustur("Üretimde")}
+          disabled={!!gonderEngel || kaydediliyor}
+          title={gonderEngel ?? undefined}
+        >
+          <Hammer className="size-4" /> Üretime Gönder
+        </Button>
       </div>
     </div>
   );
@@ -576,7 +588,7 @@ function MalzemeTablosu({
   return (
     <Table>
       <TableHeader>
-        <TableRow className="bg-muted/40 hover:bg-muted/40">
+        <TableRow>
           {secim && (
             <TableHead className="w-8">
               <Checkbox
