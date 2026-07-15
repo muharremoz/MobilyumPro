@@ -72,7 +72,8 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
       data-slot="table-head"
       className={cn(
         // Ferah liste standardı (kullanıcılar listesinde belirlendi, her yerde geçerli)
-        "h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        // Dikey kolon çizgisi: son kolon hariç sağ kenarlık (yatayla aynı renk)
+        "h-10 border-r px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-foreground last:border-r-0 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -85,7 +86,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "h-12 px-3 py-0.5 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "h-12 border-r px-3 py-0.5 align-middle text-sm whitespace-nowrap last:border-r-0 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
