@@ -49,6 +49,8 @@ import type {
 } from "../data";
 
 export type YeniUretimEmri = {
+  /** "model" (mamül kartı) | "parca" (parça üretimi). Varsayılan model. */
+  refTip?: "model" | "parca";
   urunId: string;
   urunAd: string;
   adet: number;
@@ -82,6 +84,7 @@ export async function uretimEmriOlustur(
   const tarih = bugun();
   const rows = yeniler.map((y, i) => ({
     id: `UE-${maxNo + 1 + i}`,
+    refTip: y.refTip ?? "model",
     modelId: y.urunId,
     modelAd: y.urunAd,
     adet: y.adet,
@@ -118,6 +121,7 @@ export async function uretimEmriOlustur(
   for (const r of rows.filter((x) => x.durum === "Üretimde")) {
     const dusum = await uretimeGecisDusumu({
       id: r.id,
+      refTip: r.refTip as "model" | "parca",
       modelId: r.modelId,
       modelAd: r.modelAd,
       adet: r.adet,
@@ -182,6 +186,7 @@ export async function emriIlerlet(emirId: string): Promise<{
 
     const emirBilgi = {
       id: emir.id,
+      refTip: emir.refTip as "model" | "parca",
       modelId: emir.modelId,
       modelAd: emir.modelAd,
       adet: emir.adet,
@@ -1669,7 +1674,7 @@ export type YeniAlis = {
 /**
  * Alış çekirdeği — verilen transaction içinde alış + stok girişleri + stok
  * hareketleri + tedarikçi Alacak işlemlerini yazar. alisKaydet (doğrudan alış
- * / talepten toplu dönüşüm) ve talepTedarikEt (satır bazında mal kabul)
+ * / talepten toplu dönüşüm) ve talepSiparisVer (satır bazında sipariş)
  * tarafından paylaşılır.
  */
 async function alisUygula(
@@ -1796,61 +1801,96 @@ async function alisUygula(
 }
 
 /**
- * Alıştan gelen miktarları talep satırlarına işler (malzemeId eşleşmesi):
- * tedarik edilen artar, satır durumu Kısmi/Tedarik Edildi olur; tüm satırlar
- * bitince talep Tamamlandı, değilse Tedarik Sürecinde kalır.
+ * Alış (fatura/irsaliye) girildiğinde tedarik sürecindeki taleplerle OTOMATİK
+ * eşleşme: faturadaki her (malzeme + firma) için, o firmaya SİPARİŞ verilmiş
+ * açık talep satırlarını (Sipariş Verildi / Kısmi) FIFO (talep tarihine göre)
+ * doldurur. Satır dolunca "Tedarik Edildi", kısmiyse "Kısmi"; talebin tüm
+ * satırları bitince talep "Tamamlandı".
  */
-async function talepAlisSenkron(
+async function talepOtoEslesme(
   tx: Prisma.TransactionClient,
-  talepId: string,
   alinan: { malzemeId: string; miktar: number; cariId: string; cariAd: string }[],
   alisId: string,
 ) {
-  const talep = await tx.satinAlmaTalep.findUnique({
-    where: { id: talepId },
-    include: { satirlar: true },
-  });
-  if (!talep) return;
-
-  // Malzeme bazında toplanan miktar (aynı malzeme birden çok satırda olabilir).
-  const toplamlar = new Map<
-    string,
-    { miktar: number; cariId: string; cariAd: string }
-  >();
-  for (const s of alinan) {
-    const t = toplamlar.get(s.malzemeId) ?? {
-      miktar: 0,
-      cariId: s.cariId,
-      cariAd: s.cariAd,
-    };
-    t.miktar += s.miktar;
-    t.cariId = s.cariId;
-    t.cariAd = s.cariAd;
-    toplamlar.set(s.malzemeId, t);
+  // Fatura kalemlerini (malzeme, firma) bazında topla.
+  const kalan = new Map<string, number>();
+  for (const a of alinan) {
+    const key = `${a.malzemeId}::${a.cariId}`;
+    kalan.set(key, (kalan.get(key) ?? 0) + a.miktar);
   }
+  if (kalan.size === 0) return;
 
-  let hepsiBitti = true;
-  for (const satir of talep.satirlar) {
-    const ek = toplamlar.get(satir.malzemeId);
-    const yeni = Number(satir.tedarikEdilen) + (ek?.miktar ?? 0);
-    const bitti = yeni >= Number(satir.miktar) - 1e-9;
-    if (!bitti) hepsiBitti = false;
-    if (ek) {
-      await tx.satinAlmaTalepSatiri.update({
-        where: { id: satir.id },
-        data: {
-          tedarikEdilen: yeni,
-          satirDurum: bitti ? "Tedarik Edildi" : yeni > 0 ? "Kısmi" : "Bekliyor",
-          cariId: ek.cariId,
-          cariAd: ek.cariAd,
+  // Açık siparişler (Tedarik Sürecinde talepler) — FIFO: talep tarihi.
+  const acikSiparisler = await tx.satinAlmaTalepSiparis.findMany({
+    where: { satir: { talep: { durum: "Tedarik Sürecinde" } } },
+    include: {
+      satir: {
+        select: {
+          id: true,
+          malzemeId: true,
+          talepId: true,
+          talep: { select: { tarih: true } },
         },
-      });
-    }
-  }
-  await tx.satinAlmaTalep.update({
-    where: { id: talepId },
-    data: { durum: hepsiBitti ? "Tamamlandı" : "Tedarik Sürecinde", alisId },
+      },
+    },
+    orderBy: { id: "asc" },
   });
+  acikSiparisler.sort(
+    (a, b) => a.satir.talep.tarih.getTime() - b.satir.talep.tarih.getTime(),
+  );
+
+  const etkilenenSatirlar = new Set<number>();
+  const etkilenenTalepler = new Set<string>();
+  for (const sip of acikSiparisler) {
+    const key = `${sip.satir.malzemeId}::${sip.cariId}`;
+    const havuz = kalan.get(key);
+    if (!havuz || havuz <= 1e-9) continue;
+    const sipKalan = Number(sip.miktar) - Number(sip.tedarikEdilen);
+    if (sipKalan <= 1e-9) continue;
+    const uygula = Math.min(havuz, sipKalan);
+    kalan.set(key, havuz - uygula);
+
+    await tx.satinAlmaTalepSiparis.update({
+      where: { id: sip.id },
+      data: { tedarikEdilen: Number(sip.tedarikEdilen) + uygula },
+    });
+    etkilenenSatirlar.add(sip.satir.id);
+    etkilenenTalepler.add(sip.satir.talepId);
+  }
+
+  // Etkilenen satırların tedarik toplamını ve durumunu yeniden hesapla.
+  for (const satirId of etkilenenSatirlar) {
+    const satir = await tx.satinAlmaTalepSatiri.findUnique({
+      where: { id: satirId },
+      include: { siparisler: true },
+    });
+    if (!satir) continue;
+    const toplamGelen = satir.siparisler.reduce(
+      (t, o) => t + Number(o.tedarikEdilen),
+      0,
+    );
+    const bitti = toplamGelen >= Number(satir.miktar) - 1e-9;
+    await tx.satinAlmaTalepSatiri.update({
+      where: { id: satirId },
+      data: {
+        tedarikEdilen: toplamGelen,
+        satirDurum: bitti ? "Tedarik Edildi" : "Kısmi",
+      },
+    });
+  }
+
+  // Etkilenen taleplerin tümü bittiyse Tamamlandı + son alış bağla.
+  for (const talepId of etkilenenTalepler) {
+    const satirlar = await tx.satinAlmaTalepSatiri.findMany({
+      where: { talepId },
+      select: { satirDurum: true },
+    });
+    const hepsiBitti = satirlar.every((s) => s.satirDurum === "Tedarik Edildi");
+    await tx.satinAlmaTalep.update({
+      where: { id: talepId },
+      data: { alisId, ...(hepsiBitti ? { durum: "Tamamlandı" } : {}) },
+    });
+  }
 }
 
 /**
@@ -1873,8 +1913,17 @@ export async function alisKaydet(
   try {
     const { alisId, cariIdler } = await db.$transaction(async (tx) => {
       const sonuc = await alisUygula(tx, a, satirlar);
-      if (a.talepId)
-        await talepAlisSenkron(tx, a.talepId, satirlar, sonuc.alisId);
+      // Tedarik sürecindeki taleplerle otomatik eşleşme (malzeme + firma).
+      await talepOtoEslesme(
+        tx,
+        satirlar.map((s) => ({
+          malzemeId: s.malzemeId,
+          miktar: s.miktar,
+          cariId: s.cariId,
+          cariAd: s.cariAd,
+        })),
+        sonuc.alisId,
+      );
       return sonuc;
     });
 
@@ -1932,6 +1981,11 @@ export type YeniTalepKalemi = {
   malzemeAd: string;
   miktar: number;
   birim: string;
+  /** Önerilen tedarikçi (talep hazırlığında seçilen firma). */
+  cariId?: string;
+  cariAd?: string;
+  /** Tahmini birim fiyat (mal kabulde öneri). */
+  tahminiFiyat?: number;
 };
 
 /** Satın alma talebi oluşturur (TAL-####). Mal kabule dek stoku etkilemez. */
@@ -1939,6 +1993,8 @@ export async function talepOlustur(
   kalemler: YeniTalepKalemi[],
   opts?: {
     kaynak?: string;
+    /** Talebin hangi modeller için açıldığı (örn. "Travo Yatak Odası × 1"). */
+    modeller?: string;
     aciklama?: string;
     /** Mal kabulde önerilecek varsayılan depo (örn. plandaki hedef depo). */
     depo?: string;
@@ -1960,20 +2016,67 @@ export async function talepOlustur(
     const k = opts?.kullaniciId
       ? await db.kullanici.findUnique({ where: { id: opts.kullaniciId } })
       : null;
+
+    // Aynı malzemenin birden çok satırı (farklı firma) → tek talep satırı +
+    // firma başına sipariş (talep hazırlığında dağıtım).
+    const grup = new Map<
+      string,
+      {
+        malzemeAd: string;
+        birim: string;
+        miktar: number;
+        tahminiFiyat?: number;
+        siparisler: { cariId: string; cariAd: string; miktar: number; fiyat?: number }[];
+      }
+    >();
+    for (const kk of net) {
+      const g = grup.get(kk.malzemeId) ?? {
+        malzemeAd: kk.malzemeAd,
+        birim: kk.birim,
+        miktar: 0,
+        tahminiFiyat: kk.tahminiFiyat,
+        siparisler: [],
+      };
+      g.miktar += kk.miktar;
+      g.tahminiFiyat = g.tahminiFiyat ?? kk.tahminiFiyat;
+      if (kk.cariId)
+        g.siparisler.push({
+          cariId: kk.cariId,
+          cariAd: kk.cariAd ?? "",
+          miktar: kk.miktar,
+          fiyat: kk.tahminiFiyat,
+        });
+      grup.set(kk.malzemeId, g);
+    }
+    const tarih = tarihDate(bugunStr());
+
     await db.satinAlmaTalep.create({
       data: {
         id,
-        tarih: tarihDate(bugunStr()),
+        tarih,
         kaynak: opts?.kaynak ?? "Manuel",
+        modeller: opts?.modeller ?? null,
         aciklama: opts?.aciklama ?? null,
         depo: opts?.depo ?? null,
         olusturanAd: k?.adSoyad ?? null,
         satirlar: {
-          create: net.map((k) => ({
-            malzemeId: k.malzemeId,
-            malzemeAd: k.malzemeAd,
-            miktar: k.miktar,
-            birim: k.birim,
+          create: [...grup.entries()].map(([malzemeId, g]) => ({
+            malzemeId,
+            malzemeAd: g.malzemeAd,
+            miktar: g.miktar,
+            birim: g.birim,
+            tahminiFiyat: g.tahminiFiyat ?? null,
+            // Firma atanmışsa talep tedarik sürecine geçince sipariş sayılır.
+            satirDurum: g.siparisler.length > 0 ? "Sipariş Verildi" : "Bekliyor",
+            siparisler: {
+              create: g.siparisler.map((o) => ({
+                cariId: o.cariId,
+                cariAd: o.cariAd,
+                miktar: o.miktar,
+                fiyat: o.fiyat ?? null,
+                tarih,
+              })),
+            },
           })),
         },
       },
@@ -2070,106 +2173,190 @@ export async function talepBaslat(
 }
 
 /**
- * Talep satırı için mal kabul — gerçek alış (stok girişi + stok hareketi +
- * tedarikçiye cari Alacak) alisUygula ile aynı transaction'da işlenir;
- * satırın tedarik edileni artar, tüm satırlar bitince talep Tamamlandı.
- * Kısmi teslimat desteklenir (miktar ≤ kalan).
+ * Talep satırını firmalara DAĞIT — bir satır çok firmaya bölünebilir.
+ * Gelen dağıtım listesi satırın siparişlerini günceller: mevcut firma varsa
+ * miktar/fiyat güncellenir, yenisi eklenir, listede olmayan (ve hiç tedarik
+ * edilmemiş) sipariş silinir. Tedarik edilmiş siparişler korunur.
+ * Satır durumu tedarik ve sipariş varlığına göre yeniden hesaplanır.
  */
-export async function talepTedarikEt(girdi: {
+/**
+ * Talep satırına tek firma SİPARİŞ ekler (detay sheet — Tedarike Başla sonrası).
+ * Bir satıra tekrar tekrar sipariş eklenerek çok firmaya bölünebilir; sipariş
+ * miktarı, satırın henüz sipariş verilmemiş kalanını aşamaz.
+ */
+export async function talepSiparisEkle(girdi: {
   talepId: string;
   satirId: number;
-  miktar: number;
   cariId: string;
   cariAd: string;
-  birimFiyat: number;
-  depo: string;
-  /** true → satır fiyatı malzemenin maliyet fiyatına yazılır (son alış). */
-  fiyatGuncelle?: boolean;
+  miktar: number;
+  fiyat?: number;
   kullaniciId: string;
-}): Promise<{
-  ok: boolean;
-  error?: string;
-  alisId?: string;
-  tamamlandi?: boolean;
-}> {
+}): Promise<{ ok: boolean; error?: string }> {
   const yetki = await talepYetkiKontrol(girdi.kullaniciId, "baslat");
   if (!yetki.ok) return { ok: false, error: yetki.error };
-  if (!(girdi.miktar > 0))
-    return { ok: false, error: "Miktar 0'dan büyük olmalı." };
   if (!girdi.cariId) return { ok: false, error: "Tedarikçi seçin." };
-  if (!girdi.depo) return { ok: false, error: "Depo seçin." };
+  if (!(girdi.miktar > 0))
+    return { ok: false, error: "Sipariş miktarı 0'dan büyük olmalı." };
   try {
-    const talep = await db.satinAlmaTalep.findUnique({
-      where: { id: girdi.talepId },
-      include: { satirlar: true },
+    const satir = await db.satinAlmaTalepSatiri.findUnique({
+      where: { id: girdi.satirId },
+      include: { talep: true, siparisler: true },
     });
-    if (!talep) return { ok: false, error: "Talep bulunamadı." };
-    if (talep.durum !== "Tedarik Sürecinde")
+    if (!satir || satir.talepId !== girdi.talepId)
+      return { ok: false, error: "Talep satırı bulunamadı." };
+    if (satir.talep.durum !== "Tedarik Sürecinde")
       return { ok: false, error: "Talep tedarik sürecinde değil." };
-    const satir = talep.satirlar.find((s) => s.id === girdi.satirId);
-    if (!satir) return { ok: false, error: "Talep satırı bulunamadı." };
-
-    const kalan = Number(satir.miktar) - Number(satir.tedarikEdilen);
+    const siparilen = satir.siparisler.reduce(
+      (t, o) => t + Number(o.miktar),
+      0,
+    );
+    const kalan = Number(satir.miktar) - siparilen;
     if (girdi.miktar > kalan + 1e-9)
       return {
         ok: false,
-        error: `En fazla ${kalan.toLocaleString("tr-TR")} ${satir.birim} girilebilir (kalan miktar).`,
+        error: `En fazla ${kalan.toLocaleString("tr-TR")} ${satir.birim} sipariş verilebilir (kalan).`,
       };
 
-    const { alisId, cariIdler } = await db.$transaction(async (tx) => {
-      const sonuc = await alisUygula(
-        tx,
-        {
-          tarih: bugunStr(),
-          depo: girdi.depo,
-          belgeNo: talep.id,
-          aciklama: `Satın alma talebi ${talep.id} — mal kabul`,
-          fiyatGuncelle: girdi.fiyatGuncelle,
-        },
-        [
-          {
-            malzemeId: satir.malzemeId,
-            malzemeAd: satir.malzemeAd,
+    await db.$transaction(async (tx) => {
+      // Aynı firmaya sipariş varsa miktarını arttır, yoksa yeni sipariş ekle.
+      const mevcut = satir.siparisler.find((o) => o.cariId === girdi.cariId);
+      if (mevcut) {
+        await tx.satinAlmaTalepSiparis.update({
+          where: { id: mevcut.id },
+          data: {
+            miktar: Number(mevcut.miktar) + girdi.miktar,
+            fiyat: girdi.fiyat ?? mevcut.fiyat,
+          },
+        });
+      } else {
+        await tx.satinAlmaTalepSiparis.create({
+          data: {
+            satirId: satir.id,
             cariId: girdi.cariId,
             cariAd: girdi.cariAd,
             miktar: girdi.miktar,
-            birim: satir.birim,
-            birimFiyat: girdi.birimFiyat,
+            fiyat: girdi.fiyat ?? null,
+            tarih: tarihDate(bugunStr()),
           },
-        ],
-      );
-      await talepAlisSenkron(
-        tx,
-        talep.id,
-        [
-          {
-            malzemeId: satir.malzemeId,
-            miktar: girdi.miktar,
-            cariId: girdi.cariId,
-            cariAd: girdi.cariAd,
-          },
-        ],
-        sonuc.alisId,
-      );
-      return sonuc;
+        });
+      }
+      if (satir.satirDurum === "Bekliyor")
+        await tx.satinAlmaTalepSatiri.update({
+          where: { id: satir.id },
+          data: { satirDurum: "Sipariş Verildi" },
+        });
     });
-
-    // Talebin son durumu (Tamamlandı mı?) — senkron sonrası oku.
-    const guncel = await db.satinAlmaTalep.findUnique({
-      where: { id: girdi.talepId },
-      select: { durum: true },
-    });
-
     revalidatePath("/satin-alma/talepler");
-    revalidatePath("/satin-alma");
-    revalidatePath("/stok-yonetimi");
-    revalidatePath("/stok-karti");
-    revalidatePath("/cari");
-    for (const cid of cariIdler) revalidatePath(`/cari/${cid}`);
-    return { ok: true, alisId, tamamlandi: guncel?.durum === "Tamamlandı" };
+    revalidatePath("/satin-alma/siparisler");
+    return { ok: true };
   } catch (e) {
-    console.error("talepTedarikEt:", e);
-    return { ok: false, error: "Mal kabul kaydedilemedi." };
+    console.error("talepSiparisEkle:", e);
+    return { ok: false, error: "Sipariş verilemedi." };
+  }
+}
+
+export async function talepDagit(girdi: {
+  talepId: string;
+  satirId: number;
+  dagitim: { cariId: string; cariAd: string; miktar: number; fiyat?: number }[];
+  kullaniciId: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const yetki = await talepYetkiKontrol(girdi.kullaniciId, "baslat");
+  if (!yetki.ok) return { ok: false, error: yetki.error };
+  const net = girdi.dagitim.filter((d) => d.cariId && d.miktar > 0);
+  if (net.length === 0)
+    return { ok: false, error: "En az bir firma + miktar girin." };
+  // Aynı firma iki kez girilemez.
+  if (new Set(net.map((d) => d.cariId)).size !== net.length)
+    return { ok: false, error: "Aynı firma birden çok kez seçilemez." };
+  try {
+    const satir = await db.satinAlmaTalepSatiri.findUnique({
+      where: { id: girdi.satirId },
+      include: { talep: true, siparisler: true },
+    });
+    if (!satir || satir.talepId !== girdi.talepId)
+      return { ok: false, error: "Talep satırı bulunamadı." };
+    if (satir.talep.durum !== "Tedarik Sürecinde")
+      return { ok: false, error: "Talep tedarik sürecinde değil." };
+
+    const toplam = net.reduce((t, d) => t + d.miktar, 0);
+    if (toplam > Number(satir.miktar) + 1e-9)
+      return {
+        ok: false,
+        error: `Dağıtım toplamı istenen ${Number(satir.miktar).toLocaleString("tr-TR")} miktarını aşamaz.`,
+      };
+    // Her firmanın dağıtımı, o firmaya gelen tedariğin altına düşemez.
+    for (const d of net) {
+      const mevcut = satir.siparisler.find((o) => o.cariId === d.cariId);
+      if (mevcut && d.miktar < Number(mevcut.tedarikEdilen) - 1e-9)
+        return {
+          ok: false,
+          error: `${d.cariAd} için miktar, gelen ${Number(mevcut.tedarikEdilen)} altına düşürülemez.`,
+        };
+    }
+
+    const tarih = tarihDate(bugunStr());
+    await db.$transaction(async (tx) => {
+      const kalanIds = new Set<number>();
+      for (const d of net) {
+        const mevcut = satir.siparisler.find((o) => o.cariId === d.cariId);
+        if (mevcut) {
+          await tx.satinAlmaTalepSiparis.update({
+            where: { id: mevcut.id },
+            data: { miktar: d.miktar, fiyat: d.fiyat ?? null, cariAd: d.cariAd },
+          });
+          kalanIds.add(mevcut.id);
+        } else {
+          const yeni = await tx.satinAlmaTalepSiparis.create({
+            data: {
+              satirId: satir.id,
+              cariId: d.cariId,
+              cariAd: d.cariAd,
+              miktar: d.miktar,
+              fiyat: d.fiyat ?? null,
+              tarih,
+            },
+          });
+          kalanIds.add(yeni.id);
+        }
+      }
+      // Listede olmayan ve hiç tedarik edilmemiş siparişleri sil.
+      const silinecek = satir.siparisler.filter(
+        (o) => !kalanIds.has(o.id) && Number(o.tedarikEdilen) <= 1e-9,
+      );
+      if (silinecek.length)
+        await tx.satinAlmaTalepSiparis.deleteMany({
+          where: { id: { in: silinecek.map((o) => o.id) } },
+        });
+
+      // Satır durumunu yeniden hesapla.
+      const guncel = await tx.satinAlmaTalepSiparis.findMany({
+        where: { satirId: satir.id },
+      });
+      const toplamGelen = guncel.reduce(
+        (t, o) => t + Number(o.tedarikEdilen),
+        0,
+      );
+      const durum =
+        toplamGelen >= Number(satir.miktar) - 1e-9
+          ? "Tedarik Edildi"
+          : toplamGelen > 0
+            ? "Kısmi"
+            : guncel.length > 0
+              ? "Sipariş Verildi"
+              : "Bekliyor";
+      await tx.satinAlmaTalepSatiri.update({
+        where: { id: satir.id },
+        data: { satirDurum: durum, tedarikEdilen: toplamGelen },
+      });
+    });
+    revalidatePath("/satin-alma/talepler");
+    revalidatePath("/satin-alma/siparisler");
+    return { ok: true };
+  } catch (e) {
+    console.error("talepDagit:", e);
+    return { ok: false, error: "Dağıtım kaydedilemedi." };
   }
 }
 
@@ -2369,6 +2556,7 @@ export async function stokUreticiKaydet(
       ? await db.stokUretici.update({ where: { id: u.id }, data: veri })
       : await db.stokUretici.create({ data: veri });
     revalidatePath(`/stok-karti/${u.stokId}`);
+    revalidatePath("/satin-alma/sartlar");
     return { ok: true, id: kayit.id };
   } catch {
     return { ok: false, error: "Üretici kaydedilemedi." };
@@ -2382,6 +2570,7 @@ export async function stokUreticiSil(
   try {
     await db.stokUretici.delete({ where: { id } });
     revalidatePath(`/stok-karti/${stokId}`);
+    revalidatePath("/satin-alma/sartlar");
     return { ok: true };
   } catch {
     return { ok: false, error: "Üretici silinemedi." };

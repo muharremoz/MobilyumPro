@@ -120,6 +120,8 @@ export const sections: Section[] = [
     items: [
       { label: "Cari Hesaplar", href: "/cari", icon: I(WalletIcon) },
       { label: "Satın Alma Talepleri", href: "/satin-alma/talepler", icon: I(ClipboardCheckIcon) },
+      { label: "Bekleyen Siparişler", href: "/satin-alma/siparisler", icon: I(HistoryIcon) },
+      { label: "Satın Alma Şartları", href: "/satin-alma/sartlar", icon: I(BadgePercentIcon) },
       { label: "Satın Alma", href: "/satin-alma", icon: I(ReceiptIcon) },
     ],
   },

@@ -80,6 +80,7 @@ export function SiralaFiltreBaslik({
   sira,
   onSirala,
   filtre,
+  asDiv = false,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -88,6 +89,8 @@ export function SiralaFiltreBaslik({
   onSirala: (dir: "asc" | "desc") => void;
   /** Verilmezse yalnızca sıralama sunulur. */
   filtre?: KolonFiltre;
+  /** true → TableHead yerine div sarmalar (tablo dışı grid başlıkları için). */
+  asDiv?: boolean;
 }) {
   const tumu = filtre?.tip === "liste" ? (filtre.tumu ?? "Tümü") : "Tümü";
   const aktif = filtre ? filtreAktif(filtre, tumu) : false;
@@ -99,8 +102,7 @@ export function SiralaFiltreBaslik({
     else filtre.onDeger(tumu);
   }
 
-  return (
-    <TableHead className={className}>
+  const icerik = (
       <Popover>
         <PopoverTrigger
           render={
@@ -213,6 +215,7 @@ export function SiralaFiltreBaslik({
           )}
         </PopoverContent>
       </Popover>
-    </TableHead>
   );
+  if (asDiv) return <div className={className}>{icerik}</div>;
+  return <TableHead className={className}>{icerik}</TableHead>;
 }

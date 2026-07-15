@@ -97,6 +97,8 @@ import {
   type SatisFiyatTipi,
   type TanimTip,
 } from "@/lib/data";
+import type { Malzeme, SatinAlmaSarti } from "@/lib/data";
+import { CariSartlarTab } from "@/components/satin-alma/sart-liste";
 import {
   cariKaydet,
   cariIslemEkle,
@@ -266,6 +268,7 @@ type Tab =
   | "subeler"
   | "yetkililer"
   | "crm"
+  | "satinalma"
   | "dokumanlar";
 
 /** Adres combobox seçenekleri (Tanımlamalar'daki ulke/bolge/sehir/semt tanımları). */
@@ -285,6 +288,8 @@ const BOS_ADRES_SECENEKLERI: AdresSecenekleri = {
 // render'da yeni referans üretir ve [prop] bağımlı useEffect'leri sonsuz
 // döngüye sokar.
 const BOS_ISLEMLER: CariIslem[] = [];
+const BOS_SARTLAR: SatinAlmaSarti[] = [];
+const BOS_MALZEMELER: Malzeme[] = [];
 const BOS_DETAY: CariDetay = {
   bankalar: [],
   subeler: [],
@@ -300,6 +305,8 @@ export function CariFormPage({
   kullanicilar = [],
   adresSecenekleri = BOS_ADRES_SECENEKLERI,
   sonrakiKod = "",
+  sartlar = BOS_SARTLAR,
+  malzemeler = BOS_MALZEMELER,
 }: {
   cari?: Cari;
   islemler?: CariIslem[];
@@ -308,6 +315,10 @@ export function CariFormPage({
   adresSecenekleri?: AdresSecenekleri;
   /** Yeni cari için sunucuda hesaplanan sıradaki kod (önizleme). */
   sonrakiKod?: string;
+  /** Bu firmanın satın alma şartları (stok_uretici). */
+  sartlar?: SatinAlmaSarti[];
+  /** Şart sheet'i için malzeme kataloğu. */
+  malzemeler?: Malzeme[];
 } = {}) {
   const router = useRouter();
   const duzenleme = !!cari;
@@ -507,6 +518,14 @@ export function CariFormPage({
           <TabBtn aktif={tab === "crm"} onClick={() => setTab("crm")}>
             CRM
           </TabBtn>
+          {(cari?.tip === "Tedarikçi" || cari?.tip === "Her İkisi") && (
+            <TabBtn
+              aktif={tab === "satinalma"}
+              onClick={() => setTab("satinalma")}
+            >
+              Satın Alma Listesi
+            </TabBtn>
+          )}
           <TabBtn
             aktif={tab === "dokumanlar"}
             onClick={() => setTab("dokumanlar")}
@@ -538,7 +557,20 @@ export function CariFormPage({
               durumRef={durumRef}
               adresSecenekleri={adresSecenekleri}
             />
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              {duzenleme &&
+                cari &&
+                (cari.tip === "Tedarikçi" || cari.tip === "Her İkisi") && (
+                  <Button
+                    variant="outline"
+                    className="mr-auto"
+                    onClick={() =>
+                      router.push(`/satin-alma/yeni?firma=${cari.id}`)
+                    }
+                  >
+                    <Receipt className="size-4" /> Yeni Alış
+                  </Button>
+                )}
               <Button
                 variant="outline"
                 nativeButton={false}
@@ -573,6 +605,14 @@ export function CariFormPage({
             cariId={cari.id}
             kayitlar={detay.crmKayitlari}
             kullanicilar={kullanicilar}
+          />
+        )}
+        {duzenleme && cari && tab === "satinalma" && (
+          <CariSartlarTab
+            cariId={cari.id}
+            cariAd={cari.ad}
+            sartlar={sartlar}
+            malzemeler={malzemeler}
           />
         )}
         {duzenleme && cari && tab === "dokumanlar" && (

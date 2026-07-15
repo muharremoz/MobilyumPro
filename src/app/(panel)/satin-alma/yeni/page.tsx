@@ -5,7 +5,9 @@ import {
   getDepolar,
   getSonAlisFiyatlari,
   getKurlar,
-  getTalep,
+  getKullanicilar,
+  getSatinAlmaSartlari,
+  getBekleyenSiparisler,
 } from "@/lib/db/queries";
 
 /**
@@ -28,38 +30,70 @@ function kalemAyristir(
 export default async function YeniAlisRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ kalem?: string; talep?: string }>;
+  searchParams: Promise<{
+    kalem?: string;
+    /** "talep": form talep hazırlığı olarak açılır (alış değil talep oluşturur). */
+    mod?: string;
+    modeller?: string;
+    depo?: string;
+    /** Bir tedarikçiden bekleyen tüm siparişleri faturaya doldur. */
+    siparisFirma?: string;
+    /** Cari karttan "Yeni Alış" — fişin tedarikçisini önceden seçer. */
+    firma?: string;
+  }>;
 }) {
-  const { kalem, talep } = await searchParams;
-  const [cariler, malzemeler, depolar, sonFiyatlar, kurlar, talepKaydi] =
-    await Promise.all([
-      getCariler(),
-      getMalzemeler(),
-      getDepolar(),
-      getSonAlisFiyatlari(),
-      getKurlar(),
-      talep ? getTalep(talep) : Promise.resolve(null),
-    ]);
+  const { kalem, mod, modeller, depo, siparisFirma, firma } =
+    await searchParams;
+  const [
+    cariler,
+    malzemeler,
+    depolar,
+    sonFiyatlar,
+    kurlar,
+    kullanicilar,
+    sartlar,
+    bekleyenSiparisler,
+  ] = await Promise.all([
+    getCariler(),
+    getMalzemeler(),
+    getDepolar(),
+    getSonAlisFiyatlari(),
+    getKurlar(),
+    getKullanicilar(),
+    getSatinAlmaSartlari(),
+    siparisFirma ? getBekleyenSiparisler() : Promise.resolve([]),
+  ]);
+  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
+  const mevcut =
+    kullanicilar.find((k) => k.rol === "Yönetici") ?? kullanicilar[0];
   // Tedarikçi seçenekleri — cari kartlardan (Tedarikçi / Her İkisi).
   const tedarikciler = cariler
     .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")
     .map((c) => ({ id: c.id, ad: c.ad }));
-  // Talepten geliyorsa kalemler talepten — yalnız onaylanmış/tedarikteki
-  // talep, KALAN miktarlarla (kısmi mal kabuller düşülür).
-  const talepAktif =
-    talepKaydi &&
-    (talepKaydi.durum === "Onaylandı" ||
-      talepKaydi.durum === "Tedarik Sürecinde")
-      ? talepKaydi
-      : null;
-  const baslangicKalemler = talepAktif
-    ? talepAktif.satirlar
-        .map((s) => ({
-          malzemeId: s.malzemeId,
-          miktar: Math.max(0, s.miktar - s.tedarikEdilen),
-        }))
-        .filter((s) => s.miktar > 0)
-    : kalemAyristir(kalem);
+  // Fatura kalemleri firma bazlı gelir: o firmadan bekleyen tüm siparişler
+  // (aynı malzeme birleştirilir), kalan (sipariş − tedarik) miktarıyla.
+  const firmaKalemler = siparisFirma
+    ? (() => {
+        const grup = new Map<
+          string,
+          { malzemeId: string; miktar: number; cariId: string; fiyat?: number }
+        >();
+        for (const b of bekleyenSiparisler) {
+          if (b.cariId !== siparisFirma) continue;
+          const mev = grup.get(b.malzemeId);
+          if (mev) mev.miktar += b.kalan;
+          else
+            grup.set(b.malzemeId, {
+              malzemeId: b.malzemeId,
+              miktar: b.kalan,
+              cariId: b.cariId,
+              fiyat: b.siparisFiyat,
+            });
+        }
+        return [...grup.values()].filter((k) => k.miktar > 0);
+      })()
+    : null;
+  const baslangicKalemler = firmaKalemler ?? kalemAyristir(kalem);
   return (
     <AlisForm
       tedarikciler={tedarikciler}
@@ -68,7 +102,12 @@ export default async function YeniAlisRoute({
       sonFiyatlar={sonFiyatlar}
       baslangicKalemler={baslangicKalemler}
       kurlar={kurlar}
-      talepId={talepAktif?.id}
+      mod={mod === "talep" ? "talep" : "alis"}
+      talepModeller={modeller}
+      baslangicDepo={depo}
+      baslangicFirma={siparisFirma ?? firma}
+      mevcutKullaniciId={mevcut?.id ?? ""}
+      sartlar={sartlar}
     />
   );
 }

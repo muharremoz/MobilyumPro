@@ -31,6 +31,7 @@ export function FormSheet({
   footer,
   side = "right",
   contentClassName,
+  sheetClassName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +45,8 @@ export function FormSheet({
   footer?: React.ReactNode;
   side?: "top" | "right" | "bottom" | "left";
   contentClassName?: string;
+  /** Sheet genişliği vb. — SheetContent'e eklenir (örn. "sm:max-w-2xl"). */
+  sheetClassName?: string;
 }) {
   const iconRef = React.useRef<AnimatedIconHandle>(null);
 
@@ -56,7 +59,7 @@ export function FormSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
+        className={cn("flex w-full flex-col gap-0 p-0 sm:max-w-md", sheetClassName)}
       >
         <SheetHeader className="flex flex-row items-center gap-2 border-b p-4 pr-12">
           {Icon && (

@@ -136,6 +136,24 @@ function getCrumbs(
       Icon: iconForHref("/cari"),
     };
   }
+  if (pathname.startsWith("/satin-alma/siparisler")) {
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Bekleyen Siparişler" },
+      ],
+      Icon: iconForHref("/satin-alma/siparisler"),
+    };
+  }
+  if (pathname.startsWith("/satin-alma/sartlar")) {
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Satın Alma Şartları" },
+      ],
+      Icon: iconForHref("/satin-alma/sartlar"),
+    };
+  }
   if (pathname.startsWith("/satin-alma/talepler")) {
     return {
       crumbs: [

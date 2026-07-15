@@ -28,6 +28,12 @@ import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { KartBaslik } from "@/components/ui/kart-baslik";
 import { SekmeButonu } from "@/components/ui/sekme-butonu";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { TabIcerik } from "@/components/ui/tab-icerik";
 import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
@@ -52,7 +58,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   formatTL,
+  formatTarih,
   type Malzeme,
+  type MalzemeAlisOzeti,
   type Model,
   type Parca,
   type ParcaKategori,
@@ -67,6 +75,7 @@ import {
   parcaDokumanSil,
   receteGeriYukle,
 } from "@/lib/db/actions";
+import { useOnay } from "@/components/ui/confirm-dialog";
 import {
   DokumanlarTab,
   ResimLightbox,
@@ -162,6 +171,7 @@ export function ParcaForm({
   versiyonlar: versiyonlarProp,
   istasyonlar = [],
   dokumanlar = [],
+  alisOzetleri = [],
 }: {
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
@@ -171,12 +181,19 @@ export function ParcaForm({
   versiyonlar: ReceteVersiyonGorunum[];
   istasyonlar?: Istasyon[];
   dokumanlar?: StokDokuman[];
+  /** Malzeme bazında alış istihbaratı (son/min/max, firma ort., son hareket). */
+  alisOzetleri?: MalzemeAlisOzeti[];
 }) {
   const router = useRouter();
+  const { onayla, onayDialog } = useOnay();
   const yeniMi = recete === null;
   const istasyonMap = React.useMemo(
     () => new Map(istasyonlar.map((i) => [i.slug, i])),
     [istasyonlar],
+  );
+  const alisOzetMap = React.useMemo(
+    () => new Map(alisOzetleri.map((o) => [o.malzemeId, o])),
+    [alisOzetleri],
   );
   const ilkIstasyonSlug = istasyonlar[0]?.slug;
 
@@ -325,9 +342,6 @@ export function ParcaForm({
         ) * brut
       : 0;
   };
-  const malzemeToplami = gecerli
-    .filter((s) => s.bilesen.tip === "malzeme")
-    .reduce((t, s) => t + satirTutari(s), 0);
   const enPahali = [...gecerli]
     .map((s) => ({ s, tutar: satirTutari(s) }))
     .sort((a, b) => b.tutar - a.tutar)
@@ -337,6 +351,171 @@ export function ParcaForm({
     tip === "malzeme"
       ? (malzemeMap.get(ref)?.ad ?? ref)
       : (parcaMap.get(ref)?.ad ?? ref);
+
+  // ── Reçete satırları: kolon filtre + sıralama (proje standardı) ───────
+  type SatirSortKey =
+    | "tip"
+    | "bilesen"
+    | "istasyon"
+    | "miktar"
+    | "fire"
+    | "tutar"
+    | "sonAlis"
+    | "digerOrt";
+  const [tipF, setTipF] = React.useState("Tümü");
+  // Reçetede geçen malzemelerin grupları (filtre seçenekleri).
+  const gruplar = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          satirlar
+            .map((s) =>
+              s.bilesen.tip === "malzeme"
+                ? malzemeMap.get(s.bilesen.ref)?.grup
+                : undefined,
+            )
+            .filter((g): g is string => !!g),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "tr")),
+    [satirlar, malzemeMap],
+  );
+  const [bilesenF, setBilesenF] = React.useState("");
+  const [istasyonF, setIstasyonF] = React.useState("Tümü");
+  const [miktarAralik, setMiktarAralik] = React.useState({ min: "", max: "" });
+  const [fireAralik, setFireAralik] = React.useState({ min: "", max: "" });
+  const [satirSort, setSatirSort] = React.useState<{
+    key: SatirSortKey;
+    dir: "asc" | "desc";
+  } | null>(null);
+  const sortu = (k: SatirSortKey) =>
+    satirSort?.key === k ? satirSort.dir : null;
+  const sirala = (k: SatirSortKey) => (dir: "asc" | "desc") =>
+    setSatirSort((mev) =>
+      mev?.key === k && mev.dir === dir ? null : { key: k, dir },
+    );
+
+  /** Filtre + sıralama uygulanmış görünüm; i = satirlar'daki gerçek indeks. */
+  const gorunum = React.useMemo(() => {
+    const arada = (n: number, min: string, max: string) =>
+      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
+    const rows = satirlar.map((s, i) => {
+      const malzeme =
+        s.bilesen.tip === "malzeme" ? malzemeMap.get(s.bilesen.ref) : undefined;
+      const ozet = malzeme ? alisOzetMap.get(malzeme.id) : undefined;
+      const digerFirmalar = ozet
+        ? ozet.firmaOrtalamalari.filter(
+            (f) => f.cariAd !== ozet.sonAlis?.cariAd,
+          )
+        : [];
+      const digerOrt = digerFirmalar.length
+        ? digerFirmalar.reduce((t, f) => t + f.ortalama, 0) /
+          digerFirmalar.length
+        : null;
+      return {
+        s,
+        i,
+        malzeme,
+        ozet,
+        digerFirmalar,
+        digerOrt,
+        ad: s.bilesen.ref ? bilesenAd(s.bilesen.tip, s.bilesen.ref) : "",
+        tutar: satirTutari(s),
+      };
+    });
+    const suzgec = rows.filter((r) => {
+      const grupOk = tipF === "Tümü" || (r.malzeme?.grup ?? "—") === tipF;
+      const adOk = r.ad.toLowerCase().includes(bilesenF.toLowerCase());
+      const istOk =
+        istasyonF === "Tümü" ||
+        (r.s.bilesen.tip === "malzeme" &&
+          (istasyonMap.get(r.s.istasyon ?? ilkIstasyonSlug ?? "")?.ad ??
+            "") === istasyonF);
+      const mikOk = arada(r.s.miktar, miktarAralik.min, miktarAralik.max);
+      const fireOk = arada(r.s.fire ?? 0, fireAralik.min, fireAralik.max);
+      return grupOk && adOk && istOk && mikOk && fireOk;
+    });
+    if (!satirSort) return suzgec;
+    const yon = satirSort.dir === "asc" ? 1 : -1;
+    const deger = (r: (typeof rows)[number]): string | number => {
+      switch (satirSort.key) {
+        case "tip":
+          return r.malzeme?.grup ?? "";
+        case "istasyon":
+          return r.s.bilesen.tip === "malzeme"
+            ? (istasyonMap.get(r.s.istasyon ?? ilkIstasyonSlug ?? "")?.ad ?? "")
+            : "";
+        case "bilesen":
+          return r.ad;
+        case "miktar":
+          return r.s.miktar;
+        case "fire":
+          return r.s.fire ?? 0;
+        case "tutar":
+          return r.tutar;
+        case "sonAlis":
+          return r.ozet?.sonAlis?.fiyat ?? -1;
+        case "digerOrt":
+          return r.digerOrt ?? -1;
+      }
+    };
+    return [...suzgec].sort((a, b) => {
+      const x = deger(a);
+      const y = deger(b);
+      if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
+      return String(x).localeCompare(String(y), "tr") * yon;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    satirlar,
+    tipF,
+    bilesenF,
+    istasyonF,
+    miktarAralik,
+    fireAralik,
+    satirSort,
+    malzemeMap,
+    alisOzetMap,
+    istasyonMap,
+    ilkIstasyonSlug,
+  ]);
+
+  // Özet bandı görünen (filtrelenmiş) satırlara göre hesaplanır.
+  const filtreAktif =
+    tipF !== "Tümü" ||
+    bilesenF !== "" ||
+    istasyonF !== "Tümü" ||
+    miktarAralik.min !== "" ||
+    miktarAralik.max !== "" ||
+    fireAralik.min !== "" ||
+    fireAralik.max !== "";
+  const bandGorunum = gorunum.filter((r) => r.s.bilesen.ref);
+  const bandToplam = bandGorunum.reduce((t, r) => t + r.tutar, 0);
+  const bandEnPahali = [...bandGorunum]
+    .sort((a, b) => b.tutar - a.tutar)
+    .slice(0, 3)
+    .map((r) => ({ s: r.s, tutar: r.tutar }));
+
+  // Üç fiyat bazına göre maliyet: kart birim fiyatı / son alış / max şart.
+  // Malzeme satırı seçili fiyatla; alt parça satırı reçete maliyetiyle (r.tutar).
+  const bazliToplam = (
+    fiyatSec: (r: (typeof bandGorunum)[number]) => number | undefined,
+  ) =>
+    bandGorunum.reduce((t, r) => {
+      if (r.s.bilesen.tip !== "malzeme" || !r.malzeme) return t + r.tutar;
+      const brut = r.s.miktar * (1 + (r.s.fire ?? 0) / 100);
+      const fiyat = fiyatSec(r) ?? r.malzeme.birimFiyat;
+      return t + fiyat * brut;
+    }, 0);
+  const toplamSonAlis = bazliToplam((r) => r.ozet?.sonAlis?.fiyat);
+  const toplamMaxSart = bazliToplam((r) => r.ozet?.maxSart?.fiyat);
+  // Hover bilgisi: veri kapsamı (kaç malzeme gerçekten bu bazdan geldi).
+  const bandMalzemeler = bandGorunum.filter(
+    (r) => r.s.bilesen.tip === "malzeme",
+  );
+  const sonAlisKapsam = bandMalzemeler.filter((r) => r.ozet?.sonAlis).length;
+  const maxSartKapsam = bandMalzemeler.filter((r) => r.ozet?.maxSart).length;
+  const yuzdeFark = (deger: number) =>
+    bandToplam > 0 ? ((deger - bandToplam) / bandToplam) * 100 : 0;
 
   // ── Eylemler ──────────────────────────────────────────────────────────
   function satirEkle(tip: "malzeme" | "parca") {
@@ -772,26 +951,176 @@ export function ParcaForm({
 
         {/* ── REÇETE (BOM) ──────────────────────────────────────── */}
         {tab === "recete" && (
-          <div className="flex flex-col gap-3 xl:flex-row">
-            {/* Sol: bileşen grid'i */}
-            <div className="min-w-0 flex-1">
-              <div className="overflow-hidden rounded-md border bg-card">
-                <div className="grid grid-cols-[88px_1fr_130px_90px_56px_72px_100px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
-                  <span>Tip</span>
-                  <span>Bileşen</span>
-                  <span>İstasyon</span>
-                  <span className="text-right">Miktar</span>
-                  <span>Birim</span>
-                  <span className="text-right">Fire %</span>
-                  <span className="text-right">Tutar</span>
+          <div className="flex flex-col gap-3">
+            {/* Üst: maliyet özeti bandı (sağdaki kart yerine) */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border bg-card px-4 py-2.5">
+              <div>
+                <p className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {filtreAktif ? "Filtreli Maliyet" : "Maliyet Özeti"}
+                  {filtreAktif && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-amber-100 text-[9px] text-amber-800"
+                    >
+                      {bandGorunum.length}/{gecerli.length} satır
+                    </Badge>
+                  )}
+                </p>
+                <div className="mt-1 flex items-center gap-4">
+                  <MaliyetBazi
+                    etiket="Birim Fiyat"
+                    tutar={bandToplam}
+                    aciklama="Malzeme kartlarındaki güncel maliyet fiyatına göre toplam. Alışlarda 'fiyatı güncelle' açıkken son alış fiyatına eşitlenir."
+                    kapsam={`${bandMalzemeler.length} malzeme`}
+                  />
+                  <div className="h-9 w-px bg-border" />
+                  <MaliyetBazi
+                    etiket="Son Alış"
+                    tutar={toplamSonAlis}
+                    aciklama="Her malzemenin en güncel alış fiyatına göre toplam."
+                    fark={toplamSonAlis - bandToplam}
+                    yuzde={yuzdeFark(toplamSonAlis)}
+                    kapsam={`${sonAlisKapsam}/${bandMalzemeler.length} malzemenin alış geçmişi var${sonAlisKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`}
+                  />
+                  <div className="h-9 w-px bg-border" />
+                  <MaliyetBazi
+                    etiket="Max Şart"
+                    tutar={toplamMaxSart}
+                    renk="rose"
+                    aciklama="Satın alma şartlarındaki en yüksek anlaşma fiyatına göre — en pahalı senaryo."
+                    fark={toplamMaxSart - bandToplam}
+                    yuzde={yuzdeFark(toplamMaxSart)}
+                    kapsam={`${maxSartKapsam}/${bandMalzemeler.length} malzemede şart tanımlı${maxSartKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`}
+                  />
+                </div>
+              </div>
+              {bandEnPahali.length > 0 && (
+                <>
+                  <div className="hidden h-9 w-px bg-border sm:block" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+                      En Maliyetli
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap gap-1.5">
+                      {bandEnPahali.map(({ s, tutar }, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-baseline gap-1 rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs whitespace-nowrap"
+                        >
+                          <span className="max-w-40 truncate">
+                            {bilesenAd(s.bilesen.tip, s.bilesen.ref)}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">
+                            %
+                            {bandToplam > 0
+                              ? Math.round((tutar / bandToplam) * 100)
+                              : 0}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Bileşen grid'i — tam genişlik (dar ekranda yatay kayar) */}
+            <div className="overflow-x-auto rounded-md border bg-card">
+              <div className="min-w-[1180px]">
+                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("tip")}
+                    onSirala={sirala("tip")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: gruplar,
+                      deger: tipF,
+                      onDeger: setTipF,
+                    }}
+                  >
+                    Grup
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("bilesen")}
+                    onSirala={sirala("bilesen")}
+                    filtre={{
+                      tip: "metin",
+                      deger: bilesenF,
+                      onDeger: setBilesenF,
+                    }}
+                  >
+                    Malzeme
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("fire")}
+                    onSirala={sirala("fire")}
+                    filtre={{
+                      tip: "sayi",
+                      min: fireAralik.min,
+                      max: fireAralik.max,
+                      onDegis: (min, max) => setFireAralik({ min, max }),
+                    }}
+                  >
+                    Fire %
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("istasyon")}
+                    onSirala={sirala("istasyon")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: istasyonlar.map((x) => x.ad),
+                      deger: istasyonF,
+                      onDeger: setIstasyonF,
+                    }}
+                  >
+                    İstasyon
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("miktar")}
+                    onSirala={sirala("miktar")}
+                    filtre={{
+                      tip: "sayi",
+                      min: miktarAralik.min,
+                      max: miktarAralik.max,
+                      onDegis: (min, max) => setMiktarAralik({ min, max }),
+                    }}
+                  >
+                    Miktar
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("sonAlis")}
+                    onSirala={sirala("sonAlis")}
+                  >
+                    Son Alış
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("tutar")}
+                    onSirala={sirala("tutar")}
+                  >
+                    Tutar
+                  </SiralaFiltreBaslik>
+                  <span title="Satın alma şartlarındaki en yüksek anlaşma fiyatı">
+                    Max Şart
+                  </span>
+                  <SiralaFiltreBaslik
+                    asDiv
+                    sira={sortu("digerOrt")}
+                    onSirala={sirala("digerOrt")}
+                  >
+                    Diğer Ort.
+                  </SiralaFiltreBaslik>
+                  <span>Son Hareket</span>
                   <span />
                 </div>
                 <div className="divide-y">
-                  {satirlar.map((s, i) => {
-                    const malzeme =
-                      s.bilesen.tip === "malzeme"
-                        ? malzemeMap.get(s.bilesen.ref)
-                        : undefined;
+                  {gorunum.map(({ s, i, malzeme, ozet, digerFirmalar, digerOrt }) => {
                     const alt =
                       s.bilesen.tip === "parca"
                         ? parcaMap.get(s.bilesen.ref)
@@ -799,17 +1128,19 @@ export function ParcaForm({
                     const acik = acikAltlar.has(i);
                     return (
                       <React.Fragment key={i}>
-                        <div className="grid grid-cols-[88px_1fr_130px_90px_56px_72px_100px_36px] items-center gap-2 px-3 py-2">
+                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_36px] items-center gap-2 px-3 py-2">
                           <Badge
                             variant="secondary"
                             className={cn(
-                              "justify-center",
+                              "w-full justify-center whitespace-nowrap",
                               s.bilesen.tip === "malzeme"
                                 ? "bg-blue-100 text-blue-800"
                                 : "bg-violet-100 text-violet-800",
                             )}
                           >
-                            {s.bilesen.tip === "malzeme" ? "Malzeme" : "Parça"}
+                            {s.bilesen.tip === "malzeme"
+                              ? (malzeme?.grup ?? "—")
+                              : "Parça"}
                           </Badge>
                           <div className="flex min-w-0 items-center gap-1">
                             {alt && (
@@ -868,6 +1199,22 @@ export function ParcaForm({
                               />
                             </div>
                           </div>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={99}
+                            step="any"
+                            value={s.fire ?? ""}
+                            placeholder="0"
+                            onChange={(e) =>
+                              satirGuncelle(i, {
+                                fire: e.target.value
+                                  ? Number(e.target.value)
+                                  : undefined,
+                              })
+                            }
+                            className="h-8 text-right tabular-nums"
+                          />
                           {s.bilesen.tip === "malzeme" ? (
                             <SearchSelect
                               items={istasyonlar.map((x) => x.ad)}
@@ -893,49 +1240,178 @@ export function ParcaForm({
                               kendi reçetesi
                             </span>
                           )}
-                          <Input
-                            type="number"
-                            min={0}
-                            step="any"
-                            value={s.miktar}
-                            onChange={(e) =>
-                              satirGuncelle(i, {
-                                miktar: Number(e.target.value),
-                              })
-                            }
-                            className="h-8 text-right tabular-nums"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {s.bilesen.tip === "malzeme"
-                              ? (malzeme?.birim ?? "—")
-                              : "adet"}
-                          </span>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={99}
-                            step="any"
-                            value={s.fire ?? ""}
-                            placeholder="0"
-                            onChange={(e) =>
-                              satirGuncelle(i, {
-                                fire: e.target.value
-                                  ? Number(e.target.value)
-                                  : undefined,
-                              })
-                            }
-                            className="h-8 text-right tabular-nums"
-                          />
-                          <span className="text-right text-xs text-muted-foreground tabular-nums">
+                          {/* Miktar — birim rozeti input içinde */}
+                          {(() => {
+                            const birim =
+                              s.bilesen.tip === "malzeme"
+                                ? (malzeme?.birim ?? "")
+                                : "adet";
+                            return (
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step="any"
+                                  value={s.miktar}
+                                  onChange={(e) =>
+                                    satirGuncelle(i, {
+                                      miktar: Number(e.target.value),
+                                    })
+                                  }
+                                  className={cn(
+                                    "h-8 text-right tabular-nums",
+                                    birim && "pr-11",
+                                  )}
+                                />
+                                {birim && (
+                                  <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    {birim}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {/* Son Alış — detay hover'da */}
+                          {ozet?.sonAlis ? (
+                            <BilgiHucre
+                              deger={
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {formatTL(ozet.sonAlis.fiyat)}
+                                </span>
+                              }
+                              detay={
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium">
+                                    {ozet.sonAlis.cariAd}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {formatTarih(ozet.sonAlis.tarih)}
+                                  </span>
+                                </div>
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          <span className="text-sm font-semibold tabular-nums">
                             {formatTL(satirTutari(s))}
                           </span>
+                          {/* Max Şart — satın alma şartlarındaki en yüksek fiyat */}
+                          {ozet?.maxSart ? (
+                            <BilgiHucre
+                              deger={
+                                <span className="text-sm font-semibold text-rose-700 tabular-nums">
+                                  {formatTL(ozet.maxSart.fiyat)}
+                                </span>
+                              }
+                              detay={
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                                    Satın Alma Şartları
+                                  </p>
+                                  {(ozet.sartlar ?? []).map((f) => (
+                                    <div
+                                      key={f.cariAd}
+                                      className="flex items-center justify-between gap-3"
+                                    >
+                                      <span className="min-w-0 truncate">
+                                        {f.cariAd}
+                                      </span>
+                                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                                        {formatTL(f.fiyat)}
+                                        {f.doviz !== "TL" && ` ${f.doviz}`}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          {/* Diğer firmaların ortalaması — döküm hover'da */}
+                          {digerOrt !== null ? (
+                            <BilgiHucre
+                              deger={
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {formatTL(digerOrt)}
+                                </span>
+                              }
+                              detay={
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                                    Diğer Firma Ortalamaları
+                                  </p>
+                                  {digerFirmalar.map((f) => (
+                                    <div
+                                      key={f.cariAd}
+                                      className="flex items-center justify-between gap-3"
+                                    >
+                                      <span className="min-w-0 truncate">
+                                        {f.cariAd}
+                                      </span>
+                                      <span className="shrink-0 text-muted-foreground tabular-nums">
+                                        {formatTL(f.ortalama)} ({f.alisSayisi}{" "}
+                                        alış)
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          {/* Son hareket — açıklama hover'da */}
+                          {ozet?.sonHareket ? (
+                            <BilgiHucre
+                              hizala="left"
+                              deger={
+                                <span className="text-xs">
+                                  {formatTarih(ozet.sonHareket.tarih)}
+                                </span>
+                              }
+                              detay={
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium">
+                                    {formatTarih(ozet.sonHareket.tarih)} ·{" "}
+                                    {ozet.sonHareket.tur}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {ozet.sonHareket.aciklama}
+                                  </span>
+                                </div>
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon-sm"
                             aria-label="Satırı kaldır"
-                            onClick={() =>
-                              setSatirlar((x) => x.filter((_, j) => j !== i))
-                            }
+                            onClick={async () => {
+                              const ad = s.bilesen.ref
+                                ? bilesenAd(s.bilesen.tip, s.bilesen.ref)
+                                : "Bu satır";
+                              if (
+                                !(await onayla({
+                                  title: `${ad} reçeteden çıkarılsın mı?`,
+                                  description:
+                                    "Satır kaldırılır; değişiklik kaydedene dek kalıcı olmaz.",
+                                }))
+                              )
+                                return;
+                              setSatirlar((x) => x.filter((_, j) => j !== i));
+                            }}
                           >
                             <X className="size-3.5" />
                           </Button>
@@ -978,10 +1454,16 @@ export function ParcaForm({
                       </React.Fragment>
                     );
                   })}
-                  {satirlar.length === 0 && (
+                  {satirlar.length === 0 ? (
                     <p className="p-8 text-center text-sm text-muted-foreground">
                       Henüz bileşen yok — aşağıdan malzeme veya alt parça ekleyin.
                     </p>
+                  ) : (
+                    gorunum.length === 0 && (
+                      <p className="p-8 text-center text-sm text-muted-foreground">
+                        Filtreyle eşleşen satır yok.
+                      </p>
+                    )
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 border-t bg-muted/40 px-3 py-2">
@@ -992,63 +1474,7 @@ export function ParcaForm({
                   >
                     <Plus className="size-3.5" /> Malzeme
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => satirEkle("parca")}
-                  >
-                    <Plus className="size-3.5" /> Alt Parça
-                  </Button>
                 </div>
-              </div>
-            </div>
-
-            {/* Sağ: maliyet özeti */}
-            <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
-              <div className="rounded-md border bg-card p-4">
-                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Maliyet Özeti
-                </p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-                  {formatTL(toplam)}
-                </p>
-                <div className="mt-3 flex flex-col gap-1.5 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Malzemeler</span>
-                    <span className="tabular-nums">
-                      {formatTL(malzemeToplami)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Alt parçalar</span>
-                    <span className="tabular-nums">
-                      {formatTL(toplam - malzemeToplami)}
-                    </span>
-                  </div>
-                </div>
-                {enPahali.length > 0 && (
-                  <>
-                    <div className="my-3 h-px bg-border" />
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      En Maliyetli
-                    </p>
-                    <ul className="mt-2 flex flex-col gap-1.5">
-                      {enPahali.map(({ s, tutar }, i) => (
-                        <li
-                          key={i}
-                          className="flex items-center justify-between gap-2 text-sm"
-                        >
-                          <span className="truncate">
-                            {bilesenAd(s.bilesen.tip, s.bilesen.ref)}
-                          </span>
-                          <span className="shrink-0 text-muted-foreground tabular-nums">
-                            {toplam > 0 ? Math.round((tutar / toplam) * 100) : 0}%
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -1285,6 +1711,122 @@ export function ParcaForm({
           onKapat={() => setBuyuk(null)}
         />
       )}
+
+      {onayDialog}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* BİLGİ HÜCRESİ                                                      */
+/* ------------------------------------------------------------------ */
+/** Reçete satırı bilgi kolonu: hücrede yalın değer, detay hover kartında. */
+function BilgiHucre({
+  deger,
+  detay,
+  hizala = "left",
+}: {
+  deger: React.ReactNode;
+  detay: React.ReactNode;
+  hizala?: "left" | "right";
+}) {
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        delay={0}
+        closeDelay={0}
+        render={
+          <div
+            className={cn(
+              "min-w-0 cursor-help",
+              hizala === "right" && "text-right",
+            )}
+          >
+            {deger}
+          </div>
+        }
+      />
+      <HoverCardContent align="end" className="w-auto min-w-56 text-xs">
+        {detay}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* MALİYET BAZI (özet bandı hücresi)                                  */
+/* ------------------------------------------------------------------ */
+/** Özet bandındaki tek fiyat bazı — hover'da açıklama + fark + kapsam. */
+function MaliyetBazi({
+  etiket,
+  tutar,
+  aciklama,
+  kapsam,
+  fark,
+  yuzde,
+  renk,
+}: {
+  etiket: string;
+  tutar: number;
+  aciklama: string;
+  kapsam: string;
+  fark?: number;
+  yuzde?: number;
+  renk?: "rose";
+}) {
+  const farkVar = fark !== undefined && Math.abs(fark) > 0.5;
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        delay={0}
+        closeDelay={0}
+        render={
+          <div className="flex cursor-help flex-col">
+            <span className="text-[9px] font-medium tracking-wide text-muted-foreground/70 uppercase">
+              {etiket}
+            </span>
+            <span
+              className={cn(
+                "text-lg font-semibold tracking-tight tabular-nums",
+                renk === "rose" && "text-rose-700",
+              )}
+            >
+              {formatTL(tutar)}
+            </span>
+          </div>
+        }
+      />
+      <HoverCardContent align="start" className="w-72 text-xs">
+        <div className="flex flex-col gap-2">
+          <div>
+            <p className="text-sm font-medium">{etiket}</p>
+            <p className="mt-0.5 text-muted-foreground">{aciklama}</p>
+          </div>
+          {farkVar && (
+            <div className="flex items-center justify-between gap-2 border-t pt-1.5">
+              <span className="text-muted-foreground">
+                Birim fiyata göre fark
+              </span>
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  fark! > 0 ? "text-rose-700" : "text-emerald-700",
+                )}
+              >
+                {fark! > 0 ? "+" : ""}
+                {formatTL(fark!)}
+                {yuzde !== undefined && (
+                  <> ({yuzde > 0 ? "+" : ""}%{Math.round(yuzde)})</>
+                )}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 border-t pt-1.5 text-muted-foreground">
+            <Info className="size-3.5 shrink-0" />
+            <span>{kapsam}</span>
+          </div>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

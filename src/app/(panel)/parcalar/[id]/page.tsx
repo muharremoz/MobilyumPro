@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ParcaForm } from "@/components/production/parca-form";
 import {
   getIstasyonlar,
+  getMalzemeAlisOzetleri,
   getMalzemeler,
   getModeller,
   getParcaDokumanlar,
@@ -16,15 +17,23 @@ export default async function ParcaDetayRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [parcalar, malzemeler, modeller, versiyonlar, istasyonlar, dokumanlar] =
-    await Promise.all([
-      getParcalar(),
-      getMalzemeler(),
-      getModeller(),
-      getReceteVersiyonlari(),
-      getIstasyonlar(),
-      getParcaDokumanlar(id),
-    ]);
+  const [
+    parcalar,
+    malzemeler,
+    modeller,
+    versiyonlar,
+    istasyonlar,
+    dokumanlar,
+    alisOzetleri,
+  ] = await Promise.all([
+    getParcalar(),
+    getMalzemeler(),
+    getModeller(),
+    getReceteVersiyonlari(),
+    getIstasyonlar(),
+    getParcaDokumanlar(id),
+    getMalzemeAlisOzetleri(),
+  ]);
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
 
@@ -37,6 +46,7 @@ export default async function ParcaDetayRoute({
       versiyonlar={versiyonlar[id] ?? []}
       istasyonlar={istasyonlar}
       dokumanlar={dokumanlar}
+      alisOzetleri={alisOzetleri}
     />
   );
 }

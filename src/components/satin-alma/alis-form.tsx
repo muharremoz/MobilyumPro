@@ -8,6 +8,8 @@ import {
   X,
   ReceiptText,
   PackagePlus,
+  Split,
+  Trash2,
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
@@ -28,14 +30,27 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { formatTL, type Doviz, type Kur, type Malzeme } from "@/lib/data";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  formatTL,
+  type Doviz,
+  type Kur,
+  type Malzeme,
+  type SatinAlmaSarti,
+} from "@/lib/data";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
-import { alisKaydet, depoKaydet } from "@/lib/db/actions";
+import { alisKaydet, depoKaydet, talepOlustur } from "@/lib/db/actions";
 
 const DOVIZ_SEMBOL: Record<Doviz, string> = { TL: "₺", USD: "$", EUR: "€" };
 function paraFmt(n: number, d: Doviz | undefined): string {
@@ -76,10 +91,13 @@ const bugun = () => new Date().toISOString().slice(0, 10);
  * fiyat o firmadan son alış, yoksa malzemenin genel birim fiyatı.
  */
 function ilkSatirlar(
-  kalemler: { malzemeId: string; miktar: number }[] | undefined,
+  kalemler:
+    | { malzemeId: string; miktar: number; cariId?: string; fiyat?: number }[]
+    | undefined,
   malzemeler: Malzeme[],
   tedarikciler: { id: string; ad: string }[],
   sonFiyatlar: { malzemeId: string; cariId: string; fiyat: number }[],
+  sartlar: SatinAlmaSarti[] = [],
 ): Satir[] {
   if (!kalemler?.length) return [];
   const mMap = new Map(malzemeler.map((m) => [m.id, m]));
@@ -87,21 +105,34 @@ function ilkSatirlar(
   const sfMap = new Map(
     sonFiyatlar.map((s) => [`${s.malzemeId}:${s.cariId}`, s.fiyat]),
   );
+  const sartMap = new Map(
+    sartlar.map((s) => [`${s.stokId}:${s.cariId}`, s]),
+  );
   const rows: Satir[] = [];
   for (const k of kalemler) {
     const m = mMap.get(k.malzemeId);
     if (!m) continue;
+    // Öncelik kalemle gelen firma (örn. talepte seçilen); yoksa üretici cari.
     const varsayilan =
-      m.tedarikci && cariIdSet.has(m.tedarikci) ? m.tedarikci : "";
+      k.cariId && cariIdSet.has(k.cariId)
+        ? k.cariId
+        : m.tedarikci && cariIdSet.has(m.tedarikci)
+          ? m.tedarikci
+          : "";
+    // Fiyat önceliği: kalemle gelen > anlaşma şartı > son alış > kart fiyatı.
+    const sart = varsayilan ? sartMap.get(`${m.id}:${varsayilan}`) : undefined;
     const fiyat =
-      (varsayilan && sfMap.get(`${m.id}:${varsayilan}`)) || m.birimFiyat;
+      k.fiyat ||
+      sart?.fiyat ||
+      (varsayilan && sfMap.get(`${m.id}:${varsayilan}`)) ||
+      m.birimFiyat;
     rows.push({
       malzemeId: m.id,
       cariId: varsayilan,
       miktar: k.miktar > 0 ? k.miktar : 1,
       birim: m.birim,
       birimFiyat: paraMetni(fiyat),
-      doviz: m.doviz || "TL",
+      doviz: (!k.fiyat && sart?.doviz) || m.doviz || "TL",
       sonFiyat: fiyat,
       mevcutStok: m.stok,
     });
@@ -132,6 +163,12 @@ export function AlisForm({
   baslangicKalemler,
   kurlar = [],
   talepId,
+  mod = "alis",
+  talepModeller,
+  baslangicDepo,
+  baslangicFirma,
+  mevcutKullaniciId,
+  sartlar = [],
 }: {
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
@@ -140,6 +177,16 @@ export function AlisForm({
   kurlar?: Kur[];
   /** Alış bir satın alma talebinden dönüştürülüyorsa talebin kodu. */
   talepId?: string;
+  /** "talep": form talep hazırlığı olarak çalışır — kaydet TAL-#### oluşturur. */
+  mod?: "alis" | "talep";
+  /** Talep modunda: talebin hangi modeller için açıldığı (üretim planından). */
+  talepModeller?: string;
+  /** Başlangıçta seçili depo (üretim planındaki hedef depo). */
+  baslangicDepo?: string;
+  /** Alış modunda başlangıç tedarikçisi (cari karttan "Yeni Alış"). */
+  baslangicFirma?: string;
+  /** Talep audit'i için — TODO: oturum gelince sunucudan çözülecek. */
+  mevcutKullaniciId?: string;
   /** (malzeme, cari) → o tedarikçiden son alınan birim fiyat + tarih. */
   sonFiyatlar?: {
     malzemeId: string;
@@ -147,14 +194,26 @@ export function AlisForm({
     fiyat: number;
     tarih: string;
   }[];
-  /** Üretim planından aktarılan, önceden doldurulacak satırlar. */
-  baslangicKalemler?: { malzemeId: string; miktar: number }[];
+  /** Üretim planından/talepten aktarılan, önceden doldurulacak satırlar. */
+  baslangicKalemler?: {
+    malzemeId: string;
+    miktar: number;
+    cariId?: string;
+    fiyat?: number;
+  }[];
+  /** Satın alma şartları — firma seçilince anlaşma fiyatı önerilir. */
+  sartlar?: SatinAlmaSarti[];
 }) {
   const router = useRouter();
 
+  const talepModu = mod === "talep";
   const [tarih, setTarih] = React.useState(bugun);
   const [depoListe, setDepoListe] = React.useState(depolar);
-  const [depo, setDepo] = React.useState(depolar[0] ?? "");
+  const [depo, setDepo] = React.useState(
+    baslangicDepo && depolar.includes(baslangicDepo)
+      ? baslangicDepo
+      : (depolar[0] ?? ""),
+  );
   const [yeniDepoAcik, setYeniDepoAcik] = React.useState(false);
   const [yeniDepoAd, setYeniDepoAd] = React.useState("");
   const [belgeNo, setBelgeNo] = React.useState("");
@@ -165,11 +224,26 @@ export function AlisForm({
         ? "Üretim planı malzeme ihtiyacı"
         : "",
   );
+  // Talep modu: satır bazında firma (plan). Alış modu: TEK firma (fiş başında).
+  const perFirma = talepModu;
+  const firmaZorunlu = !talepModu;
   const [satirlar, setSatirlar] = React.useState<Satir[]>(() =>
-    ilkSatirlar(baslangicKalemler, malzemeler, tedarikciler, sonFiyatlar),
+    ilkSatirlar(baslangicKalemler, malzemeler, tedarikciler, sonFiyatlar, sartlar),
+  );
+  // Alış modunda fiş firması — cari karttan gelen firma ya da ön dolu satırların ilki.
+  const [fisFirmaId, setFisFirmaId] = React.useState<string>(() => {
+    const ilk = baslangicKalemler?.find((k) => k.cariId)?.cariId;
+    return baslangicFirma ?? ilk ?? "";
+  });
+  // (malzeme, cari) → anlaşma şartı (fiyat + döviz önerisi).
+  const sartMap = React.useMemo(
+    () => new Map(sartlar.map((s) => [`${s.stokId}:${s.cariId}`, s])),
+    [sartlar],
   );
   const [fiyatGuncelle, setFiyatGuncelle] = React.useState(true);
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
+  // Talep modunda malzemeyi firmalara dağıtma modalı (satır index'i).
+  const [dagitIdx, setDagitIdx] = React.useState<number | null>(null);
 
   const malzemeMap = React.useMemo(
     () => new Map(malzemeler.map((m) => [m.id, m])),
@@ -231,7 +305,13 @@ export function AlisForm({
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
   const satirTutari = (s: Satir) => s.miktar * paraDegeri(s.birimFiyat);
-  const toplamMiktar = gecerli.reduce((t, s) => t + s.miktar, 0);
+  // Miktarlar birim bazında gruplanır (m² + adet toplamak anlamsız).
+  const birimToplamlari = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of gecerli) m.set(s.birim, (m.get(s.birim) ?? 0) + s.miktar);
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, "tr"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satirlar]);
   const eksikFirma = gecerli.some((s) => !s.cariId);
   // Döviz bazında toplamlar (TL + her yabancı döviz ayrı satır).
   const dovizToplamlari = React.useMemo(() => {
@@ -267,10 +347,16 @@ export function AlisForm({
 
   // ── Eylemler ──────────────────────────────────────────────────────────
   function malzemeEkle(m: Malzeme) {
-    // Varsayılan firma: malzemenin üretici carisi (varsa ve tedarikçilerde).
-    const varsayilan =
-      m.tedarikci && cariMap.has(m.tedarikci) ? m.tedarikci : "";
-    const fiyat = firmaSonFiyat(m.id, varsayilan, m.birimFiyat);
+    // Alış modunda fiş firması sabit; talep modunda malzemenin üretici carisi.
+    const varsayilan = !perFirma
+      ? fisFirmaId
+      : m.tedarikci && cariMap.has(m.tedarikci)
+        ? m.tedarikci
+        : "";
+    // Fiyat önceliği: anlaşma şartı > son alış > kart fiyatı.
+    const sart = varsayilan ? sartMap.get(`${m.id}:${varsayilan}`) : undefined;
+    const fiyat =
+      sart?.fiyat ?? firmaSonFiyat(m.id, varsayilan, m.birimFiyat);
     setSatirlar((s) => [
       ...s,
       {
@@ -279,7 +365,7 @@ export function AlisForm({
         miktar: 1,
         birim: m.birim,
         birimFiyat: paraMetni(fiyat),
-        doviz: m.doviz || "TL",
+        doviz: sart?.doviz ?? m.doviz ?? "TL",
         sonFiyat: fiyat,
         mevcutStok: m.stok,
       },
@@ -311,15 +397,44 @@ export function AlisForm({
     toast.success("Depo eklendi");
   }
 
-  /** Satır firması değişince o firmadan son fiyatı uygula. */
+  /** Alış modunda fiş firması değişince tüm satırlara uygular + yeniden fiyatlar. */
+  function fisFirmaSec(cariId: string) {
+    setFisFirmaId(cariId);
+    setSatirlar((prev) =>
+      prev.map((s) => {
+        const m = malzemeMap.get(s.malzemeId);
+        const genel = m?.birimFiyat ?? s.sonFiyat;
+        const sart = cariId ? sartMap.get(`${s.malzemeId}:${cariId}`) : undefined;
+        const fiyat = sart?.fiyat ?? firmaSonFiyat(s.malzemeId, cariId, genel);
+        return {
+          ...s,
+          cariId,
+          sonFiyat: fiyat,
+          birimFiyat: paraMetni(fiyat),
+          ...(sart ? { doviz: sart.doviz } : {}),
+        };
+      }),
+    );
+  }
+
+  /** Satır firması değişince o firmanın şart/son alış fiyatını uygula. */
   function firmaSec(i: number, cariId: string) {
     setSatirlar((prev) => {
       const n = [...prev];
       const s = n[i];
       const m = malzemeMap.get(s.malzemeId);
       const genel = m?.birimFiyat ?? s.sonFiyat;
-      const fiyat = firmaSonFiyat(s.malzemeId, cariId, genel);
-      n[i] = { ...s, cariId, sonFiyat: fiyat, birimFiyat: paraMetni(fiyat) };
+      const sart = cariId
+        ? sartMap.get(`${s.malzemeId}:${cariId}`)
+        : undefined;
+      const fiyat = sart?.fiyat ?? firmaSonFiyat(s.malzemeId, cariId, genel);
+      n[i] = {
+        ...s,
+        cariId,
+        sonFiyat: fiyat,
+        birimFiyat: paraMetni(fiyat),
+        ...(sart ? { doviz: sart.doviz } : {}),
+      };
       return n;
     });
   }
@@ -331,13 +446,66 @@ export function AlisForm({
     });
   }
 
+  /** Bir satırı firma dağılımına göre çok satıra böler (talep modu). */
+  function dagitUygula(
+    idx: number,
+    dagilim: { cariId: string; miktar: number; fiyat: string; doviz: Doviz }[],
+  ) {
+    setSatirlar((prev) => {
+      const kaynak = prev[idx];
+      if (!kaynak) return prev;
+      const yeniler: Satir[] = dagilim.map((d) => ({
+        ...kaynak,
+        cariId: d.cariId,
+        miktar: d.miktar,
+        birimFiyat: d.fiyat,
+        doviz: d.doviz,
+        sonFiyat: paraDegeri(d.fiyat),
+      }));
+      const n = [...prev];
+      n.splice(idx, 1, ...yeniler);
+      return n;
+    });
+    setDagitIdx(null);
+  }
+
   async function kaydet() {
     if (gecerli.length === 0) {
       toast.error("En az bir malzeme satırı gerekli");
       return;
     }
-    if (eksikFirma) {
-      toast.error("Her satır için tedarikçi seçin");
+    if (firmaZorunlu && !fisFirmaId) {
+      toast.error("Tedarikçi seçin");
+      return;
+    }
+    // Talep modu: alış değil, TAL-#### talebi oluşturulur (firma/fiyat öneri).
+    if (talepModu) {
+      setKaydediliyor(true);
+      const res = await talepOlustur(
+        gecerli.map((s) => ({
+          malzemeId: s.malzemeId,
+          malzemeAd: malzemeMap.get(s.malzemeId)?.ad ?? s.malzemeId,
+          miktar: s.miktar,
+          birim: s.birim,
+          cariId: s.cariId || undefined,
+          cariAd: s.cariId ? cariMap.get(s.cariId)?.ad : undefined,
+          tahminiFiyat: paraDegeri(s.birimFiyat) || undefined,
+        })),
+        {
+          kaynak: talepModeller ? "Üretim Planı" : "Manuel",
+          modeller: talepModeller,
+          aciklama: aciklama.trim() || undefined,
+          depo: depo || undefined,
+          kullaniciId: mevcutKullaniciId || undefined,
+        },
+      );
+      setKaydediliyor(false);
+      if (!res.ok || !res.id) {
+        toast.error(res.error ?? "Talep oluşturulamadı.");
+        return;
+      }
+      toast.success(`Satın alma talebi oluşturuldu (${res.id})`);
+      router.push("/satin-alma/talepler");
       return;
     }
     setKaydediliyor(true);
@@ -349,8 +517,9 @@ export function AlisForm({
       satirlar: gecerli.map((s) => ({
         malzemeId: s.malzemeId,
         malzemeAd: malzemeMap.get(s.malzemeId)?.ad ?? s.malzemeId,
-        cariId: s.cariId,
-        cariAd: cariMap.get(s.cariId)?.ad ?? "",
+        // Alış tek firmalı: tüm satırlara fiş firması yazılır.
+        cariId: fisFirmaId,
+        cariAd: cariMap.get(fisFirmaId)?.ad ?? "",
         miktar: s.miktar,
         birim: s.birim,
         birimFiyat: paraDegeri(s.birimFiyat),
@@ -383,18 +552,33 @@ export function AlisForm({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <span className="text-sm font-medium">Yeni Alış</span>
+        <span className="text-sm font-medium">
+          {talepModu ? "Yeni Satın Alma Talebi" : "Yeni Alış"}
+        </span>
         {talepId && (
           <Badge variant="secondary" className="font-mono text-[11px]">
             {talepId}
           </Badge>
         )}
+        {talepModu && talepModeller && (
+          <span className="text-sm text-muted-foreground">{talepModeller}</span>
+        )}
         <Button
           className="ml-auto"
           onClick={kaydet}
-          disabled={gecerli.length === 0 || eksikFirma || kaydediliyor}
+          disabled={
+            gecerli.length === 0 ||
+            (firmaZorunlu && !fisFirmaId) ||
+            kaydediliyor
+          }
         >
-          {kaydediliyor ? "Kaydediliyor..." : "Kaydet"}
+          {kaydediliyor
+            ? talepModu
+              ? "Oluşturuluyor..."
+              : "Kaydediliyor..."
+            : talepModu
+              ? "Talep Oluştur"
+              : "Kaydet"}
         </Button>
       </div>
 
@@ -405,6 +589,20 @@ export function AlisForm({
           <div className="rounded-md border bg-card">
             <KartBaslik ikon={ReceiptText} baslik="Fiş Bilgileri" />
             <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-3">
+              {!talepModu && (
+                <Alan label="Tedarikçi">
+                  <SearchSelect
+                    items={tedarikciler.map((t) => t.ad)}
+                    value={cariMap.get(fisFirmaId)?.ad ?? null}
+                    onValueChange={(ad) =>
+                      fisFirmaSec(ad ? (cariAdMap.get(ad)?.id ?? "") : "")
+                    }
+                    placeholder="Firma seç"
+                    emptyText="Tedarikçi yok"
+                    className={cn(!fisFirmaId && "ring-1 ring-rose-300")}
+                  />
+                </Alan>
+              )}
               <Alan label="Tarih">
                 <Input
                   type="date"
@@ -425,13 +623,15 @@ export function AlisForm({
                   }}
                 />
               </Alan>
-              <Alan label="Belge No">
-                <Input
-                  placeholder="Fatura/irsaliye (ops.)"
-                  value={belgeNo}
-                  onChange={(e) => setBelgeNo(e.target.value)}
-                />
-              </Alan>
+              {!talepModu && (
+                <Alan label="Belge No">
+                  <Input
+                    placeholder="Fatura/irsaliye (ops.)"
+                    value={belgeNo}
+                    onChange={(e) => setBelgeNo(e.target.value)}
+                  />
+                </Alan>
+              )}
             </div>
           </div>
 
@@ -466,9 +666,14 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-[1fr_170px_120px_96px_100px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <div className={cn(
+                    "grid items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase",
+                    perFirma
+                      ? "grid-cols-[1fr_170px_120px_96px_100px_110px_36px]"
+                      : "grid-cols-[1fr_120px_96px_100px_110px_36px]",
+                  )}>
                   <span>Malzeme</span>
-                  <span>Firma</span>
+                  {perFirma && <span>Firma</span>}
                   <span>Miktar</span>
                   <span>Birim Fiyat</span>
                   <span>Döviz</span>
@@ -482,7 +687,12 @@ export function AlisForm({
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_170px_120px_96px_100px_110px_36px] items-center gap-2 px-3 py-2"
+                        className={cn(
+                          "grid items-center gap-2 px-3 py-2",
+                          perFirma
+                            ? "grid-cols-[1fr_170px_120px_96px_100px_110px_36px]"
+                            : "grid-cols-[1fr_120px_96px_100px_110px_36px]",
+                        )}
                       >
                         <div className="min-w-0">
                           <HoverCard>
@@ -550,20 +760,33 @@ export function AlisForm({
                             </HoverCardContent>
                           </HoverCard>
                         </div>
-                        {/* Firma (ayrı sütun) */}
-                        <SearchSelect
-                          items={tedarikciler.map((t) => t.ad)}
-                          value={cariMap.get(s.cariId)?.ad ?? null}
-                          onValueChange={(ad) =>
-                            firmaSec(i, ad ? (cariAdMap.get(ad)?.id ?? "") : "")
-                          }
-                          placeholder="Firma seç"
-                          emptyText="Tedarikçi yok"
-                          className={cn(
-                            "h-8",
-                            !s.cariId && "ring-1 ring-rose-300 ring-offset-0",
-                          )}
-                        />
+                        {/* Firma (yalnız talep modunda satır bazında) + Dağıt */}
+                        {perFirma && (
+                          <div className="flex items-center gap-1">
+                            <SearchSelect
+                              items={tedarikciler.map((t) => t.ad)}
+                              value={cariMap.get(s.cariId)?.ad ?? null}
+                              onValueChange={(ad) =>
+                                firmaSec(
+                                  i,
+                                  ad ? (cariAdMap.get(ad)?.id ?? "") : "",
+                                )
+                              }
+                              placeholder="Firma seç"
+                              emptyText="Tedarikçi yok"
+                              className="h-8 min-w-0 flex-1"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Firmalara dağıt"
+                              title="Firmalara dağıt"
+                              onClick={() => setDagitIdx(i)}
+                            >
+                              <Split className="size-3.5" />
+                            </Button>
+                          </div>
+                        )}
                         <div className="relative">
                           <Input
                             type="number"
@@ -597,19 +820,43 @@ export function AlisForm({
                             className="h-8 pr-5 tabular-nums"
                           />
                           {Math.abs(fark) > 0.005 && (
-                            <span
-                              className={cn(
-                                "absolute top-1/2 right-1.5 -translate-y-1/2",
-                                fark > 0 ? "text-rose-500" : "text-emerald-600",
-                              )}
-                              title={`Son alışa göre ${fark > 0 ? "pahalı" : "ucuz"}: ${paraFmt(Math.abs(fark), s.doviz)}`}
-                            >
-                              {fark > 0 ? (
-                                <TrendingUp className="size-3.5" />
-                              ) : (
-                                <TrendingDown className="size-3.5" />
-                              )}
-                            </span>
+                            <TooltipProvider delay={0}>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span
+                                    className={cn(
+                                      "absolute top-1/2 right-1.5 -translate-y-1/2 cursor-help",
+                                      fark > 0
+                                        ? "text-rose-500"
+                                        : "text-emerald-600",
+                                    )}
+                                  />
+                                }
+                              >
+                                {fark > 0 ? (
+                                  <TrendingUp className="size-3.5" />
+                                ) : (
+                                  <TrendingDown className="size-3.5" />
+                                )}
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                Son alışa göre{" "}
+                                {s.sonFiyat > 0 && (
+                                  <span className="font-semibold tabular-nums">
+                                    %
+                                    {Math.abs(
+                                      (fark / s.sonFiyat) * 100,
+                                    ).toLocaleString("tr-TR", {
+                                      maximumFractionDigits: 1,
+                                    })}{" "}
+                                  </span>
+                                )}
+                                {fark > 0 ? "pahalı" : "ucuz"} (
+                                {paraFmt(Math.abs(fark), s.doviz)} fark)
+                              </TooltipContent>
+                            </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                         <SearchSelect
@@ -708,9 +955,27 @@ export function AlisForm({
                 <span className="text-muted-foreground">Kalem sayısı</span>
                 <span className="tabular-nums">{gecerli.length}</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1.5">
                 <span className="text-muted-foreground">Toplam miktar</span>
-                <span className="tabular-nums">{toplamMiktar}</span>
+                {birimToplamlari.length === 0 ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {birimToplamlari.map(([birim, m]) => (
+                      <span
+                        key={birim}
+                        className="inline-flex items-baseline gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs whitespace-nowrap"
+                      >
+                        <span className="font-semibold tabular-nums">
+                          {m.toLocaleString("tr-TR", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                        <span className="text-muted-foreground">{birim}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -734,13 +999,20 @@ export function AlisForm({
                 </div>
               </div>
             )}
-            {eksikFirma && (
+            {firmaZorunlu && !fisFirmaId && (
               <p className="mt-2 text-xs text-rose-600">
-                Bazı satırlarda firma seçilmedi.
+                Fiş bilgilerinde tedarikçi seçin.
               </p>
             )}
 
             <div className="my-3 h-px bg-border" />
+            {talepModu ? (
+              <p className="rounded-md border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
+                Talep stoku ve cariyi etkilemez; onaylandıktan sonra tedarik
+                sürecinde mal kabulle stoğa girer. Firma ve fiyatlar öneri
+                olarak talebe yazılır.
+              </p>
+            ) : (
             <div
               role="button"
               tabIndex={0}
@@ -766,6 +1038,7 @@ export function AlisForm({
                 className="pointer-events-none mt-0.5 shrink-0 data-checked:bg-emerald-600"
               />
             </div>
+            )}
             <div className="mt-3">
               <Textarea
                 placeholder="Açıklama (opsiyonel)"
@@ -777,6 +1050,22 @@ export function AlisForm({
           </div>
         </div>
       </div>
+
+      {/* Firmalara dağıtma modalı (talep hazırlığı) */}
+      {dagitIdx !== null && satirlar[dagitIdx] && (
+        <DagitModal
+          satir={satirlar[dagitIdx]}
+          malzemeAd={
+            malzemeMap.get(satirlar[dagitIdx].malzemeId)?.ad ??
+            satirlar[dagitIdx].malzemeId
+          }
+          tedarikciler={tedarikciler}
+          cariMap={cariMap}
+          cariAdMap={cariAdMap}
+          onKapat={() => setDagitIdx(null)}
+          onUygula={(dagilim) => dagitUygula(dagitIdx, dagilim)}
+        />
+      )}
 
       {/* Yeni depo modalı */}
       <Dialog open={yeniDepoAcik} onOpenChange={setYeniDepoAcik}>
@@ -807,5 +1096,175 @@ export function AlisForm({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* DAĞITMA MODALI (talep hazırlığı — malzemeyi firmalara böl)         */
+/* ------------------------------------------------------------------ */
+function DagitModal({
+  satir,
+  malzemeAd,
+  tedarikciler,
+  cariMap,
+  cariAdMap,
+  onKapat,
+  onUygula,
+}: {
+  satir: Satir;
+  malzemeAd: string;
+  tedarikciler: { id: string; ad: string }[];
+  cariMap: Map<string, { id: string; ad: string }>;
+  cariAdMap: Map<string, { id: string; ad: string }>;
+  onKapat: () => void;
+  onUygula: (
+    dagilim: { cariId: string; miktar: number; fiyat: string; doviz: Doviz }[],
+  ) => void;
+}) {
+  type Row = { cariAd: string | null; miktar: string; fiyat: string };
+  const [rows, setRows] = React.useState<Row[]>([
+    {
+      cariAd: cariMap.get(satir.cariId)?.ad ?? null,
+      miktar: String(satir.miktar),
+      fiyat: satir.birimFiyat,
+    },
+  ]);
+
+  const toplam = rows.reduce((t, r) => t + (Number(r.miktar) || 0), 0);
+  const kalan = satir.miktar - toplam;
+  const seciliAdlar = rows.map((r) => r.cariAd).filter(Boolean);
+  const gecerli =
+    rows.every((r) => r.cariAd && Number(r.miktar) > 0) &&
+    new Set(seciliAdlar).size === seciliAdlar.length;
+
+  function guncelle(i: number, d: Partial<Row>) {
+    setRows((arr) => arr.map((x, j) => (j === i ? { ...x, ...d } : x)));
+  }
+  function ekle() {
+    setRows((arr) => [
+      ...arr,
+      { cariAd: null, miktar: String(Math.max(0, kalan)), fiyat: satir.birimFiyat },
+    ]);
+  }
+  function sil(i: number) {
+    setRows((arr) => arr.filter((_, j) => j !== i));
+  }
+
+  function uygula() {
+    if (!gecerli) return;
+    onUygula(
+      rows.map((r) => ({
+        cariId: cariAdMap.get(r.cariAd ?? "")?.id ?? "",
+        miktar: Number(r.miktar),
+        fiyat: r.fiyat,
+        doviz: satir.doviz,
+      })),
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onKapat()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Firmalara Dağıt — {malzemeAd}</DialogTitle>
+          <DialogDescription>
+            Toplam{" "}
+            <span className="font-medium text-foreground">
+              {satir.miktar.toLocaleString("tr-TR")} {satir.birim}
+            </span>{" "}
+            · dağıtılan {toplam.toLocaleString("tr-TR")} · kalan{" "}
+            <span
+              className={cn(
+                "font-medium",
+                Math.abs(kalan) < 1e-9
+                  ? "text-emerald-700"
+                  : kalan < 0
+                    ? "text-rose-600"
+                    : "text-amber-700",
+              )}
+            >
+              {kalan.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}{" "}
+              {satir.birim}
+            </span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_110px_110px_32px] gap-2 px-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            <span>Firma</span>
+            <span>Miktar</span>
+            <span>Birim Fiyat</span>
+            <span />
+          </div>
+          {rows.map((r, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[1fr_110px_110px_32px] items-center gap-2"
+            >
+              <SearchSelect
+                items={tedarikciler
+                  .filter((t) => t.ad === r.cariAd || !seciliAdlar.includes(t.ad))
+                  .map((t) => t.ad)}
+                value={r.cariAd}
+                onValueChange={(v) => guncelle(i, { cariAd: v })}
+                placeholder="Firma seç"
+                emptyText="Tedarikçi yok"
+                className={cn("h-8", !r.cariAd && "ring-1 ring-rose-300")}
+              />
+              <Input
+                type="number"
+                min={0}
+                step="any"
+                value={r.miktar}
+                onChange={(e) => guncelle(i, { miktar: e.target.value })}
+                className={cn(
+                  "h-8 text-right tabular-nums",
+                  !(Number(r.miktar) > 0) && "ring-1 ring-rose-300",
+                )}
+              />
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={r.fiyat}
+                onChange={(e) => guncelle(i, { fiyat: paraMaskele(e.target.value) })}
+                className="h-8 text-right tabular-nums"
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Kaldır"
+                disabled={rows.length === 1}
+                onClick={() => sil(i)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={ekle}
+            disabled={rows.length >= tedarikciler.length}
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Split className="size-3.5" /> Firma ekle
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Dağıtım, talep oluşturulunca bu malzeme için firma başına sipariş
+          olarak kaydedilir. Toplam istenen miktarı aşamaz.
+        </p>
+
+        <DialogFooter>
+          <Button size="sm" variant="outline" onClick={onKapat}>
+            Vazgeç
+          </Button>
+          <Button size="sm" disabled={!gecerli} onClick={uygula}>
+            <Split className="size-3.5" /> Dağıt ({rows.length} firma)
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

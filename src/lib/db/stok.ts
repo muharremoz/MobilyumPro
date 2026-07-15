@@ -101,18 +101,27 @@ function parcayiPatlat(
   }
 }
 
-/** Modelin toplam malzeme ihtiyacı (adet ile çarpılmış, istasyona kırılımlı). */
+/**
+ * Emir referansının toplam malzeme ihtiyacı (adet ile çarpılmış, istasyona
+ * kırılımlı). refTip "model" → model BOM'u; "parca" → parça reçetesi direkt.
+ */
 export async function modelIhtiyaclari(
   modelId: string,
   adet: number,
+  refTip: "model" | "parca" = "model",
 ): Promise<Ihtiyac[]> {
   const [bom, satirlar, rota] = await Promise.all([
-    db.modelParca.findMany({ where: { modelId } }),
+    refTip === "model"
+      ? db.modelParca.findMany({ where: { modelId } })
+      : Promise.resolve([]),
     parcaSatirlariniYukle(),
     rotaSluglari(),
   ]);
   const ilkSlug = rota[0];
   const topla = new Map<string, Map<IstasyonSlug, number>>();
+  if (refTip === "parca") {
+    parcayiPatlat(modelId, adet, satirlar, topla, new Set(), ilkSlug);
+  }
   for (const mp of bom) {
     parcayiPatlat(
       mp.parcaId,
@@ -243,6 +252,7 @@ async function dusumYaz(
 // ── Mod 1: üretime geçişte toplu düşüm ──────────────────────────────────
 export async function uretimeGecisDusumu(emir: {
   id: string;
+  refTip?: "model" | "parca";
   modelId: string;
   modelAd: string;
   adet: number;
@@ -251,7 +261,7 @@ export async function uretimeGecisDusumu(emir: {
   if (!hemenDus) return { ok: true, eksikler: [] }; // Mod 2: rezerv yeter
 
   const [ihtiyaclar, dusulen] = await Promise.all([
-    modelIhtiyaclari(emir.modelId, emir.adet),
+    modelIhtiyaclari(emir.modelId, emir.adet, emir.refTip ?? "model"),
     emirDusulenleri(emir.id),
   ]);
   // İstasyon kırılımını topla (mod 1 tek kalemde düşer) − önce düşülmüşleri çıkar.
@@ -267,14 +277,20 @@ export async function uretimeGecisDusumu(emir: {
 
 // ── Mod 2: istasyon tamamlanınca o istasyonun tüketimi ──────────────────
 export async function istasyonDusumu(
-  emir: { id: string; modelId: string; modelAd: string; adet: number },
+  emir: {
+    id: string;
+    refTip?: "model" | "parca";
+    modelId: string;
+    modelAd: string;
+    adet: number;
+  },
   istasyon: IstasyonSlug,
 ): Promise<DusumSonuc> {
   const hemenDus = acikMi(await parametreDegeri("uretimde_hemen_dus"));
   if (hemenDus) return { ok: true, eksikler: [] }; // Mod 1'de zaten düşüldü
 
   const [ihtiyaclar, dusulenRows] = await Promise.all([
-    modelIhtiyaclari(emir.modelId, emir.adet),
+    modelIhtiyaclari(emir.modelId, emir.adet, emir.refTip ?? "model"),
     db.stokHareket.findMany({
       where: { emirId: emir.id, tur: "Çıkış", refTip: "malzeme", istasyon },
     }),
@@ -296,10 +312,13 @@ export async function istasyonDusumu(
 // ── Paketleme bitişinde mamul girişi ────────────────────────────────────
 export async function mamulGirisi(emir: {
   id: string;
+  refTip?: "model" | "parca";
   modelId: string;
   modelAd: string;
   adet: number;
 }): Promise<void> {
+  // Parça emri: stok kartı yok — mamul girişi yazılmaz (iç üretim).
+  if (emir.refTip === "parca") return;
   // Aynı emir için ikinci kez giriş yazma.
   const mevcut = await db.stokHareket.findFirst({
     where: { emirId: emir.id, tur: "Giriş", refTip: "model" },
@@ -373,6 +392,10 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
 
   for (const e of emirler) {
     const topla = new Map<string, Map<IstasyonSlug, number>>();
+    if (e.refTip === "parca") {
+      // Parça emri: reçetesi doğrudan patlatılır.
+      parcayiPatlat(e.modelId, e.adet, satirlar, topla, new Set(), ilkSlug);
+    }
     for (const mp of bomByModel.get(e.modelId) ?? []) {
       parcayiPatlat(
         mp.parcaId,

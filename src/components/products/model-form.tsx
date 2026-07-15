@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -485,7 +486,14 @@ export function ModelForm({
     );
   }
   function parcaSil(i: number) {
+    const silinenId = urunParcalar[i]?.parcaId;
     setUrunParcalar((ps) => ps.filter((_, j) => j !== i));
+    if (silinenId)
+      setDokumSecim((s) => {
+        const n = new Set(s);
+        n.delete(silinenId);
+        return n;
+      });
   }
 
   // Varyantlar (renk × kumaş)
@@ -509,6 +517,23 @@ export function ModelForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(seciliParcalar), parcalar, malzemeler],
   );
+  // Malzeme İhtiyacı odağı: işaretli parçalar (boşsa tüm model gösterilir).
+  const [dokumSecim, setDokumSecim] = React.useState<Set<string>>(new Set());
+  function dokumSecimToggle(parcaId: string, v: boolean) {
+    setDokumSecim((s) => {
+      const n = new Set(s);
+      if (v) n.add(parcaId);
+      else n.delete(parcaId);
+      return n;
+    });
+  }
+  const dokumGoster = React.useMemo(() => {
+    const hedef = dokumSecim.size
+      ? seciliParcalar.filter((p) => dokumSecim.has(p.parcaId))
+      : seciliParcalar;
+    return modelIhtiyacDokumu(hedef, parcalar, malzemeler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(seciliParcalar), dokumSecim, parcalar, malzemeler]);
   const toplamMaliyet = dokum.reduce((t, m) => t + m.tutar, 0);
   const eksikSayisi = dokum.filter((d) => d.brutMiktar > d.malzeme.stok).length;
   const satisFiyati = paraDegeri(form.fiyat);
@@ -926,6 +951,7 @@ export function ModelForm({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="w-8" />
                       <TableHead>Parça</TableHead>
                       <TableHead className="w-24 text-right">Adet</TableHead>
                       <TableHead className="w-28 text-right">Maliyet</TableHead>
@@ -954,7 +980,25 @@ export function ModelForm({
                           ).reduce((t, m) => t + m.tutar, 0)
                         : 0;
                       return (
-                        <TableRow key={i}>
+                        <TableRow
+                          key={i}
+                          className={cn(
+                            // Seçim varken işaretli olmayanlar soluklaşır.
+                            dokumSecim.size > 0 &&
+                              !dokumSecim.has(s.parcaId) &&
+                              "opacity-40 transition-opacity",
+                          )}
+                        >
+                          <TableCell>
+                            <Checkbox
+                              disabled={!s.parcaId}
+                              checked={dokumSecim.has(s.parcaId)}
+                              onCheckedChange={(v) =>
+                                dokumSecimToggle(s.parcaId, v === true)
+                              }
+                              aria-label="Malzeme dökümünde göster"
+                            />
+                          </TableCell>
                           <TableCell>
                             <SearchSelect
                               items={items}
@@ -1018,12 +1062,25 @@ export function ModelForm({
             )}
             </Kart>
 
-            {/* Sağ: Malzeme ihtiyacı dökümü */}
+            {/* Sağ: Malzeme ihtiyacı dökümü — işaretli parçalara odaklanır */}
             <Kart
               baslik="Malzeme İhtiyacı"
               ikon={Boxes}
               sag={
-                dokum.length > 0 ? (
+                dokumSecim.size > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {dokumSecim.size} parça seçili
+                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => setDokumSecim(new Set())}
+                      className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      Tümünü göster
+                    </button>
+                  </span>
+                ) : dokum.length > 0 ? (
                   eksikSayisi > 0 ? (
                     <Badge
                       variant="secondary"
@@ -1043,13 +1100,14 @@ export function ModelForm({
                 )
               }
             >
-              {dokum.length === 0 && (
+              {dokumGoster.length === 0 && (
                 <p className="py-8 text-center text-xs text-muted-foreground">
                   Soldan parça ekleyince malzeme ihtiyacı (1 model için, fire
-                  dahil) burada listelenir.
+                  dahil) burada listelenir. Parça satırlarındaki kutularla
+                  dökümü seçili parçalara daraltabilirsin.
                 </p>
               )}
-              {dokum.length > 0 && (
+              {dokumGoster.length > 0 && (
               <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
@@ -1063,7 +1121,7 @@ export function ModelForm({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dokum.map((d) => {
+                    {dokumGoster.map((d) => {
                       const yetersiz = d.brutMiktar > d.malzeme.stok;
                       return (
                         <TableRow key={d.malzeme.id}>

@@ -32,6 +32,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   formatTL,
   type Model,
   type Depo,
@@ -40,11 +48,20 @@ import {
   type UretimOncelik,
 } from "@/lib/data";
 import { malzemeYeterlilik, type MalzemeIhtiyac } from "@/lib/bom";
-import { talepOlustur, uretimEmriOlustur } from "@/lib/db/actions";
+import { uretimEmriOlustur } from "@/lib/db/actions";
 
 type Neden = "stok" | "siparis";
-type Secim = { id: number; urunId: string; adet: string };
+// Plan satırı model (mamül) ya da parça üretimi olabilir.
+type SecimTip = "model" | "parca";
+type Secim = { id: number; tip: SecimTip; urunId: string; adet: string };
 type MusteriSecim = { id: string; ad: string; sehir: string };
+/** Model seçilince açılan parça aktarma modalının satırı. */
+type ModalSatiri = {
+  parcaId: string;
+  ad: string;
+  adet: string;
+  secili: boolean;
+};
 
 const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 
@@ -54,12 +71,15 @@ export function ProductionPlan({
   musteriler,
   parcalar,
   malzemeler,
+  mevcutKullaniciId = "",
 }: {
   urunler: Model[];
   depolar: Depo[];
   musteriler: MusteriSecim[];
   parcalar: Parca[];
   malzemeler: Malzeme[];
+  /** Talep audit'i için — TODO: oturum gelince sunucudan çözülecek. */
+  mevcutKullaniciId?: string;
 }) {
   const router = useRouter();
   const modeller = React.useMemo(
@@ -100,29 +120,60 @@ export function ProductionPlan({
   const [terminBas, setTerminBas] = React.useState("");
   const [termin, setTermin] = React.useState("");
   const [oncelik, setOncelik] = React.useState<UretimOncelik>("Normal");
-  // İlk açılışta bir boş model satırı hazır gelir.
+  // İlk açılışta bir boş satır hazır gelir.
   const [secimler, setSecimler] = React.useState<Secim[]>([
-    { id: 0, urunId: "", adet: "1" },
+    { id: 0, tip: "model", urunId: "", adet: "1" },
   ]);
   const idRef = React.useRef(1);
   const [gorunen, setGorunen] = React.useState(5);
+  // Model seçilince parçalarını aktarma modalı.
+  const [parcaModal, setParcaModal] = React.useState<{
+    model: Model;
+    hedefId: number;
+    satirlar: ModalSatiri[];
+  } | null>(null);
 
-  const seciliIds = new Set(secimler.map((s) => s.urunId));
-  const eklenebilir = modeller.filter((m) => !seciliIds.has(m.id));
+  const seciliModelIds = new Set(
+    secimler.filter((s) => s.tip === "model").map((s) => s.urunId),
+  );
+  const seciliParcaIds = new Set(
+    secimler.filter((s) => s.tip === "parca").map((s) => s.urunId),
+  );
+  const aktifParcalar = React.useMemo(
+    () => parcalar.filter((p) => p.durum === "Aktif"),
+    [parcalar],
+  );
+  const eklenebilir = modeller.filter((m) => !seciliModelIds.has(m.id));
+  const eklenebilirParcalar = aktifParcalar.filter(
+    (p) => !seciliParcaIds.has(p.id),
+  );
+  // Seçim listesi: "Model · X" ve "Parça · Y" birlikte.
+  const secimItems = [
+    ...eklenebilir.map((m) => `Model · ${m.ad}`),
+    ...eklenebilirParcalar.map((p) => `Parça · ${p.ad}`),
+  ];
+
+  /** Bir plan satırının parça bileşenleri (model → BOM, parça → kendisi). */
+  const satirBilesenleri = React.useCallback(
+    (s: Secim): { parcaId: string; miktar: number }[] => {
+      const a = Number(s.adet);
+      if (!s.urunId || !Number.isFinite(a) || a < 1) return [];
+      if (s.tip === "parca") return [{ parcaId: s.urunId, miktar: a }];
+      const u = urunMap.get(s.urunId);
+      return (u?.parcalar ?? []).map((p) => ({
+        parcaId: p.parcaId,
+        miktar: p.miktar * a,
+      }));
+    },
+    [urunMap],
+  );
 
   const yeterlilik = React.useMemo(() => {
-    const birlesik: { parcaId: string; miktar: number }[] = [];
-    for (const s of secimler) {
-      const u = urunMap.get(s.urunId);
-      const a = Number(s.adet);
-      if (!u?.parcalar || !Number.isFinite(a) || a < 1) continue;
-      for (const p of u.parcalar) {
-        birlesik.push({ parcaId: p.parcaId, miktar: p.miktar * a });
-      }
-    }
+    const birlesik = secimler.flatMap(satirBilesenleri);
     if (birlesik.length === 0) return null;
     return malzemeYeterlilik(birlesik, parcalar, malzemeler);
-  }, [secimler, urunMap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secimler, satirBilesenleri]);
 
   // Parça detayı açık olan plan satırları (secim id).
   const [detaylar, setDetaylar] = React.useState<Set<number>>(new Set());
@@ -135,16 +186,85 @@ export function ProductionPlan({
     });
   }
 
-  // Boş bir satır ekle (model henüz seçilmedi).
+  // Boş bir satır ekle (henüz seçim yapılmadı).
   function satirEkle() {
-    setSecimler((arr) => [...arr, { id: idRef.current++, urunId: "", adet: "1" }]);
+    setSecimler((arr) => [
+      ...arr,
+      { id: idRef.current++, tip: "model", urunId: "", adet: "1" },
+    ]);
   }
-  function modelSec(id: number, ad: string) {
-    const m = modeller.find((x) => x.ad === ad);
-    if (!m || seciliIds.has(m.id)) return;
+  /** "Model · X" → parça aktarma modalı; "Parça · Y" → doğrudan parça satırı. */
+  function secimYap(id: number, etiket: string) {
+    if (etiket.startsWith("Model · ")) {
+      const ad = etiket.slice("Model · ".length);
+      const m = modeller.find((x) => x.ad === ad);
+      if (!m) return;
+      setParcaModal({
+        model: m,
+        hedefId: id,
+        satirlar: (m.parcalar ?? []).map((ps) => ({
+          parcaId: ps.parcaId,
+          ad: parcaMap.get(ps.parcaId)?.ad ?? ps.parcaId,
+          adet: String(ps.miktar),
+          secili: false,
+        })),
+      });
+      return;
+    }
+    const ad = etiket.slice("Parça · ".length);
+    const p = aktifParcalar.find((x) => x.ad === ad);
+    if (!p || seciliParcaIds.has(p.id)) return;
     setSecimler((arr) =>
-      arr.map((s) => (s.id === id ? { ...s, urunId: m.id } : s)),
+      arr.map((s) => (s.id === id ? { ...s, tip: "parca", urunId: p.id } : s)),
     );
+  }
+
+  /** Modaldaki parçaları plana aktar (hepsi ya da yalnız işaretliler). */
+  function modaldanAktar(hepsi: boolean) {
+    if (!parcaModal) return;
+    const aktarilacak = parcaModal.satirlar.filter(
+      (r) => (hepsi || r.secili) && Number(r.adet) >= 1,
+    );
+    if (aktarilacak.length === 0) {
+      toast.error("Aktarılacak parça yok.");
+      return;
+    }
+    setSecimler((arr) => {
+      // Modalı açan boş satır düşer; mevcut parça satırlarının adedi artar.
+      let sonuc = arr.filter(
+        (s) => !(s.id === parcaModal.hedefId && !s.urunId),
+      );
+      for (const r of aktarilacak) {
+        const mevcut = sonuc.find(
+          (s) => s.tip === "parca" && s.urunId === r.parcaId,
+        );
+        if (mevcut) {
+          sonuc = sonuc.map((s) =>
+            s === mevcut
+              ? {
+                  ...s,
+                  adet: String((Number(s.adet) || 0) + Number(r.adet)),
+                }
+              : s,
+          );
+        } else {
+          sonuc = [
+            ...sonuc,
+            {
+              id: idRef.current++,
+              tip: "parca",
+              urunId: r.parcaId,
+              adet: r.adet,
+            },
+          ];
+        }
+      }
+      return sonuc;
+    });
+    toast.success(
+      `${aktarilacak.length} parça plana eklendi (${parcaModal.model.ad})`,
+    );
+    setParcaModal(null);
   }
   function adetGuncelle(id: number, deger: string) {
     const t = deger.replace(/[^\d]/g, "");
@@ -158,16 +278,18 @@ export function ProductionPlan({
     setSecimler((arr) => arr.filter((s) => s.id !== id));
   }
 
-  // Bir modelin tek başına (girilen adet için) malzemesi stokta yeterli mi?
-  function modelDurum(urunId: string, adet: string): "yeterli" | "eksik" | null {
-    const u = urunMap.get(urunId);
-    const a = Number(adet);
-    if (!u?.parcalar || !(a >= 1)) return null;
-    const satir = u.parcalar.map((p) => ({
-      parcaId: p.parcaId,
-      miktar: p.miktar * a,
-    }));
-    return malzemeYeterlilik(satir, parcalar, malzemeler).yeterli
+  /** Satırın görünen adı (model ya da parça). */
+  function satirAd(s: Secim): string | undefined {
+    return s.tip === "parca"
+      ? parcaMap.get(s.urunId)?.ad
+      : urunMap.get(s.urunId)?.ad;
+  }
+
+  // Bir satırın tek başına (girilen adet için) malzemesi stokta yeterli mi?
+  function satirDurum(s: Secim): "yeterli" | "eksik" | null {
+    const bilesenler = satirBilesenleri(s);
+    if (bilesenler.length === 0) return null;
+    return malzemeYeterlilik(bilesenler, parcalar, malzemeler).yeterli
       ? "yeterli"
       : "eksik";
   }
@@ -211,49 +333,37 @@ export function ProductionPlan({
     setSeciliEksik(v ? new Set(eksikIds) : new Set());
   }
 
-  const [talepGonderiliyor, setTalepGonderiliyor] = React.useState(false);
-  async function satinAlmaTalebiOlustur() {
+  function satinAlmaTalebineGit() {
     if (secilenEksik.length === 0) {
       toast.error("Talep için en az bir eksik malzeme seçin.");
       return;
     }
-    // Seçili eksikler açık miktarla (gerekli − stok) talep olarak kaydedilir;
-    // yönetim onaylar, Satın Alma departmanı tedarik sürecini yürütür.
-    setTalepGonderiliyor(true);
-    const res = await talepOlustur(
-      secilenEksik.map((m) => ({
-        malzemeId: m.malzeme.id,
-        malzemeAd: m.malzeme.ad,
-        miktar:
-          Math.round(Math.max(0, m.toplamMiktar - m.malzeme.stok) * 100) / 100,
-        birim: m.malzeme.birim,
-      })),
-      {
-        kaynak: "Üretim Planı",
-        // Mal kabulde önerilecek depo: plandaki hedef depo (stok üretimi).
-        depo:
-          neden === "stok"
-            ? aktifDepolar.find((d) => d.id === depoId)?.ad
-            : undefined,
-        aciklama: `Üretim planı eksik malzemeleri (${secimler
-          .filter((s) => s.urunId)
-          .map((s) => `${urunMap.get(s.urunId)?.ad} × ${s.adet}`)
-          .join(", ")})`,
-      },
-    );
-    setTalepGonderiliyor(false);
-    if (!res.ok || !res.id) {
-      toast.error(res.error ?? "Talep oluşturulamadı.");
-      return;
-    }
-    toast.success(
-      `Satın alma talebi oluşturuldu (${res.id}) — yönetim onayı bekliyor`,
-    );
-    router.push("/satin-alma/talepler");
+    // Seçili eksikler açık miktarla (gerekli − stok) talep hazırlığına taşınır:
+    // Yeni Alış sayfası talep modunda açılır (malzeme + firma + fiyat hazır),
+    // talep oradan oluşturulur.
+    const kalem = secilenEksik
+      .map((m) => {
+        const acik = Math.max(0, m.toplamMiktar - m.malzeme.stok);
+        return `${m.malzeme.id}:${Math.round(acik * 100) / 100}`;
+      })
+      .join(",");
+    const p = new URLSearchParams({ mod: "talep", kalem });
+    const modeller = secimler
+      .filter((s) => s.urunId)
+      .map((s) => `${satirAd(s)} × ${s.adet}`)
+      .join(", ");
+    if (modeller) p.set("modeller", modeller);
+    // Mal kabulde önerilecek depo: plandaki hedef depo (stok üretimi).
+    const depoAd =
+      neden === "stok"
+        ? aktifDepolar.find((d) => d.id === depoId)?.ad
+        : undefined;
+    if (depoAd) p.set("depo", depoAd);
+    router.push(`/satin-alma/yeni?${p.toString()}`);
   }
 
   const gonderEngel = !modelGecerli
-    ? "En az bir model ekleyin"
+    ? "En az bir model/parça ekleyin"
     : !hedefGecerli
       ? neden === "stok"
         ? "Hedef depo seçin"
@@ -266,18 +376,19 @@ export function ProductionPlan({
 
   async function olustur(durum: "Üretimde" | "Planlandı") {
     const gecerli = secimler
-      .map((s) => ({ u: urunMap.get(s.urunId), adet: Number(s.adet) }))
-      .filter((s) => s.u && s.adet >= 1);
+      .map((s) => ({ s, ad: satirAd(s), adet: Number(s.adet) }))
+      .filter((x) => x.s.urunId && x.ad && x.adet >= 1);
     if (gecerli.length === 0) {
-      toast.error("En az bir model ve adet girin.");
+      toast.error("En az bir model/parça ve adet girin.");
       return;
     }
     setKaydediliyor(true);
     try {
-      const payload = gecerli.map((s) => ({
-        urunId: s.u!.id,
-        urunAd: s.u!.ad,
-        adet: s.adet,
+      const payload = gecerli.map(({ s, ad, adet }) => ({
+        refTip: s.tip,
+        urunId: s.urunId,
+        urunAd: ad!,
+        adet,
         durum,
         oncelik,
         terminBaslangic: terminBas || undefined,
@@ -402,7 +513,7 @@ export function ProductionPlan({
             onClick={satirEkle}
             disabled={eklenebilir.length === 0}
           >
-            <Plus className="size-4" /> Model Ekle
+            <Plus className="size-4" /> Model / Parça Ekle
           </Button>
         </ListHeader>
         <Table>
@@ -425,13 +536,15 @@ export function ProductionPlan({
                   colSpan={8}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  Henüz model eklenmedi. “Model Ekle” ile başlayın.
+                  Henüz satır yok. “Model / Parça Ekle” ile başlayın.
                 </TableCell>
               </TableRow>
             ) : (
               secimler.map((s, i) => {
-                const m = urunMap.get(s.urunId);
-                const durum = modelDurum(s.urunId, s.adet);
+                const m = s.tip === "model" ? urunMap.get(s.urunId) : undefined;
+                const parca =
+                  s.tip === "parca" ? parcaMap.get(s.urunId) : undefined;
+                const durum = satirDurum(s);
                 const detayAcik = detaylar.has(s.id);
                 return (
                   <React.Fragment key={s.id}>
@@ -441,16 +554,29 @@ export function ProductionPlan({
                     </TableCell>
                     <TableCell>
                       <GorselHucre
-                        gorseller={planResimleri(m)}
-                        alt={m?.ad ?? "Model"}
+                        gorseller={
+                          parca
+                            ? (parca.gorseller ??
+                              (parca.gorsel ? [parca.gorsel] : []))
+                            : planResimleri(m)
+                        }
+                        alt={satirAd(s) ?? "Satır"}
                       />
                     </TableCell>
                     <TableCell>
                       {s.urunId ? (
                         <span className="flex items-center gap-2">
-                          <span className="font-medium" title={m?.ad}>
-                            {m?.ad}
+                          <span className="font-medium" title={satirAd(s)}>
+                            {satirAd(s)}
                           </span>
+                          {parca && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-violet-100 text-[10px] text-violet-800"
+                            >
+                              Parça
+                            </Badge>
+                          )}
                           {(m?.parcalar?.length ?? 0) > 0 && (
                             <button
                               type="button"
@@ -470,17 +596,17 @@ export function ProductionPlan({
                         </span>
                       ) : (
                         <SearchSelect
-                          items={eklenebilir.map((x) => x.ad)}
+                          items={secimItems}
                           value={null}
-                          onValueChange={(v) => v && modelSec(s.id, v)}
-                          placeholder="Model seç"
-                          searchPlaceholder="Model ara..."
+                          onValueChange={(v) => v && secimYap(s.id, v)}
+                          placeholder="Model veya parça seç"
+                          searchPlaceholder="Ara..."
                           className="h-8 max-w-xs"
                         />
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {m?.kategori ?? "—"}
+                      {m?.kategori ?? parca?.kategori ?? "—"}
                     </TableCell>
                     <TableCell className="tabular-nums">
                       {m ? (
@@ -590,7 +716,7 @@ export function ProductionPlan({
                     onClick={satirEkle}
                     className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground"
                   >
-                    <Plus className="size-3.5" /> Model Ekle
+                    <Plus className="size-3.5" /> Model / Parça Ekle
                   </button>
                 </TableCell>
               </TableRow>
@@ -668,12 +794,11 @@ export function ProductionPlan({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={satinAlmaTalebiOlustur}
-                  disabled={secilenEksik.length === 0 || talepGonderiliyor}
+                  onClick={satinAlmaTalebineGit}
+                  disabled={secilenEksik.length === 0}
                   className="ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
                 >
-                  <ShoppingCart className="size-3" />
-                  {talepGonderiliyor ? "Oluşturuluyor…" : "Satın Alma Talebi Oluştur"}
+                  <ShoppingCart className="size-3" /> Satın Alma Talebi Oluştur
                 </Button>
               </div>
             </div>
@@ -707,6 +832,114 @@ export function ProductionPlan({
           <Hammer className="size-4" /> Üretime Gönder
         </Button>
       </div>
+
+      {/* ── Model → parça aktarma modalı ── */}
+      <Dialog
+        open={parcaModal !== null}
+        onOpenChange={(o) => !o && setParcaModal(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          {parcaModal && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{parcaModal.model.ad} — Parçalar</DialogTitle>
+                <DialogDescription>
+                  Modele bağlı parçalar; işaretleyip adet girerek plana
+                  aktarabilirsin. Adetler 1 model içindir.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex max-h-[50dvh] flex-col gap-1 overflow-y-auto rounded-md border p-1.5">
+                {parcaModal.satirlar.length === 0 && (
+                  <p className="p-4 text-center text-sm text-muted-foreground">
+                    Modele bağlı parça yok.
+                  </p>
+                )}
+                {parcaModal.satirlar.map((r) => (
+                  <label
+                    key={r.parcaId}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50",
+                      r.secili && "bg-muted/60",
+                    )}
+                  >
+                    <Checkbox
+                      checked={r.secili}
+                      onCheckedChange={(v) =>
+                        setParcaModal((pm) =>
+                          pm
+                            ? {
+                                ...pm,
+                                satirlar: pm.satirlar.map((x) =>
+                                  x.parcaId === r.parcaId
+                                    ? { ...x, secili: v === true }
+                                    : x,
+                                ),
+                              }
+                            : pm,
+                        )
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {r.ad}
+                    </span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={r.adet}
+                      aria-label="Adet"
+                      onClick={(e) => e.preventDefault()}
+                      onChange={(e) =>
+                        setParcaModal((pm) =>
+                          pm
+                            ? {
+                                ...pm,
+                                satirlar: pm.satirlar.map((x) =>
+                                  x.parcaId === r.parcaId
+                                    ? {
+                                        ...x,
+                                        adet: e.target.value.replace(
+                                          /[^\d]/g,
+                                          "",
+                                        ),
+                                      }
+                                    : x,
+                                ),
+                              }
+                            : pm,
+                        )
+                      }
+                      className="h-7 w-16 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </label>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setParcaModal(null)}
+                >
+                  Vazgeç
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => modaldanAktar(true)}
+                  disabled={parcaModal.satirlar.length === 0}
+                >
+                  Hepsini Aktar
+                </Button>
+                {parcaModal.satirlar.some((r) => r.secili) && (
+                  <Button size="sm" onClick={() => modaldanAktar(false)}>
+                    Seçileni Aktar (
+                    {parcaModal.satirlar.filter((r) => r.secili).length})
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

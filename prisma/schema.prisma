@@ -138,6 +138,8 @@ model Siparis {
 // ── Üretim emri ─────────────────────────────────────────────────────────
 model UretimEmri {
   id            String    @id
+  // "model" (stok mamül kartı) | "parca" (parça/reçete üretimi)
+  refTip        String    @default("model") @map("ref_tip")
   modelId       String    @map("model_id")
   modelAd       String    @map("model_ad")
   adet          Int       @default(1)
@@ -152,7 +154,8 @@ model UretimEmri {
   hedefDepo     String?   @map("hedef_depo")
   not           String?   @db.NVarChar(Max)
 
-  stok    Stok             @relation(fields: [modelId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // Not: modelId, refTip'e göre stok (mamül) YA DA parca tablosuna işaret
+  // eder; bu yüzden tek tabloya FK bağlanmaz.
   adimlar UretimEmriAdim[]
 
   @@map("uretim_emri")
@@ -602,6 +605,8 @@ model SatinAlmaTalep {
   tarih      DateTime @db.Date
   // "Üretim Planı" | "Manuel"
   kaynak     String   @default("Manuel")
+  // Talebin hangi modeller için açıldığı (örn. "Travo Yatak Odası × 1")
+  modeller   String?  @db.NVarChar(Max)
   aciklama   String?  @db.NVarChar(Max)
   // Beklemede | Onaylandı | Reddedildi | Tedarik Sürecinde | Tamamlandı
   // (eski kayıtlardaki "Siparişe Döndü" okunurken Tamamlandı sayılır)
@@ -625,6 +630,7 @@ model SatinAlmaTalep {
   @@map("satin_alma_talep")
 }
 
+// not: tahmini_fiyat talep hazırlanırken girilen birim fiyattır (mal kabul önerisi)
 model SatinAlmaTalepSatiri {
   id        Int     @id @default(autoincrement())
   talepId   String  @map("talep_id")
@@ -638,13 +644,33 @@ model SatinAlmaTalepSatiri {
   // Son mal kabulde kullanılan tedarikçi (öneri olarak da yazılabilir).
   cariId        String? @map("cari_id")
   cariAd        String? @map("cari_ad")
-  // Bekliyor | Kısmi | Tedarik Edildi
+  // Talep hazırlanırken girilen tahmini birim fiyat (mal kabul önerisi).
+  tahminiFiyat  Decimal? @map("tahmini_fiyat") @db.Decimal(14, 2)
+  // Bekliyor | Sipariş Verildi | Kısmi | Tedarik Edildi (siparişlerden türetilir)
   satirDurum    String  @default("Bekliyor") @map("satir_durum")
 
-  talep SatinAlmaTalep @relation(fields: [talepId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  stok  Stok           @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  talep     SatinAlmaTalep         @relation(fields: [talepId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stok      Stok                   @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  siparisler SatinAlmaTalepSiparis[]
 
   @@map("satin_alma_talep_satiri")
+}
+
+// ── Talep siparişi (bir talep satırı çok firmaya dağıtılabilir) ─────────
+model SatinAlmaTalepSiparis {
+  id            Int      @id @default(autoincrement())
+  satirId       Int      @map("satir_id")
+  cariId        String   @map("cari_id")
+  cariAd        String   @map("cari_ad")
+  miktar        Decimal  @db.Decimal(14, 3)
+  fiyat         Decimal? @db.Decimal(14, 2)
+  tarih         DateTime @db.Date
+  // Bu siparişe karşı gelen (fatura eşleşmesiyle artar).
+  tedarikEdilen Decimal  @default(0) @map("tedarik_edilen") @db.Decimal(14, 3)
+
+  satir SatinAlmaTalepSatiri @relation(fields: [satirId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("satin_alma_talep_siparis")
 }
 
 // ── Stok kartı (birleşik: hammadde / yarı mamül / mamül / hizmet) ────────
@@ -718,7 +744,6 @@ model Stok {
   // Birleşme: reçete bileşeni / mamul BOM / üretim emri artık Stok'a bağlı
   receteSatirlari ReceteSatiri[]
   modelParcalar   ModelParca[]
-  uretimEmirleri  UretimEmri[]
   talepSatirlari  SatinAlmaTalepSatiri[]
 
   @@map("stok")

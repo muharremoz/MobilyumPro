@@ -273,6 +273,23 @@ export type Malzeme = {
   gorseller?: string[];
 };
 
+// Malzemenin alış/fiyat istihbaratı — reçete satırlarında hover kartı için.
+export type MalzemeAlisOzeti = {
+  malzemeId: string;
+  /** En güncel alış (fiyat + firma + tarih). */
+  sonAlis?: { fiyat: number; cariAd: string; tarih: string };
+  minAlis?: { fiyat: number; cariAd: string; tarih: string };
+  maxAlis?: { fiyat: number; cariAd: string; tarih: string };
+  /** Satın alma şartlarındaki en yüksek anlaşma fiyatı (TL öncelikli). */
+  maxSart?: { fiyat: number; cariAd: string; doviz: Doviz };
+  /** Malzemenin tüm anlaşma şartları (fiyata göre azalan). */
+  sartlar?: { cariAd: string; fiyat: number; doviz: Doviz }[];
+  /** Firma bazında ortalama birim fiyat (alış adediyle). */
+  firmaOrtalamalari: { cariAd: string; ortalama: number; alisSayisi: number }[];
+  /** Malzemenin son stok hareketi. */
+  sonHareket?: { tarih: string; tur: string; aciklama: string };
+};
+
 // Üretim emirleri — bir modelin (ürünün) BOM'una göre üretimi.
 export type UretimDurum =
   | "Planlandı"
@@ -284,6 +301,8 @@ export type UretimOncelik = "Düşük" | "Normal" | "Yüksek" | "Acil";
 
 export type UretimEmri = {
   id: string;
+  /** "model" (mamül kartı) | "parca" (parça üretimi). */
+  refTip?: "model" | "parca";
   urunId: string;
   urunAd: string;
   adet: number;
@@ -433,6 +452,12 @@ export type StokUretici = {
   tedarikGun?: number;
 };
 
+/** Satın alma şartı — stok_uretici kayıtlarının malzeme bilgisiyle görünümü. */
+export type SatinAlmaSarti = StokUretici & {
+  malzemeAd: string;
+  birim: string;
+};
+
 export type StokMusteri = {
   id: number;
   stokId: string;
@@ -493,7 +518,23 @@ export type TalepDurum =
   | "Tedarik Sürecinde"
   | "Tamamlandı";
 
-export type TalepSatirDurum = "Bekliyor" | "Kısmi" | "Tedarik Edildi";
+export type TalepSatirDurum =
+  | "Bekliyor"
+  | "Sipariş Verildi"
+  | "Kısmi"
+  | "Tedarik Edildi";
+
+/** Bir talep satırının tek bir firmaya verilmiş siparişi (çok firmaya dağıtılabilir). */
+export type TalepSiparis = {
+  id: number;
+  cariId: string;
+  cariAd: string;
+  miktar: number;
+  fiyat?: number;
+  tarih: string;
+  /** Bu siparişe karşı gelen (fatura eşleşmesiyle). */
+  tedarikEdilen: number;
+};
 
 export type TalepSatiri = {
   id: number;
@@ -502,20 +543,23 @@ export type TalepSatiri = {
   /** İstenen toplam miktar. */
   miktar: number;
   birim: string;
-  /** Şu ana dek teslim alınan (kısmi mal kabul toplamı). */
+  /** Şu ana dek teslim alınan (tüm siparişlerin toplamı). */
   tedarikEdilen: number;
   /** Mal kabul için önerilen birim fiyat (güncel maliyet). */
   tahminiFiyat: number;
-  /** Son mal kabulde kullanılan / önerilen tedarikçi. */
-  cariId?: string;
-  cariAd?: string;
+  /** Malzeme kartındaki varsayılan üretici cari (dağıtımda öneri). */
+  ureticiCariId?: string;
   durum: TalepSatirDurum;
+  /** Bu satırın firmalara dağıtılmış siparişleri. */
+  siparisler: TalepSiparis[];
 };
 
 export type SatinAlmaTalep = {
   id: string;
   tarih: string;
   kaynak: string; // "Üretim Planı" | "Manuel"
+  /** Talebin hangi modeller için açıldığı (örn. "Travo Yatak Odası × 1"). */
+  modeller?: string;
   aciklama?: string;
   durum: TalepDurum;
   /** Son bağlanan alış fişi (mal kabuller ALS-#### fişleri üretir). */
@@ -532,6 +576,37 @@ export type SatinAlmaTalep = {
   satirlar: TalepSatiri[];
   /** Satırların güncel maliyet fiyatıyla tahmini tutarı (₺). */
   tahminiTutar: number;
+};
+
+// Bekleyen sipariş — talep satırlarında sipariş verilmiş ama tam tedarik
+// edilmemiş kalemlerin talepler arası birleşik görünümü.
+export type BekleyenSiparis = {
+  talepId: string;
+  satirId: number;
+  /** Sipariş kaydının id'si (satır çok firmaya dağıtılabildiği için). */
+  siparisId: number;
+  malzemeId: string;
+  malzemeAd: string;
+  birim: string;
+  cariId: string;
+  cariAd: string;
+  /** Sipariş verilen miktar. */
+  siparisMiktar: number;
+  /** Şu ana dek gelen (tedarik edilen). */
+  tedarikEdilen: number;
+  /** Bekleyen (sipariş − gelen). */
+  kalan: number;
+  siparisFiyat?: number;
+  siparisTarihi: string;
+  /** Sipariş tarihi + şart tedarik süresi (varsa). */
+  tahminiTeslim?: string;
+  /** Tahmini teslim geçtiyse true. */
+  gecikti: boolean;
+  durum: TalepSatirDurum;
+  // Malzemenin en güncel alış bilgisi (referans).
+  sonAlisCariAd?: string;
+  sonAlisFiyat?: number;
+  sonAlisTarih?: string;
 };
 
 // Depolar (üretim hedefi / stok lokasyonu).

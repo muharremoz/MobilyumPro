@@ -635,6 +635,7 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
   const sirali = rows.sort((a, b) => b.id.localeCompare(a.id));
   return sirali.map((e) => ({
     id: e.id,
+    refTip: e.refTip as "model" | "parca",
     urunId: e.modelId,
     urunAd: e.modelAd,
     adet: e.adet,
@@ -944,15 +945,23 @@ type TalepRow = Awaited<
     miktar: unknown;
     birim: string;
     tedarikEdilen: unknown;
-    cariId: string | null;
-    cariAd: string | null;
+    tahminiFiyat: unknown;
     satirDurum: string;
+    siparisler: {
+      id: number;
+      cariId: string;
+      cariAd: string;
+      miktar: unknown;
+      fiyat: unknown;
+      tarih: Date;
+      tedarikEdilen: unknown;
+    }[];
   }[];
 };
 
 function mapTalep(
   t: TalepRow,
-  fiyatlar: Map<string, number>,
+  fiyatlar: Map<string, { fiyat: number; ureticiCariId?: string }>,
 ): import("../data").SatinAlmaTalep {
   const satirlar = t.satirlar.map((s) => ({
     id: s.id,
@@ -961,15 +970,28 @@ function mapTalep(
     miktar: Number(s.miktar),
     birim: s.birim,
     tedarikEdilen: Number(s.tedarikEdilen),
-    tahminiFiyat: fiyatlar.get(s.malzemeId) ?? 0,
-    cariId: s.cariId ?? undefined,
-    cariAd: s.cariAd ?? undefined,
+    // Talepte kaydedilen fiyat öncelikli; yoksa güncel stok maliyeti.
+    tahminiFiyat:
+      s.tahminiFiyat != null
+        ? Number(s.tahminiFiyat)
+        : (fiyatlar.get(s.malzemeId)?.fiyat ?? 0),
+    ureticiCariId: fiyatlar.get(s.malzemeId)?.ureticiCariId,
     durum: s.satirDurum as import("../data").TalepSatirDurum,
+    siparisler: s.siparisler.map((o) => ({
+      id: o.id,
+      cariId: o.cariId,
+      cariAd: o.cariAd,
+      miktar: Number(o.miktar),
+      fiyat: o.fiyat != null ? Number(o.fiyat) : undefined,
+      tarih: tarihStr(o.tarih),
+      tedarikEdilen: Number(o.tedarikEdilen),
+    })),
   }));
   return {
     id: t.id,
     tarih: tarihStr(t.tarih),
     kaynak: t.kaynak,
+    modeller: t.modeller ?? undefined,
     aciklama: t.aciklama ?? undefined,
     // Eski kayıtlar: "Siparişe Döndü" artık Tamamlandı olarak okunur.
     durum: (t.durum === "Siparişe Döndü"
@@ -991,11 +1013,21 @@ function mapTalep(
   };
 }
 
-async function stokFiyatMap(): Promise<Map<string, number>> {
+async function stokFiyatMap(): Promise<
+  Map<string, { fiyat: number; ureticiCariId?: string }>
+> {
   const rows = await db.stok.findMany({
-    select: { id: true, maliyetFiyati: true },
+    select: { id: true, maliyetFiyati: true, ureticiCariId: true },
   });
-  return new Map(rows.map((r) => [r.id, Number(r.maliyetFiyati)]));
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        fiyat: Number(r.maliyetFiyati),
+        ureticiCariId: r.ureticiCariId ?? undefined,
+      },
+    ]),
+  );
 }
 
 export async function getTalepler(): Promise<
@@ -1003,7 +1035,7 @@ export async function getTalepler(): Promise<
 > {
   const [rows, fiyatlar] = await Promise.all([
     db.satinAlmaTalep.findMany({
-      include: { satirlar: true },
+      include: { satirlar: { include: { siparisler: true } } },
       orderBy: { id: "desc" },
     }),
     stokFiyatMap(),
@@ -1015,10 +1047,244 @@ export async function getTalep(
   id: string,
 ): Promise<import("../data").SatinAlmaTalep | null> {
   const [row, fiyatlar] = await Promise.all([
-    db.satinAlmaTalep.findUnique({ where: { id }, include: { satirlar: true } }),
+    db.satinAlmaTalep.findUnique({
+      where: { id },
+      include: { satirlar: { include: { siparisler: true } } },
+    }),
     stokFiyatMap(),
   ]);
   return row ? mapTalep(row, fiyatlar) : null;
+}
+
+/**
+ * Malzeme bazında alış istihbaratı: son/min/max alış, firma ortalamaları ve
+ * son stok hareketi — reçete satırlarındaki fiyat hover kartını besler.
+ */
+export async function getMalzemeAlisOzetleri(): Promise<
+  import("../data").MalzemeAlisOzeti[]
+> {
+  const [alisRows, hareketRows, sartRows] = await Promise.all([
+    db.alisSatiri.findMany({
+      include: { alis: { select: { tarih: true } } },
+    }),
+    db.stokHareket.findMany({
+      where: { refTip: "malzeme" },
+      orderBy: [{ tarih: "desc" }, { id: "desc" }],
+      select: { refId: true, tarih: true, tur: true, aciklama: true },
+    }),
+    db.stokUretici.findMany({
+      select: { stokId: true, cariAd: true, fiyat: true, doviz: true },
+    }),
+  ]);
+  // Malzeme başına anlaşma şartları (fiyata göre azalan).
+  const sartGrup = new Map<
+    string,
+    { cariAd: string; fiyat: number; doviz: import("../data").Doviz }[]
+  >();
+  for (const s of sartRows) {
+    const arr = sartGrup.get(s.stokId) ?? [];
+    arr.push({
+      cariAd: s.cariAd,
+      fiyat: Number(s.fiyat),
+      doviz: s.doviz as import("../data").Doviz,
+    });
+    sartGrup.set(s.stokId, arr);
+  }
+  for (const arr of sartGrup.values()) arr.sort((a, b) => b.fiyat - a.fiyat);
+
+  type Kayit = { fiyat: number; cariAd: string; tarih: string };
+  const grup = new Map<string, Kayit[]>();
+  for (const r of alisRows) {
+    const arr = grup.get(r.malzemeId) ?? [];
+    arr.push({
+      fiyat: Number(r.birimFiyat),
+      cariAd: r.cariAd,
+      tarih: tarihStr(r.alis.tarih),
+    });
+    grup.set(r.malzemeId, arr);
+  }
+  const sonHareketler = new Map<
+    string,
+    { tarih: string; tur: string; aciklama: string }
+  >();
+  for (const h of hareketRows) {
+    if (!sonHareketler.has(h.refId))
+      sonHareketler.set(h.refId, {
+        tarih: tarihStr(h.tarih),
+        tur: h.tur,
+        aciklama: h.aciklama,
+      });
+  }
+
+  const ids = new Set([
+    ...grup.keys(),
+    ...sonHareketler.keys(),
+    ...sartGrup.keys(),
+  ]);
+  const sonuc: import("../data").MalzemeAlisOzeti[] = [];
+  for (const id of ids) {
+    const kayitlar = grup.get(id) ?? [];
+    const sirali = [...kayitlar].sort((a, b) => b.tarih.localeCompare(a.tarih));
+    const min = kayitlar.length
+      ? kayitlar.reduce((a, b) => (b.fiyat < a.fiyat ? b : a))
+      : undefined;
+    const max = kayitlar.length
+      ? kayitlar.reduce((a, b) => (b.fiyat > a.fiyat ? b : a))
+      : undefined;
+    // Firma bazında ortalama fiyat
+    const firmalar = new Map<string, { toplam: number; adet: number }>();
+    for (const k of kayitlar) {
+      const f = firmalar.get(k.cariAd) ?? { toplam: 0, adet: 0 };
+      f.toplam += k.fiyat;
+      f.adet += 1;
+      firmalar.set(k.cariAd, f);
+    }
+    // En yüksek anlaşma şartı — TL şartlar öncelikli (dövizler karışmasın).
+    const sartlar = sartGrup.get(id) ?? [];
+    const tlSartlar = sartlar.filter((s) => s.doviz === "TL");
+    const maxSart = (tlSartlar.length ? tlSartlar : sartlar)[0];
+    sonuc.push({
+      malzemeId: id,
+      sonAlis: sirali[0],
+      minAlis: min,
+      maxAlis: max,
+      maxSart: maxSart
+        ? { fiyat: maxSart.fiyat, cariAd: maxSart.cariAd, doviz: maxSart.doviz }
+        : undefined,
+      sartlar: sartlar.length ? sartlar : undefined,
+      firmaOrtalamalari: [...firmalar.entries()]
+        .map(([cariAd, f]) => ({
+          cariAd,
+          ortalama: f.toplam / f.adet,
+          alisSayisi: f.adet,
+        }))
+        .sort((a, b) => a.ortalama - b.ortalama),
+      sonHareket: sonHareketler.get(id),
+    });
+  }
+  return sonuc;
+}
+
+/**
+ * Satın alma şartları — hangi malzeme hangi firmadan ne fiyata alınıyor.
+ * Kaynak stok_uretici (stok kartı Üretici sekmesiyle aynı kayıtlar).
+ */
+export async function getSatinAlmaSartlari(): Promise<
+  import("../data").SatinAlmaSarti[]
+> {
+  const rows = await db.stokUretici.findMany({
+    include: { stok: { select: { ad: true, stokBirimi: true } } },
+    orderBy: [{ stokId: "asc" }, { fiyat: "asc" }],
+  });
+  return rows.map((u) => ({
+    id: u.id,
+    stokId: u.stokId,
+    cariId: u.cariId,
+    cariAd: u.cariAd,
+    ureticiKodu: u.ureticiKodu ?? undefined,
+    fiyat: Number(u.fiyat),
+    doviz: u.doviz as import("../data").Doviz,
+    minSiparis: u.minSiparis != null ? Number(u.minSiparis) : undefined,
+    tedarikGun: u.tedarikGun ?? undefined,
+    malzemeAd: u.stok.ad,
+    birim: u.stok.stokBirimi,
+  }));
+}
+
+/**
+ * Bekleyen siparişler — tüm taleplerdeki "Sipariş Verildi / Kısmi" satırlar
+ * (talep Tedarik Sürecinde), sipariş firması + tahmini teslim ile birleşik.
+ * Tahmini teslim = sipariş tarihi + şart tedarik süresi (o malzeme+firma).
+ */
+export async function getBekleyenSiparisler(): Promise<
+  import("../data").BekleyenSiparis[]
+> {
+  const [siparisRows, stoklar, sartlar, alisRows] = await Promise.all([
+    db.satinAlmaTalepSiparis.findMany({
+      where: { satir: { talep: { durum: "Tedarik Sürecinde" } } },
+      include: {
+        satir: {
+          select: { id: true, talepId: true, malzemeId: true, malzemeAd: true, birim: true },
+        },
+      },
+    }),
+    db.stok.findMany({ select: { id: true, ad: true, stokBirimi: true } }),
+    db.stokUretici.findMany({
+      select: { stokId: true, cariId: true, tedarikGun: true },
+    }),
+    db.alisSatiri.findMany({
+      include: { alis: { select: { tarih: true } } },
+    }),
+  ]);
+  // Malzeme başına en güncel alış (firma + fiyat + tarih).
+  const sonAlisMap = new Map<
+    string,
+    { cariAd: string; fiyat: number; tarih: Date }
+  >();
+  for (const r of alisRows) {
+    const mev = sonAlisMap.get(r.malzemeId);
+    if (!mev || r.alis.tarih > mev.tarih)
+      sonAlisMap.set(r.malzemeId, {
+        cariAd: r.cariAd,
+        fiyat: Number(r.birimFiyat),
+        tarih: r.alis.tarih,
+      });
+  }
+  const stokMap = new Map(stoklar.map((s) => [s.id, s]));
+  const tedarikGunMap = new Map(
+    sartlar
+      .filter((s) => s.tedarikGun != null)
+      .map((s) => [`${s.stokId}::${s.cariId}`, s.tedarikGun as number]),
+  );
+  // Sunucu "bugün" (gecikme kontrolü için gün başlangıcı).
+  const bugun = new Date();
+  bugun.setHours(0, 0, 0, 0);
+
+  const sonuc: import("../data").BekleyenSiparis[] = [];
+  for (const o of siparisRows) {
+    const siparis = Number(o.miktar);
+    const gelen = Number(o.tedarikEdilen);
+    const kalan = Math.max(0, siparis - gelen);
+    if (kalan <= 0.0005) continue;
+    const malzemeId = o.satir.malzemeId;
+    const gun = tedarikGunMap.get(`${malzemeId}::${o.cariId}`);
+    let tahminiTeslim: string | undefined;
+    let gecikti = false;
+    if (gun != null) {
+      const t = new Date(o.tarih);
+      t.setDate(t.getDate() + gun);
+      tahminiTeslim = tarihStr(t);
+      gecikti = t.getTime() < bugun.getTime();
+    }
+    sonuc.push({
+      talepId: o.satir.talepId,
+      satirId: o.satir.id,
+      siparisId: o.id,
+      malzemeId,
+      malzemeAd: o.satir.malzemeAd,
+      birim: o.satir.birim,
+      cariId: o.cariId,
+      cariAd: o.cariAd,
+      siparisMiktar: siparis,
+      tedarikEdilen: gelen,
+      kalan,
+      siparisFiyat: o.fiyat != null ? Number(o.fiyat) : undefined,
+      siparisTarihi: tarihStr(o.tarih),
+      tahminiTeslim,
+      gecikti,
+      durum: gelen > 0 ? "Kısmi" : "Sipariş Verildi",
+      sonAlisCariAd: sonAlisMap.get(malzemeId)?.cariAd,
+      sonAlisFiyat: sonAlisMap.get(malzemeId)?.fiyat,
+      sonAlisTarih: sonAlisMap.has(malzemeId)
+        ? tarihStr(sonAlisMap.get(malzemeId)!.tarih)
+        : undefined,
+    });
+  }
+  // Firma, sonra tahmini teslim (geciken önce).
+  return sonuc.sort((a, b) => {
+    if (a.gecikti !== b.gecikti) return a.gecikti ? -1 : 1;
+    return a.cariAd.localeCompare(b.cariAd, "tr");
+  });
 }
 
 export async function getKurlar(): Promise<Kur[]> {
