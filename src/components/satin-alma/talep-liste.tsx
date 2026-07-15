@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Ban,
   Check,
-  ChevronDown,
+  ExternalLink,
   PackageCheck,
   Play,
   Receipt,
@@ -84,6 +84,14 @@ const DURUMLAR: TalepDurum[] = [
   "Tamamlandı",
 ];
 
+function DurumBadge({ durum }: { durum: TalepDurum }) {
+  return (
+    <Badge variant="secondary" className={DURUM_RENK[durum]}>
+      {durum}
+    </Badge>
+  );
+}
+
 /** Tam tedarik edilen satır sayısı. */
 const tamamSatir = (t: SatinAlmaTalep) =>
   t.satirlar.filter((s) => s.durum === "Tedarik Edildi").length;
@@ -130,12 +138,11 @@ export function TalepListe({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "id", dir: "desc" },
   );
-  // Kalem detayı açık talepler.
-  const [aciklar, setAciklar] = React.useState<Set<string>>(new Set());
   const [mesgul, setMesgul] = React.useState<string | null>(null);
 
   // Dialoglar id ile açılır; içerik props'tan türetilir ki router.refresh
-  // sonrası güncel veri görünsün.
+  // sonrası güncel veri görünsün (örn. Başlat sonrası Tedarik Et butonları).
+  const [detayId, setDetayId] = React.useState<string | null>(null);
   const [redId, setRedId] = React.useState<string | null>(null);
   const [redNeden, setRedNeden] = React.useState("");
   const [tedarikHedef, setTedarikHedef] = React.useState<{
@@ -143,6 +150,7 @@ export function TalepListe({
     satirId: number;
   } | null>(null);
 
+  const detay = talepler.find((t) => t.id === detayId) ?? null;
   const redTalep = talepler.find((t) => t.id === redId) ?? null;
   const tedarikTalep =
     talepler.find((t) => t.id === tedarikHedef?.talepId) ?? null;
@@ -172,15 +180,6 @@ export function TalepListe({
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
   const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
     setSort({ key: k, dir });
-
-  function detayToggle(id: string) {
-    setAciklar((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  }
 
   // ── Aksiyonlar ────────────────────────────────────────────────────────
   async function onaylaAksiyon(t: SatinAlmaTalep) {
@@ -227,7 +226,7 @@ export function TalepListe({
       return;
     }
     toast.success(`${t.id} tedarik sürecine alındı`);
-    setAciklar((s) => new Set(s).add(t.id)); // satırlar açılsın — mal kabul burada
+    setDetayId(t.id); // mal kabul detay modalında yapılır
     router.refresh();
   }
 
@@ -272,7 +271,7 @@ export function TalepListe({
               >
                 Kaynak
               </SiralaFiltreBaslik>
-              <TableHead className="text-right">Tedarik</TableHead>
+              <TableHead>Tedarik</TableHead>
               <SiralaFiltreBaslik
                 className="text-right"
                 sira={sira("tutar")}
@@ -306,247 +305,101 @@ export function TalepListe({
                 </TableCell>
               </TableRow>
             ) : (
-              filtreli.map((t) => {
-                const acik = aciklar.has(t.id);
-                const tedarikte =
-                  t.durum === "Tedarik Sürecinde" || t.durum === "Tamamlandı";
-                const oran = tedarikOrani(t);
-                return (
-                  <React.Fragment key={t.id}>
-                    <ContextMenu>
-                      <ContextMenuTrigger render={<TableRow />}>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {t.id}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatTarih(t.tarih)}
-                        </TableCell>
-                        <TableCell className="text-sm">{t.kaynak}</TableCell>
-                        <TableCell className="text-right">
+              filtreli.map((t) => (
+                <ContextMenu key={t.id}>
+                  <ContextMenuTrigger
+                    render={
+                      <TableRow
+                        className="cursor-pointer"
+                        onClick={() => setDetayId(t.id)}
+                      />
+                    }
+                  >
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {t.id}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatTarih(t.tarih)}
+                    </TableCell>
+                    <TableCell className="text-sm">{t.kaynak}</TableCell>
+                    <TableCell>
+                      <TedarikIlerleme talep={t} />
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium tabular-nums">
+                      {formatTL(t.tahminiTutar)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1.5">
+                        <DurumBadge durum={t.durum} />
+                        {t.alisId && (
                           <button
                             type="button"
-                            onClick={() => detayToggle(t.id)}
-                            aria-expanded={acik}
-                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/satin-alma/${t.alisId}`);
+                            }}
+                            className="cursor-pointer font-mono text-[11px] text-muted-foreground underline-offset-2 hover:underline"
                           >
-                            {tedarikte ? (
-                              <>
-                                <span className="tabular-nums">
-                                  {tamamSatir(t)}/{t.satirlar.length} kalem
-                                </span>
-                                <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
-                                  <span
-                                    className={cn(
-                                      "block h-full rounded-full",
-                                      oran >= 1
-                                        ? "bg-emerald-500"
-                                        : "bg-violet-500",
-                                    )}
-                                    style={{
-                                      width: `${Math.round(oran * 100)}%`,
-                                    }}
-                                  />
-                                </span>
-                              </>
-                            ) : (
-                              <span>{t.satirlar.length} kalem</span>
-                            )}
-                            <ChevronDown
-                              className={cn(
-                                "size-3 transition-transform",
-                                acik && "rotate-180",
-                              )}
-                            />
+                            {t.alisId}
                           </button>
-                        </TableCell>
-                        <TableCell className="text-right text-sm font-medium tabular-nums">
-                          {formatTL(t.tahminiTutar)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1.5">
-                            <Badge
-                              variant="secondary"
-                              className={DURUM_RENK[t.durum]}
-                            >
-                              {t.durum}
-                            </Badge>
-                            {t.alisId && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(`/satin-alma/${t.alisId}`)
-                                }
-                                className="cursor-pointer font-mono text-[11px] text-muted-foreground underline-offset-2 hover:underline"
-                              >
-                                {t.alisId}
-                              </button>
-                            )}
-                          </span>
-                        </TableCell>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent className="w-56">
-                        {t.durum === "Beklemede" && yonetici && (
-                          <>
-                            <ContextMenuItem
-                              disabled={mesgul === t.id}
-                              onClick={() => onaylaAksiyon(t)}
-                            >
-                              <Check className="mr-2 size-4" /> Onayla
-                            </ContextMenuItem>
-                            <ContextMenuItem
-                              disabled={mesgul === t.id}
-                              onClick={() => {
-                                setRedNeden("");
-                                setRedId(t.id);
-                              }}
-                            >
-                              <Ban className="mr-2 size-4" /> Reddet
-                            </ContextMenuItem>
-                          </>
                         )}
-                        {t.durum === "Onaylandı" && satinAlmaci && (
-                          <ContextMenuItem
-                            disabled={mesgul === t.id}
-                            onClick={() => baslatAksiyon(t)}
-                          >
-                            <Play className="mr-2 size-4" /> Tedarike Başla
-                          </ContextMenuItem>
-                        )}
-                        {t.alisId && (
-                          <ContextMenuItem
-                            onClick={() =>
-                              router.push(`/satin-alma/${t.alisId}`)
-                            }
-                          >
-                            <Receipt className="mr-2 size-4" /> Alış Fişini Gör
-                          </ContextMenuItem>
-                        )}
-                        {(t.durum === "Beklemede" ||
-                          t.durum === "Reddedildi") && (
-                          <>
-                            <ContextMenuSeparator />
-                            <ContextMenuItem
-                              variant="destructive"
-                              disabled={mesgul === t.id}
-                              onClick={() => sil(t.id)}
-                            >
-                              <Trash2 className="mr-2 size-4" /> Sil
-                            </ContextMenuItem>
-                          </>
-                        )}
-                      </ContextMenuContent>
-                    </ContextMenu>
-                    {acik && (
-                      <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={6} className="p-0">
-                          <div className="flex flex-col gap-1.5 px-10 py-2.5">
-                            {t.satirlar.map((s) => {
-                              const kalan = Math.max(
-                                0,
-                                s.miktar - s.tedarikEdilen,
-                              );
-                              return (
-                                <div
-                                  key={s.id}
-                                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
-                                >
-                                  <span className="font-mono text-xs text-muted-foreground">
-                                    {s.malzemeId}
-                                  </span>
-                                  <span className="font-medium">
-                                    {s.malzemeAd}
-                                  </span>
-                                  <Badge
-                                    variant="secondary"
-                                    className={cn(
-                                      "px-1.5 py-0 text-[11px]",
-                                      SATIR_DURUM_RENK[s.durum],
-                                    )}
-                                  >
-                                    {s.durum}
-                                  </Badge>
-                                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                                    {s.tedarikEdilen.toLocaleString("tr-TR", {
-                                      maximumFractionDigits: 2,
-                                    })}
-                                    {" / "}
-                                    {s.miktar.toLocaleString("tr-TR", {
-                                      maximumFractionDigits: 2,
-                                    })}{" "}
-                                    {s.birim}
-                                    {kalan > 0 && (
-                                      <span className="text-amber-700">
-                                        {" "}
-                                        · kalan{" "}
-                                        {kalan.toLocaleString("tr-TR", {
-                                          maximumFractionDigits: 2,
-                                        })}
-                                      </span>
-                                    )}
-                                  </span>
-                                  {t.durum === "Tedarik Sürecinde" &&
-                                    satinAlmaci &&
-                                    kalan > 0 && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7"
-                                        onClick={() =>
-                                          setTedarikHedef({
-                                            talepId: t.id,
-                                            satirId: s.id,
-                                          })
-                                        }
-                                      >
-                                        <PackageCheck className="size-3.5" />{" "}
-                                        Tedarik Et
-                                      </Button>
-                                    )}
-                                </div>
-                              );
-                            })}
-
-                            {/* Audit izi + açıklama */}
-                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                              {t.olusturanAd && (
-                                <span>Oluşturan: {t.olusturanAd}</span>
-                              )}
-                              {t.onaylayanAd && (
-                                <span>
-                                  {t.durum === "Reddedildi"
-                                    ? "Reddeden"
-                                    : "Onaylayan"}
-                                  : {t.onaylayanAd}
-                                  {t.onayTarihi &&
-                                    ` (${formatTarih(t.onayTarihi)})`}
-                                </span>
-                              )}
-                              {t.baslatanAd && (
-                                <span>
-                                  Başlatan: {t.baslatanAd}
-                                  {t.baslatmaTarihi &&
-                                    ` (${formatTarih(t.baslatmaTarihi)})`}
-                                </span>
-                              )}
-                              {t.depo && <span>Hedef depo: {t.depo}</span>}
-                              {t.redNedeni && (
-                                <span className="text-rose-600">
-                                  Red nedeni: {t.redNedeni}
-                                </span>
-                              )}
-                            </div>
-                            {t.aciklama && (
-                              <p className="text-xs text-muted-foreground">
-                                {t.aciklama}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      </span>
+                    </TableCell>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-56">
+                    <ContextMenuItem onClick={() => setDetayId(t.id)}>
+                      <ExternalLink className="mr-2 size-4" /> Detay
+                    </ContextMenuItem>
+                    {t.durum === "Beklemede" && yonetici && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          disabled={mesgul === t.id}
+                          onClick={() => onaylaAksiyon(t)}
+                        >
+                          <Check className="mr-2 size-4" /> Onayla
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          disabled={mesgul === t.id}
+                          onClick={() => {
+                            setRedNeden("");
+                            setRedId(t.id);
+                          }}
+                        >
+                          <Ban className="mr-2 size-4" /> Reddet
+                        </ContextMenuItem>
+                      </>
                     )}
-                  </React.Fragment>
-                );
-              })
+                    {t.durum === "Onaylandı" && satinAlmaci && (
+                      <ContextMenuItem
+                        disabled={mesgul === t.id}
+                        onClick={() => baslatAksiyon(t)}
+                      >
+                        <Play className="mr-2 size-4" /> Tedarike Başla
+                      </ContextMenuItem>
+                    )}
+                    {t.alisId && (
+                      <ContextMenuItem
+                        onClick={() => router.push(`/satin-alma/${t.alisId}`)}
+                      >
+                        <Receipt className="mr-2 size-4" /> Alış Fişini Gör
+                      </ContextMenuItem>
+                    )}
+                    {(t.durum === "Beklemede" || t.durum === "Reddedildi") && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          variant="destructive"
+                          disabled={mesgul === t.id}
+                          onClick={() => sil(t.id)}
+                        >
+                          <Trash2 className="mr-2 size-4" /> Sil
+                        </ContextMenuItem>
+                      </>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))
             )}
           </TableBody>
         </Table>
@@ -554,6 +407,201 @@ export function TalepListe({
       <span className="text-sm text-muted-foreground">
         {filtreli.length} talep
       </span>
+
+      {/* ── Detay modalı ── */}
+      <Dialog open={detay !== null} onOpenChange={(o) => !o && setDetayId(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          {detay && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm text-muted-foreground">
+                    {detay.id}
+                  </span>
+                  Satın Alma Talebi
+                  <DurumBadge durum={detay.durum} />
+                </DialogTitle>
+                <DialogDescription>
+                  {detay.kaynak} · {formatTarih(detay.tarih)}
+                  {detay.olusturanAd && <> · {detay.olusturanAd}</>}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Audit izi */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
+                {detay.onaylayanAd && (
+                  <span>
+                    {detay.durum === "Reddedildi" ? "Reddeden" : "Onaylayan"}:{" "}
+                    <span className="text-foreground">{detay.onaylayanAd}</span>
+                    {detay.onayTarihi && <> ({formatTarih(detay.onayTarihi)})</>}
+                  </span>
+                )}
+                {detay.baslatanAd && (
+                  <span>
+                    Başlatan:{" "}
+                    <span className="text-foreground">{detay.baslatanAd}</span>
+                    {detay.baslatmaTarihi && (
+                      <> ({formatTarih(detay.baslatmaTarihi)})</>
+                    )}
+                  </span>
+                )}
+                {detay.depo && (
+                  <span>
+                    Hedef depo:{" "}
+                    <span className="text-foreground">{detay.depo}</span>
+                  </span>
+                )}
+                {detay.alisId && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/satin-alma/${detay.alisId}`)}
+                    className="cursor-pointer font-mono underline-offset-2 hover:underline"
+                  >
+                    Alış: {detay.alisId}
+                  </button>
+                )}
+                {detay.redNedeni && (
+                  <span className="text-rose-600">
+                    Red nedeni: {detay.redNedeni}
+                  </span>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Malzeme</TableHead>
+                      <TableHead className="text-right">İstenen</TableHead>
+                      <TableHead className="text-right">Tedarik</TableHead>
+                      <TableHead className="text-right">Kalan</TableHead>
+                      <TableHead className="text-right">Tah. Fiyat</TableHead>
+                      <TableHead>Durum</TableHead>
+                      {detay.durum === "Tedarik Sürecinde" && satinAlmaci && (
+                        <TableHead className="w-28" />
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detay.satirlar.map((s) => {
+                      const kalan = Math.max(0, s.miktar - s.tedarikEdilen);
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">
+                            {s.malzemeAd}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {s.miktar.toLocaleString("tr-TR", {
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            {s.birim}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {s.tedarikEdilen.toLocaleString("tr-TR", {
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            {s.birim}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              "text-right tabular-nums",
+                              kalan > 0
+                                ? "font-medium text-amber-700"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            {kalan.toLocaleString("tr-TR", {
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            {s.birim}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatTL(s.tahminiFiyat)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className={SATIR_DURUM_RENK[s.durum]}
+                            >
+                              {s.durum}
+                            </Badge>
+                          </TableCell>
+                          {detay.durum === "Tedarik Sürecinde" &&
+                            satinAlmaci && (
+                              <TableCell>
+                                {kalan > 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setTedarikHedef({
+                                        talepId: detay.id,
+                                        satirId: s.id,
+                                      })
+                                    }
+                                  >
+                                    <PackageCheck className="size-3.5" />{" "}
+                                    Tedarik Et
+                                  </Button>
+                                )}
+                              </TableCell>
+                            )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {detay.aciklama && (
+                <p className="px-1 text-xs text-muted-foreground">
+                  {detay.aciklama}
+                </p>
+              )}
+
+              <DialogFooter className="items-center gap-2 sm:justify-between">
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  {tamamSatir(detay)}/{detay.satirlar.length} malzeme tedarik
+                  edildi · tahmini {formatTL(detay.tahminiTutar)}
+                </span>
+                <div className="flex items-center gap-2">
+                  {detay.durum === "Beklemede" && yonetici && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={mesgul === detay.id}
+                        onClick={() => {
+                          setRedNeden("");
+                          setRedId(detay.id);
+                        }}
+                      >
+                        <Ban className="size-3.5" /> Reddet
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={mesgul === detay.id}
+                        onClick={() => onaylaAksiyon(detay)}
+                      >
+                        <Check className="size-3.5" /> Onayla
+                      </Button>
+                    </>
+                  )}
+                  {detay.durum === "Onaylandı" && satinAlmaci && (
+                    <Button
+                      size="sm"
+                      disabled={mesgul === detay.id}
+                      onClick={() => baslatAksiyon(detay)}
+                    >
+                      <Play className="size-3.5" /> Tedarike Başla
+                    </Button>
+                  )}
+                </div>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Red dialogu ── */}
       <Dialog open={redTalep !== null} onOpenChange={(o) => !o && setRedId(null)}>
@@ -604,6 +652,35 @@ export function TalepListe({
       )}
 
       {onayDialog}
+    </div>
+  );
+}
+
+/** Liste kolonundaki tedarik ilerlemesi: "5/10 kalem" + mini bar. */
+function TedarikIlerleme({ talep }: { talep: SatinAlmaTalep }) {
+  const tedarikte =
+    talep.durum === "Tedarik Sürecinde" || talep.durum === "Tamamlandı";
+  if (!tedarikte)
+    return (
+      <span className="text-sm text-muted-foreground">
+        {talep.durum === "Reddedildi" ? "—" : `${talep.satirlar.length} kalem`}
+      </span>
+    );
+  const oran = tedarikOrani(talep);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm tabular-nums">
+        {tamamSatir(talep)}/{talep.satirlar.length} kalem
+      </span>
+      <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            "h-full rounded-full",
+            oran >= 1 ? "bg-emerald-500" : "bg-violet-500",
+          )}
+          style={{ width: `${Math.round(oran * 100)}%` }}
+        />
+      </div>
     </div>
   );
 }
