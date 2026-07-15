@@ -136,6 +136,15 @@ function getCrumbs(
       Icon: iconForHref("/cari"),
     };
   }
+  if (pathname.startsWith("/satin-alma/talepler")) {
+    return {
+      crumbs: [
+        { label: "Cari Yönetimi" },
+        { label: "Satın Alma Talepleri" },
+      ],
+      Icon: iconForHref("/satin-alma/talepler"),
+    };
+  }
   if (pathname === "/satin-alma/yeni") {
     return {
       crumbs: [

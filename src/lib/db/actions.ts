@@ -53,6 +53,7 @@ export type YeniUretimEmri = {
   adet: number;
   durum: Extract<UretimDurum, "Üretimde" | "Planlandı">;
   oncelik?: UretimOncelik;
+  terminBaslangic?: string;
   termin?: string;
   musteri?: string;
   hedefDepo?: string;
@@ -86,6 +87,7 @@ export async function uretimEmriOlustur(
     durum: y.durum,
     oncelik: y.oncelik ?? "Normal",
     olusturma: tarihDate(tarih),
+    terminBaslangic: y.terminBaslangic ? tarihDate(y.terminBaslangic) : null,
     termin: y.termin ? tarihDate(y.termin) : null,
     musteri: y.musteri ?? null,
     hedefDepo: y.hedefDepo ?? null,
@@ -1659,6 +1661,8 @@ export type YeniAlis = {
   satirlar: YeniAlisSatiri[];
   /** true → satırdaki fiyat malzemenin birim fiyatına yazılır (son alış). */
   fiyatGuncelle?: boolean;
+  /** Bu alış bir talepten geliyorsa: kayıt sonrası talep "Siparişe Döndü". */
+  talepId?: string;
 };
 
 /**
@@ -1787,8 +1791,17 @@ export async function alisKaydet(
           data: { bakiye: Number(c?.bakiye ?? 0) + g.tutar },
         });
       }
+
+      // 4) Talepten geldiyse talebi kapat (Siparişe Döndü + alış bağı)
+      if (a.talepId) {
+        await tx.satinAlmaTalep.updateMany({
+          where: { id: a.talepId },
+          data: { durum: "Siparişe Döndü", alisId },
+        });
+      }
     });
 
+    if (a.talepId) revalidatePath("/satin-alma/talepler");
     revalidatePath("/satin-alma");
     revalidatePath("/stok-yonetimi");
     revalidatePath("/cari");
@@ -1797,6 +1810,90 @@ export async function alisKaydet(
   } catch (e) {
     console.error("alisKaydet:", e);
     return { ok: false, error: "Alış kaydedilemedi." };
+  }
+}
+
+// ── Satın alma talepleri ────────────────────────────────────────────────
+
+export type YeniTalepKalemi = {
+  malzemeId: string;
+  malzemeAd: string;
+  miktar: number;
+  birim: string;
+};
+
+/** Satın alma talebi oluşturur (TAL-####). Alışa dönüşene dek stoku etkilemez. */
+export async function talepOlustur(
+  kalemler: YeniTalepKalemi[],
+  opts?: { kaynak?: string; aciklama?: string },
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const net = kalemler.filter((k) => k.malzemeId && k.miktar > 0);
+  if (net.length === 0)
+    return { ok: false, error: "En az bir malzeme kalemi gerekli." };
+  try {
+    const mevcut = await db.satinAlmaTalep.findMany({ select: { id: true } });
+    let maxNo = 1000;
+    for (const r of mevcut) {
+      const m = /^TAL-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    const id = `TAL-${maxNo + 1}`;
+    await db.satinAlmaTalep.create({
+      data: {
+        id,
+        tarih: tarihDate(new Date().toISOString().slice(0, 10)),
+        kaynak: opts?.kaynak ?? "Manuel",
+        aciklama: opts?.aciklama ?? null,
+        satirlar: {
+          create: net.map((k) => ({
+            malzemeId: k.malzemeId,
+            malzemeAd: k.malzemeAd,
+            miktar: k.miktar,
+            birim: k.birim,
+          })),
+        },
+      },
+    });
+    revalidatePath("/satin-alma/talepler");
+    return { ok: true, id };
+  } catch (e) {
+    console.error("talepOlustur:", e);
+    return { ok: false, error: "Talep oluşturulamadı." };
+  }
+}
+
+/** Talebi onaylar ya da reddeder (yalnız Beklemede'yken). */
+export async function talepDurumGuncelle(
+  id: string,
+  durum: "Onaylandı" | "Reddedildi",
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const t = await db.satinAlmaTalep.findUnique({ where: { id } });
+    if (!t) return { ok: false, error: "Talep bulunamadı." };
+    if (t.durum !== "Beklemede")
+      return { ok: false, error: `Talep zaten "${t.durum}" durumunda.` };
+    await db.satinAlmaTalep.update({ where: { id }, data: { durum } });
+    revalidatePath("/satin-alma/talepler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Talep güncellenemedi." };
+  }
+}
+
+/** Talebi siler (siparişe dönmüş talep silinemez). */
+export async function talepSil(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const t = await db.satinAlmaTalep.findUnique({ where: { id } });
+    if (!t) return { ok: false, error: "Talep bulunamadı." };
+    if (t.durum === "Siparişe Döndü")
+      return { ok: false, error: "Siparişe dönmüş talep silinemez." };
+    await db.satinAlmaTalep.delete({ where: { id } });
+    revalidatePath("/satin-alma/talepler");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Talep silinemedi." };
   }
 }
 

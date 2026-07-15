@@ -164,11 +164,22 @@ export async function getParcaDokumanlar(
 
 export async function getMalzemeler(): Promise<Malzeme[]> {
   // Malzeme kartları artık stok tablosunda (grup ∈ Hammadde/Yarı Mamül).
-  const rows = await db.stok.findMany({
-    where: { grup: { in: ["Hammadde", "Yarı Mamül"] } },
-    orderBy: { id: "asc" },
-  });
+  const [rows, dokRows] = await Promise.all([
+    db.stok.findMany({
+      where: { grup: { in: ["Hammadde", "Yarı Mamül"] } },
+      orderBy: { id: "asc" },
+    }),
+    db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
+  ]);
+  const docsByStok = new Map<string, { url: string; tip: string }[]>();
+  for (const d of dokRows) {
+    const arr = docsByStok.get(d.stokId) ?? [];
+    arr.push({ url: d.url, tip: d.tip });
+    docsByStok.set(d.stokId, arr);
+  }
   return rows.map((m) => ({
+    gorsel: tumGorseller(docsByStok.get(m.id) ?? [])[0],
+    gorseller: tumGorseller(docsByStok.get(m.id) ?? []),
     id: m.id,
     ad: m.ad,
     grup: m.altGrup ?? m.grup ?? undefined,
@@ -409,7 +420,12 @@ export async function getFabrikaEmirleri(): Promise<
 export type MusteriSecim = { id: string; ad: string; sehir: string };
 
 export async function getMusteriler(): Promise<MusteriSecim[]> {
-  const rows = await db.musteri.findMany();
+  // Müşteri seçenekleri cari kartlardan gelir (tip Müşteri / Her İkisi).
+  const rows = await db.cari.findMany({
+    where: { tip: { in: ["Müşteri", "Her İkisi"] }, durum: "Aktif" },
+    select: { id: true, ad: true, sehir: true },
+    orderBy: { ad: "asc" },
+  });
   return rows.map((m) => ({
     id: m.id,
     ad: m.ad,
@@ -625,6 +641,7 @@ export async function getUretimEmirleri(): Promise<UretimEmri[]> {
     durum: e.durum as UretimDurum,
     oncelik: (e.oncelik ?? undefined) as UretimOncelik | undefined,
     olusturma: tarihStr(e.olusturma),
+    terminBaslangic: e.terminBaslangic ? tarihStr(e.terminBaslangic) : undefined,
     termin: e.termin ? tarihStr(e.termin) : undefined,
     kaynakSiparis: e.kaynakSiparis ?? undefined,
     musteri: e.musteri ?? undefined,
@@ -916,6 +933,73 @@ function mapAlis(a: AlisRow): Alis {
 }
 
 /** Kayıtlı döviz kurları (TCMB) — kod sırasıyla. */
+// ── Satın alma talepleri ────────────────────────────────────────────────
+type TalepRow = Awaited<
+  ReturnType<typeof db.satinAlmaTalep.findMany>
+>[number] & {
+  satirlar: {
+    malzemeId: string;
+    malzemeAd: string;
+    miktar: unknown;
+    birim: string;
+  }[];
+};
+
+function mapTalep(
+  t: TalepRow,
+  fiyatlar: Map<string, number>,
+): import("../data").SatinAlmaTalep {
+  const satirlar = t.satirlar.map((s) => ({
+    malzemeId: s.malzemeId,
+    malzemeAd: s.malzemeAd,
+    miktar: Number(s.miktar),
+    birim: s.birim,
+  }));
+  return {
+    id: t.id,
+    tarih: tarihStr(t.tarih),
+    kaynak: t.kaynak,
+    aciklama: t.aciklama ?? undefined,
+    durum: t.durum as import("../data").TalepDurum,
+    alisId: t.alisId ?? undefined,
+    satirlar,
+    tahminiTutar: satirlar.reduce(
+      (top, s) => top + s.miktar * (fiyatlar.get(s.malzemeId) ?? 0),
+      0,
+    ),
+  };
+}
+
+async function stokFiyatMap(): Promise<Map<string, number>> {
+  const rows = await db.stok.findMany({
+    select: { id: true, maliyetFiyati: true },
+  });
+  return new Map(rows.map((r) => [r.id, Number(r.maliyetFiyati)]));
+}
+
+export async function getTalepler(): Promise<
+  import("../data").SatinAlmaTalep[]
+> {
+  const [rows, fiyatlar] = await Promise.all([
+    db.satinAlmaTalep.findMany({
+      include: { satirlar: true },
+      orderBy: { id: "desc" },
+    }),
+    stokFiyatMap(),
+  ]);
+  return rows.map((t) => mapTalep(t, fiyatlar));
+}
+
+export async function getTalep(
+  id: string,
+): Promise<import("../data").SatinAlmaTalep | null> {
+  const [row, fiyatlar] = await Promise.all([
+    db.satinAlmaTalep.findUnique({ where: { id }, include: { satirlar: true } }),
+    stokFiyatMap(),
+  ]);
+  return row ? mapTalep(row, fiyatlar) : null;
+}
+
 export async function getKurlar(): Promise<Kur[]> {
   const rows = await db.kur.findMany({ orderBy: { kod: "asc" } });
   return rows.map((k) => ({

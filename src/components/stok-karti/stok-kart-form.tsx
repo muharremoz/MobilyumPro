@@ -83,6 +83,7 @@ import {
   type TanimTip,
 } from "@/lib/data";
 import { modelMalzemeIhtiyaci } from "@/lib/bom";
+import { ISTASYON_MAP } from "@/lib/fabrika";
 import {
   stokKaydet,
   stokUreticiKaydet,
@@ -629,6 +630,8 @@ export function StokKartForm({
         )}
         {tab === "recete" && (
           <ReceteTab
+            stokId={kart?.id}
+            grup={form.grup}
             receteParcaId={form.receteParcaId}
             parcalar={parcalar}
             malzemeler={malzemeler}
@@ -677,12 +680,20 @@ function TabBtn({
 /* ------------------------------------------------------------------ */
 /* REÇETE SEKMESİ                                                     */
 /* ------------------------------------------------------------------ */
-/** Kartın reçetesi — havuzdan seçili parçanın malzeme ihtiyacı + maliyeti. */
+/**
+ * Kartın reçetesi — havuzdan seçili parçanın malzeme ihtiyacı + maliyeti.
+ * Reçetesi olmayan kartlarda (hammadde/yardımcı) ters bakış gösterilir:
+ * bu malzemenin kullanıldığı reçeteler.
+ */
 function ReceteTab({
+  stokId,
+  grup,
   receteParcaId,
   parcalar,
   malzemeler,
 }: {
+  stokId?: string;
+  grup?: string;
   receteParcaId?: string;
   parcalar: Parca[];
   malzemeler: Malzeme[];
@@ -690,6 +701,25 @@ function ReceteTab({
   const parca = receteParcaId
     ? parcalar.find((p) => p.id === receteParcaId)
     : undefined;
+
+  // Ters bakış: bu kartı bileşen olarak kullanan reçete satırları.
+  const kullanimlar = React.useMemo(() => {
+    if (!stokId) return [];
+    const kendiBirim = malzemeler.find((m) => m.id === stokId)?.birim ?? "";
+    return parcalar.flatMap((p) =>
+      p.recete
+        .filter(
+          (r) => r.bilesen.tip === "malzeme" && r.bilesen.ref === stokId,
+        )
+        .map((r) => ({
+          parca: p,
+          miktar: r.miktar,
+          fire: r.fire ?? 0,
+          istasyon: r.istasyon,
+          birim: kendiBirim,
+        })),
+    );
+  }, [stokId, parcalar, malzemeler]);
   const ihtiyac = React.useMemo(
     () =>
       receteParcaId
@@ -704,13 +734,60 @@ function ReceteTab({
   const toplam = ihtiyac.reduce((t, i) => t + i.toplamFiyat, 0);
 
   if (!parca) {
+    // Kendi reçetesi yok: kullanıldığı reçeteleri göster (hammadde bakışı).
     return (
-      <div className="rounded-md border bg-card">
-        <KartBaslik ikon={Layers} baslik="Reçete" />
-        <div className="flex h-24 items-center justify-center px-4 text-center text-sm text-muted-foreground">
-          Bu kart için reçete seçilmemiş — Genel sekmesindeki Üretim bölümünden
-          seçin.
-        </div>
+      <div className="overflow-hidden rounded-md border bg-card">
+        <KartBaslik
+          ikon={Layers}
+          baslik="Kullanıldığı Reçeteler"
+          sag={
+            kullanimlar.length > 0 ? (
+              <span className="text-xs text-muted-foreground">
+                {kullanimlar.length} reçete satırı
+              </span>
+            ) : undefined
+          }
+        />
+        {kullanimlar.length === 0 ? (
+          <div className="flex h-24 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+            {grup === "Mamül" || grup === "Yarı Mamül"
+              ? "Bu kart için reçete seçilmemiş — Genel sekmesindeki Üretim bölümünden seçin."
+              : "Bu malzeme henüz hiçbir reçetede kullanılmıyor."}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Reçete (Parça)</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead className="text-right">Miktar</TableHead>
+                <TableHead className="text-right">Fire %</TableHead>
+                <TableHead>İstasyon</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {kullanimlar.map((k, i) => (
+                <TableRow key={`${k.parca.id}-${i}`}>
+                  <TableCell className="font-medium">{k.parca.ad}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {k.parca.kategori}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {k.miktar.toLocaleString("tr-TR")} {k.birim}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {k.fire ? `%${k.fire}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {k.istasyon
+                      ? (ISTASYON_MAP.get(k.istasyon as never)?.ad ?? k.istasyon)
+                      : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     );
   }

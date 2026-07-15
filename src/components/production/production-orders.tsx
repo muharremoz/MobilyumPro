@@ -391,7 +391,11 @@ export function ProductionOrders({
                   )}
                   {kolon.temelGorunur("termin") && (
                     <TableCell className="text-sm text-muted-foreground">
-                      {e.termin ? formatTarih(e.termin) : "—"}
+                      {e.terminBaslangic && e.termin
+                        ? `${formatTarih(e.terminBaslangic)} – ${formatTarih(e.termin)}`
+                        : e.termin
+                          ? formatTarih(e.termin)
+                          : "—"}
                     </TableCell>
                   )}
                   {kolon.temelGorunur("hedef") && (

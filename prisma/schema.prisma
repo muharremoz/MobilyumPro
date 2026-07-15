@@ -144,6 +144,8 @@ model UretimEmri {
   durum         String    @default("Planlandı")
   oncelik       String?   @default("Normal")
   olusturma     DateTime  @db.Date
+  // Planlanan üretim penceresi: başlangıç – termin (bitiş)
+  terminBaslangic DateTime? @map("termin_baslangic") @db.Date
   termin        DateTime? @db.Date
   kaynakSiparis String?   @map("kaynak_siparis")
   musteri       String?
@@ -592,6 +594,38 @@ model AlisSatiri {
   @@map("alis_satiri")
 }
 
+// ── Satın alma talebi (üretim planından ya da elle; onaylanınca alışa döner) ─
+model SatinAlmaTalep {
+  id         String   @id
+  tarih      DateTime @db.Date
+  // "Üretim Planı" | "Manuel"
+  kaynak     String   @default("Manuel")
+  aciklama   String?  @db.NVarChar(Max)
+  // Beklemede | Onaylandı | Reddedildi | Siparişe Döndü
+  durum      String   @default("Beklemede")
+  // Siparişe dönünce bağlanan alış fişi
+  alisId     String?  @map("alis_id")
+  createDate DateTime @default(now()) @map("create_date")
+
+  satirlar SatinAlmaTalepSatiri[]
+
+  @@map("satin_alma_talep")
+}
+
+model SatinAlmaTalepSatiri {
+  id        Int     @id @default(autoincrement())
+  talepId   String  @map("talep_id")
+  malzemeId String  @map("malzeme_id")
+  malzemeAd String  @map("malzeme_ad")
+  miktar    Decimal @db.Decimal(14, 3)
+  birim     String
+
+  talep SatinAlmaTalep @relation(fields: [talepId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stok  Stok           @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("satin_alma_talep_satiri")
+}
+
 // ── Stok kartı (birleşik: hammadde / yarı mamül / mamül / hizmet) ────────
 // Kartın sahibi bu tablodur. Mevcut akışlar bozulmasın diye malzeme ve
 // model tabloları AYNI id ile senkron ayna olarak tutulur (stokKaydet):
@@ -664,6 +698,7 @@ model Stok {
   receteSatirlari ReceteSatiri[]
   modelParcalar   ModelParca[]
   uretimEmirleri  UretimEmri[]
+  talepSatirlari  SatinAlmaTalepSatiri[]
 
   @@map("stok")
 }

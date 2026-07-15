@@ -267,6 +267,10 @@ export type Malzeme = {
   /** Malzemenin tüketildiği varsayılan bölüm/istasyon (slug ya da ad). */
   bolum?: string;
   durum: "Aktif" | "Pasif";
+  /** Liste için ana görsel (stok dokümanlarından çözülür). */
+  gorsel?: string;
+  /** Liste görsel kolonu — tüm resimler (Ürün Resmi öncelikli). */
+  gorseller?: string[];
 };
 
 // Üretim emirleri — bir modelin (ürünün) BOM'una göre üretimi.
@@ -286,6 +290,7 @@ export type UretimEmri = {
   durum: UretimDurum;
   oncelik?: UretimOncelik;
   olusturma: string; // ISO tarih
+  terminBaslangic?: string; // planlanan üretim başlangıcı
   termin?: string; // hedef bitiş tarihi
   kaynakSiparis?: string; // opsiyonel: hangi siparişten doğdu
   musteri?: string; // sipariş üretiminde hedef müşteri
@@ -476,6 +481,33 @@ export type Alis = {
   aciklama?: string;
   toplam: Para;
   satirlar: AlisSatiri[];
+};
+
+// Satın alma talebi — üretim planından (veya elle) doğar, onaylanınca alışa döner.
+export type TalepDurum =
+  | "Beklemede"
+  | "Onaylandı"
+  | "Reddedildi"
+  | "Siparişe Döndü";
+
+export type TalepSatiri = {
+  malzemeId: string;
+  malzemeAd: string;
+  miktar: number;
+  birim: string;
+};
+
+export type SatinAlmaTalep = {
+  id: string;
+  tarih: string;
+  kaynak: string; // "Üretim Planı" | "Manuel"
+  aciklama?: string;
+  durum: TalepDurum;
+  /** Siparişe dönünce bağlanan alış fişi. */
+  alisId?: string;
+  satirlar: TalepSatiri[];
+  /** Satırların güncel maliyet fiyatıyla tahmini tutarı (₺). */
+  tahminiTutar: number;
 };
 
 // Depolar (üretim hedefi / stok lokasyonu).

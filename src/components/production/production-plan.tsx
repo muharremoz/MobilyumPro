@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ListHeader } from "@/components/ui/list-header";
 import { SearchSelect } from "@/components/ui/search-select";
+import { GorselHucre } from "@/components/ui/liste-gorsel";
+import { TarihAralikSecici } from "@/components/ui/tarih-aralik";
 import {
   Table,
   TableBody,
@@ -38,7 +40,7 @@ import {
   type UretimOncelik,
 } from "@/lib/data";
 import { malzemeYeterlilik, type MalzemeIhtiyac } from "@/lib/bom";
-import { uretimEmriOlustur } from "@/lib/db/actions";
+import { talepOlustur, uretimEmriOlustur } from "@/lib/db/actions";
 
 type Neden = "stok" | "siparis";
 type Secim = { id: number; urunId: string; adet: string };
@@ -68,6 +70,24 @@ export function ProductionPlan({
     () => new Map(urunler.map((u) => [u.id, u])),
     [urunler],
   );
+  const parcaMap = React.useMemo(
+    () => new Map(parcalar.map((p) => [p.id, p])),
+    [parcalar],
+  );
+
+  // Görsel kolonu: modelin galerisi + bağlı parçaların resimleri (sıralı).
+  const planResimleri = React.useCallback(
+    (m?: Model): string[] => {
+      if (!m) return [];
+      const model = m.gorseller ?? (m.gorsel ? [m.gorsel] : []);
+      const parca = (m.parcalar ?? []).flatMap((ps) => {
+        const p = parcaMap.get(ps.parcaId);
+        return p?.gorseller ?? (p?.gorsel ? [p.gorsel] : []);
+      });
+      return [...model, ...parca];
+    },
+    [parcaMap],
+  );
   const aktifDepolar = React.useMemo(
     () => depolar.filter((d) => d.durum === "Aktif"),
     [depolar],
@@ -76,9 +96,14 @@ export function ProductionPlan({
   const [neden, setNeden] = React.useState<Neden>("stok");
   const [depoId, setDepoId] = React.useState<string | null>(null);
   const [musteriId, setMusteriId] = React.useState<string | null>(null);
+  // Üretim penceresi: başlangıç – bitiş (termin)
+  const [terminBas, setTerminBas] = React.useState("");
   const [termin, setTermin] = React.useState("");
   const [oncelik, setOncelik] = React.useState<UretimOncelik>("Normal");
-  const [secimler, setSecimler] = React.useState<Secim[]>([]);
+  // İlk açılışta bir boş model satırı hazır gelir.
+  const [secimler, setSecimler] = React.useState<Secim[]>([
+    { id: 0, urunId: "", adet: "1" },
+  ]);
   const idRef = React.useRef(1);
   const [gorunen, setGorunen] = React.useState(5);
 
@@ -98,6 +123,17 @@ export function ProductionPlan({
     if (birlesik.length === 0) return null;
     return malzemeYeterlilik(birlesik, parcalar, malzemeler);
   }, [secimler, urunMap]);
+
+  // Parça detayı açık olan plan satırları (secim id).
+  const [detaylar, setDetaylar] = React.useState<Set<number>>(new Set());
+  function detayToggle(id: number) {
+    setDetaylar((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
 
   // Boş bir satır ekle (model henüz seçilmedi).
   function satirEkle() {
@@ -175,21 +211,38 @@ export function ProductionPlan({
     setSeciliEksik(v ? new Set(eksikIds) : new Set());
   }
 
-  function satinAlmaOlustur() {
+  const [talepGonderiliyor, setTalepGonderiliyor] = React.useState(false);
+  async function satinAlmaTalebiOlustur() {
     if (secilenEksik.length === 0) {
-      toast.error("Satın alma için en az bir eksik malzeme seçin.");
+      toast.error("Talep için en az bir eksik malzeme seçin.");
       return;
     }
-    // Seçili eksikleri, ihtiyaç miktarıyla (gerekli − stok, açık kadar) satın
-    // alma formuna aktar. Tedarikçi/fiyat/depo orada onaylanıp gerçek alış
-    // kaydedilir.
-    const kalem = secilenEksik
-      .map((m) => {
-        const acik = Math.max(0, m.toplamMiktar - m.malzeme.stok);
-        return `${m.malzeme.id}:${Math.round(acik * 100) / 100}`;
-      })
-      .join(",");
-    router.push(`/satin-alma/yeni?kalem=${encodeURIComponent(kalem)}`);
+    // Seçili eksikler açık miktarla (gerekli − stok) talep olarak kaydedilir;
+    // onaylanınca satın alma formuna dönüştürülür.
+    setTalepGonderiliyor(true);
+    const res = await talepOlustur(
+      secilenEksik.map((m) => ({
+        malzemeId: m.malzeme.id,
+        malzemeAd: m.malzeme.ad,
+        miktar:
+          Math.round(Math.max(0, m.toplamMiktar - m.malzeme.stok) * 100) / 100,
+        birim: m.malzeme.birim,
+      })),
+      {
+        kaynak: "Üretim Planı",
+        aciklama: `Üretim planı eksik malzemeleri (${secimler
+          .filter((s) => s.urunId)
+          .map((s) => `${urunMap.get(s.urunId)?.ad} × ${s.adet}`)
+          .join(", ")})`,
+      },
+    );
+    setTalepGonderiliyor(false);
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Talep oluşturulamadı.");
+      return;
+    }
+    toast.success(`Satın alma talebi oluşturuldu (${res.id})`);
+    router.push("/satin-alma/talepler");
   }
 
   const gonderEngel = !modelGecerli
@@ -220,6 +273,7 @@ export function ProductionPlan({
         adet: s.adet,
         durum,
         oncelik,
+        terminBaslangic: terminBas || undefined,
         termin: termin || undefined,
         musteri:
           neden === "siparis"
@@ -309,12 +363,14 @@ export function ProductionPlan({
             </Alan>
           )}
 
-          <Alan label="Termin tarihi">
-            <Input
-              type="date"
-              value={termin}
-              onChange={(e) => setTermin(e.target.value)}
-              className="h-9"
+          <Alan label="Termin (başlangıç – bitiş)">
+            <TarihAralikSecici
+              baslangic={terminBas}
+              bitis={termin}
+              onChange={(bas, bit) => {
+                setTerminBas(bas);
+                setTermin(bit);
+              }}
             />
           </Alan>
 
@@ -346,6 +402,7 @@ export function ProductionPlan({
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">#</TableHead>
+              <TableHead className="w-16">Görsel</TableHead>
               <TableHead>Model</TableHead>
               <TableHead className="w-44">Kategori</TableHead>
               <TableHead className="w-36">Stok Durumu</TableHead>
@@ -358,7 +415,7 @@ export function ProductionPlan({
             {secimler.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Henüz model eklenmedi. “Model Ekle” ile başlayın.
@@ -368,15 +425,41 @@ export function ProductionPlan({
               secimler.map((s, i) => {
                 const m = urunMap.get(s.urunId);
                 const durum = modelDurum(s.urunId, s.adet);
+                const detayAcik = detaylar.has(s.id);
                 return (
-                  <TableRow key={s.id}>
+                  <React.Fragment key={s.id}>
+                  <TableRow>
                     <TableCell className="text-muted-foreground tabular-nums">
                       {i + 1}
                     </TableCell>
                     <TableCell>
+                      <GorselHucre
+                        gorseller={planResimleri(m)}
+                        alt={m?.ad ?? "Model"}
+                      />
+                    </TableCell>
+                    <TableCell>
                       {s.urunId ? (
-                        <span className="font-medium" title={m?.ad}>
-                          {m?.ad}
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium" title={m?.ad}>
+                            {m?.ad}
+                          </span>
+                          {(m?.parcalar?.length ?? 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => detayToggle(s.id)}
+                              aria-expanded={detayAcik}
+                              className="flex cursor-pointer items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                            >
+                              {m!.parcalar!.length} parça
+                              <ChevronDown
+                                className={cn(
+                                  "size-3 transition-transform",
+                                  detayAcik && "rotate-180",
+                                )}
+                              />
+                            </button>
+                          )}
                         </span>
                       ) : (
                         <SearchSelect
@@ -452,8 +535,58 @@ export function ProductionPlan({
                       </Button>
                     </TableCell>
                   </TableRow>
+                  {detayAcik && m?.parcalar && (
+                    <TableRow className="bg-muted/20 hover:bg-muted/20">
+                      <TableCell colSpan={8} className="p-0">
+                        <div className="flex flex-col gap-1 px-12 py-2">
+                          {m.parcalar.map((ps) => {
+                            const p = parcaMap.get(ps.parcaId);
+                            const adet = Number(s.adet) || 1;
+                            return (
+                              <div
+                                key={ps.parcaId}
+                                className="flex items-center gap-3 text-sm"
+                              >
+                                <GorselHucre
+                                  gorseller={p?.gorseller}
+                                  alt={p?.ad ?? ps.parcaId}
+                                />
+                                <span className="font-medium">
+                                  {p?.ad ?? ps.parcaId}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {p?.kategori}
+                                </span>
+                                <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                                  {ps.miktar} × {adet} ={" "}
+                                  <span className="font-medium text-foreground">
+                                    {(ps.miktar * adet).toLocaleString("tr-TR")}{" "}
+                                    adet
+                                  </span>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
                 );
               })
+            )}
+            {eklenebilir.length > 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={8} className="p-2">
+                  <button
+                    type="button"
+                    onClick={satirEkle}
+                    className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground"
+                  >
+                    <Plus className="size-3.5" /> Model Ekle
+                  </button>
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
@@ -528,11 +661,12 @@ export function ProductionPlan({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={satinAlmaOlustur}
-                  disabled={secilenEksik.length === 0}
+                  onClick={satinAlmaTalebiOlustur}
+                  disabled={secilenEksik.length === 0 || talepGonderiliyor}
                   className="ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
                 >
-                  <ShoppingCart className="size-3" /> Satın Alma Oluştur
+                  <ShoppingCart className="size-3" />
+                  {talepGonderiliyor ? "Oluşturuluyor…" : "Satın Alma Talebi Oluştur"}
                 </Button>
               </div>
             </div>
@@ -607,6 +741,7 @@ function MalzemeTablosu({
             </TableHead>
           )}
           <TableHead className="w-10">#</TableHead>
+          <TableHead className="w-16">Görsel</TableHead>
           <TableHead>Malzeme</TableHead>
           <TableHead className="text-right">Gerekli</TableHead>
           <TableHead className="text-right">Stok</TableHead>
@@ -636,6 +771,12 @@ function MalzemeTablosu({
               )}
               <TableCell className="text-muted-foreground tabular-nums">
                 {i + 1}
+              </TableCell>
+              <TableCell>
+                <GorselHucre
+                  gorseller={m.malzeme.gorseller}
+                  alt={m.malzeme.ad}
+                />
               </TableCell>
               <TableCell className="font-medium">{m.malzeme.ad}</TableCell>
               <TableCell

@@ -119,6 +119,7 @@ export const sections: Section[] = [
     RailIcon: I(WalletIcon),
     items: [
       { label: "Cari Hesaplar", href: "/cari", icon: I(WalletIcon) },
+      { label: "Satın Alma Talepleri", href: "/satin-alma/talepler", icon: I(ClipboardCheckIcon) },
       { label: "Satın Alma", href: "/satin-alma", icon: I(ReceiptIcon) },
     ],
   },

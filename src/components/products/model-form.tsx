@@ -76,6 +76,7 @@ import {
 } from "@/components/stok-karti/stok-kart-form";
 import { cn } from "@/lib/utils";
 import { modelIhtiyacDokumu } from "@/lib/bom";
+import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { ISTASYON_MAP } from "@/lib/fabrika";
 import { modelKaydet, modelKodOnizle, tanimKaydet } from "@/lib/db/actions";
 
@@ -356,7 +357,7 @@ export function ModelForm({
         kategori: product.kategori,
         marka: product.marka ?? "",
         barkod: product.barkod ?? "",
-        fiyat: String(product.fiyat),
+        fiyat: paraMetni(product.fiyat),
         minStok: product.minStok ? String(product.minStok) : "",
         agirlik: product.agirlik ? String(product.agirlik) : "",
         durum: product.durum,
@@ -431,7 +432,7 @@ export function ModelForm({
       id: duzenleme ? form.id : onizleme.kod,
       ad: form.ad.trim(),
       kategori: form.kategori,
-      fiyat: Number(form.fiyat) || 0,
+      fiyat: paraDegeri(form.fiyat),
       // Mamul stoğu üretimden (ledger) gelir; formdan elle girilmez.
       stok: product?.stok ?? 0,
       durum: form.durum,
@@ -510,7 +511,7 @@ export function ModelForm({
   );
   const toplamMaliyet = dokum.reduce((t, m) => t + m.tutar, 0);
   const eksikSayisi = dokum.filter((d) => d.brutMiktar > d.malzeme.stok).length;
-  const satisFiyati = Number(form.fiyat) || 0;
+  const satisFiyati = paraDegeri(form.fiyat);
   const marj =
     satisFiyati > 0 && toplamMaliyet > 0
       ? ((satisFiyati - toplamMaliyet) / satisFiyati) * 100
@@ -757,11 +758,12 @@ export function ModelForm({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <IconInput
                     label="Satış Fiyatı (₺)"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     icon={TurkishLiraIcon}
-                    placeholder="0"
+                    placeholder="0,00"
                     value={form.fiyat}
-                    onChange={(e) => set("fiyat")(e.target.value)}
+                    onChange={(e) => set("fiyat")(paraMaskele(e.target.value))}
                   />
                   <IconInput
                     label="Min Stok"

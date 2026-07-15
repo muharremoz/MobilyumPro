@@ -32,7 +32,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatTL, type Doviz, type Malzeme } from "@/lib/data";
+import { Badge } from "@/components/ui/badge";
+import { formatTL, type Doviz, type Kur, type Malzeme } from "@/lib/data";
+import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { alisKaydet, depoKaydet } from "@/lib/db/actions";
 
 const DOVIZ_SEMBOL: Record<Doviz, string> = { TL: "₺", USD: "$", EUR: "€" };
@@ -56,7 +58,8 @@ type Satir = {
   cariId: string;
   miktar: number;
   birim: string;
-  birimFiyat: number;
+  /** Maskeli para metni (1.234,56) — hesapta paraDegeri ile çözülür. */
+  birimFiyat: string;
   /** Birim fiyatın dövizi. */
   doviz: Doviz;
   /** Malzemenin son (kayıtlı) alış fiyatı — karşılaştırma için. */
@@ -97,7 +100,7 @@ function ilkSatirlar(
       cariId: varsayilan,
       miktar: k.miktar > 0 ? k.miktar : 1,
       birim: m.birim,
-      birimFiyat: fiyat,
+      birimFiyat: paraMetni(fiyat),
       doviz: m.doviz || "TL",
       sonFiyat: fiyat,
       mevcutStok: m.stok,
@@ -127,10 +130,16 @@ export function AlisForm({
   depolar,
   sonFiyatlar = [],
   baslangicKalemler,
+  kurlar = [],
+  talepId,
 }: {
   tedarikciler: { id: string; ad: string }[];
   malzemeler: Malzeme[];
   depolar: string[];
+  /** TCMB kurları (Ayarlar → Kurlar) — döviz satırlarının ₺ karşılığı için. */
+  kurlar?: Kur[];
+  /** Alış bir satın alma talebinden dönüştürülüyorsa talebin kodu. */
+  talepId?: string;
   /** (malzeme, cari) → o tedarikçiden son alınan birim fiyat + tarih. */
   sonFiyatlar?: {
     malzemeId: string;
@@ -150,7 +159,11 @@ export function AlisForm({
   const [yeniDepoAd, setYeniDepoAd] = React.useState("");
   const [belgeNo, setBelgeNo] = React.useState("");
   const [aciklama, setAciklama] = React.useState(
-    baslangicKalemler?.length ? "Üretim planı malzeme ihtiyacı" : "",
+    talepId
+      ? `${talepId} talebinden alış`
+      : baslangicKalemler?.length
+        ? "Üretim planı malzeme ihtiyacı"
+        : "",
   );
   const [satirlar, setSatirlar] = React.useState<Satir[]>(() =>
     ilkSatirlar(baslangicKalemler, malzemeler, tedarikciler, sonFiyatlar),
@@ -198,25 +211,59 @@ export function AlisForm({
   const firmaSonKayit = (malzemeId: string, cariId: string) =>
     cariId ? sonFiyatMap.get(`${malzemeId}:${cariId}`) : undefined;
 
+  // ── Kur dönüşümü (TCMB forex satış; birim başına) ─────────────────────
+  const kurMap = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const k of kurlar)
+      if (k.forexSatis > 0) m.set(k.kod, k.forexSatis / (k.birim || 1));
+    return m;
+  }, [kurlar]);
+  /** Tutarın ₺ karşılığı; TL ise kendisi, kur yoksa null. */
+  const tlKarsiligi = React.useCallback(
+    (n: number, d: Doviz): number | null => {
+      if (d === "TL") return n;
+      const kur = kurMap.get(d);
+      return kur ? n * kur : null;
+    },
+    [kurMap],
+  );
+
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
-  const satirTutari = (s: Satir) => s.miktar * s.birimFiyat;
-  const toplam = gecerli.reduce((t, s) => t + satirTutari(s), 0);
+  const satirTutari = (s: Satir) => s.miktar * paraDegeri(s.birimFiyat);
   const toplamMiktar = gecerli.reduce((t, s) => t + s.miktar, 0);
   const eksikFirma = gecerli.some((s) => !s.cariId);
-  // Tedarikçi bazında özet
+  // Döviz bazında toplamlar (TL + her yabancı döviz ayrı satır).
+  const dovizToplamlari = React.useMemo(() => {
+    const m = new Map<Doviz, number>();
+    for (const s of gecerli) m.set(s.doviz, (m.get(s.doviz) ?? 0) + satirTutari(s));
+    return [...m.entries()].sort(([a], [b]) => (a === "TL" ? -1 : b === "TL" ? 1 : 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satirlar]);
+  // Genel toplam ₺ — herhangi bir dövizin kuru yoksa null (gösterilemez).
+  const genelToplamTL = dovizToplamlari.reduce<number | null>((t, [d, n]) => {
+    if (t === null) return null;
+    const tl = tlKarsiligi(n, d);
+    return tl === null ? null : t + tl;
+  }, 0);
+  const dovizVar = dovizToplamlari.some(([d]) => d !== "TL");
+  const kurEksik = dovizToplamlari.some(
+    ([d]) => d !== "TL" && !kurMap.has(d),
+  );
+  // Tedarikçi bazında özet (₺ karşılığıyla; kuru olmayan döviz ham eklenir).
   const firmaOzeti = React.useMemo(() => {
     const m = new Map<string, number>();
     for (const s of gecerli) {
       if (!s.cariId) continue;
-      m.set(s.cariId, (m.get(s.cariId) ?? 0) + satirTutari(s));
+      const tutar = satirTutari(s);
+      m.set(s.cariId, (m.get(s.cariId) ?? 0) + (tlKarsiligi(tutar, s.doviz) ?? tutar));
     }
     return [...m.entries()].map(([id, tutar]) => ({
       ad: cariMap.get(id)?.ad ?? id,
       tutar,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satirlar, cariMap]);
+  }, [satirlar, cariMap, tlKarsiligi]);
 
   // ── Eylemler ──────────────────────────────────────────────────────────
   function malzemeEkle(m: Malzeme) {
@@ -231,7 +278,7 @@ export function AlisForm({
         cariId: varsayilan,
         miktar: 1,
         birim: m.birim,
-        birimFiyat: fiyat,
+        birimFiyat: paraMetni(fiyat),
         doviz: m.doviz || "TL",
         sonFiyat: fiyat,
         mevcutStok: m.stok,
@@ -272,7 +319,7 @@ export function AlisForm({
       const m = malzemeMap.get(s.malzemeId);
       const genel = m?.birimFiyat ?? s.sonFiyat;
       const fiyat = firmaSonFiyat(s.malzemeId, cariId, genel);
-      n[i] = { ...s, cariId, sonFiyat: fiyat, birimFiyat: fiyat };
+      n[i] = { ...s, cariId, sonFiyat: fiyat, birimFiyat: paraMetni(fiyat) };
       return n;
     });
   }
@@ -306,9 +353,10 @@ export function AlisForm({
         cariAd: cariMap.get(s.cariId)?.ad ?? "",
         miktar: s.miktar,
         birim: s.birim,
-        birimFiyat: s.birimFiyat,
+        birimFiyat: paraDegeri(s.birimFiyat),
       })),
       fiyatGuncelle,
+      talepId,
     });
     setKaydediliyor(false);
     if (!res.ok || !res.id) {
@@ -336,6 +384,11 @@ export function AlisForm({
           <ArrowLeft className="size-4" />
         </Button>
         <span className="text-sm font-medium">Yeni Alış</span>
+        {talepId && (
+          <Badge variant="secondary" className="font-mono text-[11px]">
+            {talepId}
+          </Badge>
+        )}
         <Button
           className="ml-auto"
           onClick={kaydet}
@@ -413,7 +466,7 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-[1fr_170px_84px_96px_84px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <div className="grid grid-cols-[1fr_170px_120px_96px_100px_110px_36px] items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   <span>Malzeme</span>
                   <span>Firma</span>
                   <span>Miktar</span>
@@ -425,11 +478,11 @@ export function AlisForm({
                 <div className="divide-y">
                   {satirlar.map((s, i) => {
                     const m = malzemeMap.get(s.malzemeId);
-                    const fark = s.birimFiyat - s.sonFiyat;
+                    const fark = paraDegeri(s.birimFiyat) - s.sonFiyat;
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_170px_84px_96px_84px_110px_36px] items-center gap-2 px-3 py-2"
+                        className="grid grid-cols-[1fr_170px_120px_96px_100px_110px_36px] items-center gap-2 px-3 py-2"
                       >
                         <div className="min-w-0">
                           <HoverCard>
@@ -532,13 +585,13 @@ export function AlisForm({
                         </div>
                         <div className="relative">
                           <Input
-                            type="number"
-                            min={0}
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="0,00"
                             value={s.birimFiyat}
                             onChange={(e) =>
                               satirGuncelle(i, {
-                                birimFiyat: Number(e.target.value),
+                                birimFiyat: paraMaskele(e.target.value),
                               })
                             }
                             className="h-8 pr-5 tabular-nums"
@@ -567,8 +620,19 @@ export function AlisForm({
                           }
                           className="h-8 px-2"
                         />
-                        <span className="text-right text-sm font-medium tabular-nums">
-                          {paraFmt(satirTutari(s), s.doviz)}
+                        <span className="flex flex-col items-end text-right">
+                          <span className="text-sm font-medium tabular-nums">
+                            {paraFmt(satirTutari(s), s.doviz)}
+                          </span>
+                          {s.doviz !== "TL" &&
+                            (() => {
+                              const tl = tlKarsiligi(satirTutari(s), s.doviz);
+                              return (
+                                <span className="text-[11px] text-muted-foreground tabular-nums">
+                                  {tl !== null ? `≈ ${formatTL(tl)}` : "kur yok"}
+                                </span>
+                              );
+                            })()}
                         </span>
                         <Button
                           variant="ghost"
@@ -596,8 +660,49 @@ export function AlisForm({
               Alış Özeti
             </p>
             <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-              {formatTL(toplam)}
+              {genelToplamTL !== null ? (
+                <>
+                  {dovizVar && (
+                    <span className="mr-0.5 font-normal text-muted-foreground">
+                      ≈
+                    </span>
+                  )}
+                  {formatTL(genelToplamTL)}
+                </>
+              ) : (
+                "—"
+              )}
             </p>
+            {/* Döviz kırılımı — birden fazla döviz varsa ayrı toplamlar */}
+            {dovizVar && (
+              <div className="mt-2 flex flex-col gap-1 rounded-md border bg-muted/30 p-2.5 text-xs">
+                {dovizToplamlari.map(([d, n]) => {
+                  const tl = tlKarsiligi(n, d);
+                  return (
+                    <div
+                      key={d}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="font-medium tabular-nums">
+                        {paraFmt(n, d)}
+                      </span>
+                      {d !== "TL" && (
+                        <span className="text-muted-foreground tabular-nums">
+                          {tl !== null
+                            ? `≈ ${formatTL(tl)} (kur ${(kurMap.get(d) ?? 0).toLocaleString("tr-TR", { maximumFractionDigits: 4 })})`
+                            : "kur yok"}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {kurEksik && (
+                  <p className="text-rose-600">
+                    Kur bilgisi eksik — Ayarlar → Kurlar&apos;dan güncelleyin.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-3 flex flex-col gap-1.5 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Kalem sayısı</span>
