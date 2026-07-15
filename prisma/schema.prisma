@@ -594,18 +594,31 @@ model AlisSatiri {
   @@map("alis_satiri")
 }
 
-// ── Satın alma talebi (üretim planından ya da elle; onaylanınca alışa döner) ─
+// ── Satın alma talebi (onay havuzu + tedarik süreci) ─────────────────────
+// Beklemede → (Yönetici) Onaylandı | Reddedildi →
+// (Satın Alma departmanı) Tedarik Sürecinde → satır satır mal kabul → Tamamlandı.
 model SatinAlmaTalep {
   id         String   @id
   tarih      DateTime @db.Date
   // "Üretim Planı" | "Manuel"
   kaynak     String   @default("Manuel")
   aciklama   String?  @db.NVarChar(Max)
-  // Beklemede | Onaylandı | Reddedildi | Siparişe Döndü
+  // Beklemede | Onaylandı | Reddedildi | Tedarik Sürecinde | Tamamlandı
+  // (eski kayıtlardaki "Siparişe Döndü" okunurken Tamamlandı sayılır)
   durum      String   @default("Beklemede")
-  // Siparişe dönünce bağlanan alış fişi
+  // Son bağlanan alış fişi (mal kabuller ALS-#### fişleri üretir)
   alisId     String?  @map("alis_id")
   createDate DateTime @default(now()) @map("create_date")
+
+  // Mal kabulde önerilecek varsayılan depo (üretim planındaki hedef depo).
+  depo           String?
+  // Audit izi — TODO: oturum altyapısı gelince gerçek kimlikten.
+  olusturanAd    String?   @map("olusturan_ad")
+  onaylayanAd    String?   @map("onaylayan_ad")
+  onayTarihi     DateTime? @map("onay_tarihi") @db.Date
+  redNedeni      String?   @map("red_nedeni") @db.NVarChar(Max)
+  baslatanAd     String?   @map("baslatan_ad")
+  baslatmaTarihi DateTime? @map("baslatma_tarihi") @db.Date
 
   satirlar SatinAlmaTalepSatiri[]
 
@@ -619,6 +632,14 @@ model SatinAlmaTalepSatiri {
   malzemeAd String  @map("malzeme_ad")
   miktar    Decimal @db.Decimal(14, 3)
   birim     String
+
+  // Şu ana dek teslim alınan (kısmi mal kabul toplamı).
+  tedarikEdilen Decimal @default(0) @map("tedarik_edilen") @db.Decimal(14, 3)
+  // Son mal kabulde kullanılan tedarikçi (öneri olarak da yazılabilir).
+  cariId        String? @map("cari_id")
+  cariAd        String? @map("cari_ad")
+  // Bekliyor | Kısmi | Tedarik Edildi
+  satirDurum    String  @default("Bekliyor") @map("satir_durum")
 
   talep SatinAlmaTalep @relation(fields: [talepId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   stok  Stok           @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -218,7 +218,7 @@ export function ProductionPlan({
       return;
     }
     // Seçili eksikler açık miktarla (gerekli − stok) talep olarak kaydedilir;
-    // onaylanınca satın alma formuna dönüştürülür.
+    // yönetim onaylar, Satın Alma departmanı tedarik sürecini yürütür.
     setTalepGonderiliyor(true);
     const res = await talepOlustur(
       secilenEksik.map((m) => ({
@@ -230,6 +230,11 @@ export function ProductionPlan({
       })),
       {
         kaynak: "Üretim Planı",
+        // Mal kabulde önerilecek depo: plandaki hedef depo (stok üretimi).
+        depo:
+          neden === "stok"
+            ? aktifDepolar.find((d) => d.id === depoId)?.ad
+            : undefined,
         aciklama: `Üretim planı eksik malzemeleri (${secimler
           .filter((s) => s.urunId)
           .map((s) => `${urunMap.get(s.urunId)?.ad} × ${s.adet}`)
@@ -241,7 +246,9 @@ export function ProductionPlan({
       toast.error(res.error ?? "Talep oluşturulamadı.");
       return;
     }
-    toast.success(`Satın alma talebi oluşturuldu (${res.id})`);
+    toast.success(
+      `Satın alma talebi oluşturuldu (${res.id}) — yönetim onayı bekliyor`,
+    );
     router.push("/satin-alma/talepler");
   }
 

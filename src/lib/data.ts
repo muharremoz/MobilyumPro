@@ -483,18 +483,33 @@ export type Alis = {
   satirlar: AlisSatiri[];
 };
 
-// Satın alma talebi — üretim planından (veya elle) doğar, onaylanınca alışa döner.
+// Satın alma talebi — onay havuzu + tedarik süreci.
+// Beklemede → (Yönetici) Onaylandı | Reddedildi →
+// (Satın Alma departmanı) Tedarik Sürecinde → satır satır mal kabul → Tamamlandı.
 export type TalepDurum =
   | "Beklemede"
   | "Onaylandı"
   | "Reddedildi"
-  | "Siparişe Döndü";
+  | "Tedarik Sürecinde"
+  | "Tamamlandı";
+
+export type TalepSatirDurum = "Bekliyor" | "Kısmi" | "Tedarik Edildi";
 
 export type TalepSatiri = {
+  id: number;
   malzemeId: string;
   malzemeAd: string;
+  /** İstenen toplam miktar. */
   miktar: number;
   birim: string;
+  /** Şu ana dek teslim alınan (kısmi mal kabul toplamı). */
+  tedarikEdilen: number;
+  /** Mal kabul için önerilen birim fiyat (güncel maliyet). */
+  tahminiFiyat: number;
+  /** Son mal kabulde kullanılan / önerilen tedarikçi. */
+  cariId?: string;
+  cariAd?: string;
+  durum: TalepSatirDurum;
 };
 
 export type SatinAlmaTalep = {
@@ -503,8 +518,17 @@ export type SatinAlmaTalep = {
   kaynak: string; // "Üretim Planı" | "Manuel"
   aciklama?: string;
   durum: TalepDurum;
-  /** Siparişe dönünce bağlanan alış fişi. */
+  /** Son bağlanan alış fişi (mal kabuller ALS-#### fişleri üretir). */
   alisId?: string;
+  /** Mal kabulde önerilecek varsayılan depo. */
+  depo?: string;
+  // Audit izi
+  olusturanAd?: string;
+  onaylayanAd?: string;
+  onayTarihi?: string;
+  redNedeni?: string;
+  baslatanAd?: string;
+  baslatmaTarihi?: string;
   satirlar: TalepSatiri[];
   /** Satırların güncel maliyet fiyatıyla tahmini tutarı (₺). */
   tahminiTutar: number;

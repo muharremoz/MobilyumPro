@@ -938,10 +938,15 @@ type TalepRow = Awaited<
   ReturnType<typeof db.satinAlmaTalep.findMany>
 >[number] & {
   satirlar: {
+    id: number;
     malzemeId: string;
     malzemeAd: string;
     miktar: unknown;
     birim: string;
+    tedarikEdilen: unknown;
+    cariId: string | null;
+    cariAd: string | null;
+    satirDurum: string;
   }[];
 };
 
@@ -950,21 +955,37 @@ function mapTalep(
   fiyatlar: Map<string, number>,
 ): import("../data").SatinAlmaTalep {
   const satirlar = t.satirlar.map((s) => ({
+    id: s.id,
     malzemeId: s.malzemeId,
     malzemeAd: s.malzemeAd,
     miktar: Number(s.miktar),
     birim: s.birim,
+    tedarikEdilen: Number(s.tedarikEdilen),
+    tahminiFiyat: fiyatlar.get(s.malzemeId) ?? 0,
+    cariId: s.cariId ?? undefined,
+    cariAd: s.cariAd ?? undefined,
+    durum: s.satirDurum as import("../data").TalepSatirDurum,
   }));
   return {
     id: t.id,
     tarih: tarihStr(t.tarih),
     kaynak: t.kaynak,
     aciklama: t.aciklama ?? undefined,
-    durum: t.durum as import("../data").TalepDurum,
+    // Eski kayıtlar: "Siparişe Döndü" artık Tamamlandı olarak okunur.
+    durum: (t.durum === "Siparişe Döndü"
+      ? "Tamamlandı"
+      : t.durum) as import("../data").TalepDurum,
     alisId: t.alisId ?? undefined,
+    depo: t.depo ?? undefined,
+    olusturanAd: t.olusturanAd ?? undefined,
+    onaylayanAd: t.onaylayanAd ?? undefined,
+    onayTarihi: t.onayTarihi ? tarihStr(t.onayTarihi) : undefined,
+    redNedeni: t.redNedeni ?? undefined,
+    baslatanAd: t.baslatanAd ?? undefined,
+    baslatmaTarihi: t.baslatmaTarihi ? tarihStr(t.baslatmaTarihi) : undefined,
     satirlar,
     tahminiTutar: satirlar.reduce(
-      (top, s) => top + s.miktar * (fiyatlar.get(s.malzemeId) ?? 0),
+      (top, s) => top + s.miktar * s.tahminiFiyat,
       0,
     ),
   };

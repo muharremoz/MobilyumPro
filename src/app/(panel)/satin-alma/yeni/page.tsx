@@ -44,14 +44,21 @@ export default async function YeniAlisRoute({
   const tedarikciler = cariler
     .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")
     .map((c) => ({ id: c.id, ad: c.ad }));
-  // Talepten geliyorsa kalemler talepten; yalnız açık (siparişe dönmemiş) talep.
+  // Talepten geliyorsa kalemler talepten — yalnız onaylanmış/tedarikteki
+  // talep, KALAN miktarlarla (kısmi mal kabuller düşülür).
   const talepAktif =
-    talepKaydi && talepKaydi.durum !== "Siparişe Döndü" ? talepKaydi : null;
+    talepKaydi &&
+    (talepKaydi.durum === "Onaylandı" ||
+      talepKaydi.durum === "Tedarik Sürecinde")
+      ? talepKaydi
+      : null;
   const baslangicKalemler = talepAktif
-    ? talepAktif.satirlar.map((s) => ({
-        malzemeId: s.malzemeId,
-        miktar: s.miktar,
-      }))
+    ? talepAktif.satirlar
+        .map((s) => ({
+          malzemeId: s.malzemeId,
+          miktar: Math.max(0, s.miktar - s.tedarikEdilen),
+        }))
+        .filter((s) => s.miktar > 0)
     : kalemAyristir(kalem);
   return (
     <AlisForm
