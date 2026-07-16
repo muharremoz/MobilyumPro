@@ -32,17 +32,7 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useOnay } from "@/components/ui/confirm-dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -82,6 +72,11 @@ const TEMEL_KOLONLAR: KolonTanim[] = [
   { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
 ];
 const EK_KOLONLAR: KolonTanim[] = [];
+
+/** Kopya için geçici kod (kayıt sırasında kullanılır). */
+function kopyaId(onEk: string, taban: number, aralik: number) {
+  return `${onEk}-${Math.floor(taban + Math.random() * aralik)}`;
+}
 
 export function Parts({
   parcalar,
@@ -155,7 +150,8 @@ export function Parts({
     aktifSayfa * SAYFA_BOYUT,
   );
   const sayfaIds = sayfalik.map((p) => p.id);
-  const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
+  const tumuSecili =
+    sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
   // Reçete sayısı için yardımcı (flatten: alt-parça çözülmüş malzeme adedi).
@@ -180,14 +176,16 @@ export function Parts({
     });
   }
   async function sil(ids: string[]) {
-    const tekAd = ids.length === 1 ? liste.find((p) => p.id === ids[0])?.ad : null;
+    const tekAd =
+      ids.length === 1 ? liste.find((p) => p.id === ids[0])?.ad : null;
     if (
       !(await onayla({
         title:
           ids.length === 1
             ? `"${tekAd ?? "Parça"}" silinsin mi?`
             : `${ids.length} parça silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -209,7 +207,7 @@ export function Parts({
   async function kopyala(p: Parca) {
     const k: Parca = {
       ...p,
-      id: `PRC-${Math.floor(2000 + Math.random() * 8000)}`,
+      id: kopyaId("PRC", 2000, 8000),
       ad: `${p.ad} (kopya)`,
       recete: [...p.recete],
     };
@@ -230,7 +228,9 @@ export function Parts({
       toast.error(res.error ?? "Durum güncellenemedi.");
       return;
     }
-    toast.success(yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi");
+    toast.success(
+      yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi",
+    );
   }
   function panoyaKopyala(metin: string, etiket: string) {
     navigator.clipboard?.writeText(metin);
@@ -254,7 +254,11 @@ export function Parts({
           >
             <Trash2 className="size-3.5" /> Seçilenleri sil
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSecili(new Set())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSecili(new Set())}
+          >
             Temizle
           </Button>
         </div>
@@ -354,109 +358,107 @@ export function Parts({
           </TableHeader>
           <TableBody>
             {sayfalik.map((p) => (
-              <ContextMenu key={p.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      data-state={secili.has(p.id) ? "selected" : undefined}
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/parcalar/${p.id}`)}
-                    />
-                  }
-                >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={secili.has(p.id)}
-                    onCheckedChange={(v) => secimDegis(p.id, v === true)}
-                    aria-label={`${p.ad} seç`}
-                  />
-                </TableCell>
-                {kolon.temelGorunur("id") && (
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {p.id}
-                  </TableCell>
-                )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <GorselHucre gorseller={p.gorseller} alt={p.ad} />
-                </TableCell>
-                <TableCell className="font-medium">{p.ad}</TableCell>
-                {kolon.temelGorunur("kategori") && (
-                  <TableCell className="text-muted-foreground">
-                    {p.kategori}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("recete") && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {p.recete.length}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("malzeme") && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {malzemeAdet(p)}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("durum") && (
-                  <TableCell>
-                    <Badge
-                      variant={p.durum === "Aktif" ? "default" : "secondary"}
-                    >
-                      {p.durum}
-                    </Badge>
-                  </TableCell>
-                )}
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-52">
-                  <ContextMenuItem
-                    onClick={() => router.push(`/parcalar/${p.id}`)}
-                  >
-                    <ExternalLink className="mr-2 size-4" /> Aç
-                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => kopyala(p)}>
-                    <CopyPlus className="mr-2 size-4" /> Çoğalt
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => durumDegistir(p)}>
-                    <Power className="mr-2 size-4" />
-                    {p.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
-                  </ContextMenuItem>
-
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <Hash className="mr-2 size-4" /> Kopyala
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
-                      <ContextMenuItem
-                        onClick={() => panoyaKopyala(p.id, "Kod")}
-                      >
-                        <Hash className="mr-2 size-4" /> Kod
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => panoyaKopyala(p.ad, "Ad")}
-                      >
-                        <Type className="mr-2 size-4" /> Ad
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() =>
+              <SatirMenu
+                key={p.id}
+                className="w-52"
+                aksiyonlar={[
+                  {
+                    etiket: "Aç",
+                    ikon: ExternalLink,
+                    kisayol: "⏎",
+                    onSecim: () => router.push(`/parcalar/${p.id}`),
+                  },
+                  {
+                    etiket: "Çoğalt",
+                    ikon: CopyPlus,
+                    onSecim: () => kopyala(p),
+                  },
+                  {
+                    etiket: p.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
+                    ikon: Power,
+                    onSecim: () => durumDegistir(p),
+                  },
+                  {
+                    etiket: "Kopyala",
+                    ikon: Hash,
+                    altAksiyonlar: [
+                      {
+                        etiket: "Kod",
+                        ikon: Hash,
+                        onSecim: () => panoyaKopyala(p.id, "Kod"),
+                      },
+                      {
+                        etiket: "Ad",
+                        ikon: Type,
+                        onSecim: () => panoyaKopyala(p.ad, "Ad"),
+                      },
+                      {
+                        etiket: "Bağlantı",
+                        ikon: Link2,
+                        onSecim: () =>
                           panoyaKopyala(
                             `${window.location.origin}/parcalar/${p.id}`,
                             "Bağlantı",
-                          )
-                        }
+                          ),
+                      },
+                    ],
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil([p.id]),
+                  },
+                ]}
+              >
+                <TableRow
+                  data-state={secili.has(p.id) ? "selected" : undefined}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/parcalar/${p.id}`)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={secili.has(p.id)}
+                      onCheckedChange={(v) => secimDegis(p.id, v === true)}
+                      aria-label={`${p.ad} seç`}
+                    />
+                  </TableCell>
+                  {kolon.temelGorunur("id") && (
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.id}
+                    </TableCell>
+                  )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <GorselHucre gorseller={p.gorseller} alt={p.ad} />
+                  </TableCell>
+                  <TableCell className="font-medium">{p.ad}</TableCell>
+                  {kolon.temelGorunur("kategori") && (
+                    <TableCell className="text-muted-foreground">
+                      {p.kategori}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("recete") && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {p.recete.length}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("malzeme") && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {malzemeAdet(p)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={p.durum === "Aktif" ? "default" : "secondary"}
                       >
-                        <Link2 className="mr-2 size-4" /> Bağlantı
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil([p.id])}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                        {p.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

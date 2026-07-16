@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownToLine, ArrowUpFromLine, Repeat } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ExternalLink,
+  Repeat,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { ListHeader } from "@/components/ui/list-header";
@@ -13,6 +19,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -40,11 +47,17 @@ const TUR_ICON: Record<StokHareketTuru, React.ReactNode> = {
   Transfer: <Repeat className="size-3.5" />,
 };
 
-type SortKey = "id" | "tarih" | "tur" | "oge" | "miktar" | "birim" | "depo" | "aciklama";
+type SortKey =
+  "id" | "tarih" | "tur" | "oge" | "miktar" | "birim" | "depo" | "aciklama";
 
 /** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
 const TEMEL_KOLONLAR: KolonTanim[] = [
-  { key: "id", label: "Belge", aciklama: "Hareket belge numarası.", kilitli: true },
+  {
+    key: "id",
+    label: "Belge",
+    aciklama: "Hareket belge numarası.",
+    kilitli: true,
+  },
   { key: "tarih", label: "Tarih", aciklama: "Hareketin tarihi." },
   { key: "tur", label: "Tür", aciklama: "Giriş / Çıkış / Transfer." },
   { key: "oge", label: "Öğe", aciklama: "Hareket edilen model veya malzeme." },
@@ -72,6 +85,7 @@ export function StockMovements({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
+  const router = useRouter();
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
     id: "",
@@ -262,54 +276,71 @@ export function StockMovements({
           </TableHeader>
           <TableBody>
             {filtreli.map((h) => (
-              <TableRow key={h.id}>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {h.id}
-                </TableCell>
-                {kolon.temelGorunur("tarih") && (
-                  <TableCell className="text-muted-foreground">
-                    {formatTarih(h.tarih)}
+              <SatirMenu
+                key={h.id}
+                aksiyonlar={[
+                  {
+                    // Hareketin ait olduğu kart: mamül → ürün, malzeme → stok kartı.
+                    etiket: "Kartı aç",
+                    ikon: ExternalLink,
+                    onSecim: () =>
+                      router.push(
+                        h.ref.tip === "model"
+                          ? `/urunler/${h.ref.id}`
+                          : `/stok-karti/${h.ref.id}`,
+                      ),
+                  },
+                ]}
+              >
+                <TableRow>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {h.id}
                   </TableCell>
-                )}
-                {kolon.temelGorunur("tur") && (
-                  <TableCell>
-                    <Badge variant="secondary" className={TUR_RENK[h.tur]}>
-                      <span className="mr-1 inline-flex items-center">
-                        {TUR_ICON[h.tur]}
+                  {kolon.temelGorunur("tarih") && (
+                    <TableCell className="text-muted-foreground">
+                      {formatTarih(h.tarih)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("tur") && (
+                    <TableCell>
+                      <Badge variant="secondary" className={TUR_RENK[h.tur]}>
+                        <span className="mr-1 inline-flex items-center">
+                          {TUR_ICON[h.tur]}
+                        </span>
+                        {h.tur}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("oge") && (
+                    <TableCell className="font-medium">
+                      {refAd(h.ref)}
+                      <span className="ml-2 text-[10px] text-muted-foreground/70">
+                        {h.ref.tip === "model" ? "Model" : "Malzeme"}
                       </span>
-                      {h.tur}
-                    </Badge>
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("oge") && (
-                  <TableCell className="font-medium">
-                    {refAd(h.ref)}
-                    <span className="ml-2 text-[10px] text-muted-foreground/70">
-                      {h.ref.tip === "model" ? "Model" : "Malzeme"}
-                    </span>
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("miktar") && (
-                  <TableCell className="text-right tabular-nums">
-                    {h.miktar}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("birim") && (
-                  <TableCell className="text-muted-foreground">
-                    {h.birim}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("depo") && (
-                  <TableCell className="text-muted-foreground">
-                    {h.depo}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("aciklama") && (
-                  <TableCell className="text-muted-foreground">
-                    {h.aciklama}
-                  </TableCell>
-                )}
-              </TableRow>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("miktar") && (
+                    <TableCell className="text-right tabular-nums">
+                      {h.miktar}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("birim") && (
+                    <TableCell className="text-muted-foreground">
+                      {h.birim}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("depo") && (
+                    <TableCell className="text-muted-foreground">
+                      {h.depo}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("aciklama") && (
+                    <TableCell className="text-muted-foreground">
+                      {h.aciklama}
+                    </TableCell>
+                  )}
+                </TableRow>
+              </SatirMenu>
             ))}
             {filtreli.length === 0 && (
               <TableRow>

@@ -23,13 +23,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { FormSheet } from "@/components/ui/form-sheet";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Dialog,
   DialogContent,
@@ -181,8 +175,7 @@ function firmaGruplari(
       // Aynı firmaya zaten sipariş varsa kalanı o satıra iliştir.
       const mevcut = g.satirlar.find((e) => e.satir.id === s.id);
       if (mevcut) mevcut.kalan = kalan;
-      else
-        g.satirlar.push({ satir: s, siparisMiktar: 0, tedarik: 0, kalan });
+      else g.satirlar.push({ satir: s, siparisMiktar: 0, tedarik: 0, kalan });
       g.tahminiTutar += kalan * fiyat;
       g.siparisKalanVar = true;
     }
@@ -270,9 +263,7 @@ export function TalepListe({
     setSort({ key: k, dir });
 
   // ── Durum panosu: sekmeler ──────────────────────────────────────────────
-  const [tab, setTab] = React.useState<"talepler" | "malzeme">(
-    "talepler",
-  );
+  const [tab, setTab] = React.useState<"talepler" | "malzeme">("talepler");
   // Panoda reddedilenler hariç aktif talepler.
   const aktifTalepler = React.useMemo(
     () => talepler.filter((t) => t.durum !== "Reddedildi"),
@@ -293,15 +284,13 @@ export function TalepListe({
     >();
     for (const t of aktifTalepler) {
       for (const s of t.satirlar) {
-        const g =
-          m.get(s.malzemeId) ??
-          {
-            malzemeAd: s.malzemeAd,
-            birim: s.birim,
-            istenen: 0,
-            siparis: 0,
-            tedarik: 0,
-          };
+        const g = m.get(s.malzemeId) ?? {
+          malzemeAd: s.malzemeAd,
+          birim: s.birim,
+          istenen: 0,
+          siparis: 0,
+          tedarik: 0,
+        };
         g.istenen += s.miktar;
         g.siparis += s.siparisler.reduce((n, o) => n + o.miktar, 0);
         g.tedarik += s.tedarikEdilen;
@@ -517,202 +506,205 @@ export function TalepListe({
       )}
 
       {tab === "talepler" && (
-      <>
-      <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Satın Alma Talepleri" />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <SiralaFiltreBaslik
-                sira={sira("id")}
-                onSirala={sirala("id")}
-                filtre={{ tip: "metin", deger: noFiltre, onDeger: setNoFiltre }}
-              >
-                Talep No
-              </SiralaFiltreBaslik>
-              <SiralaFiltreBaslik sira={sira("tarih")} onSirala={sirala("tarih")}>
-                Tarih
-              </SiralaFiltreBaslik>
-              <SiralaFiltreBaslik
-                sira={sira("kaynak")}
-                onSirala={sirala("kaynak")}
-                filtre={{
-                  tip: "liste",
-                  secenekler: kaynaklar,
-                  deger: kaynak,
-                  onDeger: setKaynak,
-                }}
-              >
-                Kaynak
-              </SiralaFiltreBaslik>
-              <TableHead>Model</TableHead>
-              <TableHead>Oluşturan</TableHead>
-              <TableHead>Tedarik</TableHead>
-              <SiralaFiltreBaslik
-                className="text-right"
-                sira={sira("tutar")}
-                onSirala={sirala("tutar")}
-              >
-                Tahmini Tutar
-              </SiralaFiltreBaslik>
-              <SiralaFiltreBaslik
-                sira={sira("durum")}
-                onSirala={sirala("durum")}
-                filtre={{
-                  tip: "liste",
-                  secenekler: DURUMLAR,
-                  deger: durum,
-                  onDeger: setDurum,
-                }}
-              >
-                Durum
-              </SiralaFiltreBaslik>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtreli.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  Talep yok. Üretim Planı&apos;nda eksik malzemeleri seçip
-                  &quot;Satın Alma Talebi Oluştur&quot; ile başlayın.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtreli.map((t) => (
-                <ContextMenu key={t.id}>
-                  <ContextMenuTrigger
-                    render={
+        <>
+          <div className="overflow-hidden rounded-md border bg-card">
+            <ListHeader title="Satın Alma Talepleri" />
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SiralaFiltreBaslik
+                    sira={sira("id")}
+                    onSirala={sirala("id")}
+                    filtre={{
+                      tip: "metin",
+                      deger: noFiltre,
+                      onDeger: setNoFiltre,
+                    }}
+                  >
+                    Talep No
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    sira={sira("tarih")}
+                    onSirala={sirala("tarih")}
+                  >
+                    Tarih
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    sira={sira("kaynak")}
+                    onSirala={sirala("kaynak")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: kaynaklar,
+                      deger: kaynak,
+                      onDeger: setKaynak,
+                    }}
+                  >
+                    Kaynak
+                  </SiralaFiltreBaslik>
+                  <TableHead>Model</TableHead>
+                  <TableHead>Oluşturan</TableHead>
+                  <TableHead>Tedarik</TableHead>
+                  <SiralaFiltreBaslik
+                    className="text-right"
+                    sira={sira("tutar")}
+                    onSirala={sirala("tutar")}
+                  >
+                    Tahmini Tutar
+                  </SiralaFiltreBaslik>
+                  <SiralaFiltreBaslik
+                    sira={sira("durum")}
+                    onSirala={sirala("durum")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: DURUMLAR,
+                      deger: durum,
+                      onDeger: setDurum,
+                    }}
+                  >
+                    Durum
+                  </SiralaFiltreBaslik>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtreli.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Talep yok. Üretim Planı&apos;nda eksik malzemeleri seçip
+                      &quot;Satın Alma Talebi Oluştur&quot; ile başlayın.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtreli.map((t) => (
+                    <SatirMenu
+                      key={t.id}
+                      className="w-56"
+                      aksiyonlar={[
+                        {
+                          etiket: "Detay",
+                          ikon: ExternalLink,
+                          onSecim: () => setDetayId(t.id),
+                        },
+                        {
+                          etiket: "Onayla",
+                          ikon: Check,
+                          gizli: !(t.durum === "Beklemede" && yonetici),
+                          pasif: mesgul === t.id,
+                          ayracOnce: true,
+                          onSecim: () => onaylaAksiyon(t),
+                        },
+                        {
+                          etiket: "Reddet",
+                          ikon: Ban,
+                          gizli: !(t.durum === "Beklemede" && yonetici),
+                          pasif: mesgul === t.id,
+                          onSecim: () => {
+                            setRedNeden("");
+                            setRedId(t.id);
+                          },
+                        },
+                        {
+                          etiket: "Tedarike Başla",
+                          ikon: Play,
+                          gizli: !(t.durum === "Onaylandı" && satinAlmaci),
+                          pasif: mesgul === t.id,
+                          onSecim: () => baslatAksiyon(t),
+                        },
+                        {
+                          etiket: "Fatura Gir",
+                          ikon: Receipt,
+                          gizli: !(
+                            t.durum === "Tedarik Sürecinde" &&
+                            satinAlmaci &&
+                            t.satirlar.some(
+                              (s) =>
+                                s.durum === "Sipariş Verildi" ||
+                                s.durum === "Kısmi",
+                            )
+                          ),
+                          onSecim: () => faturaGir(t),
+                        },
+                        {
+                          etiket: "Alış Fişini Gör",
+                          ikon: Receipt,
+                          gizli: !t.alisId,
+                          onSecim: () => router.push(`/satin-alma/${t.alisId}`),
+                        },
+                        {
+                          etiket: "Sil",
+                          ikon: Trash2,
+                          tehlike: true,
+                          ayracOnce: true,
+                          gizli: !(
+                            t.durum === "Beklemede" || t.durum === "Reddedildi"
+                          ),
+                          pasif: mesgul === t.id,
+                          onSecim: () => sil(t.id),
+                        },
+                      ]}
+                    >
                       <TableRow
                         className="cursor-pointer"
                         onClick={() => setDetayId(t.id)}
-                      />
-                    }
-                  >
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {t.id}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatTarih(t.tarih)}
-                    </TableCell>
-                    <TableCell className="text-sm">{t.kaynak}</TableCell>
-                    <TableCell className="max-w-48">
-                      {t.modeller ? (
-                        <span
-                          title={t.modeller}
-                          className="block truncate text-sm font-medium"
-                        >
-                          {t.modeller}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {t.olusturanAd ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <TedarikIlerleme talep={t} />
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium tabular-nums">
-                      {formatTL(t.tahminiTutar)}
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-1.5">
-                        <DurumBadge durum={t.durum} />
-                        {t.alisId && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/satin-alma/${t.alisId}`);
-                            }}
-                            className="cursor-pointer font-mono text-[11px] text-muted-foreground underline-offset-2 hover:underline"
-                          >
-                            {t.alisId}
-                          </button>
-                        )}
-                      </span>
-                    </TableCell>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-56">
-                    <ContextMenuItem onClick={() => setDetayId(t.id)}>
-                      <ExternalLink className="mr-2 size-4" /> Detay
-                    </ContextMenuItem>
-                    {t.durum === "Beklemede" && yonetici && (
-                      <>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          disabled={mesgul === t.id}
-                          onClick={() => onaylaAksiyon(t)}
-                        >
-                          <Check className="mr-2 size-4" /> Onayla
-                        </ContextMenuItem>
-                        <ContextMenuItem
-                          disabled={mesgul === t.id}
-                          onClick={() => {
-                            setRedNeden("");
-                            setRedId(t.id);
-                          }}
-                        >
-                          <Ban className="mr-2 size-4" /> Reddet
-                        </ContextMenuItem>
-                      </>
-                    )}
-                    {t.durum === "Onaylandı" && satinAlmaci && (
-                      <ContextMenuItem
-                        disabled={mesgul === t.id}
-                        onClick={() => baslatAksiyon(t)}
                       >
-                        <Play className="mr-2 size-4" /> Tedarike Başla
-                      </ContextMenuItem>
-                    )}
-                    {t.durum === "Tedarik Sürecinde" &&
-                      satinAlmaci &&
-                      t.satirlar.some(
-                        (s) =>
-                          s.durum === "Sipariş Verildi" || s.durum === "Kısmi",
-                      ) && (
-                        <ContextMenuItem
-                          onClick={() =>
-                            faturaGir(t)
-                          }
-                        >
-                          <Receipt className="mr-2 size-4" /> Fatura Gir
-                        </ContextMenuItem>
-                      )}
-                    {t.alisId && (
-                      <ContextMenuItem
-                        onClick={() => router.push(`/satin-alma/${t.alisId}`)}
-                      >
-                        <Receipt className="mr-2 size-4" /> Alış Fişini Gör
-                      </ContextMenuItem>
-                    )}
-                    {(t.durum === "Beklemede" || t.durum === "Reddedildi") && (
-                      <>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem
-                          variant="destructive"
-                          disabled={mesgul === t.id}
-                          onClick={() => sil(t.id)}
-                        >
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </ContextMenuItem>
-                      </>
-                    )}
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <span className="text-sm text-muted-foreground">
-        {filtreli.length} talep
-      </span>
-      </>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {t.id}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatTarih(t.tarih)}
+                        </TableCell>
+                        <TableCell className="text-sm">{t.kaynak}</TableCell>
+                        <TableCell className="max-w-48">
+                          {t.modeller ? (
+                            <span
+                              title={t.modeller}
+                              className="block truncate text-sm font-medium"
+                            >
+                              {t.modeller}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {t.olusturanAd ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          <TedarikIlerleme talep={t} />
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium tabular-nums">
+                          {formatTL(t.tahminiTutar)}
+                        </TableCell>
+                        <TableCell>
+                          <span className="flex items-center gap-1.5">
+                            <DurumBadge durum={t.durum} />
+                            {t.alisId && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/satin-alma/${t.alisId}`);
+                                }}
+                                className="cursor-pointer font-mono text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                              >
+                                {t.alisId}
+                              </button>
+                            )}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    </SatirMenu>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {filtreli.length} talep
+          </span>
+        </>
       )}
 
       {/* ── Detay sheet'i ── */}
@@ -764,15 +756,9 @@ export function TalepListe({
                 {detay.durum === "Tedarik Sürecinde" &&
                   satinAlmaci &&
                   detay.satirlar.some(
-                    (s) =>
-                      s.durum === "Sipariş Verildi" || s.durum === "Kısmi",
+                    (s) => s.durum === "Sipariş Verildi" || s.durum === "Kısmi",
                   ) && (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        faturaGir(detay)
-                      }
-                    >
+                    <Button size="sm" onClick={() => faturaGir(detay)}>
                       <Receipt className="size-3.5" /> Fatura Gir
                     </Button>
                   )}
@@ -781,206 +767,207 @@ export function TalepListe({
           )
         }
       >
-          {detay && (
-            <>
-              {/* Üst meta satırı */}
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <DurumBadge durum={detay.durum} />
+        {detay && (
+          <>
+            {/* Üst meta satırı */}
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <DurumBadge durum={detay.durum} />
+              <span>
+                {detay.kaynak} · {formatTarih(detay.tarih)}
+                {detay.olusturanAd && <> · {detay.olusturanAd}</>}
+              </span>
+            </div>
+            {detay.modeller && (
+              <p className="px-0.5 text-sm font-medium">{detay.modeller}</p>
+            )}
+
+            {/* Audit izi */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
+              {detay.olusturanAd && (
                 <span>
-                  {detay.kaynak} · {formatTarih(detay.tarih)}
-                  {detay.olusturanAd && <> · {detay.olusturanAd}</>}
+                  Oluşturan:{" "}
+                  <span className="text-foreground">{detay.olusturanAd}</span>
                 </span>
-              </div>
-              {detay.modeller && (
-                <p className="px-0.5 text-sm font-medium">{detay.modeller}</p>
               )}
+              {detay.onaylayanAd && (
+                <span>
+                  {detay.durum === "Reddedildi" ? "Reddeden" : "Onaylayan"}:{" "}
+                  <span className="text-foreground">{detay.onaylayanAd}</span>
+                  {detay.onayTarihi && <> ({formatTarih(detay.onayTarihi)})</>}
+                </span>
+              )}
+              {detay.baslatanAd && (
+                <span>
+                  Başlatan:{" "}
+                  <span className="text-foreground">{detay.baslatanAd}</span>
+                  {detay.baslatmaTarihi && (
+                    <> ({formatTarih(detay.baslatmaTarihi)})</>
+                  )}
+                </span>
+              )}
+              {detay.depo && (
+                <span>
+                  Hedef depo:{" "}
+                  <span className="text-foreground">{detay.depo}</span>
+                </span>
+              )}
+              {detay.alisId && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/satin-alma/${detay.alisId}`)}
+                  className="cursor-pointer font-mono underline-offset-2 hover:underline"
+                >
+                  Alış: {detay.alisId}
+                </button>
+              )}
+              {detay.redNedeni && (
+                <span className="text-rose-600">
+                  Red nedeni: {detay.redNedeni}
+                </span>
+              )}
+            </div>
 
-              {/* Audit izi */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground">
-                {detay.olusturanAd && (
-                  <span>
-                    Oluşturan:{" "}
-                    <span className="text-foreground">{detay.olusturanAd}</span>
-                  </span>
-                )}
-                {detay.onaylayanAd && (
-                  <span>
-                    {detay.durum === "Reddedildi" ? "Reddeden" : "Onaylayan"}:{" "}
-                    <span className="text-foreground">{detay.onaylayanAd}</span>
-                    {detay.onayTarihi && <> ({formatTarih(detay.onayTarihi)})</>}
-                  </span>
-                )}
-                {detay.baslatanAd && (
-                  <span>
-                    Başlatan:{" "}
-                    <span className="text-foreground">{detay.baslatanAd}</span>
-                    {detay.baslatmaTarihi && (
-                      <> ({formatTarih(detay.baslatmaTarihi)})</>
-                    )}
-                  </span>
-                )}
-                {detay.depo && (
-                  <span>
-                    Hedef depo:{" "}
-                    <span className="text-foreground">{detay.depo}</span>
-                  </span>
-                )}
-                {detay.alisId && (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/satin-alma/${detay.alisId}`)}
-                    className="cursor-pointer font-mono underline-offset-2 hover:underline"
-                  >
-                    Alış: {detay.alisId}
-                  </button>
-                )}
-                {detay.redNedeni && (
-                  <span className="text-rose-600">
-                    Red nedeni: {detay.redNedeni}
-                  </span>
-                )}
-              </div>
-
-              {/* Firma bazlı gruplar — bir firma = bir sipariş belgesi */}
-              <div className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
-                {firmaGruplari(detay, tedarikciler).map((g) => (
-                  <div key={g.cariId || "yok"} className="rounded-md border">
-                    <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">
-                          {g.cariAd}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
-                          {g.siparisBelgeleri.length > 0 && " · "}
-                          {g.siparisBelgeleri.map((sip, i) => (
-                            <React.Fragment key={sip}>
-                              {i > 0 && ", "}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(`/satin-alma/siparis/${sip}`)
-                                }
-                                className="cursor-pointer font-mono underline-offset-2 hover:underline"
-                              >
-                                {sip}
-                              </button>
-                            </React.Fragment>
-                          ))}
-                        </p>
-                      </div>
-                      {detay.durum === "Tedarik Sürecinde" &&
-                        satinAlmaci &&
-                        g.siparisKalanVar && (
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              setSiparisHedef({
-                                talepId: detay.id,
-                                cariId: g.cariId,
-                              })
-                            }
-                          >
-                            <PackageCheck className="size-3.5" /> Sipariş Oluştur
-                          </Button>
-                        )}
+            {/* Firma bazlı gruplar — bir firma = bir sipariş belgesi */}
+            <div className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
+              {firmaGruplari(detay, tedarikciler).map((g) => (
+                <div key={g.cariId || "yok"} className="rounded-md border">
+                  <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {g.cariAd}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
+                        {g.siparisBelgeleri.length > 0 && " · "}
+                        {g.siparisBelgeleri.map((sip, i) => (
+                          <React.Fragment key={sip}>
+                            {i > 0 && ", "}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(`/satin-alma/siparis/${sip}`)
+                              }
+                              className="cursor-pointer font-mono underline-offset-2 hover:underline"
+                            >
+                              {sip}
+                            </button>
+                          </React.Fragment>
+                        ))}
+                      </p>
                     </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Malzeme</TableHead>
-                          <TableHead className="text-right">İstenen</TableHead>
-                          <TableHead className="text-right">Sipariş</TableHead>
-                          <TableHead className="text-right">Tedarik</TableHead>
-                          <TableHead className="text-right">
-                            Sipariş Kalan
-                          </TableHead>
-                          <TableHead>Durum</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {g.satirlar.map((e) => {
-                          const s = e.satir;
-                          return (
-                            <TableRow key={`${s.id}-${g.cariId}`}>
-                              <TableCell className="font-medium">
-                                {s.malzemeAd}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {s.miktar.toLocaleString("tr-TR", {
-                                  maximumFractionDigits: 2,
-                                })}{" "}
-                                {s.birim}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {e.siparisMiktar > 0 ? (
-                                  <>
-                                    {e.siparisMiktar.toLocaleString("tr-TR", {
-                                      maximumFractionDigits: 2,
-                                    })}{" "}
-                                    {s.birim}
-                                  </>
-                                ) : (
-                                  <span className="text-muted-foreground">
-                                    —
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right tabular-nums text-muted-foreground">
-                                {e.tedarik.toLocaleString("tr-TR", {
-                                  maximumFractionDigits: 2,
-                                })}{" "}
-                                {s.birim}
-                              </TableCell>
-                              {/* Sipariş verilmemiş kalan — yalnız satırın
-                                  kendi firmasının grubunda anlamlı. */}
-                              <TableCell
-                                className={cn(
-                                  "text-right tabular-nums",
-                                  e.kalan
-                                    ? "font-medium text-amber-700"
-                                    : "text-muted-foreground",
-                                )}
-                              >
-                                {e.kalan ? (
-                                  <>
-                                    {e.kalan.toLocaleString("tr-TR", {
-                                      maximumFractionDigits: 2,
-                                    })}{" "}
-                                    {s.birim}
-                                  </>
-                                ) : (
-                                  "—"
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className={SATIR_DURUM_RENK[s.durum]}
-                                >
-                                  {s.durum}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    {detay.durum === "Tedarik Sürecinde" &&
+                      satinAlmaci &&
+                      g.siparisKalanVar && (
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            setSiparisHedef({
+                              talepId: detay.id,
+                              cariId: g.cariId,
+                            })
+                          }
+                        >
+                          <PackageCheck className="size-3.5" /> Sipariş Oluştur
+                        </Button>
+                      )}
                   </div>
-                ))}
-              </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Malzeme</TableHead>
+                        <TableHead className="text-right">İstenen</TableHead>
+                        <TableHead className="text-right">Sipariş</TableHead>
+                        <TableHead className="text-right">Tedarik</TableHead>
+                        <TableHead className="text-right">
+                          Sipariş Kalan
+                        </TableHead>
+                        <TableHead>Durum</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {g.satirlar.map((e) => {
+                        const s = e.satir;
+                        return (
+                          <TableRow key={`${s.id}-${g.cariId}`}>
+                            <TableCell className="font-medium">
+                              {s.malzemeAd}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {s.miktar.toLocaleString("tr-TR", {
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              {s.birim}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {e.siparisMiktar > 0 ? (
+                                <>
+                                  {e.siparisMiktar.toLocaleString("tr-TR", {
+                                    maximumFractionDigits: 2,
+                                  })}{" "}
+                                  {s.birim}
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {e.tedarik.toLocaleString("tr-TR", {
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              {s.birim}
+                            </TableCell>
+                            {/* Sipariş verilmemiş kalan — yalnız satırın
+                                  kendi firmasının grubunda anlamlı. */}
+                            <TableCell
+                              className={cn(
+                                "text-right tabular-nums",
+                                e.kalan
+                                  ? "font-medium text-amber-700"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {e.kalan ? (
+                                <>
+                                  {e.kalan.toLocaleString("tr-TR", {
+                                    maximumFractionDigits: 2,
+                                  })}{" "}
+                                  {s.birim}
+                                </>
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={SATIR_DURUM_RENK[s.durum]}
+                              >
+                                {s.durum}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+            </div>
 
-              {detay.aciklama && (
-                <p className="px-1 text-xs text-muted-foreground">
-                  {detay.aciklama}
-                </p>
-              )}
-            </>
-          )}
+            {detay.aciklama && (
+              <p className="px-1 text-xs text-muted-foreground">
+                {detay.aciklama}
+              </p>
+            )}
+          </>
+        )}
       </FormSheet>
 
       {/* ── Red dialogu ── */}
-      <Dialog open={redTalep !== null} onOpenChange={(o) => !o && setRedId(null)}>
+      <Dialog
+        open={redTalep !== null}
+        onOpenChange={(o) => !o && setRedId(null)}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Talebi reddet</DialogTitle>
@@ -1382,7 +1369,11 @@ function SiparisDialog({
           <Button size="sm" variant="outline" onClick={onKapat}>
             Vazgeç
           </Button>
-          <Button size="sm" disabled={!gecerli || kaydediliyor} onClick={kaydet}>
+          <Button
+            size="sm"
+            disabled={!gecerli || kaydediliyor}
+            onClick={kaydet}
+          >
             <PackageCheck className="size-3.5" />
             {kaydediliyor
               ? "Oluşturuluyor..."

@@ -31,17 +31,7 @@ import {
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import { useOnay } from "@/components/ui/confirm-dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import { stokKaydet, stokSil } from "@/lib/db/actions";
 import {
   Table,
@@ -103,8 +93,7 @@ const EK_KOLONLAR: (KolonTanim & {
     key: "marka",
     label: "Marka",
     aciklama: "Stok kartının markası.",
-    hucre: (s) =>
-      s.marka ?? <span className="text-muted-foreground">—</span>,
+    hucre: (s) => s.marka ?? <span className="text-muted-foreground">—</span>,
   },
   {
     key: "barkod",
@@ -185,8 +174,7 @@ export function StokKartListe({
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter(
       (s) =>
-        (!qId ||
-          (s.kod ?? s.id).toLocaleLowerCase("tr").includes(qId)) &&
+        (!qId || (s.kod ?? s.id).toLocaleLowerCase("tr").includes(qId)) &&
         (!qAd || s.ad.toLocaleLowerCase("tr").includes(qAd)) &&
         (!qAltGrup ||
           (s.altGrup?.toLocaleLowerCase("tr").includes(qAltGrup) ?? false)) &&
@@ -215,7 +203,8 @@ export function StokKartListe({
     if (
       !(await onayla({
         title: `"${s.ad}" silinsin mi?`,
-        description: "Bu malzeme kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu malzeme kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -257,7 +246,9 @@ export function StokKartListe({
       toast.error(res.error ?? "Durum güncellenemedi.");
       return;
     }
-    toast.success(yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi");
+    toast.success(
+      yeniDurum === "Aktif" ? "Aktifleştirildi" : "Pasifleştirildi",
+    );
   }
 
   function panoyaKopyala(metin: string, etiket: string) {
@@ -410,128 +401,125 @@ export function StokKartListe({
           </TableHeader>
           <TableBody>
             {sayfalik.map((s) => (
-              <ContextMenu key={s.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/stok-karti/${s.id}`)}
-                    />
-                  }
-                >
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {s.kod ?? s.id}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <GorselHucre gorseller={s.gorseller} alt={s.ad} />
-                </TableCell>
-                {kolon.temelGorunur("ad") && (
-                  <TableCell className="font-medium">{s.ad}</TableCell>
-                )}
-                {kolon.temelGorunur("grup") && (
-                  <TableCell>
-                    <Badge variant="secondary" className={GRUP_RENK[s.grup]}>
-                      {s.grup}
-                    </Badge>
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("altGrup") && (
-                  <TableCell className="text-muted-foreground">
-                    {s.altGrup ?? "—"}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("stokBirimi") && (
-                  <TableCell className="text-muted-foreground">
-                    {s.stokBirimi}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("miktar") && (
-                  <TableCell
-                    className={cn(
-                      "text-right tabular-nums",
-                      s.miktar === 0 && "text-muted-foreground/60",
-                    )}
-                  >
-                    {s.miktar.toLocaleString("tr-TR")}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("satisFiyat1") && (
-                  <TableCell className="text-right tabular-nums">
-                    {formatTL(s.satisFiyat1)}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("durum") && (
-                  <TableCell>
-                    <Badge
-                      variant={s.durum === "Aktif" ? "default" : "secondary"}
-                    >
-                      {s.durum}
-                    </Badge>
-                  </TableCell>
-                )}
-                {gorunurEk.map((k) => (
-                  <TableCell key={k.key}>{k.hucre(s)}</TableCell>
-                ))}
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-52">
-                  <ContextMenuItem
-                    onClick={() => router.push(`/stok-karti/${s.id}`)}
-                  >
-                    <ExternalLink className="mr-2 size-4" /> Aç
-                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => kopyala(s)}>
-                    <CopyPlus className="mr-2 size-4" /> Çoğalt
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => durumDegistir(s)}>
-                    <Power className="mr-2 size-4" />
-                    {s.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
-                  </ContextMenuItem>
-
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <Hash className="mr-2 size-4" /> Kopyala
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
-                      <ContextMenuItem
-                        onClick={() => panoyaKopyala(s.kod ?? s.id, "Kod")}
-                      >
-                        <Hash className="mr-2 size-4" /> Kod
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => panoyaKopyala(s.ad, "Ad")}
-                      >
-                        <Type className="mr-2 size-4" /> Ad
-                      </ContextMenuItem>
-                      {s.barkod && (
-                        <ContextMenuItem
-                          onClick={() => panoyaKopyala(s.barkod!, "Barkod")}
-                        >
-                          <Hash className="mr-2 size-4" /> Barkod
-                        </ContextMenuItem>
-                      )}
-                      <ContextMenuItem
-                        onClick={() =>
+              <SatirMenu
+                key={s.id}
+                className="w-52"
+                aksiyonlar={[
+                  {
+                    etiket: "Aç",
+                    ikon: ExternalLink,
+                    kisayol: "⏎",
+                    onSecim: () => router.push(`/stok-karti/${s.id}`),
+                  },
+                  {
+                    etiket: "Çoğalt",
+                    ikon: CopyPlus,
+                    onSecim: () => kopyala(s),
+                  },
+                  {
+                    etiket: s.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
+                    ikon: Power,
+                    onSecim: () => durumDegistir(s),
+                  },
+                  {
+                    etiket: "Kopyala",
+                    ikon: Hash,
+                    altAksiyonlar: [
+                      {
+                        etiket: "Kod",
+                        ikon: Hash,
+                        onSecim: () => panoyaKopyala(s.kod ?? s.id, "Kod"),
+                      },
+                      {
+                        etiket: "Ad",
+                        ikon: Type,
+                        onSecim: () => panoyaKopyala(s.ad, "Ad"),
+                      },
+                      {
+                        etiket: "Barkod",
+                        ikon: Hash,
+                        gizli: !s.barkod,
+                        onSecim: () => panoyaKopyala(s.barkod!, "Barkod"),
+                      },
+                      {
+                        etiket: "Bağlantı",
+                        ikon: Link2,
+                        onSecim: () =>
                           panoyaKopyala(
                             `${window.location.origin}/stok-karti/${s.id}`,
                             "Bağlantı",
-                          )
-                        }
+                          ),
+                      },
+                    ],
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil(s),
+                  },
+                ]}
+              >
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/stok-karti/${s.id}`)}
+                >
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {s.kod ?? s.id}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <GorselHucre gorseller={s.gorseller} alt={s.ad} />
+                  </TableCell>
+                  {kolon.temelGorunur("ad") && (
+                    <TableCell className="font-medium">{s.ad}</TableCell>
+                  )}
+                  {kolon.temelGorunur("grup") && (
+                    <TableCell>
+                      <Badge variant="secondary" className={GRUP_RENK[s.grup]}>
+                        {s.grup}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("altGrup") && (
+                    <TableCell className="text-muted-foreground">
+                      {s.altGrup ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("stokBirimi") && (
+                    <TableCell className="text-muted-foreground">
+                      {s.stokBirimi}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("miktar") && (
+                    <TableCell
+                      className={cn(
+                        "text-right tabular-nums",
+                        s.miktar === 0 && "text-muted-foreground/60",
+                      )}
+                    >
+                      {s.miktar.toLocaleString("tr-TR")}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("satisFiyat1") && (
+                    <TableCell className="text-right tabular-nums">
+                      {formatTL(s.satisFiyat1)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={s.durum === "Aktif" ? "default" : "secondary"}
                       >
-                        <Link2 className="mr-2 size-4" /> Bağlantı
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil(s)}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                        {s.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {gorunurEk.map((k) => (
+                    <TableCell key={k.key}>{k.hucre(s)}</TableCell>
+                  ))}
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

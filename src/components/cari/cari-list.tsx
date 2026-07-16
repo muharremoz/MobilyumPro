@@ -26,6 +26,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -168,7 +169,8 @@ export function CariList({
     aktifSayfa * SAYFA_BOYUT,
   );
   const sayfaIds = sayfalik.map((c) => c.id);
-  const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
+  const tumuSecili =
+    sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
   function secimDegis(id: string, v: boolean) {
@@ -187,14 +189,16 @@ export function CariList({
     });
   }
   async function sil(ids: string[]) {
-    const tekAd = ids.length === 1 ? liste.find((c) => c.id === ids[0])?.ad : null;
+    const tekAd =
+      ids.length === 1 ? liste.find((c) => c.id === ids[0])?.ad : null;
     if (
       !(await onayla({
         title:
           ids.length === 1
             ? `"${tekAd ?? "Cari hesap"}" silinsin mi?`
             : `${ids.length} cari hesap silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -232,7 +236,11 @@ export function CariList({
           >
             <Trash2 className="size-3.5" /> Seçilenleri sil
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSecili(new Set())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSecili(new Set())}
+          >
             Temizle
           </Button>
         </div>
@@ -354,98 +362,119 @@ export function CariList({
           </TableHeader>
           <TableBody>
             {sayfalik.map((c) => (
-              <TableRow
+              <SatirMenu
                 key={c.id}
-                data-state={secili.has(c.id) ? "selected" : undefined}
-                className="cursor-pointer"
-                onClick={() => router.push(`/cari/${c.id}`)}
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => router.push(`/cari/${c.id}`),
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil([c.id]),
+                  },
+                ]}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={secili.has(c.id)}
-                    onCheckedChange={(v) => secimDegis(c.id, v === true)}
-                    aria-label={`${c.ad} seç`}
-                  />
-                </TableCell>
-                {kolon.temelGorunur("id") && (
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {c.id}
-                  </TableCell>
-                )}
-                <TableCell>
-                  <div className="font-medium">{c.ad}</div>
-                  {c.email && (
-                    <div className="text-[11px] text-muted-foreground">
-                      {c.email}
-                    </div>
-                  )}
-                </TableCell>
-                {kolon.temelGorunur("tip") && (
-                  <TableCell>
-                    <Badge variant="secondary" className={TIP_RENK[c.tip]}>
-                      {c.tip}
-                    </Badge>
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("sehir") && (
-                  <TableCell className="text-muted-foreground">
-                    {c.sehir ?? "—"}
-                  </TableCell>
-                )}
-                {kolon.ekGorunur("telefon") && (
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {c.telefon ?? "—"}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("bakiye") && (
-                  <TableCell
-                    className={cn(
-                      "text-right tabular-nums",
-                      c.bakiye < 0 && "text-rose-600",
-                      c.bakiye > 0 && "text-emerald-600",
-                      c.bakiye === 0 && "text-muted-foreground",
-                    )}
-                  >
-                    {formatTL(Math.abs(c.bakiye))}
-                    <span className="ml-1 text-[10px] uppercase">
-                      {c.bakiye < 0 ? "B" : c.bakiye > 0 ? "A" : ""}
-                    </span>
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("durum") && (
-                  <TableCell>
-                    <Badge
-                      variant={c.durum === "Aktif" ? "default" : "secondary"}
-                    >
-                      {c.durum}
-                    </Badge>
-                  </TableCell>
-                )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
+                <TableRow
+                  data-state={secili.has(c.id) ? "selected" : undefined}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/cari/${c.id}`)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={secili.has(c.id)}
+                      onCheckedChange={(v) => secimDegis(c.id, v === true)}
+                      aria-label={`${c.ad} seç`}
                     />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/cari/${c.id}`)}
+                  </TableCell>
+                  {kolon.temelGorunur("id") && (
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {c.id}
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <div className="font-medium">{c.ad}</div>
+                    {c.email && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.email}
+                      </div>
+                    )}
+                  </TableCell>
+                  {kolon.temelGorunur("tip") && (
+                    <TableCell>
+                      <Badge variant="secondary" className={TIP_RENK[c.tip]}>
+                        {c.tip}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("sehir") && (
+                    <TableCell className="text-muted-foreground">
+                      {c.sehir ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.ekGorunur("telefon") && (
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {c.telefon ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("bakiye") && (
+                    <TableCell
+                      className={cn(
+                        "text-right tabular-nums",
+                        c.bakiye < 0 && "text-rose-600",
+                        c.bakiye > 0 && "text-emerald-600",
+                        c.bakiye === 0 && "text-muted-foreground",
+                      )}
+                    >
+                      {formatTL(Math.abs(c.bakiye))}
+                      <span className="ml-1 text-[10px] uppercase">
+                        {c.bakiye < 0 ? "B" : c.bakiye > 0 ? "A" : ""}
+                      </span>
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={c.durum === "Aktif" ? "default" : "secondary"}
                       >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil([c.id])}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                        {c.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="İşlemler"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/cari/${c.id}`)}
+                        >
+                          <Pencil className="mr-2 size-4" /> Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => sil([c.id])}
+                        >
+                          <Trash2 className="mr-2 size-4" /> Sil
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

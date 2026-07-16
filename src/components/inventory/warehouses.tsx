@@ -17,6 +17,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -163,7 +164,8 @@ export function Warehouses({
     if (
       !(await onayla({
         title: `"${ad ?? "Depo"}" silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -285,72 +287,105 @@ export function Warehouses({
           </TableHeader>
           <TableBody>
             {filtreli.map((d) => {
-              const yuzde = d.kapasite ? Math.round((d.doluluk / d.kapasite) * 100) : 0;
+              const yuzde = d.kapasite
+                ? Math.round((d.doluluk / d.kapasite) * 100)
+                : 0;
               return (
-                <TableRow
+                <SatirMenu
                   key={d.id}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setDuzenlenen(d);
-                    setSheetOpen(true);
-                  }}
+                  aksiyonlar={[
+                    {
+                      etiket: "Düzenle",
+                      ikon: Pencil,
+                      onSecim: () => {
+                        setDuzenlenen(d);
+                        setSheetOpen(true);
+                      },
+                    },
+                    {
+                      etiket: "Sil",
+                      ikon: Trash2,
+                      tehlike: true,
+                      ayracOnce: true,
+                      onSecim: () => sil(d.id),
+                    },
+                  ]}
                 >
-                  {kolon.temelGorunur("id") && (
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {d.id}
-                    </TableCell>
-                  )}
-                  <TableCell className="font-medium">{d.ad}</TableCell>
-                  {kolon.temelGorunur("sehir") && (
-                    <TableCell className="text-muted-foreground">
-                      {d.sehir}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("kapasite") && (
-                    <TableCell className="text-right tabular-nums">
-                      {d.kapasite}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("doluluk") && (
-                    <TableCell className="text-right tabular-nums">
-                      {d.doluluk}{" "}
-                      <span className="text-muted-foreground">({yuzde}%)</span>
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("durum") && (
-                    <TableCell>
-                      <Badge
-                        variant={d.durum === "Aktif" ? "default" : "secondary"}
-                      >
-                        {d.durum}
-                      </Badge>
-                    </TableCell>
-                  )}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setDuzenlenen(d);
-                            setSheetOpen(true);
-                          }}
+                  <TableRow
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setDuzenlenen(d);
+                      setSheetOpen(true);
+                    }}
+                  >
+                    {kolon.temelGorunur("id") && (
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {d.id}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium">{d.ad}</TableCell>
+                    {kolon.temelGorunur("sehir") && (
+                      <TableCell className="text-muted-foreground">
+                        {d.sehir}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("kapasite") && (
+                      <TableCell className="text-right tabular-nums">
+                        {d.kapasite}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("doluluk") && (
+                      <TableCell className="text-right tabular-nums">
+                        {d.doluluk}{" "}
+                        <span className="text-muted-foreground">
+                          ({yuzde}%)
+                        </span>
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("durum") && (
+                      <TableCell>
+                        <Badge
+                          variant={
+                            d.durum === "Aktif" ? "default" : "secondary"
+                          }
                         >
-                          <Pencil className="mr-2 size-4" /> Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => sil(d.id)}>
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                          {d.durum}
+                        </Badge>
+                      </TableCell>
+                    )}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="İşlemler"
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setDuzenlenen(d);
+                              setSheetOpen(true);
+                            }}
+                          >
+                            <Pencil className="mr-2 size-4" /> Düzenle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => sil(d.id)}
+                          >
+                            <Trash2 className="mr-2 size-4" /> Sil
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                </SatirMenu>
               );
             })}
             {filtreli.length === 0 && (
@@ -367,7 +402,9 @@ export function Warehouses({
         </Table>
       </div>
 
-      <span className="text-sm text-muted-foreground">{filtreli.length} depo</span>
+      <span className="text-sm text-muted-foreground">
+        {filtreli.length} depo
+      </span>
 
       <DepoSheet
         open={sheetOpen}
@@ -472,7 +509,11 @@ function DepoSheet({
           className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
         >
           <span className="flex items-center gap-1.5 text-sm font-medium">
-            <CircleCheckIcon ref={durumRef} size={15} className="text-muted-foreground" />
+            <CircleCheckIcon
+              ref={durumRef}
+              size={15}
+              className="text-muted-foreground"
+            />
             Durum
           </span>
           <span className="flex items-center gap-2">

@@ -52,17 +52,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -113,8 +103,7 @@ const EK_KOLONLAR: {
     key: "marka",
     label: "Marka",
     aciklama: "Modelin üretici markası (Tanımlamalar → Markalar).",
-    hucre: (u) =>
-      u.marka ?? <span className="text-muted-foreground">—</span>,
+    hucre: (u) => u.marka ?? <span className="text-muted-foreground">—</span>,
   },
   {
     key: "barkod",
@@ -163,13 +152,30 @@ const TEMEL_KOLONLAR: {
   aciklama: string;
   kilitli?: boolean;
 }[] = [
-  { key: "kod", label: "Kod", aciklama: "Model kodu (URN-####); benzersiz kimlik." },
+  {
+    key: "kod",
+    label: "Kod",
+    aciklama: "Model kodu (URN-####); benzersiz kimlik.",
+  },
   { key: "model", label: "Model", aciklama: "Modelin adı.", kilitli: true },
-  { key: "kategori", label: "Kategori", aciklama: "Modelin bağlı olduğu kategori." },
+  {
+    key: "kategori",
+    label: "Kategori",
+    aciklama: "Modelin bağlı olduğu kategori.",
+  },
   { key: "fiyat", label: "Fiyat", aciklama: "Satış fiyatı (TL)." },
-  { key: "stok", label: "Stok", aciklama: "Eldeki adet; kritik seviyede renklenir." },
+  {
+    key: "stok",
+    label: "Stok",
+    aciklama: "Eldeki adet; kritik seviyede renklenir.",
+  },
   { key: "durum", label: "Durum", aciklama: "Aktif/Pasif satış durumu." },
 ];
+
+/** Kopya için geçici kod (kayıt sırasında kullanılır). */
+function kopyaId(onEk: string, taban: number, aralik: number) {
+  return `${onEk}-${Math.floor(taban + Math.random() * aralik)}`;
+}
 
 export function ProductsTable({
   urunler,
@@ -257,7 +263,8 @@ export function ProductsTable({
   );
 
   const sayfaIds = sayfalik.map((u) => u.id);
-  const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
+  const tumuSecili =
+    sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
 
   function secimDegis(id: string, deger: boolean) {
@@ -278,14 +285,16 @@ export function ProductsTable({
   }
 
   async function sil(ids: string[]) {
-    const tekAd = ids.length === 1 ? liste.find((u) => u.id === ids[0])?.ad : null;
+    const tekAd =
+      ids.length === 1 ? liste.find((u) => u.id === ids[0])?.ad : null;
     if (
       !(await onayla({
         title:
           ids.length === 1
             ? `"${tekAd ?? "Model"}" silinsin mi?`
             : `${ids.length} model silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -308,7 +317,7 @@ export function ProductsTable({
   async function kopyala(u: Model) {
     const kopya: Model = {
       ...u,
-      id: `URN-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: kopyaId("URN", 1000, 9000),
       ad: `${u.ad} (kopya)`,
     };
     setListe((l) => [kopya, ...l]);
@@ -329,9 +338,7 @@ export function ProductsTable({
           : x,
       ),
     );
-    toast.success(
-      `${u.ad} ${u.durum === "Aktif" ? "pasif" : "aktif"} yapıldı`,
-    );
+    toast.success(`${u.ad} ${u.durum === "Aktif" ? "pasif" : "aktif"} yapıldı`);
   }
   function kategoriyeTasi(u: Model, k: string) {
     setListe((l) =>
@@ -549,7 +556,11 @@ export function ProductsTable({
           >
             <Trash2 className="size-3.5" /> Seçilenleri sil
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSecili(new Set())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSecili(new Set())}
+          >
             Temizle
           </Button>
         </div>
@@ -606,196 +617,208 @@ export function ProductsTable({
           </TableHeader>
           <TableBody>
             {sayfalik.map((u) => (
-              <ContextMenu key={u.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      data-state={secili.has(u.id) ? "selected" : undefined}
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/urunler/${u.id}`)}
-                    />
-                  }
-                >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={secili.has(u.id)}
-                    onCheckedChange={(v) => secimDegis(u.id, v === true)}
-                    aria-label={`${u.ad} seç`}
-                  />
-                </TableCell>
-                {temelGorunur("kod") && (
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {u.id}
-                  </TableCell>
-                )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <GorselHucre gorseller={u.gorseller} alt={u.ad} />
-                </TableCell>
-                <TableCell className="font-medium">{u.ad}</TableCell>
-                {temelGorunur("kategori") && (
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setKategori((k) =>
-                          k === u.kategori ? "Tümü" : u.kategori,
-                        )
-                      }
-                      title="Bu kategoriye göre filtrele"
-                      className="-mx-1 cursor-pointer rounded-[5px] px-1 transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      {u.kategori}
-                    </button>
-                  </TableCell>
-                )}
-                {temelGorunur("fiyat") && (
-                  <TableCell className="text-right tabular-nums">
-                    {formatTL(u.fiyat)}
-                  </TableCell>
-                )}
-                {temelGorunur("stok") && (
-                  <TableCell className="text-right">
-                    <StokHucre stok={u.stok} />
-                  </TableCell>
-                )}
-                {gorunurEk.map((k) => (
-                  <TableCell key={k.key} className={cn(k.sag && "text-right")}>
-                    {k.hucre(u)}
-                  </TableCell>
-                ))}
-                {temelGorunur("durum") && (
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDurum((d) => (d === u.durum ? "Tümü" : u.durum))
-                      }
-                      title="Bu duruma göre filtrele"
-                      className="cursor-pointer"
-                    >
-                      <Badge
-                        variant={u.durum === "Aktif" ? "default" : "secondary"}
-                      >
-                        {u.durum}
-                      </Badge>
-                    </button>
-                  </TableCell>
-                )}
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-52">
-                  {/* Sık kullanılanlar üstte; gerisi alt menülerde (hiçbir işlev eksilmedi) */}
-                  <ContextMenuItem
-                    onClick={() => router.push(`/urunler/${u.id}`)}
-                  >
-                    <ExternalLink className="mr-2 size-4" /> Aç
-                    <ContextMenuShortcut>⏎</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => kopyala(u)}>
-                    <CopyPlus className="mr-2 size-4" /> Çoğalt
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => durumDegistir(u)}>
-                    <Power className="mr-2 size-4" />
-                    {u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
-                  </ContextMenuItem>
-
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <Hash className="mr-2 size-4" /> Kopyala
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
-                      <ContextMenuItem onClick={() => panoyaKopyala(u.id, "Kod")}>
-                        <Hash className="mr-2 size-4" /> Kod
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => panoyaKopyala(u.ad, "Ad")}>
-                        <Type className="mr-2 size-4" /> Ad
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() =>
+              <SatirMenu
+                key={u.id}
+                className="w-52"
+                aksiyonlar={[
+                  {
+                    etiket: "Aç",
+                    ikon: ExternalLink,
+                    kisayol: "⏎",
+                    onSecim: () => router.push(`/urunler/${u.id}`),
+                  },
+                  {
+                    etiket: "Çoğalt",
+                    ikon: CopyPlus,
+                    onSecim: () => kopyala(u),
+                  },
+                  {
+                    etiket: u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
+                    ikon: Power,
+                    onSecim: () => durumDegistir(u),
+                  },
+                  {
+                    etiket: "Kopyala",
+                    ikon: Hash,
+                    altAksiyonlar: [
+                      {
+                        etiket: "Kod",
+                        ikon: Hash,
+                        onSecim: () => panoyaKopyala(u.id, "Kod"),
+                      },
+                      {
+                        etiket: "Ad",
+                        ikon: Type,
+                        onSecim: () => panoyaKopyala(u.ad, "Ad"),
+                      },
+                      {
+                        etiket: "Bağlantı",
+                        ikon: Link2,
+                        onSecim: () =>
                           panoyaKopyala(
                             `${window.location.origin}/urunler/${u.id}`,
                             "Bağlantı",
+                          ),
+                      },
+                    ],
+                  },
+                  {
+                    etiket: "Git",
+                    ikon: ExternalLink,
+                    altAksiyonlar: [
+                      {
+                        etiket: "Stok Hareketleri",
+                        ikon: History,
+                        onSecim: () =>
+                          router.push("/stok-yonetimi?bolum=takip"),
+                      },
+                      {
+                        etiket: "Üretim Reçetesi",
+                        ikon: Layers,
+                        onSecim: () => router.push("/uretim/recete"),
+                      },
+                      {
+                        etiket: "Siparişler",
+                        ikon: ShoppingCart,
+                        onSecim: () => router.push("/siparisler"),
+                      },
+                    ],
+                  },
+                  {
+                    etiket: "Diğer İşlemler",
+                    ikon: Boxes,
+                    altAksiyonlar: [
+                      {
+                        etiket: "Kategoriye Taşı",
+                        ikon: FolderInput,
+                        altAksiyonlar: KATEGORILER.map((k) => ({
+                          etiket: k,
+                          onSecim: () => kategoriyeTasi(u, k),
+                        })),
+                      },
+                      {
+                        etiket: "Stok Düzelt",
+                        ikon: Boxes,
+                        onSecim: () => yakinda("Stok düzelt"),
+                      },
+                      {
+                        etiket: "Fiyat Güncelle",
+                        ikon: Banknote,
+                        onSecim: () => yakinda("Fiyat güncelle"),
+                      },
+                      {
+                        etiket: "Üretime Gönder",
+                        ikon: Hammer,
+                        onSecim: () => yakinda("Üretime gönder"),
+                      },
+                      {
+                        etiket: "Etiket Ekle",
+                        ikon: Tags,
+                        onSecim: () => yakinda("Etiket ekle"),
+                      },
+                      {
+                        etiket: "Favorile",
+                        ikon: Star,
+                        onSecim: () => yakinda("Favorile"),
+                      },
+                      {
+                        etiket: "Arşivle",
+                        ikon: Archive,
+                        onSecim: () => yakinda("Arşivle"),
+                      },
+                      {
+                        etiket: "Dışa Aktar",
+                        ikon: Download,
+                        onSecim: () => yakinda("Dışa aktar"),
+                      },
+                    ],
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil([u.id]),
+                  },
+                ]}
+              >
+                <TableRow
+                  data-state={secili.has(u.id) ? "selected" : undefined}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/urunler/${u.id}`)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={secili.has(u.id)}
+                      onCheckedChange={(v) => secimDegis(u.id, v === true)}
+                      aria-label={`${u.ad} seç`}
+                    />
+                  </TableCell>
+                  {temelGorunur("kod") && (
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {u.id}
+                    </TableCell>
+                  )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <GorselHucre gorseller={u.gorseller} alt={u.ad} />
+                  </TableCell>
+                  <TableCell className="font-medium">{u.ad}</TableCell>
+                  {temelGorunur("kategori") && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setKategori((k) =>
+                            k === u.kategori ? "Tümü" : u.kategori,
                           )
                         }
+                        title="Bu kategoriye göre filtrele"
+                        className="-mx-1 cursor-pointer rounded-[5px] px-1 transition-colors hover:bg-accent hover:text-accent-foreground"
                       >
-                        <Link2 className="mr-2 size-4" /> Bağlantı
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <ExternalLink className="mr-2 size-4" /> Git
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
-                      <ContextMenuItem
-                        onClick={() => router.push("/stok-yonetimi?bolum=takip")}
+                        {u.kategori}
+                      </button>
+                    </TableCell>
+                  )}
+                  {temelGorunur("fiyat") && (
+                    <TableCell className="text-right tabular-nums">
+                      {formatTL(u.fiyat)}
+                    </TableCell>
+                  )}
+                  {temelGorunur("stok") && (
+                    <TableCell className="text-right">
+                      <StokHucre stok={u.stok} />
+                    </TableCell>
+                  )}
+                  {gorunurEk.map((k) => (
+                    <TableCell
+                      key={k.key}
+                      className={cn(k.sag && "text-right")}
+                    >
+                      {k.hucre(u)}
+                    </TableCell>
+                  ))}
+                  {temelGorunur("durum") && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDurum((d) => (d === u.durum ? "Tümü" : u.durum))
+                        }
+                        title="Bu duruma göre filtrele"
+                        className="cursor-pointer"
                       >
-                        <History className="mr-2 size-4" /> Stok Hareketleri
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => router.push("/uretim/recete")}
-                      >
-                        <Layers className="mr-2 size-4" /> Üretim Reçetesi
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => router.push("/siparisler")}>
-                        <ShoppingCart className="mr-2 size-4" /> Siparişler
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>
-                      <Boxes className="mr-2 size-4" /> Diğer İşlemler
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger>
-                          <FolderInput className="mr-2 size-4" /> Kategoriye Taşı
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent>
-                          {KATEGORILER.map((k) => (
-                            <ContextMenuItem
-                              key={k}
-                              onClick={() => kategoriyeTasi(u, k)}
-                            >
-                              {k}
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuItem onClick={() => yakinda("Stok düzelt")}>
-                        <Boxes className="mr-2 size-4" /> Stok Düzelt
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Fiyat güncelle")}>
-                        <Banknote className="mr-2 size-4" /> Fiyat Güncelle
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Üretime gönder")}>
-                        <Hammer className="mr-2 size-4" /> Üretime Gönder
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Etiket ekle")}>
-                        <Tags className="mr-2 size-4" /> Etiket Ekle
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Favorile")}>
-                        <Star className="mr-2 size-4" /> Favorile
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Arşivle")}>
-                        <Archive className="mr-2 size-4" /> Arşivle
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => yakinda("Dışa aktar")}>
-                        <Download className="mr-2 size-4" /> Dışa Aktar
-                      </ContextMenuItem>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil([u.id])}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                        <Badge
+                          variant={
+                            u.durum === "Aktif" ? "default" : "secondary"
+                          }
+                        >
+                          {u.durum}
+                        </Badge>
+                      </button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

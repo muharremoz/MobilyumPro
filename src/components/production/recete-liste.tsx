@@ -26,12 +26,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Dialog,
   DialogContent,
@@ -128,8 +123,14 @@ export function ReceteListe({
   // Kolon filtreleri (başlık popover'larından)
   const [adFiltre, setAdFiltre] = React.useState("");
   const [kategori, setKategori] = React.useState("Tümü");
-  const [bilesenAralik, setBilesenAralik] = React.useState({ min: "", max: "" });
-  const [maliyetAralik, setMaliyetAralik] = React.useState({ min: "", max: "" });
+  const [bilesenAralik, setBilesenAralik] = React.useState({
+    min: "",
+    max: "",
+  });
+  const [maliyetAralik, setMaliyetAralik] = React.useState({
+    min: "",
+    max: "",
+  });
   const [kullanimAralik, setKullanimAralik] = React.useState({
     min: "",
     max: "",
@@ -243,7 +244,8 @@ export function ReceteListe({
     if (
       !(await onayla({
         title: `"${p.ad}" silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -373,14 +375,34 @@ export function ReceteListe({
           </TableHeader>
           <TableBody>
             {sayfalik.map(({ p, maliyet, kullanimSayisi }) => (
-              <ContextMenu key={p.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/parcalar/${p.id}`)}
-                    />
-                  }
+              <SatirMenu
+                key={p.id}
+                className="w-44"
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => router.push(`/parcalar/${p.id}`),
+                  },
+                  {
+                    etiket: "Kopyala",
+                    ikon: Copy,
+                    onSecim: () => {
+                      setKopyaAd(`${p.ad} (kopya)`);
+                      setKopyaKaynak(p);
+                    },
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    onSecim: () => sil(p),
+                  },
+                ]}
+              >
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/parcalar/${p.id}`)}
                 >
                   <TableCell className="font-medium">{p.ad}</TableCell>
                   {kolon.temelGorunur("kategori") && (
@@ -418,29 +440,8 @@ export function ReceteListe({
                       </Badge>
                     </TableCell>
                   )}
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-44">
-                  <ContextMenuItem
-                    onClick={() => router.push(`/parcalar/${p.id}`)}
-                  >
-                    <Pencil className="mr-2 size-4" /> Düzenle
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => {
-                      setKopyaAd(`${p.ad} (kopya)`);
-                      setKopyaKaynak(p);
-                    }}
-                  >
-                    <Copy className="mr-2 size-4" /> Kopyala
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil(p)}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>

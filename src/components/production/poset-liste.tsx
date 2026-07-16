@@ -17,6 +17,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +70,10 @@ export function PosetListe({
   const [kodFiltre, setKodFiltre] = React.useState("");
   const [adFiltre, setAdFiltre] = React.useState("");
   const [aciklamaFiltre, setAciklamaFiltre] = React.useState("");
-  const [malzemeAralik, setMalzemeAralik] = React.useState({ min: "", max: "" });
+  const [malzemeAralik, setMalzemeAralik] = React.useState({
+    min: "",
+    max: "",
+  });
   const [durum, setDurum] = React.useState("Tümü");
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "kod", dir: "asc" },
@@ -127,7 +131,8 @@ export function PosetListe({
     if (
       !(await onayla({
         title: `"${ad ?? "Poşet"}" silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -230,64 +235,83 @@ export function PosetListe({
           </TableHeader>
           <TableBody>
             {filtreli.map((p) => (
-              <TableRow
+              <SatirMenu
                 key={p.id}
-                className="cursor-pointer"
-                onClick={() => router.push(`/uretim/poset/${p.id}`)}
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => router.push(`/uretim/poset/${p.id}`),
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil(p.id),
+                  },
+                ]}
               >
-                {kolon.temelGorunur("kod") && (
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {p.id}
-                  </TableCell>
-                )}
-                <TableCell className="font-medium">{p.ad}</TableCell>
-                {kolon.temelGorunur("aciklama") && (
-                  <TableCell className="text-muted-foreground">
-                    {p.aciklama ?? "—"}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("malzeme") && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {p.malzemeler.length}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("durum") && (
-                  <TableCell>
-                    <Badge variant={p.durum === "Aktif" ? "default" : "secondary"}>
-                      {p.durum}
-                    </Badge>
-                  </TableCell>
-                )}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="İşlemler"
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/uretim/poset/${p.id}`)}
+                >
+                  {kolon.temelGorunur("kod") && (
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.id}
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">{p.ad}</TableCell>
+                  {kolon.temelGorunur("aciklama") && (
+                    <TableCell className="text-muted-foreground">
+                      {p.aciklama ?? "—"}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("malzeme") && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {p.malzemeler.length}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("durum") && (
+                    <TableCell>
+                      <Badge
+                        variant={p.durum === "Aktif" ? "default" : "secondary"}
+                      >
+                        {p.durum}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="İşlemler"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/uretim/poset/${p.id}`)}
                         >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/uretim/poset/${p.id}`)}
-                      >
-                        <Pencil className="mr-2 size-4" /> Düzenle
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => sil(p.id)}
-                      >
-                        <Trash2 className="mr-2 size-4" /> Sil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                          <Pencil className="mr-2 size-4" /> Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => sil(p.id)}
+                        >
+                          <Trash2 className="mr-2 size-4" /> Sil
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              </SatirMenu>
             ))}
             {filtreli.length === 0 && (
               <TableRow>

@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Boxes, AlertOctagon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  Boxes,
+  AlertOctagon,
+  ExternalLink,
+  History,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +21,8 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { SatirMenu } from "@/components/ui/satir-menu";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -66,6 +69,7 @@ export function StockStatus({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
+  const router = useRouter();
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [kategoriF, setKategoriF] = React.useState("Tümü");
@@ -229,31 +233,48 @@ export function StockStatus({
             {filtreli.map((u) => {
               const d = durum(u.stok);
               return (
-                <TableRow key={u.id}>
-                  {kolon.temelGorunur("id") && (
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {u.id}
-                    </TableCell>
-                  )}
-                  <TableCell className="font-medium">{u.ad}</TableCell>
-                  {kolon.temelGorunur("kategori") && (
-                    <TableCell className="text-muted-foreground">
-                      {u.kategori}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("stok") && (
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {u.stok}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("durum") && (
-                    <TableCell>
-                      <Badge variant="secondary" className={d.renk}>
-                        {d.etiket}
-                      </Badge>
-                    </TableCell>
-                  )}
-                </TableRow>
+                <SatirMenu
+                  key={u.id}
+                  aksiyonlar={[
+                    {
+                      etiket: "Kartı aç",
+                      ikon: ExternalLink,
+                      onSecim: () => router.push(`/urunler/${u.id}`),
+                    },
+                    {
+                      etiket: "Hareketleri gör",
+                      ikon: History,
+                      onSecim: () =>
+                        router.push("/stok-yonetimi?bolum=hareketler"),
+                    },
+                  ]}
+                >
+                  <TableRow>
+                    {kolon.temelGorunur("id") && (
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {u.id}
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium">{u.ad}</TableCell>
+                    {kolon.temelGorunur("kategori") && (
+                      <TableCell className="text-muted-foreground">
+                        {u.kategori}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("stok") && (
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {u.stok}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("durum") && (
+                      <TableCell>
+                        <Badge variant="secondary" className={d.renk}>
+                          {d.etiket}
+                        </Badge>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                </SatirMenu>
               );
             })}
             {filtreli.length === 0 && (

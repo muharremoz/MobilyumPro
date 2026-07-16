@@ -20,12 +20,7 @@ import { BoxesIcon } from "@/components/ui/icons/boxes";
 import { BadgePercentIcon } from "@/components/ui/icons/badge-percent";
 import { TurkishLiraIcon } from "@/components/ui/icons/turkish-lira";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -34,11 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  type Doviz,
-  type Malzeme,
-  type SatinAlmaSarti,
-} from "@/lib/data";
+import { type Doviz, type Malzeme, type SatinAlmaSarti } from "@/lib/data";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { stokUreticiKaydet, stokUreticiSil } from "@/lib/db/actions";
 
@@ -110,9 +101,10 @@ export function SartListe({
     setSort({ key: k, dir });
 
   const firmalar = React.useMemo(
-    () => [...new Set(sartlar.map((s) => s.cariAd))].sort((a, b) =>
-      a.localeCompare(b, "tr"),
-    ),
+    () =>
+      [...new Set(sartlar.map((s) => s.cariAd))].sort((a, b) =>
+        a.localeCompare(b, "tr"),
+      ),
     [sartlar],
   );
 
@@ -311,18 +303,28 @@ export function SartListe({
               </TableRow>
             ) : (
               filtreli.map((s) => (
-                <ContextMenu key={s.id}>
-                  <ContextMenuTrigger
-                    render={
-                      <TableRow
-                        className="cursor-pointer"
-                        onClick={() => duzenleAc(s)}
-                      />
-                    }
+                <SatirMenu
+                  key={s.id}
+                  className="w-44"
+                  aksiyonlar={[
+                    {
+                      etiket: "Düzenle",
+                      ikon: Pencil,
+                      onSecim: () => duzenleAc(s),
+                    },
+                    {
+                      etiket: "Sil",
+                      ikon: Trash2,
+                      tehlike: true,
+                      onSecim: () => sil(s),
+                    },
+                  ]}
+                >
+                  <TableRow
+                    className="cursor-pointer"
+                    onClick={() => duzenleAc(s)}
                   >
-                    <TableCell className="font-medium">
-                      {s.malzemeAd}
-                    </TableCell>
+                    <TableCell className="font-medium">{s.malzemeAd}</TableCell>
                     <TableCell>{s.cariAd}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1.5">
@@ -356,19 +358,8 @@ export function SartListe({
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {s.ureticiKodu ?? "—"}
                     </TableCell>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-44">
-                    <ContextMenuItem onClick={() => duzenleAc(s)}>
-                      <Pencil className="mr-2 size-4" /> Düzenle
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      variant="destructive"
-                      onClick={() => sil(s)}
-                    >
-                      <Trash2 className="mr-2 size-4" /> Sil
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                  </TableRow>
+                </SatirMenu>
               ))
             )}
           </TableBody>
@@ -637,14 +628,26 @@ export function CariSartlarTab({
             </TableRow>
           ) : (
             sartlar.map((s) => (
-              <ContextMenu key={s.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      className="cursor-pointer"
-                      onClick={() => duzenleAc(s)}
-                    />
-                  }
+              <SatirMenu
+                key={s.id}
+                className="w-44"
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => duzenleAc(s),
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    onSecim: () => sil(s),
+                  },
+                ]}
+              >
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => duzenleAc(s)}
                 >
                   <TableCell className="font-medium">{s.malzemeAd}</TableCell>
                   <TableCell>
@@ -666,19 +669,8 @@ export function CariSartlarTab({
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {s.ureticiKodu ?? "—"}
                   </TableCell>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-44">
-                  <ContextMenuItem onClick={() => duzenleAc(s)}>
-                    <Pencil className="mr-2 size-4" /> Düzenle
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil(s)}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                </TableRow>
+              </SatirMenu>
             ))
           )}
         </TableBody>

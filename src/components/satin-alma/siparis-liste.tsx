@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Info, Receipt } from "lucide-react";
+import { AlertTriangle, FileText, Info, Receipt } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { ListHeader } from "@/components/ui/list-header";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -28,12 +29,7 @@ import {
 import { formatTL, formatTarih, type BekleyenSiparis } from "@/lib/data";
 
 type SortKey =
-  | "malzeme"
-  | "firma"
-  | "kalan"
-  | "siparisTarihi"
-  | "tahminiTeslim"
-  | "durum";
+  "malzeme" | "firma" | "kalan" | "siparisTarihi" | "tahminiTeslim" | "durum";
 
 export function SiparisListe({
   siparisler,
@@ -171,17 +167,14 @@ export function SiparisListe({
               >
                 Durum
               </SiralaFiltreBaslik>
-              <TableHead>Son Alış Firma</TableHead>
-              <TableHead className="text-right">Son Fiyat</TableHead>
-              <TableHead>Son Tarih</TableHead>
-              <TableHead className="w-28" />
+              <TableHead className="w-32" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtreli.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={13}
+                  colSpan={10}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Bekleyen sipariş yok. Talep detayında &quot;Sipariş Ver&quot;
@@ -190,97 +183,120 @@ export function SiparisListe({
               </TableRow>
             ) : (
               filtreli.map((s) => (
-                <TableRow key={s.satirId}>
-                  <TableCell className="font-medium">{s.malzemeAd}</TableCell>
-                  <TableCell>{s.cariAd}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {s.siparisMiktar.toLocaleString("tr-TR", {
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    {s.birim}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {s.tedarikEdilen.toLocaleString("tr-TR", {
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    {s.birim}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums text-amber-700">
-                    {s.kalan.toLocaleString("tr-TR", {
-                      maximumFractionDigits: 2,
-                    })}{" "}
-                    {s.birim}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {s.siparisFiyat ? formatTL(s.siparisFiyat) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {s.siparisTarihi ? formatTarih(s.siparisTarihi) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {s.tahminiTeslim ? (
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 tabular-nums",
-                          s.gecikti
-                            ? "font-medium text-rose-600"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {s.gecikti && <AlertTriangle className="size-3.5" />}
-                        {formatTarih(s.tahminiTeslim)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        s.durum === "Kısmi"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-blue-100 text-blue-800"
-                      }
-                    >
-                      {s.durum}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {s.sonAlisCariAd ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
-                    {s.sonAlisFiyat != null ? formatTL(s.sonAlisFiyat) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {s.sonAlisTarih ? formatTarih(s.sonAlisTarih) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          router.push(
-                            `/satin-alma/yeni?siparisFirma=${s.cariId}`,
-                          )
+                <SatirMenu
+                  key={`${s.satirId}-${s.siparisId}`}
+                  aksiyonlar={[
+                    {
+                      etiket: `${s.cariAd} faturası gir`,
+                      ikon: Receipt,
+                      onSecim: () =>
+                        router.push(
+                          `/satin-alma/yeni?siparisFirma=${s.cariId}`,
+                        ),
+                    },
+                    {
+                      etiket: "Son alış bilgileri",
+                      ikon: Info,
+                      onSecim: () => setBilgi(s),
+                    },
+                    {
+                      etiket: "Sipariş belgesini aç",
+                      ikon: FileText,
+                      gizli: !s.belgeId,
+                      ayracOnce: true,
+                      onSecim: () =>
+                        router.push(`/satin-alma/siparis/${s.belgeId}`),
+                    },
+                    {
+                      etiket: "Talebi aç",
+                      ikon: FileText,
+                      onSecim: () => router.push("/satin-alma/talepler"),
+                    },
+                  ]}
+                >
+                  <TableRow>
+                    <TableCell className="font-medium">{s.malzemeAd}</TableCell>
+                    <TableCell>{s.cariAd}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {s.siparisMiktar.toLocaleString("tr-TR", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      {s.birim}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {s.tedarikEdilen.toLocaleString("tr-TR", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      {s.birim}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums text-amber-700">
+                      {s.kalan.toLocaleString("tr-TR", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      {s.birim}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {s.siparisFiyat ? formatTL(s.siparisFiyat) : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {s.siparisTarihi ? formatTarih(s.siparisTarihi) : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {s.tahminiTeslim ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 tabular-nums",
+                            s.gecikti
+                              ? "font-medium text-rose-600"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {s.gecikti && <AlertTriangle className="size-3.5" />}
+                          {formatTarih(s.tahminiTeslim)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          s.durum === "Kısmi"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-blue-100 text-blue-800"
                         }
-                        title={`${s.cariAd} faturası gir`}
                       >
-                        <Receipt className="size-3.5" /> Fatura
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-8"
-                        onClick={() => setBilgi(s)}
-                        title="Sipariş bilgileri"
-                      >
-                        <Info className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                        {s.durum}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            router.push(
+                              `/satin-alma/yeni?siparisFirma=${s.cariId}`,
+                            )
+                          }
+                          title={`${s.cariAd} faturası gir`}
+                        >
+                          <Receipt className="size-3.5" /> Fatura
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          onClick={() => setBilgi(s)}
+                          title="Son alış bilgileri"
+                        >
+                          <Info className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </SatirMenu>
               ))
             )}
           </TableBody>
@@ -296,7 +312,6 @@ export function SiparisListe({
         onFatura={(cariId) =>
           router.push(`/satin-alma/yeni?siparisFirma=${cariId}`)
         }
-        onBelge={(id) => router.push(`/satin-alma/siparis/${id}`)}
       />
     </div>
   );
@@ -318,126 +333,65 @@ function Satir({
   );
 }
 
-/** Bekleyen siparişin tüm künyesi: hangi talep/model için, hangi belgeyle,
- *  ne kadarı geldi, teslim ne zaman bekleniyor ve son alışla kıyası. */
+/** Malzemenin son alış künyesi — listeyi şişirmemek için kolon yerine modal.
+ *  Sipariş fiyatının son alışa göre farkını da gösterir. */
 function BilgiDialog({
   siparis: s,
   onKapat,
   onFatura,
-  onBelge,
 }: {
   siparis: BekleyenSiparis | null;
   onKapat: () => void;
   onFatura: (cariId: string) => void;
-  onBelge: (belgeId: string) => void;
 }) {
   if (!s) return null;
-  const tutar = s.siparisFiyat != null ? s.siparisMiktar * s.siparisFiyat : null;
   // Sipariş fiyatının son alışa göre farkı (referans).
   const fark =
     s.siparisFiyat != null && s.sonAlisFiyat
       ? (s.siparisFiyat - s.sonAlisFiyat) / s.sonAlisFiyat
       : null;
-  const miktar = (n: number) =>
-    `${n.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${s.birim}`;
+  const alisVar = s.sonAlisFiyat != null;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onKapat()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>{s.malzemeAd}</DialogTitle>
+          <DialogTitle>Son Alış — {s.malzemeAd}</DialogTitle>
           <DialogDescription>
-            {s.cariAd} · {formatTarih(s.siparisTarihi)} tarihli sipariş
+            Bu malzemenin en güncel alış kaydı.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="divide-y">
-          <div>
-            <Satir etiket="Sipariş belgesi">
-              {s.belgeId ? (
-                <button
-                  type="button"
-                  onClick={() => onBelge(s.belgeId!)}
-                  className="cursor-pointer font-mono underline-offset-2 hover:underline"
-                >
-                  {s.belgeId}
-                </button>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
+        {alisVar ? (
+          <div className="divide-y">
+            <Satir etiket="Firma">{s.sonAlisCariAd ?? "—"}</Satir>
+            <Satir etiket="Fiyat">{formatTL(s.sonAlisFiyat!)}</Satir>
+            <Satir etiket="Tarih">
+              {s.sonAlisTarih ? formatTarih(s.sonAlisTarih) : "—"}
             </Satir>
-            <Satir etiket="Talep">
-              <span className="font-mono">{s.talepId}</span>
-            </Satir>
-            {s.modeller && <Satir etiket="Model">{s.modeller}</Satir>}
-            {s.depo && <Satir etiket="Teslim yeri">{s.depo}</Satir>}
-            {s.olusturanAd && (
-              <Satir etiket="Sipariş veren">{s.olusturanAd}</Satir>
-            )}
-          </div>
-
-          <div>
-            <Satir etiket="Sipariş miktarı">{miktar(s.siparisMiktar)}</Satir>
-            <Satir etiket="Gelen">
-              <span className="text-muted-foreground">
-                {miktar(s.tedarikEdilen)}
-              </span>
-            </Satir>
-            <Satir etiket="Bekleyen">
-              <span className="text-amber-700">{miktar(s.kalan)}</span>
-            </Satir>
-            <Satir etiket="Birim fiyat">
+            <Satir etiket="Bu siparişin fiyatı">
               {s.siparisFiyat != null ? formatTL(s.siparisFiyat) : "—"}
-            </Satir>
-            {tutar != null && <Satir etiket="Tutar">{formatTL(tutar)}</Satir>}
-          </div>
-
-          <div>
-            <Satir etiket="Tahmini teslim">
-              {s.tahminiTeslim ? (
-                <span className={cn(s.gecikti && "text-rose-600")}>
-                  {formatTarih(s.tahminiTeslim)}
-                  {s.gecikti && " · gecikti"}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  şartlarda tedarik süresi yok
-                </span>
-              )}
-            </Satir>
-            <Satir etiket="Son alış">
-              {s.sonAlisFiyat != null ? (
-                <>
-                  {formatTL(s.sonAlisFiyat)}
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    {s.sonAlisCariAd}
-                    {s.sonAlisTarih && ` · ${formatTarih(s.sonAlisTarih)}`}
-                  </span>
-                </>
-              ) : (
-                <span className="text-muted-foreground">kayıt yok</span>
-              )}
-            </Satir>
-            {fark != null && Math.abs(fark) >= 0.005 && (
-              <Satir etiket="Son alışa göre">
-                <span className={fark > 0 ? "text-rose-600" : "text-emerald-600"}>
+              {fark != null && Math.abs(fark) >= 0.005 && (
+                <span
+                  className={cn(
+                    "ml-1.5 font-normal",
+                    fark > 0 ? "text-rose-600" : "text-emerald-600",
+                  )}
+                >
                   %
                   {Math.abs(fark * 100).toLocaleString("tr-TR", {
                     maximumFractionDigits: 1,
                   })}{" "}
                   {fark > 0 ? "yüksek" : "düşük"}
                 </span>
-              </Satir>
-            )}
+              )}
+            </Satir>
           </div>
-
-          {s.notlar && (
-            <div className="pt-2">
-              <p className="text-xs text-muted-foreground">Sipariş notu</p>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{s.notlar}</p>
-            </div>
-          )}
-        </div>
+        ) : (
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            {s.malzemeAd} için alış kaydı yok.
+          </p>
+        )}
 
         <DialogFooter>
           <Button size="sm" variant="outline" onClick={onKapat}>

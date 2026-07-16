@@ -52,12 +52,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -142,7 +137,8 @@ export function KullanicilarTable({
     null,
   );
   // Roller/departmanlar DB'den gelir; "yeni ekle" DB'ye yazar + local günceller.
-  const [departmanlar, setDepartmanlar] = React.useState<string[]>(departmanlarProp);
+  const [departmanlar, setDepartmanlar] =
+    React.useState<string[]>(departmanlarProp);
   const [roller, setRoller] = React.useState<string[]>(rollerProp);
 
   async function departmanEkle(d: string) {
@@ -236,7 +232,8 @@ export function KullanicilarTable({
           ids.length === 1
             ? `"${tekAd ?? "Kullanıcı"}" silinsin mi?`
             : `${ids.length} kullanıcı silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -291,7 +288,8 @@ export function KullanicilarTable({
   }
 
   async function durumDegistir(k: KullaniciGorunum) {
-    const yeniDurum = k.durum === "Aktif" ? ("Pasif" as const) : ("Aktif" as const);
+    const yeniDurum =
+      k.durum === "Aktif" ? ("Pasif" as const) : ("Aktif" as const);
     await kaydet({
       id: k.id,
       adSoyad: k.adSoyad,
@@ -340,7 +338,11 @@ export function KullanicilarTable({
           >
             <Trash2 className="size-3.5" /> Seçilenleri sil
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSecili(new Set())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSecili(new Set())}
+          >
             Temizle
           </Button>
         </div>
@@ -462,18 +464,55 @@ export function KullanicilarTable({
           </TableHeader>
           <TableBody>
             {sayfalik.map((k) => (
-              <ContextMenu key={k.id}>
-                <ContextMenuTrigger
-                  render={
-                    <TableRow
-                      data-state={secili.has(k.id) ? "selected" : undefined}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setDuzenlenen(k);
-                        setSheetOpen(true);
-                      }}
-                    />
-                  }
+              <SatirMenu
+                key={k.id}
+                className="w-52"
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => {
+                      setDuzenlenen(k);
+                      setSheetOpen(true);
+                    },
+                  },
+                  {
+                    etiket: "Kopyala",
+                    ikon: CopyPlus,
+                    onSecim: () => kopyala(k),
+                  },
+                  {
+                    etiket: k.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
+                    ikon: Power,
+                    onSecim: () => durumDegistir(k),
+                  },
+                  {
+                    etiket: "Kullanıcı Adını Kopyala",
+                    ikon: Copy,
+                    onSecim: () =>
+                      panoyaKopyala(k.kullaniciAdi, "Kullanıcı adı"),
+                  },
+                  {
+                    etiket: "E-postayı Kopyala",
+                    ikon: Copy,
+                    gizli: !k.email,
+                    onSecim: () => panoyaKopyala(k.email!, "E-posta"),
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    onSecim: () => sil([k.id]),
+                  },
+                ]}
+              >
+                <TableRow
+                  data-state={secili.has(k.id) ? "selected" : undefined}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setDuzenlenen(k);
+                    setSheetOpen(true);
+                  }}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -523,43 +562,8 @@ export function KullanicilarTable({
                       </Badge>
                     </TableCell>
                   )}
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-52">
-                  <ContextMenuItem
-                    onClick={() => {
-                      setDuzenlenen(k);
-                      setSheetOpen(true);
-                    }}
-                  >
-                    <Pencil className="mr-2 size-4" /> Düzenle
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => kopyala(k)}>
-                    <CopyPlus className="mr-2 size-4" /> Kopyala
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => durumDegistir(k)}>
-                    <Power className="mr-2 size-4" />
-                    {k.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap"}
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={() => panoyaKopyala(k.kullaniciAdi, "Kullanıcı adı")}
-                  >
-                    <Copy className="mr-2 size-4" /> Kullanıcı Adını Kopyala
-                  </ContextMenuItem>
-                  {k.email && (
-                    <ContextMenuItem
-                      onClick={() => panoyaKopyala(k.email!, "E-posta")}
-                    >
-                      <Copy className="mr-2 size-4" /> E-postayı Kopyala
-                    </ContextMenuItem>
-                  )}
-                  <ContextMenuItem
-                    variant="destructive"
-                    onClick={() => sil([k.id])}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Sil
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                </TableRow>
+              </SatirMenu>
             ))}
             {sayfalik.length === 0 && (
               <TableRow>
@@ -673,7 +677,9 @@ function KullaniciSheet({
   const [shakeNonce, setShakeNonce] = React.useState(0);
   const [sifreGoster, setSifreGoster] = React.useState(false);
   // Sheet üstü "yeni ekle" modalı: rol veya departman için ortak.
-  const [yeniMod, setYeniMod] = React.useState<"rol" | "departman" | null>(null);
+  const [yeniMod, setYeniMod] = React.useState<"rol" | "departman" | null>(
+    null,
+  );
   const [yeniAd, setYeniAd] = React.useState("");
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
@@ -784,7 +790,9 @@ function KullaniciSheet({
             icon={UsersRoundIcon}
             placeholder="Örn. Ahmet Yılmaz"
             value={form.adSoyad}
-            onChange={(e) => setForm((f) => ({ ...f, adSoyad: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, adSoyad: e.target.value }))
+            }
           />
         </ErrorShakeField>
         <IconInput
@@ -823,7 +831,9 @@ function KullaniciSheet({
             <SearchSelect
               items={departmanlar}
               value={form.departman || null}
-              onValueChange={(v) => setForm((f) => ({ ...f, departman: v ?? "" }))}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, departman: v ?? "" }))
+              }
               placeholder="Departman"
               addLabel="Yeni ekle"
               onAdd={() => {
@@ -843,7 +853,9 @@ function KullaniciSheet({
               autoComplete="new-password"
               className="pr-10"
               value={form.sifre}
-              onChange={(e) => setForm((f) => ({ ...f, sifre: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, sifre: e.target.value }))
+              }
             />
             <Button
               type="button"
@@ -935,7 +947,10 @@ function KullaniciSheet({
         </div>
       </div>
 
-      <Dialog open={yeniMod !== null} onOpenChange={(v) => !v && setYeniMod(null)}>
+      <Dialog
+        open={yeniMod !== null}
+        onOpenChange={(v) => !v && setYeniMod(null)}
+      >
         {/* Sheet'in (sağda, ~24rem) yatay ortasına hizala: 8px kenar + (384-320)/2 */}
         <DialogContent className="sm:left-auto sm:right-10 sm:max-w-xs sm:translate-x-0">
           <DialogHeader>
@@ -954,7 +969,9 @@ function KullaniciSheet({
           </DialogHeader>
           <Input
             autoFocus
-            placeholder={yeniMod === "rol" ? "Örn. Depo Sorumlusu" : "Örn. Satın Alma"}
+            placeholder={
+              yeniMod === "rol" ? "Örn. Depo Sorumlusu" : "Örn. Satın Alma"
+            }
             value={yeniAd}
             onChange={(e) => setYeniAd(e.target.value)}
             onKeyDown={(e) => {
@@ -965,7 +982,11 @@ function KullaniciSheet({
             }}
           />
           <DialogFooter className="p-2">
-            <Button size="sm" variant="outline" onClick={() => setYeniMod(null)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setYeniMod(null)}
+            >
               İptal
             </Button>
             <Button size="sm" onClick={yeniKaydet} disabled={!yeniAd.trim()}>

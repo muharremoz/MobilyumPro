@@ -9,12 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Dialog,
   DialogContent,
@@ -56,7 +51,8 @@ const DURUMLAR: UretimDurum[] = [
 const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 
 const DURUM_RENK: Record<UretimDurum, string> = {
-  Planlandı: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  Planlandı:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   Üretimde: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
   Tamamlandı:
     "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
@@ -138,10 +134,12 @@ export function ProductionOrders({
   const [durum, setDurum] = React.useState("Tümü");
   const [oncelik, setOncelik] = React.useState("Tümü");
   const [hedefFiltre, setHedefFiltre] = React.useState("");
-  const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>({
-    key: "id",
-    dir: "desc",
-  });
+  const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
+    {
+      key: "id",
+      dir: "desc",
+    },
+  );
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -180,7 +178,16 @@ export function ProductionOrders({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [emirler, noFiltre, modelFiltre, adetAralik, durum, oncelik, hedefFiltre, sort]);
+  }, [
+    emirler,
+    noFiltre,
+    modelFiltre,
+    adetAralik,
+    durum,
+    oncelik,
+    hedefFiltre,
+    sort,
+  ]);
 
   async function ilerlet(e: UretimEmri) {
     setIlerleyen(e.id);
@@ -352,83 +359,87 @@ export function ProductionOrders({
               </TableRow>
             ) : (
               filtreli.map((e) => (
-                <ContextMenu key={e.id}>
-                  <ContextMenuTrigger render={<TableRow />}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {e.id}
-                  </TableCell>
-                  {kolon.temelGorunur("urunAd") && (
-                    <TableCell className="font-medium">{e.urunAd}</TableCell>
-                  )}
-                  {kolon.temelGorunur("adet") && (
-                    <TableCell className="text-right tabular-nums">
-                      {e.adet}
+                <SatirMenu
+                  key={e.id}
+                  aksiyonlar={[
+                    {
+                      etiket:
+                        e.durum === "Planlandı" ? "Üretimi Başlat" : "İlerlet",
+                      ikon: ArrowRight,
+                      gizli: !(
+                        e.durum === "Planlandı" || e.durum === "Üretimde"
+                      ),
+                      pasif: ilerleyen === e.id,
+                      onSecim: () => ilerlet(e),
+                    },
+                    {
+                      etiket: "Fabrikada Gör",
+                      ikon: Factory,
+                      onSecim: () => router.push("/uretim/fabrika"),
+                    },
+                    {
+                      etiket: "İptal Et",
+                      ikon: Ban,
+                      tehlike: true,
+                      gizli: !(
+                        e.durum === "Planlandı" || e.durum === "Üretimde"
+                      ),
+                      onSecim: () => setIptalEmir(e),
+                    },
+                  ]}
+                >
+                  <TableRow>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {e.id}
                     </TableCell>
-                  )}
-                  {kolon.temelGorunur("durum") && (
-                    <TableCell>
-                      <UretimBadge durum={e.durum} />
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("oncelik") && (
-                    <TableCell>
-                      {e.oncelik ? (
-                        <Badge
-                          variant="secondary"
-                          className={ONCELIK_RENK[e.oncelik]}
-                        >
-                          {e.oncelik}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("olusturma") && (
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatTarih(e.olusturma)}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("termin") && (
-                    <TableCell className="text-sm text-muted-foreground">
-                      {e.terminBaslangic && e.termin
-                        ? `${formatTarih(e.terminBaslangic)} – ${formatTarih(e.termin)}`
-                        : e.termin
-                          ? formatTarih(e.termin)
-                          : "—"}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("hedef") && (
-                    <TableCell className="text-sm text-muted-foreground">
-                      {hedefStr(e) || "—"}
-                    </TableCell>
-                  )}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-48">
-                    {(e.durum === "Planlandı" || e.durum === "Üretimde") && (
-                      <ContextMenuItem
-                        disabled={ilerleyen === e.id}
-                        onClick={() => ilerlet(e)}
-                      >
-                        <ArrowRight className="mr-2 size-4" />
-                        {e.durum === "Planlandı" ? "Üretimi Başlat" : "İlerlet"}
-                      </ContextMenuItem>
+                    {kolon.temelGorunur("urunAd") && (
+                      <TableCell className="font-medium">{e.urunAd}</TableCell>
                     )}
-                    <ContextMenuItem
-                      onClick={() => router.push("/uretim/fabrika")}
-                    >
-                      <Factory className="mr-2 size-4" /> Fabrikada Gör
-                    </ContextMenuItem>
-                    {(e.durum === "Planlandı" || e.durum === "Üretimde") && (
-                      <ContextMenuItem
-                        variant="destructive"
-                        onClick={() => setIptalEmir(e)}
-                      >
-                        <Ban className="mr-2 size-4" /> İptal Et
-                      </ContextMenuItem>
+                    {kolon.temelGorunur("adet") && (
+                      <TableCell className="text-right tabular-nums">
+                        {e.adet}
+                      </TableCell>
                     )}
-                  </ContextMenuContent>
-                </ContextMenu>
+                    {kolon.temelGorunur("durum") && (
+                      <TableCell>
+                        <UretimBadge durum={e.durum} />
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("oncelik") && (
+                      <TableCell>
+                        {e.oncelik ? (
+                          <Badge
+                            variant="secondary"
+                            className={ONCELIK_RENK[e.oncelik]}
+                          >
+                            {e.oncelik}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("olusturma") && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatTarih(e.olusturma)}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("termin") && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {e.terminBaslangic && e.termin
+                          ? `${formatTarih(e.terminBaslangic)} – ${formatTarih(e.termin)}`
+                          : e.termin
+                            ? formatTarih(e.termin)
+                            : "—"}
+                      </TableCell>
+                    )}
+                    {kolon.temelGorunur("hedef") && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {hedefStr(e) || "—"}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                </SatirMenu>
               ))
             )}
           </TableBody>

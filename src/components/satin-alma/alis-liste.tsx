@@ -15,6 +15,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,8 +55,7 @@ const EK_KOLONLAR: (KolonTanim & {
     key: "belgeNo",
     label: "Tedarikçi Belgesi",
     aciklama: "Tedarikçinin fatura/irsaliye numarası.",
-    hucre: (a) =>
-      a.belgeNo ?? <span className="text-muted-foreground">—</span>,
+    hucre: (a) => a.belgeNo ?? <span className="text-muted-foreground">—</span>,
   },
 ];
 
@@ -243,64 +243,74 @@ export function AlisListe({
           </TableHeader>
           <TableBody>
             {filtreli.map((a) => (
-              <TableRow
+              <SatirMenu
                 key={a.id}
-                className="cursor-pointer"
-                onClick={() => router.push(`/satin-alma/${a.id}`)}
+                aksiyonlar={[
+                  {
+                    etiket: "Görüntüle",
+                    ikon: Eye,
+                    onSecim: () => router.push(`/satin-alma/${a.id}`),
+                  },
+                ]}
               >
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {a.id}
-                </TableCell>
-                {kolon.temelGorunur("tarih") && (
-                  <TableCell className="text-muted-foreground">
-                    {formatTarih(a.tarih)}
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/satin-alma/${a.id}`)}
+                >
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {a.id}
                   </TableCell>
-                )}
-                {kolon.temelGorunur("cariAd") && (
-                  <TableCell className="font-medium">{a.cariAd}</TableCell>
-                )}
-                {kolon.temelGorunur("depo") && (
-                  <TableCell className="text-muted-foreground">
-                    {a.depo}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("kalem") && (
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {a.satirlar.length}
-                  </TableCell>
-                )}
-                {kolon.temelGorunur("toplam") && (
-                  <TableCell className="text-right tabular-nums">
-                    {formatTL(a.toplam)}
-                  </TableCell>
-                )}
-                {gorunurEk.map((k) => (
-                  <TableCell key={k.key}>{k.hucre(a)}</TableCell>
-                ))}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="İşlemler"
+                  {kolon.temelGorunur("tarih") && (
+                    <TableCell className="text-muted-foreground">
+                      {formatTarih(a.tarih)}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("cariAd") && (
+                    <TableCell className="font-medium">{a.cariAd}</TableCell>
+                  )}
+                  {kolon.temelGorunur("depo") && (
+                    <TableCell className="text-muted-foreground">
+                      {a.depo}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("kalem") && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {a.satirlar.length}
+                    </TableCell>
+                  )}
+                  {kolon.temelGorunur("toplam") && (
+                    <TableCell className="text-right tabular-nums">
+                      {formatTL(a.toplam)}
+                    </TableCell>
+                  )}
+                  {gorunurEk.map((k) => (
+                    <TableCell key={k.key}>{k.hucre(a)}</TableCell>
+                  ))}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="İşlemler"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="w-36">
+                        {/* Alış silme v1'de yok (stok/cari geri alma gerektirir). */}
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/satin-alma/${a.id}`)}
                         >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-36">
-                      {/* Alış silme v1'de yok (stok/cari geri alma gerektirir). */}
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/satin-alma/${a.id}`)}
-                      >
-                        <Eye className="mr-2 size-4" /> Görüntüle
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                          <Eye className="mr-2 size-4" /> Görüntüle
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              </SatirMenu>
             ))}
             {filtreli.length === 0 && (
               <TableRow>
