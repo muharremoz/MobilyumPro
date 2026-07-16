@@ -20,6 +20,7 @@ planlanan (henüz yapılmamış) modüller [`yapilacak/`](./yapilacak/) altında
 | Modül | Dosya | Durum |
 |-------|-------|-------|
 | SSH — Satış Sonrası Hizmet | [`yapilacak/ssh.md`](./yapilacak/ssh.md) | 🔜 Planlandı |
+| Sevkiyat / Lojistik | [`yapilacak/sevkiyat-lojistik.md`](./yapilacak/sevkiyat-lojistik.md) | 🔜 Planlandı |
 
 ## İlgili akış diyagramları
 
