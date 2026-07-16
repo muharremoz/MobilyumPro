@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ListHeader } from "@/components/ui/list-header";
 import { SearchSelect } from "@/components/ui/search-select";
+import { ModelParcaSecici } from "@/components/production/model-parca-secici";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import { TarihAralikSecici } from "@/components/ui/tarih-aralik";
 import {
@@ -53,7 +54,18 @@ import { uretimEmriOlustur } from "@/lib/db/actions";
 type Neden = "stok" | "siparis";
 // Plan satırı model (mamül) ya da parça üretimi olabilir.
 type SecimTip = "model" | "parca";
-type Secim = { id: number; tip: SecimTip; urunId: string; adet: string };
+type Secim = {
+  id: number;
+  tip: SecimTip;
+  urunId: string;
+  adet: string;
+  /**
+   * Parça satırı bir modelin parça aktarma modalından geldiyse o modelin id'si.
+   * Tabloda satırlar bu alana göre model başlığı altında gruplanır; doğrudan
+   * "Parça · X" ile eklenen satırlarda boştur.
+   */
+  kaynakModelId?: string;
+};
 type MusteriSecim = { id: string; ad: string; sehir: string };
 /** Model seçilince açılan parça aktarma modalının satırı. */
 type ModalSatiri = {
@@ -180,6 +192,60 @@ export function ProductionPlan({
     });
   }
 
+  // ── Model gruplama ────────────────────────────────────────────────────────
+  // Kaynak modeli olan parça satırları, tabloda o modelin başlığı altında
+  // toplanır; katlanmış grupların id'si burada tutulur.
+  const [kapaliGruplar, setKapaliGruplar] = React.useState<Set<string>>(
+    new Set(),
+  );
+  function grupToggle(modelId: string) {
+    setKapaliGruplar((s) => {
+      const n = new Set(s);
+      if (n.has(modelId)) n.delete(modelId);
+      else n.add(modelId);
+      return n;
+    });
+  }
+  /** Grubu tümüyle plandan çıkarır (modelden aktarılan tüm parça satırları). */
+  function grupSil(modelId: string) {
+    setSecimler((arr) => arr.filter((s) => s.kaynakModelId !== modelId));
+  }
+
+  type Blok =
+    | { tip: "grup"; modelId: string; satirlar: Secim[] }
+    | { tip: "satir"; secim: Secim };
+  /** Satırları render bloklarına böler; grup, ilk üyesinin yerinde toplanır. */
+  const bloklar = React.useMemo<Blok[]>(() => {
+    const out: Blok[] = [];
+    const gorulen = new Set<string>();
+    for (const s of secimler) {
+      const k = s.kaynakModelId;
+      if (!k) {
+        out.push({ tip: "satir", secim: s });
+        continue;
+      }
+      if (gorulen.has(k)) continue;
+      gorulen.add(k);
+      out.push({
+        tip: "grup",
+        modelId: k,
+        satirlar: secimler.filter((x) => x.kaynakModelId === k),
+      });
+    }
+    return out;
+  }, [secimler]);
+
+  /** Görünen sıra no — grup katlansa da numaralar kaymasın diye önceden. */
+  const siraNo = React.useMemo(() => {
+    const m = new Map<number, number>();
+    let n = 0;
+    for (const b of bloklar) {
+      if (b.tip === "satir") m.set(b.secim.id, ++n);
+      else for (const s of b.satirlar) m.set(s.id, ++n);
+    }
+    return m;
+  }, [bloklar]);
+
   // Boş bir satır ekle (henüz seçim yapılmadı).
   function satirEkle() {
     setSecimler((arr) => [
@@ -223,14 +289,20 @@ export function ProductionPlan({
       toast.error("Aktarılacak parça yok.");
       return;
     }
+    const modelId = parcaModal.model.id;
     setSecimler((arr) => {
-      // Modalı açan boş satır düşer; mevcut parça satırlarının adedi artar.
+      // Modalı açan boş satır düşer; AYNI modelden gelen parça satırlarının
+      // adedi artar. Başka modelden gelen aynı parça ayrı satır kalır — yoksa
+      // hangi grubun altında duracağı belirsizleşirdi.
       let sonuc = arr.filter(
         (s) => !(s.id === parcaModal.hedefId && !s.urunId),
       );
       for (const r of aktarilacak) {
         const mevcut = sonuc.find(
-          (s) => s.tip === "parca" && s.urunId === r.parcaId,
+          (s) =>
+            s.tip === "parca" &&
+            s.urunId === r.parcaId &&
+            s.kaynakModelId === modelId,
         );
         if (mevcut) {
           sonuc = sonuc.map((s) =>
@@ -249,6 +321,7 @@ export function ProductionPlan({
               tip: "parca",
               urunId: r.parcaId,
               adet: r.adet,
+              kaynakModelId: modelId,
             },
           ];
         }
@@ -413,6 +486,181 @@ export function ProductionPlan({
     }
   }
 
+  /**
+   * Tek plan satırı. grupIci=true ise satır bir model başlığının altındadır ve
+   * girintili çizilir. Bileşen değil düz fonksiyon — çağrıldığı yerde JSX üretir.
+   */
+  function satirRender(s: Secim, grupIci = false) {
+    const m = s.tip === "model" ? urunMap.get(s.urunId) : undefined;
+    const parca = s.tip === "parca" ? parcaMap.get(s.urunId) : undefined;
+    const durum = satirDurum(s);
+    const detayAcik = detaylar.has(s.id);
+    return (
+      <React.Fragment key={s.id}>
+        <TableRow>
+          <TableCell
+            className={cn(
+              "text-muted-foreground tabular-nums",
+              grupIci && "pl-8",
+            )}
+          >
+            {siraNo.get(s.id)}
+          </TableCell>
+          <TableCell>
+            <GorselHucre
+              gorseller={
+                parca
+                  ? (parca.gorseller ?? (parca.gorsel ? [parca.gorsel] : []))
+                  : planResimleri(m)
+              }
+              alt={satirAd(s) ?? "Satır"}
+            />
+          </TableCell>
+          <TableCell>
+            {s.urunId ? (
+              <span className="flex items-center gap-2">
+                <span className="font-medium" title={satirAd(s)}>
+                  {satirAd(s)}
+                </span>
+                {parca && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-violet-100 text-[10px] text-violet-800"
+                  >
+                    Parça
+                  </Badge>
+                )}
+                {(m?.parcalar?.length ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => detayToggle(s.id)}
+                    aria-expanded={detayAcik}
+                    className="flex cursor-pointer items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                  >
+                    {m!.parcalar!.length} parça
+                    <ChevronDown
+                      className={cn(
+                        "size-3 transition-transform",
+                        detayAcik && "rotate-180",
+                      )}
+                    />
+                  </button>
+                )}
+              </span>
+            ) : (
+              <ModelParcaSecici
+                sekmeler={[
+                  {
+                    key: "model",
+                    label: "Model",
+                    items: eklenebilir.map((m) => `Model · ${m.ad}`),
+                  },
+                  {
+                    key: "parca",
+                    label: "Parça",
+                    items: eklenebilirParcalar.map((p) => `Parça · ${p.ad}`),
+                  },
+                ]}
+                onValueChange={(v) => secimYap(s.id, v)}
+                placeholder="Model veya parça seç"
+              />
+            )}
+          </TableCell>
+          <TableCell className="text-muted-foreground">
+            {m?.kategori ?? parca?.kategori ?? "—"}
+          </TableCell>
+          <TableCell className="tabular-nums">
+            {m ? (
+              m.stok > 0 ? (
+                <span>
+                  {m.stok.toLocaleString("tr-TR")}{" "}
+                  <span className="text-xs text-muted-foreground">adet</span>
+                </span>
+              ) : (
+                <span className="text-rose-600">Tükendi</span>
+              )
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell>
+            {durum === "eksik" ? (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                Eksik var
+              </Badge>
+            ) : durum === "yeterli" ? (
+              <Badge
+                variant="secondary"
+                className="bg-emerald-100 text-emerald-800"
+              >
+                Eksik yok
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right">
+            <Input
+              type="number"
+              min={1}
+              value={s.adet}
+              aria-label="Adet"
+              onChange={(e) => adetGuncelle(s.id, e.target.value)}
+              onBlur={() => {
+                if (!(Number(s.adet) >= 1)) adetGuncelle(s.id, "1");
+              }}
+              className="ml-auto h-8 w-20 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </TableCell>
+          <TableCell>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
+              onClick={() => sil(s.id)}
+              aria-label="Sil"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </TableCell>
+        </TableRow>
+        {detayAcik && m?.parcalar && (
+          <TableRow className="bg-muted/20 hover:bg-muted/20">
+            <TableCell colSpan={8} className="p-0">
+              <div className="flex flex-col gap-1 px-12 py-2">
+                {m.parcalar.map((ps) => {
+                  const p = parcaMap.get(ps.parcaId);
+                  const adet = Number(s.adet) || 1;
+                  return (
+                    <div
+                      key={ps.parcaId}
+                      className="flex items-center gap-3 text-sm"
+                    >
+                      <GorselHucre
+                        gorseller={p?.gorseller}
+                        alt={p?.ad ?? ps.parcaId}
+                      />
+                      <span className="font-medium">{p?.ad ?? ps.parcaId}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p?.kategori}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                        {ps.miktar} × {adet} ={" "}
+                        <span className="font-medium text-foreground">
+                          {(ps.miktar * adet).toLocaleString("tr-TR")} adet
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+      </React.Fragment>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {/* Plan bilgileri — standart liste kartı kabuğu */}
@@ -534,183 +782,59 @@ export function ProductionPlan({
                 </TableCell>
               </TableRow>
             ) : (
-              secimler.map((s, i) => {
-                const m = s.tip === "model" ? urunMap.get(s.urunId) : undefined;
-                const parca =
-                  s.tip === "parca" ? parcaMap.get(s.urunId) : undefined;
-                const durum = satirDurum(s);
-                const detayAcik = detaylar.has(s.id);
+              bloklar.map((blok) => {
+                if (blok.tip === "satir") return satirRender(blok.secim);
+                const model = urunMap.get(blok.modelId);
+                const kapali = kapaliGruplar.has(blok.modelId);
+                const ad = model?.ad ?? blok.modelId;
                 return (
-                  <React.Fragment key={s.id}>
-                  <TableRow>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {i + 1}
-                    </TableCell>
-                    <TableCell>
-                      <GorselHucre
-                        gorseller={
-                          parca
-                            ? (parca.gorseller ??
-                              (parca.gorsel ? [parca.gorsel] : []))
-                            : planResimleri(m)
-                        }
-                        alt={satirAd(s) ?? "Satır"}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {s.urunId ? (
-                        <span className="flex items-center gap-2">
-                          <span className="font-medium" title={satirAd(s)}>
-                            {satirAd(s)}
+                  <React.Fragment key={`grup-${blok.modelId}`}>
+                    {/* Model başlığı — altındaki parçalar bu modelden aktarıldı */}
+                    <TableRow className="bg-primary/5 hover:bg-primary/5">
+                      <TableCell colSpan={8} className="py-1.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => grupToggle(blok.modelId)}
+                            aria-expanded={!kapali}
+                            aria-label={`${ad} grubunu ${kapali ? "aç" : "kapat"}`}
+                            className="flex cursor-pointer items-center rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "size-4 transition-transform",
+                                kapali && "-rotate-90",
+                              )}
+                            />
+                          </button>
+                          <GorselHucre
+                            gorseller={planResimleri(model)}
+                            alt={ad}
+                          />
+                          <span className="font-medium">{ad}</span>
+                          <Badge
+                            variant="secondary"
+                            className="bg-primary/10 text-[10px] text-primary"
+                          >
+                            Model
+                          </Badge>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {blok.satirlar.length} parça
                           </span>
-                          {parca && (
-                            <Badge
-                              variant="secondary"
-                              className="bg-violet-100 text-[10px] text-violet-800"
-                            >
-                              Parça
-                            </Badge>
-                          )}
-                          {(m?.parcalar?.length ?? 0) > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => detayToggle(s.id)}
-                              aria-expanded={detayAcik}
-                              className="flex cursor-pointer items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                            >
-                              {m!.parcalar!.length} parça
-                              <ChevronDown
-                                className={cn(
-                                  "size-3 transition-transform",
-                                  detayAcik && "rotate-180",
-                                )}
-                              />
-                            </button>
-                          )}
-                        </span>
-                      ) : (
-                        <SearchSelect
-                          sekmeler={[
-                            {
-                              key: "model",
-                              label: "Model",
-                              items: eklenebilir.map((m) => `Model · ${m.ad}`),
-                            },
-                            {
-                              key: "parca",
-                              label: "Parça",
-                              items: eklenebilirParcalar.map(
-                                (p) => `Parça · ${p.ad}`,
-                              ),
-                            },
-                          ]}
-                          value={null}
-                          onValueChange={(v) => v && secimYap(s.id, v)}
-                          placeholder="Model veya parça seç"
-                          searchPlaceholder="Ara..."
-                          className="h-8 w-full min-w-56"
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {m?.kategori ?? parca?.kategori ?? "—"}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {m ? (
-                        m.stok > 0 ? (
-                          <span>
-                            {m.stok.toLocaleString("tr-TR")}{" "}
-                            <span className="text-xs text-muted-foreground">
-                              adet
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-rose-600">Tükendi</span>
-                        )
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {durum === "eksik" ? (
-                        <Badge
-                          variant="secondary"
-                          className="bg-amber-100 text-amber-800"
-                        >
-                          Eksik var
-                        </Badge>
-                      ) : durum === "yeterli" ? (
-                        <Badge
-                          variant="secondary"
-                          className="bg-emerald-100 text-emerald-800"
-                        >
-                          Eksik yok
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        min={1}
-                        value={s.adet}
-                        aria-label="Adet"
-                        onChange={(e) => adetGuncelle(s.id, e.target.value)}
-                        onBlur={() => {
-                          if (!(Number(s.adet) >= 1)) adetGuncelle(s.id, "1");
-                        }}
-                        className="ml-auto h-8 w-20 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground"
-                        onClick={() => sil(s.id)}
-                        aria-label="Sil"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  {detayAcik && m?.parcalar && (
-                    <TableRow className="bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={8} className="p-0">
-                        <div className="flex flex-col gap-1 px-12 py-2">
-                          {m.parcalar.map((ps) => {
-                            const p = parcaMap.get(ps.parcaId);
-                            const adet = Number(s.adet) || 1;
-                            return (
-                              <div
-                                key={ps.parcaId}
-                                className="flex items-center gap-3 text-sm"
-                              >
-                                <GorselHucre
-                                  gorseller={p?.gorseller}
-                                  alt={p?.ad ?? ps.parcaId}
-                                />
-                                <span className="font-medium">
-                                  {p?.ad ?? ps.parcaId}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {p?.kategori}
-                                </span>
-                                <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                                  {ps.miktar} × {adet} ={" "}
-                                  <span className="font-medium text-foreground">
-                                    {(ps.miktar * adet).toLocaleString("tr-TR")}{" "}
-                                    adet
-                                  </span>
-                                </span>
-                              </div>
-                            );
-                          })}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="ml-auto text-muted-foreground"
+                            onClick={() => grupSil(blok.modelId)}
+                            aria-label={`${ad} grubunu sil`}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  )}
+                    {!kapali &&
+                      blok.satirlar.map((s) => satirRender(s, true))}
                   </React.Fragment>
                 );
               })
