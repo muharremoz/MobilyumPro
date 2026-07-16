@@ -827,6 +827,9 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
       ad: r.ad,
       adet: adetMap[tip].get(r.ad) ?? 0,
       durum: r.durum as Durum,
+      cinsler: r.cinsler
+        ? r.cinsler.split(",").filter(Boolean)
+        : undefined,
     });
   }
   return sonuc;

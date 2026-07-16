@@ -43,7 +43,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export type Tanim = { id: string; ad: string; adet: number; durum: "Aktif" | "Pasif" };
+export type Tanim = {
+  id: string;
+  ad: string;
+  adet: number;
+  durum: "Aktif" | "Pasif";
+  /** Yalnız renk: geçerli olduğu malzeme cinsleri (boş = hepsi). */
+  cinsler?: string[];
+};
 export type TabKey =
   | "gruplar"
   | "tipler"
@@ -152,6 +159,14 @@ export function DefinitionsPage({
   );
   const [tabState, setTabState] = React.useState<TabKey>("gruplar");
   React.useEffect(() => setData(tanimlardanData(tanimlar)), [tanimlar]);
+  // Renk sekmesinde seçilebilecek malzeme cinsleri (cins tanımları).
+  const cinsAdlari = React.useMemo(
+    () =>
+      (tanimlar?.cins ?? [])
+        .filter((c) => c.durum === "Aktif")
+        .map((c) => c.ad),
+    [tanimlar],
+  );
   const tab = tipProp ?? tabState;
   const setTab = (k: TabKey) => {
     setTabState(k);
@@ -250,7 +265,11 @@ export function DefinitionsPage({
     });
   }
 
-  async function kaydet(degerler: { ad: string; durum: "Aktif" | "Pasif" }) {
+  async function kaydet(degerler: {
+    ad: string;
+    durum: "Aktif" | "Pasif";
+    cinsler?: string[];
+  }) {
     if (tab === "gruplar") return;
     const t = tab;
     const onceki = data;
@@ -426,6 +445,7 @@ export function DefinitionsPage({
                 >
                   Ad
                 </SiralaFiltreBaslik>
+                {tab === "renkler" && <TableHead>Malzeme Cinsleri</TableHead>}
                 {kolon.temelGorunur("adet") && (
                   <SiralaFiltreBaslik
                     className="text-right"
@@ -495,6 +515,23 @@ export function DefinitionsPage({
                     />
                   </TableCell>
                   <TableCell className="font-medium">{x.ad}</TableCell>
+                  {tab === "renkler" && (
+                    <TableCell>
+                      {x.cinsler?.length ? (
+                        <span className="flex flex-wrap gap-1">
+                          {x.cinsler.map((c) => (
+                            <Badge key={c} variant="secondary">
+                              {c}
+                            </Badge>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Tümü
+                        </span>
+                      )}
+                    </TableCell>
+                  )}
                   {kolon.temelGorunur("adet") && (
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {x.adet}
@@ -515,7 +552,7 @@ export function DefinitionsPage({
               {sayfalik.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={1 + kolon.gorunurTemelSayisi}
+                    colSpan={1 + kolon.gorunurTemelSayisi + (tab === "renkler" ? 1 : 0)}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Kayıt bulunamadı.
@@ -564,6 +601,7 @@ export function DefinitionsPage({
         onOpenChange={setSheetOpen}
         item={duzenlenen}
         tekil={aktifTab.tekil}
+        cinsSecenekleri={tab === "renkler" ? cinsAdlari : undefined}
         onSave={kaydet}
       />
 
@@ -579,30 +617,47 @@ function DefinitionSheet({
   onOpenChange,
   item,
   tekil,
+  cinsSecenekleri,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: Tanim | null;
   tekil: string;
-  onSave: (v: { ad: string; durum: "Aktif" | "Pasif" }) => void;
+  /** Renk sekmesinde seçilebilecek malzeme cinsleri; boşsa alan gizlenir. */
+  cinsSecenekleri?: string[];
+  onSave: (v: {
+    ad: string;
+    durum: "Aktif" | "Pasif";
+    cinsler?: string[];
+  }) => void;
 }) {
   const [ad, setAd] = React.useState("");
   const [durum, setDurum] = React.useState<"Aktif" | "Pasif">("Aktif");
+  const [cinsler, setCinsler] = React.useState<string[]>([]);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
+  const renkMi = (cinsSecenekleri?.length ?? 0) > 0;
 
   React.useEffect(() => {
     if (!open) return;
     setAd(item?.ad ?? "");
     setDurum(item?.durum ?? "Aktif");
+    setCinsler(item?.cinsler ?? []);
   }, [open, item]);
+
+  const cinsDegis = (c: string) =>
+    setCinsler((l) => (l.includes(c) ? l.filter((x) => x !== c) : [...l, c]));
 
   function kaydet() {
     if (!ad.trim()) {
       toast.error(`${tekil} adı gerekli`);
       return;
     }
-    onSave({ ad: ad.trim(), durum });
+    onSave({
+      ad: ad.trim(),
+      durum,
+      cinsler: renkMi ? cinsler : undefined,
+    });
     onOpenChange(false);
   }
 
@@ -648,6 +703,41 @@ function DefinitionSheet({
             />
           </span>
         </div>
+
+        {/* Renk hangi malzeme cinslerinde kullanılabilir (örn. Sunta + MDF) */}
+        {renkMi && (
+          <div className="rounded-md border border-input p-3">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">Malzeme Cinsleri</span>
+              <span className="text-xs text-muted-foreground">
+                {cinsler.length === 0 ? "Tümü" : `${cinsler.length} seçili`}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {cinsSecenekleri!.map((c) => {
+                const secili = cinsler.includes(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => cinsDegis(c)}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      secili
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-input text-muted-foreground hover:bg-muted/40",
+                    )}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Boş bırakılırsa renk tüm malzemelerde geçerli sayılır.
+            </p>
+          </div>
+        )}
       </div>
     </FormSheet>
   );

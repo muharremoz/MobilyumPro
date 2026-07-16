@@ -350,6 +350,8 @@ export type TanimKalemi = {
   /** Bu tanımı kullanan kayıt sayısı (hesaplanır). */
   adet: number;
   durum: "Aktif" | "Pasif";
+  /** Yalnız renk için: rengin geçerli olduğu malzeme cinsleri (boş = hepsi). */
+  cinsler?: string[];
 };
 
 // Tanımlamalar — stok grup ağacı (grup → alt grup → alt-alt grup ...).

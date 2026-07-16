@@ -526,6 +526,9 @@ model Tanim {
   tip   String
   ad    String
   durum String @default("Aktif")
+  // Rengin geçerli olduğu malzeme cinsleri ("cins" tanımlarının adları,
+  // virgülle: "Sunta,MDF"). Yalnız tip="renk" için kullanılır; boş = hepsi.
+  cinsler String? @db.NVarChar(Max)
 
   @@unique([tip, ad])
   @@map("tanim")

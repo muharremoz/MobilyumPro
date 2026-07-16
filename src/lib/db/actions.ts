@@ -1439,21 +1439,32 @@ export async function kurlariGuncelle(): Promise<{
 /** Tanım ekle/güncelle. */
 export async function tanimKaydet(
   tip: TanimTip,
-  t: { id?: string; ad: string; durum: "Aktif" | "Pasif" },
+  t: {
+    id?: string;
+    ad: string;
+    durum: "Aktif" | "Pasif";
+    /** Yalnız renk: geçerli olduğu malzeme cinsleri (boş = hepsi). */
+    cinsler?: string[];
+  },
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
+    // Renk dışındaki tiplerde cins bağlantısı yok sayılır.
+    const cinsler =
+      tip === "renk" && t.cinsler?.length ? t.cinsler.join(",") : null;
     if (t.id) {
       await db.tanim.update({
         where: { id: t.id },
-        data: { ad: t.ad, durum: t.durum },
+        data: { ad: t.ad, durum: t.durum, cinsler },
       });
       revalidatePath("/stok-yonetimi");
+      revalidatePath("/tanimlamalar");
       return { ok: true, id: t.id };
     }
     const yeni = await db.tanim.create({
-      data: { tip, ad: t.ad, durum: t.durum },
+      data: { tip, ad: t.ad, durum: t.durum, cinsler },
     });
     revalidatePath("/stok-yonetimi");
+    revalidatePath("/tanimlamalar");
     return { ok: true, id: yeni.id };
   } catch (e) {
     console.error("tanimKaydet:", e);
