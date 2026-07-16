@@ -16,7 +16,6 @@ import {
   Mail,
   MapPin,
   BadgePercent,
-  MoreHorizontal,
   Pencil,
   Trash2,
   Landmark,
@@ -43,12 +42,7 @@ import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -1622,33 +1616,12 @@ function AltListeKart({
   );
 }
 
-/** Satır sonu işlem menüsü — Düzenle / Sil. */
-function SatirMenu({
-  onDuzenle,
-  onSil,
-}: {
-  onDuzenle: () => void;
-  onSil: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-            <MoreHorizontal className="size-4" />
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-36">
-        <DropdownMenuItem onClick={onDuzenle}>
-          <Pencil className="mr-2 size-4" /> Düzenle
-        </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onSil}>
-          <Trash2 className="mr-2 size-4" /> Sil
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+/** Satır sağ tık menüsü aksiyonları — Düzenle / Sil. */
+function satirAksiyonlari(onDuzenle: () => void, onSil: () => void) {
+  return [
+    { etiket: "Düzenle", ikon: Pencil, onSecim: onDuzenle },
+    { etiket: "Sil", ikon: Trash2, tehlike: true, ayracOnce: true, onSecim: onSil },
+  ];
 }
 
 /** Optimistic ekleme için geçici (negatif) id üretir. */
@@ -1742,12 +1715,19 @@ function BankaTab({
             <TableHead>Şube</TableHead>
             <TableHead>IBAN</TableHead>
             <TableHead>Açıklama</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((b) => (
-            <TableRow key={b.id}>
+            <SatirMenu
+              key={b.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(b),
+                () => sil(b),
+              )}
+            >
+            <TableRow>
               <TableCell className="font-medium">{b.bankaAdi}</TableCell>
               <TableCell className="text-muted-foreground">
                 {b.sube ?? "—"}
@@ -1758,18 +1738,13 @@ function BankaTab({
               <TableCell className="text-muted-foreground">
                 {b.aciklama ?? "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(b)}
-                  onSil={() => sil(b)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={4}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu cari için kayıtlı banka hesabı yok.
@@ -1961,12 +1936,19 @@ function SubelerTab({
             <TableHead>Telefon</TableHead>
             <TableHead>E-posta</TableHead>
             <TableHead>Şehir</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((s) => (
-            <TableRow key={s.id}>
+            <SatirMenu
+              key={s.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(s),
+                () => sil(s),
+              )}
+            >
+            <TableRow>
               <TableCell className="font-medium">{s.subeAdi}</TableCell>
               <TableCell className="text-muted-foreground">
                 {s.yetkili ?? "—"}
@@ -1980,18 +1962,13 @@ function SubelerTab({
               <TableCell className="text-muted-foreground">
                 {s.sehir ?? "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(s)}
-                  onSil={() => sil(s)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={5}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu cari için kayıtlı şube yok.
@@ -2311,12 +2288,19 @@ function YetkililerTab({
             <TableHead>Telefon</TableHead>
             <TableHead>E-posta</TableHead>
             <TableHead>Şube</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((y) => (
-            <TableRow key={y.id}>
+            <SatirMenu
+              key={y.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(y),
+                () => sil(y),
+              )}
+            >
+            <TableRow>
               <TableCell className="font-medium">{y.yetkili}</TableCell>
               <TableCell className="text-muted-foreground">
                 {y.gorevi ?? "—"}
@@ -2330,18 +2314,13 @@ function YetkililerTab({
               <TableCell className="text-muted-foreground">
                 {y.subeAdi ?? "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(y)}
-                  onSil={() => sil(y)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={5}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu cari için kayıtlı yetkili yok.
@@ -2580,12 +2559,19 @@ function CrmTab({
             <TableHead>Tip</TableHead>
             <TableHead>Durum</TableHead>
             <TableHead>Açıklama</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((k) => (
-            <TableRow key={k.id}>
+            <SatirMenu
+              key={k.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(k),
+                () => sil(k),
+              )}
+            >
+            <TableRow>
               <TableCell className="text-muted-foreground">
                 {formatTarih(k.tarih)}
               </TableCell>
@@ -2603,18 +2589,13 @@ function CrmTab({
               <TableCell className="text-muted-foreground">
                 {k.aciklama ?? "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(k)}
-                  onSil={() => sil(k)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={5}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu cari için CRM kaydı yok.
@@ -2847,10 +2828,15 @@ function DokumanlarTab({
         {resimler.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {resimler.map((d) => (
-              <div
+              <SatirMenu
                 key={d.id}
-                className="group relative overflow-hidden rounded-md border bg-muted/20"
+                className="w-36"
+                aksiyonlar={satirAksiyonlari(
+                  () => duzenleAc(d),
+                  () => sil(d),
+                )}
               >
+              <div className="group relative overflow-hidden rounded-md border bg-muted/20">
                 <a href={d.url} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -2863,12 +2849,9 @@ function DokumanlarTab({
                   <span className="truncate text-xs" title={d.ad}>
                     {d.ad}
                   </span>
-                  <SatirMenu
-                    onDuzenle={() => duzenleAc(d)}
-                    onSil={() => sil(d)}
-                  />
                 </div>
               </div>
+              </SatirMenu>
             ))}
           </div>
         )}
@@ -2877,8 +2860,15 @@ function DokumanlarTab({
         {digerleri.length > 0 && (
           <div className="overflow-hidden rounded-md border">
             {digerleri.map((d, i) => (
-              <div
+              <SatirMenu
                 key={d.id}
+                className="w-36"
+                aksiyonlar={satirAksiyonlari(
+                  () => duzenleAc(d),
+                  () => sil(d),
+                )}
+              >
+              <div
                 className={cn(
                   "flex items-center gap-3 px-3 py-2",
                   i > 0 && "border-t",
@@ -2896,11 +2886,8 @@ function DokumanlarTab({
                 >
                   <ExternalLink className="size-3.5" /> Aç
                 </a>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(d)}
-                  onSil={() => sil(d)}
-                />
               </div>
+              </SatirMenu>
             ))}
           </div>
         )}

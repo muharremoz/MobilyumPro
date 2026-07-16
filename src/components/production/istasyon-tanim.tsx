@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -15,13 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Istasyon } from "@/lib/fabrika";
 import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
@@ -140,10 +134,25 @@ export function IstasyonTanim({
         ) : (
           <div className="divide-y">
             {liste.map((i) => (
-              <div
+              <SatirMenu
                 key={i.slug}
-                className="group flex items-center gap-3 px-3 py-2.5"
+                className="w-36"
+                aksiyonlar={[
+                  {
+                    etiket: "Düzenle",
+                    ikon: Pencil,
+                    onSecim: () => duzenle(i),
+                  },
+                  {
+                    etiket: "Sil",
+                    ikon: Trash2,
+                    tehlike: true,
+                    ayracOnce: true,
+                    onSecim: () => sil(i),
+                  },
+                ]}
               >
+              <div className="group flex items-center gap-3 px-3 py-2.5">
                 <GripVertical className="size-4 shrink-0 text-muted-foreground/40" />
                 <span className="w-6 shrink-0 text-center text-xs font-medium text-muted-foreground tabular-nums">
                   {i.sira}
@@ -161,33 +170,8 @@ export function IstasyonTanim({
                 <span className="hidden shrink-0 text-[11px] text-muted-foreground tabular-nums sm:inline">
                   {i.konum.g}×{i.konum.d} m
                 </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="İşlemler"
-                        className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    }
-                  />
-                  <DropdownMenuContent align="end" className="w-36">
-                    <DropdownMenuItem onClick={() => duzenle(i)}>
-                      <Pencil className="mr-2 size-4" /> Düzenle
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => sil(i)}
-                    >
-                      <Trash2 className="mr-2 size-4" /> Sil
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
+              </SatirMenu>
             ))}
           </div>
         )}

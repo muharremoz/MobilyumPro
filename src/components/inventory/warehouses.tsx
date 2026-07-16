@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,16 +23,9 @@ import { AnimatedField } from "@/components/ui/animated-field";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
 import { BlocksIcon } from "@/components/ui/icons/blocks";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -282,7 +275,6 @@ export function Warehouses({
                   Durum
                 </SiralaFiltreBaslik>
               )}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -353,37 +345,6 @@ export function Warehouses({
                         </Badge>
                       </TableCell>
                     )}
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="İşlemler"
-                            >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setDuzenlenen(d);
-                              setSheetOpen(true);
-                            }}
-                          >
-                            <Pencil className="mr-2 size-4" /> Düzenle
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => sil(d.id)}
-                          >
-                            <Trash2 className="mr-2 size-4" /> Sil
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
                   </TableRow>
                 </SatirMenu>
               );
@@ -391,7 +352,7 @@ export function Warehouses({
             {filtreli.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={1 + kolon.gorunurTemelSayisi}
+                  colSpan={kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Depo bulunamadı.

@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Plus,
-  MoreHorizontal,
   Pencil,
   Trash2,
   ChevronDown,
@@ -28,18 +27,13 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useOnay } from "@/components/ui/confirm-dialog";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
 import type { StokGrup, TanimTip, TanimKalemi } from "@/lib/data";
 import { tanimKaydet, tanimSil } from "@/lib/db/actions";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -461,13 +455,31 @@ export function DefinitionsPage({
                     Durum
                   </SiralaFiltreBaslik>
                 )}
-                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {sayfalik.map((x) => (
-                <TableRow
+                <SatirMenu
                   key={x.id}
+                  aksiyonlar={[
+                    {
+                      etiket: "Düzenle",
+                      ikon: Pencil,
+                      onSecim: () => {
+                        setDuzenlenen(x);
+                        setSheetOpen(true);
+                      },
+                    },
+                    {
+                      etiket: "Sil",
+                      ikon: Trash2,
+                      tehlike: true,
+                      ayracOnce: true,
+                      onSecim: () => sil([x.id]),
+                    },
+                  ]}
+                >
+                <TableRow
                   data-state={secili.has(x.id) ? "selected" : undefined}
                   className="cursor-pointer"
                   onClick={() => {
@@ -497,39 +509,13 @@ export function DefinitionsPage({
                       </Badge>
                     </TableCell>
                   )}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setDuzenlenen(x);
-                            setSheetOpen(true);
-                          }}
-                        >
-                          <Pencil className="mr-2 size-4" /> Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => sil([x.id])}
-                        >
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
+                </SatirMenu>
               ))}
               {sayfalik.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={2 + kolon.gorunurTemelSayisi}
+                    colSpan={1 + kolon.gorunurTemelSayisi}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Kayıt bulunamadı.

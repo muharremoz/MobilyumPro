@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,17 +19,9 @@ import {
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -230,7 +222,6 @@ export function PosetListe({
                   Durum
                 </SiralaFiltreBaslik>
               )}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -281,42 +272,13 @@ export function PosetListe({
                       </Badge>
                     </TableCell>
                   )}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="İşlemler"
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/uretim/poset/${p.id}`)}
-                        >
-                          <Pencil className="mr-2 size-4" /> Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => sil(p.id)}
-                        >
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               </SatirMenu>
             ))}
             {filtreli.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={1 + kolon.gorunurTemelSayisi}
+                  colSpan={kolon.gorunurTemelSayisi}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Poşet bulunamadı.

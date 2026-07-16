@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Plus,
-  MoreHorizontal,
   Pencil,
   Trash2,
   Info,
@@ -28,13 +27,7 @@ import {
 import { IconInput } from "@/components/ui/icon-input";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Popover,
   PopoverContent,
@@ -80,6 +73,20 @@ function GrupSatiri({
       dragControls={controls}
       className="select-none"
     >
+      <SatirMenu
+        className="w-40"
+        aksiyonlar={[
+          { etiket: "Alt Grup Ekle", ikon: Plus, onSecim: onYeniAlt },
+          { etiket: "Düzenle", ikon: Pencil, onSecim: onDuzenle },
+          {
+            etiket: "Sil",
+            ikon: Trash2,
+            tehlike: true,
+            ayracOnce: true,
+            onSecim: onSil,
+          },
+        ]}
+      >
       <div
         onClick={onSec}
         className={cn(
@@ -125,38 +132,11 @@ function GrupSatiri({
             </span>
           </div>
         </div>
-        <span onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="İşlemler"
-                  className="opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
-                >
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={onYeniAlt}>
-                <Plus className="mr-2 size-4" /> Alt Grup Ekle
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuzenle}>
-                <Pencil className="mr-2 size-4" /> Düzenle
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onSil}>
-                <Trash2 className="mr-2 size-4" /> Sil
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </span>
         {ustGrupMu && (
           <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
         )}
       </div>
+      </SatirMenu>
     </Reorder.Item>
   );
 }

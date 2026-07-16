@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  MoreHorizontal,
   Pencil,
   Trash2,
   Factory,
@@ -41,12 +40,7 @@ import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { SearchSelect } from "@/components/ui/search-select";
 import { GrupSecici } from "@/components/ui/grup-secici";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
   TableBody,
@@ -114,7 +108,6 @@ import {
   AttachmentContent,
   AttachmentTitle,
   AttachmentDescription,
-  AttachmentActions,
   AttachmentTrigger,
 } from "@/components/ui/attachment";
 
@@ -2018,33 +2011,12 @@ function AltListeKart({
   );
 }
 
-/** Satır sonu işlem menüsü — Düzenle / Sil. */
-function SatirMenu({
-  onDuzenle,
-  onSil,
-}: {
-  onDuzenle: () => void;
-  onSil: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
-            <MoreHorizontal className="size-4" />
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-36">
-        <DropdownMenuItem onClick={onDuzenle}>
-          <Pencil className="mr-2 size-4" /> Düzenle
-        </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onSil}>
-          <Trash2 className="mr-2 size-4" /> Sil
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+/** Satır sağ tık menüsü aksiyonları — Düzenle / Sil. */
+function satirAksiyonlari(onDuzenle: () => void, onSil: () => void) {
+  return [
+    { etiket: "Düzenle", ikon: Pencil, onSecim: onDuzenle },
+    { etiket: "Sil", ikon: Trash2, tehlike: true, ayracOnce: true, onSecim: onSil },
+  ];
 }
 
 /** Optimistic ekleme için geçici (negatif) id üretir. */
@@ -2150,12 +2122,19 @@ function UreticiTab({
             <TableHead>Döviz</TableHead>
             <TableHead className="text-right">Min Sipariş</TableHead>
             <TableHead className="text-right">Tedarik (gün)</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((u) => (
-            <TableRow key={u.id}>
+            <SatirMenu
+              key={u.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(u),
+                () => sil(u),
+              )}
+            >
+            <TableRow>
               <TableCell className="font-medium">{u.cariAd}</TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
                 {u.ureticiKodu ?? "—"}
@@ -2170,18 +2149,13 @@ function UreticiTab({
               <TableCell className="text-right tabular-nums text-muted-foreground">
                 {u.tedarikGun ?? "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(u)}
-                  onSil={() => sil(u)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={6}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu stok kartı için kayıtlı üretici yok.
@@ -2423,12 +2397,19 @@ function MusterilerTab({
             <TableHead>Döviz</TableHead>
             <TableHead className="text-right">Min Sipariş</TableHead>
             <TableHead className="text-right">İskonto %</TableHead>
-            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {liste.map((m) => (
-            <TableRow key={m.id}>
+            <SatirMenu
+              key={m.id}
+              className="w-36"
+              aksiyonlar={satirAksiyonlari(
+                () => duzenleAc(m),
+                () => sil(m),
+              )}
+            >
+            <TableRow>
               <TableCell className="font-medium">{m.cariAd}</TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
                 {m.musteriKodu ?? "—"}
@@ -2443,18 +2424,13 @@ function MusterilerTab({
               <TableCell className="text-right tabular-nums text-muted-foreground">
                 {m.iskontoOrani != null ? `%${m.iskontoOrani}` : "—"}
               </TableCell>
-              <TableCell>
-                <SatirMenu
-                  onDuzenle={() => duzenleAc(m)}
-                  onSil={() => sil(m)}
-                />
-              </TableCell>
             </TableRow>
+            </SatirMenu>
           ))}
           {liste.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={6}
                 className="h-24 text-center text-muted-foreground"
               >
                 Bu stok kartı için kayıtlı müşteri yok.
@@ -2749,7 +2725,15 @@ export function DokumanlarTab({
         {resimler.length > 0 && (
           <div className="flex flex-wrap items-start gap-3">
             {resimler.map((d) => (
-              <Attachment key={d.id} orientation="vertical" state="done">
+              <SatirMenu
+                key={d.id}
+                className="w-36"
+                aksiyonlar={satirAksiyonlari(
+                  () => duzenleAc(d),
+                  () => sil(d),
+                )}
+              >
+              <Attachment orientation="vertical" state="done">
                 <AttachmentTrigger
                   onClick={() => setBuyuk(d)}
                   aria-label={`${d.ad} — büyüt`}
@@ -2765,15 +2749,8 @@ export function DokumanlarTab({
                     {dokumanAciklama(d)}
                   </AttachmentDescription>
                 </AttachmentContent>
-                <AttachmentActions className="opacity-0 transition-opacity group-hover/attachment:opacity-100 focus-within:opacity-100 data-[popup-open]:opacity-100">
-                  <span className="rounded-md bg-white/85 shadow-sm backdrop-blur-sm">
-                    <SatirMenu
-                      onDuzenle={() => duzenleAc(d)}
-                      onSil={() => sil(d)}
-                    />
-                  </span>
-                </AttachmentActions>
               </Attachment>
+              </SatirMenu>
             ))}
           </div>
         )}
@@ -2782,7 +2759,15 @@ export function DokumanlarTab({
         {dosyalar.length > 0 && (
           <div className="flex flex-wrap items-start gap-3">
             {dosyalar.map((d) => (
-              <Attachment key={d.id} orientation="horizontal" state="done">
+              <SatirMenu
+                key={d.id}
+                className="w-36"
+                aksiyonlar={satirAksiyonlari(
+                  () => duzenleAc(d),
+                  () => sil(d),
+                )}
+              >
+              <Attachment orientation="horizontal" state="done">
                 <AttachmentTrigger
                   render={<a href={d.url} target="_blank" rel="noreferrer" />}
                   aria-label={`${d.ad} — aç`}
@@ -2796,13 +2781,8 @@ export function DokumanlarTab({
                     {dokumanAciklama(d)}
                   </AttachmentDescription>
                 </AttachmentContent>
-                <AttachmentActions>
-                  <SatirMenu
-                    onDuzenle={() => duzenleAc(d)}
-                    onSil={() => sil(d)}
-                  />
-                </AttachmentActions>
               </Attachment>
+              </SatirMenu>
             ))}
           </div>
         )}

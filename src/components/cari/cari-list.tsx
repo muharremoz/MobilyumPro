@@ -3,14 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -27,12 +20,6 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -357,7 +344,6 @@ export function CariList({
                   Durum
                 </SiralaFiltreBaslik>
               )}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -445,34 +431,6 @@ export function CariList({
                       </Badge>
                     </TableCell>
                   )}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="İşlemler"
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/cari/${c.id}`)}
-                        >
-                          <Pencil className="mr-2 size-4" /> Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => sil([c.id])}
-                        >
-                          <Trash2 className="mr-2 size-4" /> Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               </SatirMenu>
             ))}
@@ -480,7 +438,7 @@ export function CariList({
               <TableRow>
                 <TableCell
                   colSpan={
-                    2 +
+                    1 +
                     kolon.gorunurTemelSayisi +
                     (kolon.ekGorunur("telefon") ? 1 : 0)
                   }

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Eye } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
@@ -16,12 +16,6 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -238,7 +232,6 @@ export function AlisListe({
               {gorunurEk.map((k) => (
                 <TableHead key={k.key}>{k.label}</TableHead>
               ))}
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -286,36 +279,13 @@ export function AlisListe({
                   {gorunurEk.map((k) => (
                     <TableCell key={k.key}>{k.hucre(a)}</TableCell>
                   ))}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="İşlemler"
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end" className="w-36">
-                        {/* Alış silme v1'de yok (stok/cari geri alma gerektirir). */}
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/satin-alma/${a.id}`)}
-                        >
-                          <Eye className="mr-2 size-4" /> Görüntüle
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               </SatirMenu>
             ))}
             {filtreli.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={1 + kolon.gorunurTemelSayisi + gorunurEk.length}
+                  colSpan={kolon.gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Henüz alış kaydı yok.
