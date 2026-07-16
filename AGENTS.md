@@ -6,6 +6,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Proje standartları
 
+## DB'yi makineler arası taşıma (ev ↔ ofis)
+
+Veri git ile taşınır: `prisma/veri/snapshot.json`.
+
+- **Bırakmadan önce:** `npm run db:yedek` → snapshot'ı tazeler, sonra commit + push.
+- **Devralırken:** `git pull` → `npx prisma db push` (şema) → `npm run db:geri-yukle`.
+
+`db:geri-yukle` snapshot'taki tabloları **önce siler, sonra yükler** — birleştirmez;
+iki makinede aynı veri olsun diyedir. Yerelde kaydetmediğin bir şey varsa önce
+`db:yedek` al. Tablo listesi `scripts/db-tablolar.mjs`'de; yeni tablo eklenince
+oraya da yazılmalı (IDENTITY id'li tablolar ayrıca `IDENTITY_TABLOLAR`'a).
+
 ## Liste satırı sağ tık menüsü
 
 Her liste satırında sağ tık menüsü olur. Elle `ContextMenu` kurma —
