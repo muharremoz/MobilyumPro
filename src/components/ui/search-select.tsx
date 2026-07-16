@@ -13,8 +13,15 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 
-export interface SearchSelectProps {
+/** Dropdown üstünde sekme — her sekmenin kendi öğe listesi vardır. */
+export interface SearchSelectSekme {
+  key: string;
+  label: string;
   items: string[];
+}
+
+export interface SearchSelectProps {
+  items?: string[];
   value?: string | null;
   onValueChange?: (value: string | null) => void;
   placeholder?: string;
@@ -25,6 +32,11 @@ export interface SearchSelectProps {
   /** Dropdown altına "yeni ekle" butonu koyar; tıklanınca çağrılır. */
   addLabel?: string;
   onAdd?: () => void;
+  /**
+   * Verilirse dropdown üstünde sekmeler gösterilir; aktif sekmenin öğeleri
+   * listelenir. Öğe değerleri korunur, gösterimde "Etiket · " öneki atılır.
+   */
+  sekmeler?: SearchSelectSekme[];
 }
 
 /**
@@ -32,7 +44,7 @@ export interface SearchSelectProps {
  * liste süzülür (dropdown içinde ayrı arama kutusu yok).
  */
 export function SearchSelect({
-  items,
+  items = [],
   value,
   onValueChange,
   placeholder = "Seçin",
@@ -40,13 +52,28 @@ export function SearchSelect({
   className,
   addLabel,
   onAdd,
+  sekmeler,
 }: SearchSelectProps) {
   // "Yeni ekle" tıklanınca popup'ı kapatabilmek için open kontrollü.
   const [acik, setAcik] = React.useState(false);
+  // Sekmeli modda aktif sekme.
+  const [aktifSekme, setAktifSekme] = React.useState(
+    () => sekmeler?.[0]?.key ?? "",
+  );
   // Popup, içteki input'a değil görünür kontrolün tamamına hizalansın.
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  // Aktif kaynak: sekmeli modda seçili sekmenin öğeleri.
+  const kaynak = sekmeler
+    ? (sekmeler.find((s) => s.key === aktifSekme) ?? sekmeler[0])?.items ?? []
+    : items;
   // Yinelenen öğeler tekilleştirilir (aynı key hatası + kaybolan öğe önlenir).
-  const benzersiz = React.useMemo(() => Array.from(new Set(items)), [items]);
+  const benzersiz = React.useMemo(
+    () => Array.from(new Set(kaynak)),
+    [kaynak],
+  );
+  // Sekmeli modda gösterimde "Etiket · " öneki atılır (değer korunur).
+  const gosterim = (item: string) =>
+    sekmeler ? item.replace(/^[^·]+·\s*/, "") : item;
   return (
     <Combobox
       items={benzersiz}
@@ -68,11 +95,34 @@ export function SearchSelect({
         sideOffset={10}
         className="min-w-(--anchor-width)"
       >
+        {sekmeler && (
+          <div className="flex gap-1 border-b p-1">
+            {sekmeler.map((sek) => (
+              <button
+                key={sek.key}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setAktifSekme(sek.key)}
+                className={cn(
+                  "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  aktifSekme === sek.key
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-black/5",
+                )}
+              >
+                {sek.label}
+                <span className="ml-1 tabular-nums opacity-60">
+                  {sek.items.length}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <ComboboxEmpty>{emptyText}</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
             <ComboboxItem key={item} value={item}>
-              {item}
+              {gosterim(item)}
             </ComboboxItem>
           )}
         </ComboboxList>

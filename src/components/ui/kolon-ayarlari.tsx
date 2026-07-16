@@ -158,7 +158,6 @@ export function KolonAyarButonu({
   return (
     <Button
       variant="outline"
-      size="sm"
       className={className}
       onClick={() => kolon.setAcik(true)}
     >

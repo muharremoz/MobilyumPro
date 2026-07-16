@@ -46,7 +46,7 @@ export function SekmeButonu({
           : cn(
               "cursor-pointer",
               aktif
-                ? "font-medium text-foreground"
+                ? "font-medium text-primary"
                 : "text-muted-foreground hover:text-foreground",
             ),
       )}
@@ -55,7 +55,7 @@ export function SekmeButonu({
       {aktif && !disabled && (
         <motion.span
           layoutId={layoutId}
-          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground"
+          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
           transition={{ type: "spring", stiffness: 500, damping: 35 }}
         />
       )}

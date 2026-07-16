@@ -982,14 +982,25 @@ export function ModelForm({
                       return (
                         <TableRow
                           key={i}
+                          data-state={
+                            dokumSecim.has(s.parcaId) ? "selected" : undefined
+                          }
+                          onClick={() =>
+                            s.parcaId &&
+                            dokumSecimToggle(
+                              s.parcaId,
+                              !dokumSecim.has(s.parcaId),
+                            )
+                          }
                           className={cn(
+                            s.parcaId && "cursor-pointer",
                             // Seçim varken işaretli olmayanlar soluklaşır.
                             dokumSecim.size > 0 &&
                               !dokumSecim.has(s.parcaId) &&
                               "opacity-40 transition-opacity",
                           )}
                         >
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               disabled={!s.parcaId}
                               checked={dokumSecim.has(s.parcaId)}
@@ -999,7 +1010,7 @@ export function ModelForm({
                               aria-label="Malzeme dökümünde göster"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <SearchSelect
                               items={items}
                               value={secili?.ad ?? null}
@@ -1007,7 +1018,10 @@ export function ModelForm({
                               placeholder="Parça seç"
                             />
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell
+                            className="text-right"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Input
                               type="number"
                               value={s.miktar}
@@ -1020,7 +1034,7 @@ export function ModelForm({
                               ? `₺${sayi(satirMaliyet, 0)}`
                               : "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => parcaSil(i)}

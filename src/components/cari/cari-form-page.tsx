@@ -785,7 +785,7 @@ function FirmaKarti({
   const sifir = bakiye === 0;
 
   return (
-    <NestedCard>
+    <NestedCard className="border-primary/20 bg-gradient-to-r from-primary/8 via-card to-card">
       <div className="grid items-center gap-4 p-4 lg:grid-cols-[1fr_auto]">
         {/* Sol: Kimlik + iletişim (ad altında) */}
         <div className="min-w-0">

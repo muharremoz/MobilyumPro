@@ -147,12 +147,6 @@ export function ProductionPlan({
   const eklenebilirParcalar = aktifParcalar.filter(
     (p) => !seciliParcaIds.has(p.id),
   );
-  // Seçim listesi: "Model · X" ve "Parça · Y" birlikte.
-  const secimItems = [
-    ...eklenebilir.map((m) => `Model · ${m.ad}`),
-    ...eklenebilirParcalar.map((p) => `Parça · ${p.ad}`),
-  ];
-
   /** Bir plan satırının parça bileşenleri (model → BOM, parça → kendisi). */
   const satirBilesenleri = React.useCallback(
     (s: Secim): { parcaId: string; miktar: number }[] => {
@@ -596,12 +590,25 @@ export function ProductionPlan({
                         </span>
                       ) : (
                         <SearchSelect
-                          items={secimItems}
+                          sekmeler={[
+                            {
+                              key: "model",
+                              label: "Model",
+                              items: eklenebilir.map((m) => `Model · ${m.ad}`),
+                            },
+                            {
+                              key: "parca",
+                              label: "Parça",
+                              items: eklenebilirParcalar.map(
+                                (p) => `Parça · ${p.ad}`,
+                              ),
+                            },
+                          ]}
                           value={null}
                           onValueChange={(v) => v && secimYap(s.id, v)}
                           placeholder="Model veya parça seç"
                           searchPlaceholder="Ara..."
-                          className="h-8 max-w-xs"
+                          className="h-8 w-full min-w-56"
                         />
                       )}
                     </TableCell>

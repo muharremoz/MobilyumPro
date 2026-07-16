@@ -50,7 +50,7 @@ export function GorselHucre({
           setAcik(true);
         }}
         aria-label={ilk ? `${alt} — büyüt` : "Görsel yok"}
-        className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/40 transition-transform enabled:cursor-zoom-in enabled:hover:scale-105 disabled:cursor-default"
+        className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/40 transition-transform enabled:cursor-zoom-in enabled:hover:scale-105 disabled:cursor-default"
       >
         {ilk ? (
           // eslint-disable-next-line @next/next/no-img-element
