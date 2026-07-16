@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ListHeader } from "@/components/ui/list-header";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -59,7 +58,7 @@ import {
   talepOnayla,
   talepReddet,
   talepBaslat,
-  talepSiparisEkle,
+  siparisOlustur,
   talepSil,
 } from "@/lib/db/actions";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
@@ -110,18 +109,96 @@ function tedarikOrani(t: SatinAlmaTalep) {
   return oran / t.satirlar.length;
 }
 
+/** Bir firma grubundaki tek kalem. Aynı talep satırı birden çok firmaya
+ *  sipariş edilebildiği için satır, sipariş verilen HER firmanın grubunda
+ *  o firmanın rakamlarıyla görünür. */
+type GrupSatiri = {
+  satir: TalepSatiri;
+  /** Bu firmaya verilen sipariş miktarı. */
+  siparisMiktar: number;
+  /** Bu firmadan gelen (fatura eşleşmesi). */
+  tedarik: number;
+  /** Henüz hiç sipariş verilmemiş kalan — yalnız satırın kendi (talepte
+   *  seçilen) firmasının grubunda gösterilir; diğer firmaları ilgilendirmez. */
+  kalan?: number;
+};
+
+/** Talep satırlarının firma bazlı grubu — bir grup = bir sipariş belgesi. */
+type FirmaGrubu = {
+  cariId: string;
+  cariAd: string;
+  satirlar: GrupSatiri[];
+  /** Bu firmaya kesilmiş sipariş belgeleri (SIP-####). */
+  siparisBelgeleri: string[];
+  tahminiTutar: number;
+  /** Henüz sipariş verilmemiş kalem var mı? */
+  siparisKalanVar: boolean;
+};
+
+/** Satırları firmaya göre gruplar:
+ *  - sipariş verilmiş her firma kendi grubunda o siparişin miktarıyla,
+ *  - sipariş verilmemiş kalan ise satırın talepteki firmasının grubunda. */
+function firmaGruplari(
+  t: SatinAlmaTalep,
+  tedarikciler: { id: string; ad: string }[],
+): FirmaGrubu[] {
+  const m = new Map<string, FirmaGrubu>();
+  const grup = (cariId: string, cariAd: string) => {
+    const g = m.get(cariId) ?? {
+      cariId,
+      cariAd,
+      satirlar: [] as GrupSatiri[],
+      siparisBelgeleri: [] as string[],
+      tahminiTutar: 0,
+      siparisKalanVar: false,
+    };
+    m.set(cariId, g);
+    return g;
+  };
+
+  for (const s of t.satirlar) {
+    const fiyat = s.tahminiFiyat ?? 0;
+    // 1) Sipariş verilen firmalar — her biri kendi grubunda.
+    for (const o of s.siparisler) {
+      const g = grup(o.cariId, o.cariAd);
+      g.satirlar.push({
+        satir: s,
+        siparisMiktar: o.miktar,
+        tedarik: o.tedarikEdilen,
+      });
+      g.tahminiTutar += o.miktar * (o.fiyat ?? fiyat);
+      if (o.siparisId && !g.siparisBelgeleri.includes(o.siparisId))
+        g.siparisBelgeleri.push(o.siparisId);
+    }
+    // 2) Sipariş verilmemiş kalan — satırın talepteki firmasında bekler.
+    const siparilen = s.siparisler.reduce((n, o) => n + o.miktar, 0);
+    const kalan = s.miktar - siparilen;
+    if (kalan > 0.0005) {
+      const cariId = s.ureticiCariId ?? "";
+      const cariAd =
+        tedarikciler.find((x) => x.id === cariId)?.ad ?? "Firma atanmamış";
+      const g = grup(cariId, cariAd);
+      // Aynı firmaya zaten sipariş varsa kalanı o satıra iliştir.
+      const mevcut = g.satirlar.find((e) => e.satir.id === s.id);
+      if (mevcut) mevcut.kalan = kalan;
+      else
+        g.satirlar.push({ satir: s, siparisMiktar: 0, tedarik: 0, kalan });
+      g.tahminiTutar += kalan * fiyat;
+      g.siparisKalanVar = true;
+    }
+  }
+  return [...m.values()];
+}
+
 type SortKey = "id" | "tarih" | "kaynak" | "tutar" | "durum";
 
 export function TalepListe({
   talepler,
   tedarikciler,
-  depolar,
   mevcutKullanici,
 }: {
   talepler: SatinAlmaTalep[];
   tedarikciler: { id: string; ad: string }[];
-  /** Aktif depo adları (mal kabul hedefi). */
-  depolar: string[];
   /** TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı. */
   mevcutKullanici: { id: string; ad: string; rol: string; departman?: string };
 }) {
@@ -148,9 +225,10 @@ export function TalepListe({
   const [detayId, setDetayId] = React.useState<string | null>(null);
   const [redId, setRedId] = React.useState<string | null>(null);
   const [redNeden, setRedNeden] = React.useState("");
+  // Sipariş oluşturma hedefi: talep + firma (grup).
   const [siparisHedef, setSiparisHedef] = React.useState<{
     talepId: string;
-    satirId: number;
+    cariId: string;
   } | null>(null);
   // Malzeme Durumu satırına tıklayınca açılan detay sheet'i (malzeme id).
   const [malzemeDetayId, setMalzemeDetayId] = React.useState<string | null>(
@@ -161,8 +239,11 @@ export function TalepListe({
   const redTalep = talepler.find((t) => t.id === redId) ?? null;
   const siparisTalep =
     talepler.find((t) => t.id === siparisHedef?.talepId) ?? null;
-  const siparisSatir =
-    siparisTalep?.satirlar.find((s) => s.id === siparisHedef?.satirId) ?? null;
+  const siparisGrup = siparisTalep
+    ? (firmaGruplari(siparisTalep, tedarikciler).find(
+        (g) => g.cariId === siparisHedef?.cariId,
+      ) ?? null)
+    : null;
 
   const kaynaklar = React.useMemo(
     () => [...new Set(talepler.map((t) => t.kaynak))],
@@ -760,118 +841,133 @@ export function TalepListe({
                 )}
               </div>
 
-              {/* Malzeme listesi — uzunsa kendi içinde kayar (yapışkan başlık) */}
-              <div className="max-h-[55dvh] overflow-y-auto rounded-md border">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card">
-                    <TableRow>
-                      <TableHead>Malzeme</TableHead>
-                      <TableHead className="text-right">İstenen</TableHead>
-                      <TableHead>Sipariş</TableHead>
-                      <TableHead className="text-right">Tedarik</TableHead>
-                      <TableHead className="text-right">Kalan</TableHead>
-                      <TableHead>Durum</TableHead>
-                      {detay.durum === "Tedarik Sürecinde" && satinAlmaci && (
-                        <TableHead className="w-28" />
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detay.satirlar.map((s) => {
-                      const kalan = Math.max(0, s.miktar - s.tedarikEdilen);
-                      // Henüz sipariş verilmemiş kalan (yeni sipariş için).
-                      const siparilen = s.siparisler.reduce(
-                        (n, o) => n + o.miktar,
-                        0,
-                      );
-                      const siparisKalan = Math.max(0, s.miktar - siparilen);
-                      return (
-                        <TableRow key={s.id}>
-                          <TableCell className="font-medium">
-                            {s.malzemeAd}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {s.miktar.toLocaleString("tr-TR", {
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            {s.birim}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {s.siparisler.length > 0 ? (
-                              <div className="flex flex-col gap-0.5 leading-tight">
-                                {s.siparisler.map((o) => (
-                                  <span
-                                    key={o.id}
-                                    className="flex items-center justify-between gap-2"
-                                  >
-                                    <span className="font-medium">
-                                      {o.cariAd}
-                                    </span>
-                                    <span className="text-muted-foreground tabular-nums">
-                                      {o.miktar.toLocaleString("tr-TR", {
-                                        maximumFractionDigits: 2,
-                                      })}{" "}
-                                      {s.birim}
-                                    </span>
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
-                            {s.tedarikEdilen.toLocaleString("tr-TR", {
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            {s.birim}
-                          </TableCell>
-                          <TableCell
-                            className={cn(
-                              "text-right tabular-nums",
-                              kalan > 0
-                                ? "font-medium text-amber-700"
-                                : "text-muted-foreground",
-                            )}
+              {/* Firma bazlı gruplar — bir firma = bir sipariş belgesi */}
+              <div className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
+                {firmaGruplari(detay, tedarikciler).map((g) => (
+                  <div key={g.cariId || "yok"} className="rounded-md border">
+                    <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {g.cariAd}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
+                          {g.siparisBelgeleri.length > 0 && " · "}
+                          {g.siparisBelgeleri.map((sip, i) => (
+                            <React.Fragment key={sip}>
+                              {i > 0 && ", "}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(`/satin-alma/siparis/${sip}`)
+                                }
+                                className="cursor-pointer font-mono underline-offset-2 hover:underline"
+                              >
+                                {sip}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                        </p>
+                      </div>
+                      {detay.durum === "Tedarik Sürecinde" &&
+                        satinAlmaci &&
+                        g.siparisKalanVar && (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              setSiparisHedef({
+                                talepId: detay.id,
+                                cariId: g.cariId,
+                              })
+                            }
                           >
-                            {kalan.toLocaleString("tr-TR", {
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            {s.birim}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="secondary"
-                              className={SATIR_DURUM_RENK[s.durum]}
-                            >
-                              {s.durum}
-                            </Badge>
-                          </TableCell>
-                          {detay.durum === "Tedarik Sürecinde" &&
-                            satinAlmaci && (
-                              <TableCell>
-                                {siparisKalan > 0.0005 && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setSiparisHedef({
-                                        talepId: detay.id,
-                                        satirId: s.id,
-                                      })
-                                    }
-                                  >
-                                    <PackageCheck className="size-3.5" /> Sipariş
-                                    Ver
-                                  </Button>
+                            <PackageCheck className="size-3.5" /> Sipariş Oluştur
+                          </Button>
+                        )}
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Malzeme</TableHead>
+                          <TableHead className="text-right">İstenen</TableHead>
+                          <TableHead className="text-right">Sipariş</TableHead>
+                          <TableHead className="text-right">Tedarik</TableHead>
+                          <TableHead className="text-right">
+                            Sipariş Kalan
+                          </TableHead>
+                          <TableHead>Durum</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.satirlar.map((e) => {
+                          const s = e.satir;
+                          return (
+                            <TableRow key={`${s.id}-${g.cariId}`}>
+                              <TableCell className="font-medium">
+                                {s.malzemeAd}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {s.miktar.toLocaleString("tr-TR", {
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                {s.birim}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {e.siparisMiktar > 0 ? (
+                                  <>
+                                    {e.siparisMiktar.toLocaleString("tr-TR", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    {s.birim}
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    —
+                                  </span>
                                 )}
                               </TableCell>
-                            )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {e.tedarik.toLocaleString("tr-TR", {
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                {s.birim}
+                              </TableCell>
+                              {/* Sipariş verilmemiş kalan — yalnız satırın
+                                  kendi firmasının grubunda anlamlı. */}
+                              <TableCell
+                                className={cn(
+                                  "text-right tabular-nums",
+                                  e.kalan
+                                    ? "font-medium text-amber-700"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {e.kalan ? (
+                                  <>
+                                    {e.kalan.toLocaleString("tr-TR", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    {s.birim}
+                                  </>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="secondary"
+                                  className={SATIR_DURUM_RENK[s.durum]}
+                                >
+                                  {s.durum}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
               </div>
 
               {detay.aciklama && (
@@ -915,17 +1011,18 @@ export function TalepListe({
         </DialogContent>
       </Dialog>
 
-      {/* ── Sipariş verme dialogu ── */}
-      {siparisTalep && siparisSatir && (
+      {/* ── Sipariş oluşturma dialogu (firma bazlı) ── */}
+      {siparisTalep && siparisGrup && (
         <SiparisDialog
           talep={siparisTalep}
-          satir={siparisSatir}
+          grup={siparisGrup}
           tedarikciler={tedarikciler}
           kullaniciId={mevcutKullanici.id}
           onKapat={() => setSiparisHedef(null)}
-          onKaydedildi={() => {
+          onKaydedildi={(id) => {
             setSiparisHedef(null);
             router.refresh();
+            router.push(`/satin-alma/siparis/${id}`);
           }}
         />
       )}
@@ -1082,150 +1179,204 @@ function TedarikIlerleme({ talep }: { talep: SatinAlmaTalep }) {
   );
 }
 
-/** Tek satır için SİPARİŞ VER — bir firmaya sipariş ekler (kalan sipariş kadar).
- *  Farklı firmalara bölmek için tekrar tekrar sipariş verilebilir. Stok etkilenmez. */
+/** Bir firmaya SİPARİŞ BELGESİ oluşturur (grup = firma).
+ *  Kalemler tek tek gözden geçirilir: miktar düşürülürse kalan satırda bekler
+ *  (kısmi sipariş), fiyat talepteki tahminden saparsa uyarılır.
+ *  Stok ve cari etkilenmez; giriş fatura/mal kabulde olur. */
 function SiparisDialog({
   talep,
-  satir,
+  grup,
   tedarikciler,
   kullaniciId,
   onKapat,
   onKaydedildi,
 }: {
   talep: SatinAlmaTalep;
-  satir: TalepSatiri;
+  grup: FirmaGrubu;
   tedarikciler: { id: string; ad: string }[];
   kullaniciId: string;
   onKapat: () => void;
-  onKaydedildi: () => void;
+  onKaydedildi: (siparisId: string) => void;
 }) {
-  const siparilen = satir.siparisler.reduce((n, o) => n + o.miktar, 0);
-  const kalanSiparis = Math.max(0, satir.miktar - siparilen);
-  const [miktar, setMiktar] = React.useState(String(kalanSiparis));
-  // Öneri firma: henüz sipariş verilmemiş üretici cari → yoksa boş.
-  const seciliCariIds = new Set(satir.siparisler.map((o) => o.cariId));
-  const [cariAd, setCariAd] = React.useState<string | null>(() => {
-    const uretici = tedarikciler.find((t) => t.id === satir.ureticiCariId);
-    return uretici && !seciliCariIds.has(uretici.id) ? uretici.ad : null;
-  });
-  const [fiyat, setFiyat] = React.useState(paraMetni(satir.tahminiFiyat));
+  // Yalnız sipariş verilecek kalanı olan satırlar.
+  const acik = grup.satirlar
+    .filter((e) => (e.kalan ?? 0) > 0.0005)
+    .map((e) => ({ satir: e.satir, kalan: e.kalan ?? 0 }));
+  type Kalem = { satirId: number; miktar: string; fiyat: string };
+  const [kalemler, setKalemler] = React.useState<Kalem[]>(() =>
+    acik.map((e) => ({
+      satirId: e.satir.id,
+      miktar: String(e.kalan),
+      fiyat: paraMetni(e.satir.tahminiFiyat),
+    })),
+  );
+  const [cariAd, setCariAd] = React.useState<string | null>(
+    grup.cariId ? grup.cariAd : null,
+  );
+  const [notlar, setNotlar] = React.useState("");
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
   const cari = tedarikciler.find((t) => t.ad === cariAd);
-  const m = Number(miktar);
-  const gecerli = cari && m > 0 && m <= kalanSiparis + 1e-9;
+  const satirMap = new Map(acik.map((e) => [e.satir.id, e]));
+  const guncelle = (satirId: number, d: Partial<Kalem>) =>
+    setKalemler((arr) =>
+      arr.map((k) => (k.satirId === satirId ? { ...k, ...d } : k)),
+    );
+
+  const net = kalemler.filter((k) => Number(k.miktar) > 0);
+  const toplam = net.reduce(
+    (t, k) => t + Number(k.miktar) * paraDegeri(k.fiyat),
+    0,
+  );
+  // Hiçbir kalem satırın sipariş kalanını aşamaz.
+  const asan = kalemler.some((k) => {
+    const e = satirMap.get(k.satirId);
+    return e ? Number(k.miktar) > e.kalan + 1e-9 : false;
+  });
+  const gecerli = Boolean(cari) && net.length > 0 && !asan;
 
   async function kaydet() {
     if (!gecerli || !cari) return;
     setKaydediliyor(true);
-    const res = await talepSiparisEkle({
+    const res = await siparisOlustur({
       talepId: talep.id,
-      satirId: satir.id,
       cariId: cari.id,
       cariAd: cari.ad,
-      miktar: m,
-      fiyat: paraDegeri(fiyat) || undefined,
+      kalemler: net.map((k) => ({
+        satirId: k.satirId,
+        miktar: Number(k.miktar),
+        fiyat: paraDegeri(k.fiyat) || undefined,
+      })),
+      notlar: notlar.trim() || undefined,
       kullaniciId,
     });
     setKaydediliyor(false);
-    if (!res.ok) {
-      toast.error(res.error ?? "Sipariş verilemedi.");
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Sipariş oluşturulamadı.");
       return;
     }
-    toast.success(`${satir.malzemeAd} — ${cari.ad} firmasına sipariş verildi`);
-    onKaydedildi();
+    toast.success(res.id + " · " + cari.ad + " siparişi oluşturuldu");
+    onKaydedildi(res.id);
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onKapat()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Sipariş Ver — {satir.malzemeAd}</DialogTitle>
+          <DialogTitle>Sipariş Oluştur — {grup.cariAd}</DialogTitle>
           <DialogDescription>
-            İstenen {satir.miktar.toLocaleString("tr-TR")} {satir.birim} ·
-            sipariş verilen {siparilen.toLocaleString("tr-TR")} {satir.birim} ·
-            kalan{" "}
-            <span className="font-medium text-foreground">
-              {kalanSiparis.toLocaleString("tr-TR")} {satir.birim}
-            </span>
+            {talep.id} · {acik.length} kalem. Miktarı düşürürseniz kalan talepte
+            bekler, sonra tekrar sipariş verebilirsiniz.
           </DialogDescription>
         </DialogHeader>
 
-        {satir.siparisler.length > 0 && (
-          <div className="rounded-md border bg-muted/30 p-2 text-xs">
-            <p className="mb-1 font-medium text-muted-foreground">
-              Mevcut siparişler
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {satir.siparisler.map((o) => (
-                <div
-                  key={o.id}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span>{o.cariAd}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {o.miktar.toLocaleString("tr-TR")} {satir.birim}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <span className="text-xs font-medium text-muted-foreground">
-              Tedarikçi
-            </span>
-            <SearchSelect
-              items={tedarikciler
-                .filter((t) => !seciliCariIds.has(t.id) || t.ad === cariAd)
-                .map((t) => t.ad)}
-              value={cariAd}
-              onValueChange={setCariAd}
-              placeholder="Firma seç"
-              emptyText="Tedarikçi yok"
-              className={cn(!cari && "ring-1 ring-rose-300")}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Sipariş Miktarı ({satir.birim})
-              </span>
-              <Input
-                type="number"
-                min={0}
-                step="any"
-                value={miktar}
-                onChange={(e) => setMiktar(e.target.value)}
-                className={cn(
-                  "tabular-nums",
-                  !(m > 0 && m <= kalanSiparis + 1e-9) && "ring-1 ring-rose-300",
-                )}
-              />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Birim Fiyat (₺)
-              </span>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={fiyat}
-                onChange={(e) => setFiyat(paraMaskele(e.target.value))}
-                className="tabular-nums"
-              />
-            </label>
-          </div>
+        <div className="grid gap-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Tedarikçi
+          </span>
+          <SearchSelect
+            items={tedarikciler.map((t) => t.ad)}
+            value={cariAd}
+            onValueChange={setCariAd}
+            placeholder="Firma seç"
+            emptyText="Tedarikçi yok"
+            className={cn(!cari && "ring-1 ring-rose-300")}
+          />
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Sipariş stok ve cariyi etkilemez. Farklı firmalara bölmek için tekrar
-          sipariş verebilirsiniz. Bu firmadan fatura girilince otomatik
-          &quot;Tedarik Edildi&quot; olur.
-        </p>
+        <div className="max-h-[45dvh] overflow-y-auto rounded-md border">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>Malzeme</TableHead>
+                <TableHead className="text-right">Kalan</TableHead>
+                <TableHead className="w-28 text-right">Miktar</TableHead>
+                <TableHead className="w-28 text-right">Birim Fiyat</TableHead>
+                <TableHead className="text-right">Tutar</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {kalemler.map((k) => {
+                const e = satirMap.get(k.satirId);
+                if (!e) return null;
+                const s = e.satir;
+                const kalan = e.kalan;
+                const m = Number(k.miktar) || 0;
+                const f = paraDegeri(k.fiyat);
+                const sapma =
+                  s.tahminiFiyat > 0 && f > 0
+                    ? (f - s.tahminiFiyat) / s.tahminiFiyat
+                    : 0;
+                return (
+                  <TableRow key={k.satirId}>
+                    <TableCell className="font-medium">{s.malzemeAd}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {kalan.toLocaleString("tr-TR", {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      {s.birim}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={k.miktar}
+                        onChange={(e) =>
+                          guncelle(k.satirId, { miktar: e.target.value })
+                        }
+                        className={cn(
+                          "h-8 text-right tabular-nums",
+                          m > kalan + 1e-9 && "ring-1 ring-rose-300",
+                        )}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={k.fiyat}
+                          onChange={(e) =>
+                            guncelle(k.satirId, {
+                              fiyat: paraMaskele(e.target.value),
+                            })
+                          }
+                          className="h-8 text-right tabular-nums"
+                        />
+                        {Math.abs(sapma) >= 0.1 && (
+                          <span
+                            className={cn(
+                              "text-[10px] leading-none",
+                              sapma > 0 ? "text-rose-600" : "text-emerald-600",
+                            )}
+                          >
+                            talebe göre %
+                            {Math.abs(sapma * 100).toLocaleString("tr-TR", {
+                              maximumFractionDigits: 0,
+                            })}{" "}
+                            {sapma > 0 ? "yüksek" : "düşük"}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatTL(m * f)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        <Textarea
+          placeholder="Sipariş notu (tedarikçiye giden çıktıda görünür)"
+          value={notlar}
+          onChange={(e) => setNotlar(e.target.value)}
+          rows={2}
+        />
 
         <DialogFooter>
           <Button size="sm" variant="outline" onClick={onKapat}>
@@ -1233,7 +1384,9 @@ function SiparisDialog({
           </Button>
           <Button size="sm" disabled={!gecerli || kaydediliyor} onClick={kaydet}>
             <PackageCheck className="size-3.5" />
-            {kaydediliyor ? "Kaydediliyor..." : "Sipariş Ver"}
+            {kaydediliyor
+              ? "Oluşturuluyor..."
+              : `${net.length} kalem · ${formatTL(toplam)} sipariş ver`}
           </Button>
         </DialogFooter>
       </DialogContent>

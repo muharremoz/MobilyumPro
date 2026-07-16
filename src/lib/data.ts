@@ -527,6 +527,8 @@ export type TalepSatirDurum =
 /** Bir talep satırının tek bir firmaya verilmiş siparişi (çok firmaya dağıtılabilir). */
 export type TalepSiparis = {
   id: number;
+  /** Bağlı olduğu sipariş belgesi (SIP-####; eski kayıtlarda yok). */
+  siparisId?: string;
   cariId: string;
   cariAd: string;
   miktar: number;
@@ -534,6 +536,30 @@ export type TalepSiparis = {
   tarih: string;
   /** Bu siparişe karşı gelen (fatura eşleşmesiyle). */
   tedarikEdilen: number;
+};
+
+/** Tedarikçiye verilen sipariş belgesi (bir firma = bir sipariş). */
+export type SatinAlmaSiparis = {
+  id: string;
+  talepId: string;
+  cariId: string;
+  cariAd: string;
+  tarih: string;
+  depo?: string;
+  notlar?: string;
+  durum: "Açık" | "Kısmi" | "Kapandı";
+  /** Tedarikçiye mail atıldıysa gönderim zamanı. */
+  mailTarihi?: string;
+  olusturanAd?: string;
+  kalemler: {
+    malzemeId: string;
+    malzemeAd: string;
+    birim: string;
+    miktar: number;
+    fiyat?: number;
+    tedarikEdilen: number;
+  }[];
+  toplam: number;
 };
 
 export type TalepSatiri = {
@@ -585,6 +611,8 @@ export type BekleyenSiparis = {
   satirId: number;
   /** Sipariş kaydının id'si (satır çok firmaya dağıtılabildiği için). */
   siparisId: number;
+  /** Bağlı sipariş belgesi (SIP-####; eski kayıtlarda yok). */
+  belgeId?: string;
   malzemeId: string;
   malzemeAd: string;
   birim: string;
@@ -607,6 +635,14 @@ export type BekleyenSiparis = {
   sonAlisCariAd?: string;
   sonAlisFiyat?: number;
   sonAlisTarih?: string;
+  /** Talebin hangi modeller için açıldığı (bilgi modalı). */
+  modeller?: string;
+  /** Mal kabul hedefi (talepteki depo). */
+  depo?: string;
+  /** Siparişi veren (audit). */
+  olusturanAd?: string;
+  /** Sipariş belgesindeki not. */
+  notlar?: string;
 };
 
 // Depolar (üretim hedefi / stok lokasyonu).

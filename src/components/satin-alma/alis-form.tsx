@@ -1102,6 +1102,56 @@ export function AlisForm({
 /* ------------------------------------------------------------------ */
 /* DAĞITMA MODALI (talep hazırlığı — malzemeyi firmalara böl)         */
 /* ------------------------------------------------------------------ */
+/** Dağıtım özet şeridindeki tek metrik — ya sayı+birim ya da durum metni. */
+function DagitMetrik({
+  etiket,
+  deger,
+  birim,
+  metin,
+  tone,
+}: {
+  etiket: string;
+  /** Sayısal değer (metin verilmediyse). */
+  deger?: string;
+  birim?: string;
+  /** Sayı yerine gösterilecek durum metni (örn. "Tamamı dağıtıldı"). */
+  metin?: string;
+  tone?: "emerald" | "rose" | "amber";
+}) {
+  const renk = cn(
+    tone === "emerald" && "text-emerald-600",
+    tone === "rose" && "text-rose-600",
+    tone === "amber" && "text-amber-600",
+  );
+  return (
+    <div className="min-w-0 px-3 first:pl-0 last:pr-0">
+      <div className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+        {etiket}
+      </div>
+      {metin ? (
+        // Durum metni sığmazsa kırpılmak yerine alt satıra iner.
+        <div
+          className={cn(
+            "mt-0.5 text-base leading-tight font-semibold text-balance",
+            renk,
+          )}
+        >
+          {metin}
+        </div>
+      ) : (
+        <div className={cn("mt-0.5 truncate text-lg font-semibold tabular-nums", renk)}>
+          {deger}
+          {birim && (
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              {birim}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DagitModal({
   satir,
   malzemeAd,
@@ -1130,11 +1180,25 @@ function DagitModal({
     },
   ]);
 
-  const toplam = rows.reduce((t, r) => t + (Number(r.miktar) || 0), 0);
+  // Yalnız firması seçili satırlar dağıtıma sayılır — yeni boş satır eklemek
+  // kalanı düşürmez.
+  const dolu = rows.filter((r) => r.cariAd);
+  const toplam = dolu.reduce((t, r) => t + (Number(r.miktar) || 0), 0);
   const kalan = satir.miktar - toplam;
-  const seciliAdlar = rows.map((r) => r.cariAd).filter(Boolean);
+  const tam = Math.abs(kalan) < 1e-9;
+  const asim = kalan < -1e-9;
+  // Dağıtılan miktarın toplam içindeki payı (aşımda çubuk dolu kalır).
+  const oran =
+    satir.miktar > 0 ? Math.min(1, toplam / satir.miktar) : toplam > 0 ? 1 : 0;
+  const toplamTutar = dolu.reduce(
+    (t, r) => t + (Number(r.miktar) || 0) * paraDegeri(r.fiyat),
+    0,
+  );
+  const seciliAdlar = dolu.map((r) => r.cariAd);
+  // Firması boş satırlar yok sayılır; dolu olanların miktarı pozitif olmalı.
   const gecerli =
-    rows.every((r) => r.cariAd && Number(r.miktar) > 0) &&
+    dolu.length > 0 &&
+    dolu.every((r) => Number(r.miktar) > 0) &&
     new Set(seciliAdlar).size === seciliAdlar.length;
 
   function guncelle(i: number, d: Partial<Row>) {
@@ -1153,7 +1217,7 @@ function DagitModal({
   function uygula() {
     if (!gecerli) return;
     onUygula(
-      rows.map((r) => ({
+      dolu.map((r) => ({
         cariId: cariAdMap.get(r.cariAd ?? "")?.id ?? "",
         miktar: Number(r.miktar),
         fiyat: r.fiyat,
@@ -1167,27 +1231,71 @@ function DagitModal({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Firmalara Dağıt — {malzemeAd}</DialogTitle>
-          <DialogDescription>
-            Toplam{" "}
-            <span className="font-medium text-foreground">
-              {satir.miktar.toLocaleString("tr-TR")} {satir.birim}
-            </span>{" "}
-            · dağıtılan {toplam.toLocaleString("tr-TR")} · kalan{" "}
-            <span
-              className={cn(
-                "font-medium",
-                Math.abs(kalan) < 1e-9
-                  ? "text-emerald-700"
-                  : kalan < 0
-                    ? "text-rose-600"
-                    : "text-amber-700",
-              )}
-            >
-              {kalan.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}{" "}
-              {satir.birim}
-            </span>
+          <DialogDescription className="sr-only">
+            {malzemeAd} için istenen miktarı firmalara bölün.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Dağıtım özeti: toplam / dağıtılan / kalan + ilerleme çubuğu */}
+        <div className="rounded-md border bg-muted/30 p-3">
+          {/* Kalan sütunu geniş: "Tamamı dağıtıldı" gibi durum metni sığsın. */}
+          <div className="grid grid-cols-[1fr_1fr_0.8fr_1.4fr] divide-x">
+            <DagitMetrik
+              etiket="İstenen"
+              deger={satir.miktar.toLocaleString("tr-TR")}
+              birim={satir.birim}
+            />
+            <DagitMetrik
+              etiket="Dağıtılan"
+              deger={toplam.toLocaleString("tr-TR", {
+                maximumFractionDigits: 2,
+              })}
+              birim={satir.birim}
+            />
+            <DagitMetrik
+              etiket="Firma"
+              deger={String(dolu.length)}
+              birim="firma"
+            />
+            {tam ? (
+              // Tamamlandı — sayı yerine durum metni.
+              <DagitMetrik etiket="Kalan" metin="Tamamı dağıtıldı" tone="emerald" />
+            ) : (
+              <DagitMetrik
+                etiket={asim ? "Aşım" : "Kalan"}
+                deger={Math.abs(kalan).toLocaleString("tr-TR", {
+                  maximumFractionDigits: 2,
+                })}
+                birim={satir.birim}
+                tone={asim ? "rose" : "amber"}
+              />
+            )}
+          </div>
+
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                tam
+                  ? "bg-emerald-500"
+                  : asim
+                    ? "bg-rose-500"
+                    : "bg-amber-500",
+              )}
+              style={{ width: `${oran * 100}%` }}
+            />
+          </div>
+
+          {toplamTutar > 0 && (
+            <div className="mt-2 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Dağıtılan tutar</span>
+              <span className="font-medium tabular-nums">
+                {formatTL(toplamTutar)}
+                {satir.doviz !== "TL" && ` ${satir.doviz}`}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-[1fr_110px_110px_32px] gap-2 px-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -1252,8 +1360,10 @@ function DagitModal({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Dağıtım, talep oluşturulunca bu malzeme için firma başına sipariş
-          olarak kaydedilir. Toplam istenen miktarı aşamaz.
+          Dağıtım, talepte firma başına ayrı satır olarak kaydedilir; sipariş
+          değildir. Sipariş, tedarik süreci başladıktan sonra talep detayından
+          verilir — firma ve miktar buradan hazır gelir. Toplam istenen miktarı
+          aşamaz.
         </p>
 
         <DialogFooter>
@@ -1261,7 +1371,7 @@ function DagitModal({
             Vazgeç
           </Button>
           <Button size="sm" disabled={!gecerli} onClick={uygula}>
-            <Split className="size-3.5" /> Dağıt ({rows.length} firma)
+            <Split className="size-3.5" /> Dağıt ({dolu.length} firma)
           </Button>
         </DialogFooter>
       </DialogContent>

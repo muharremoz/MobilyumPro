@@ -945,10 +945,13 @@ type TalepRow = Awaited<
     miktar: unknown;
     birim: string;
     tedarikEdilen: unknown;
+    cariId: string | null;
+    cariAd: string | null;
     tahminiFiyat: unknown;
     satirDurum: string;
     siparisler: {
       id: number;
+      siparisId: string | null;
       cariId: string;
       cariAd: string;
       miktar: unknown;
@@ -975,10 +978,13 @@ function mapTalep(
       s.tahminiFiyat != null
         ? Number(s.tahminiFiyat)
         : (fiyatlar.get(s.malzemeId)?.fiyat ?? 0),
-    ureticiCariId: fiyatlar.get(s.malzemeId)?.ureticiCariId,
+    // Sipariş verilirken önerilecek firma: talepte seçilen (dağıtım) öncelikli,
+    // yoksa malzeme kartındaki üretici.
+    ureticiCariId: s.cariId ?? fiyatlar.get(s.malzemeId)?.ureticiCariId,
     durum: s.satirDurum as import("../data").TalepSatirDurum,
     siparisler: s.siparisler.map((o) => ({
       id: o.id,
+      siparisId: o.siparisId ?? undefined,
       cariId: o.cariId,
       cariAd: o.cariAd,
       miktar: Number(o.miktar),
@@ -1054,6 +1060,44 @@ export async function getTalep(
     stokFiyatMap(),
   ]);
   return row ? mapTalep(row, fiyatlar) : null;
+}
+
+/** Tek sipariş belgesi — yazdırma/mail çıktısını besler. */
+export async function getSatinAlmaSiparis(
+  id: string,
+): Promise<import("../data").SatinAlmaSiparis | null> {
+  const row = await db.satinAlmaSiparis.findUnique({
+    where: { id },
+    include: { satirlar: { include: { satir: true } } },
+  });
+  if (!row) return null;
+  const kalemler = row.satirlar.map((o) => ({
+    malzemeId: o.satir.malzemeId,
+    malzemeAd: o.satir.malzemeAd,
+    birim: o.satir.birim,
+    miktar: Number(o.miktar),
+    fiyat: o.fiyat != null ? Number(o.fiyat) : undefined,
+    tedarikEdilen: Number(o.tedarikEdilen),
+  }));
+  // Durum satırların tedarik durumundan türetilir (belgede tutulmaz).
+  const gelen = kalemler.reduce((t, k) => t + k.tedarikEdilen, 0);
+  const istenen = kalemler.reduce((t, k) => t + k.miktar, 0);
+  const durum =
+    gelen >= istenen - 1e-9 ? "Kapandı" : gelen > 0 ? "Kısmi" : "Açık";
+  return {
+    id: row.id,
+    talepId: row.talepId,
+    cariId: row.cariId,
+    cariAd: row.cariAd,
+    tarih: tarihStr(row.tarih),
+    depo: row.depo ?? undefined,
+    notlar: row.notlar ?? undefined,
+    durum,
+    mailTarihi: row.mailTarihi ? row.mailTarihi.toISOString() : undefined,
+    olusturanAd: row.olusturanAd ?? undefined,
+    kalemler,
+    toplam: kalemler.reduce((t, k) => t + k.miktar * (k.fiyat ?? 0), 0),
+  };
 }
 
 /**
@@ -1204,8 +1248,16 @@ export async function getBekleyenSiparisler(): Promise<
       where: { satir: { talep: { durum: "Tedarik Sürecinde" } } },
       include: {
         satir: {
-          select: { id: true, talepId: true, malzemeId: true, malzemeAd: true, birim: true },
+          select: {
+            id: true,
+            talepId: true,
+            malzemeId: true,
+            malzemeAd: true,
+            birim: true,
+            talep: { select: { modeller: true, depo: true } },
+          },
         },
+        siparis: { select: { id: true, olusturanAd: true, notlar: true } },
       },
     }),
     db.stok.findMany({ select: { id: true, ad: true, stokBirimi: true } }),
@@ -1260,6 +1312,7 @@ export async function getBekleyenSiparisler(): Promise<
       talepId: o.satir.talepId,
       satirId: o.satir.id,
       siparisId: o.id,
+      belgeId: o.siparis?.id,
       malzemeId,
       malzemeAd: o.satir.malzemeAd,
       birim: o.satir.birim,
@@ -1278,6 +1331,10 @@ export async function getBekleyenSiparisler(): Promise<
       sonAlisTarih: sonAlisMap.has(malzemeId)
         ? tarihStr(sonAlisMap.get(malzemeId)!.tarih)
         : undefined,
+      modeller: o.satir.talep.modeller ?? undefined,
+      depo: o.satir.talep.depo ?? undefined,
+      olusturanAd: o.siparis?.olusturanAd ?? undefined,
+      notlar: o.siparis?.notlar ?? undefined,
     });
   }
   // Firma, sonra tahmini teslim (geciken önce).

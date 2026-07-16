@@ -252,3 +252,32 @@
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
+
+/* ── Yazdırma ───────────────────────────────────────────────────────────
+   .yazdir-alan işaretli kutu tek başına A4'e basılır; panel çerçevesi
+   (nav, başlık, butonlar) çıktıya girmez. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .yazdir-alan,
+  .yazdir-alan * {
+    visibility: visible;
+  }
+  .yazdir-alan {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    border: 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+  }
+  .yazdir-gizle {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}

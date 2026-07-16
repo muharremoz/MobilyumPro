@@ -2017,36 +2017,37 @@ export async function talepOlustur(
       ? await db.kullanici.findUnique({ where: { id: opts.kullaniciId } })
       : null;
 
-    // Aynı malzemenin birden çok satırı (farklı firma) → tek talep satırı +
-    // firma başına sipariş (talep hazırlığında dağıtım).
+    // Talep hazırlığındaki dağıtım SİPARİŞ DEĞİLDİR — yalnız firma önerisidir.
+    // Sipariş, tedarik süreci başladıktan sonra detay sheet'inden verilir.
+    // Bu yüzden aynı malzeme yalnız firma önerisi aynıysa tek satırda toplanır;
+    // farklı firmalara bölündüyse firma başına ayrı satır açılır ki dağıtım
+    // bilgisi (firma + miktar + fiyat) talepte korunsun.
     const grup = new Map<
       string,
       {
+        malzemeId: string;
         malzemeAd: string;
         birim: string;
         miktar: number;
         tahminiFiyat?: number;
-        siparisler: { cariId: string; cariAd: string; miktar: number; fiyat?: number }[];
+        cariId?: string;
+        cariAd?: string;
       }
     >();
     for (const kk of net) {
-      const g = grup.get(kk.malzemeId) ?? {
+      const anahtar = `${kk.malzemeId}|${kk.cariId ?? ""}`;
+      const g = grup.get(anahtar) ?? {
+        malzemeId: kk.malzemeId,
         malzemeAd: kk.malzemeAd,
         birim: kk.birim,
         miktar: 0,
         tahminiFiyat: kk.tahminiFiyat,
-        siparisler: [],
+        cariId: kk.cariId || undefined,
+        cariAd: kk.cariAd || undefined,
       };
       g.miktar += kk.miktar;
       g.tahminiFiyat = g.tahminiFiyat ?? kk.tahminiFiyat;
-      if (kk.cariId)
-        g.siparisler.push({
-          cariId: kk.cariId,
-          cariAd: kk.cariAd ?? "",
-          miktar: kk.miktar,
-          fiyat: kk.tahminiFiyat,
-        });
-      grup.set(kk.malzemeId, g);
+      grup.set(anahtar, g);
     }
     const tarih = tarihDate(bugunStr());
 
@@ -2060,23 +2061,17 @@ export async function talepOlustur(
         depo: opts?.depo ?? null,
         olusturanAd: k?.adSoyad ?? null,
         satirlar: {
-          create: [...grup.entries()].map(([malzemeId, g]) => ({
-            malzemeId,
+          create: [...grup.values()].map((g) => ({
+            malzemeId: g.malzemeId,
             malzemeAd: g.malzemeAd,
             miktar: g.miktar,
             birim: g.birim,
             tahminiFiyat: g.tahminiFiyat ?? null,
-            // Firma atanmışsa talep tedarik sürecine geçince sipariş sayılır.
-            satirDurum: g.siparisler.length > 0 ? "Sipariş Verildi" : "Bekliyor",
-            siparisler: {
-              create: g.siparisler.map((o) => ({
-                cariId: o.cariId,
-                cariAd: o.cariAd,
-                miktar: o.miktar,
-                fiyat: o.fiyat ?? null,
-                tarih,
-              })),
-            },
+            // Önerilen firma — sipariş verilirken hazır gelir, bağlayıcı değil.
+            cariId: g.cariId ?? null,
+            cariAd: g.cariAd ?? null,
+            // Sipariş yok: talep her zaman Bekliyor doğar.
+            satirDurum: "Bekliyor",
           })),
         },
       },
@@ -2172,193 +2167,118 @@ export async function talepBaslat(
   }
 }
 
-/**
- * Talep satırını firmalara DAĞIT — bir satır çok firmaya bölünebilir.
- * Gelen dağıtım listesi satırın siparişlerini günceller: mevcut firma varsa
- * miktar/fiyat güncellenir, yenisi eklenir, listede olmayan (ve hiç tedarik
- * edilmemiş) sipariş silinir. Tedarik edilmiş siparişler korunur.
- * Satır durumu tedarik ve sipariş varlığına göre yeniden hesaplanır.
- */
-/**
- * Talep satırına tek firma SİPARİŞ ekler (detay sheet — Tedarike Başla sonrası).
- * Bir satıra tekrar tekrar sipariş eklenerek çok firmaya bölünebilir; sipariş
- * miktarı, satırın henüz sipariş verilmemiş kalanını aşamaz.
- */
-export async function talepSiparisEkle(girdi: {
+/** Bir firmaya sipariş belgesi (SIP-####) oluşturur.
+ *  Kalemler aynı talebin satırlarıdır; her kalem o satırdan sipariş düşer.
+ *  Miktar satırın kalanını aşamaz — eksik verilen kısım satırda bekler
+ *  (kısmi sipariş), sonra aynı ya da başka firmaya verilebilir.
+ *  Stok ve cari etkilenmez; stok girişi fatura/mal kabulde olur. */
+export async function siparisOlustur(girdi: {
   talepId: string;
-  satirId: number;
   cariId: string;
   cariAd: string;
-  miktar: number;
-  fiyat?: number;
+  kalemler: { satirId: number; miktar: number; fiyat?: number }[];
+  notlar?: string;
   kullaniciId: string;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
   const yetki = await talepYetkiKontrol(girdi.kullaniciId, "baslat");
   if (!yetki.ok) return { ok: false, error: yetki.error };
   if (!girdi.cariId) return { ok: false, error: "Tedarikçi seçin." };
-  if (!(girdi.miktar > 0))
-    return { ok: false, error: "Sipariş miktarı 0'dan büyük olmalı." };
-  try {
-    const satir = await db.satinAlmaTalepSatiri.findUnique({
-      where: { id: girdi.satirId },
-      include: { talep: true, siparisler: true },
-    });
-    if (!satir || satir.talepId !== girdi.talepId)
-      return { ok: false, error: "Talep satırı bulunamadı." };
-    if (satir.talep.durum !== "Tedarik Sürecinde")
-      return { ok: false, error: "Talep tedarik sürecinde değil." };
-    const siparilen = satir.siparisler.reduce(
-      (t, o) => t + Number(o.miktar),
-      0,
-    );
-    const kalan = Number(satir.miktar) - siparilen;
-    if (girdi.miktar > kalan + 1e-9)
-      return {
-        ok: false,
-        error: `En fazla ${kalan.toLocaleString("tr-TR")} ${satir.birim} sipariş verilebilir (kalan).`,
-      };
-
-    await db.$transaction(async (tx) => {
-      // Aynı firmaya sipariş varsa miktarını arttır, yoksa yeni sipariş ekle.
-      const mevcut = satir.siparisler.find((o) => o.cariId === girdi.cariId);
-      if (mevcut) {
-        await tx.satinAlmaTalepSiparis.update({
-          where: { id: mevcut.id },
-          data: {
-            miktar: Number(mevcut.miktar) + girdi.miktar,
-            fiyat: girdi.fiyat ?? mevcut.fiyat,
-          },
-        });
-      } else {
-        await tx.satinAlmaTalepSiparis.create({
-          data: {
-            satirId: satir.id,
-            cariId: girdi.cariId,
-            cariAd: girdi.cariAd,
-            miktar: girdi.miktar,
-            fiyat: girdi.fiyat ?? null,
-            tarih: tarihDate(bugunStr()),
-          },
-        });
-      }
-      if (satir.satirDurum === "Bekliyor")
-        await tx.satinAlmaTalepSatiri.update({
-          where: { id: satir.id },
-          data: { satirDurum: "Sipariş Verildi" },
-        });
-    });
-    revalidatePath("/satin-alma/talepler");
-    revalidatePath("/satin-alma/siparisler");
-    return { ok: true };
-  } catch (e) {
-    console.error("talepSiparisEkle:", e);
-    return { ok: false, error: "Sipariş verilemedi." };
-  }
-}
-
-export async function talepDagit(girdi: {
-  talepId: string;
-  satirId: number;
-  dagitim: { cariId: string; cariAd: string; miktar: number; fiyat?: number }[];
-  kullaniciId: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const yetki = await talepYetkiKontrol(girdi.kullaniciId, "baslat");
-  if (!yetki.ok) return { ok: false, error: yetki.error };
-  const net = girdi.dagitim.filter((d) => d.cariId && d.miktar > 0);
+  const net = girdi.kalemler.filter((k) => k.miktar > 0);
   if (net.length === 0)
-    return { ok: false, error: "En az bir firma + miktar girin." };
-  // Aynı firma iki kez girilemez.
-  if (new Set(net.map((d) => d.cariId)).size !== net.length)
-    return { ok: false, error: "Aynı firma birden çok kez seçilemez." };
+    return { ok: false, error: "En az bir kalem ve miktar girin." };
   try {
-    const satir = await db.satinAlmaTalepSatiri.findUnique({
-      where: { id: girdi.satirId },
-      include: { talep: true, siparisler: true },
+    const talep = await db.satinAlmaTalep.findUnique({
+      where: { id: girdi.talepId },
+      include: { satirlar: { include: { siparisler: true } } },
     });
-    if (!satir || satir.talepId !== girdi.talepId)
-      return { ok: false, error: "Talep satırı bulunamadı." };
-    if (satir.talep.durum !== "Tedarik Sürecinde")
+    if (!talep) return { ok: false, error: "Talep bulunamadı." };
+    if (talep.durum !== "Tedarik Sürecinde")
       return { ok: false, error: "Talep tedarik sürecinde değil." };
 
-    const toplam = net.reduce((t, d) => t + d.miktar, 0);
-    if (toplam > Number(satir.miktar) + 1e-9)
-      return {
-        ok: false,
-        error: `Dağıtım toplamı istenen ${Number(satir.miktar).toLocaleString("tr-TR")} miktarını aşamaz.`,
-      };
-    // Her firmanın dağıtımı, o firmaya gelen tedariğin altına düşemez.
-    for (const d of net) {
-      const mevcut = satir.siparisler.find((o) => o.cariId === d.cariId);
-      if (mevcut && d.miktar < Number(mevcut.tedarikEdilen) - 1e-9)
+    // Her kalem: satır var mı + kalan sipariş miktarını aşmıyor mu?
+    for (const k of net) {
+      const satir = talep.satirlar.find((s) => s.id === k.satirId);
+      if (!satir) return { ok: false, error: "Talep satırı bulunamadı." };
+      const siparilen = satir.siparisler.reduce(
+        (t, o) => t + Number(o.miktar),
+        0,
+      );
+      const kalan = Number(satir.miktar) - siparilen;
+      if (k.miktar > kalan + 1e-9)
         return {
           ok: false,
-          error: `${d.cariAd} için miktar, gelen ${Number(mevcut.tedarikEdilen)} altına düşürülemez.`,
+          error: `${satir.malzemeAd}: en fazla ${kalan.toLocaleString("tr-TR")} ${satir.birim} sipariş verilebilir.`,
         };
     }
 
+    const mevcut = await db.satinAlmaSiparis.findMany({ select: { id: true } });
+    let maxNo = 1000;
+    for (const r of mevcut) {
+      const m = /^SIP-(\d+)$/.exec(r.id);
+      if (m) maxNo = Math.max(maxNo, Number(m[1]));
+    }
+    const id = `SIP-${maxNo + 1}`;
+    const k = girdi.kullaniciId
+      ? await db.kullanici.findUnique({ where: { id: girdi.kullaniciId } })
+      : null;
     const tarih = tarihDate(bugunStr());
-    await db.$transaction(async (tx) => {
-      const kalanIds = new Set<number>();
-      for (const d of net) {
-        const mevcut = satir.siparisler.find((o) => o.cariId === d.cariId);
-        if (mevcut) {
-          await tx.satinAlmaTalepSiparis.update({
-            where: { id: mevcut.id },
-            data: { miktar: d.miktar, fiyat: d.fiyat ?? null, cariAd: d.cariAd },
-          });
-          kalanIds.add(mevcut.id);
-        } else {
-          const yeni = await tx.satinAlmaTalepSiparis.create({
-            data: {
-              satirId: satir.id,
-              cariId: d.cariId,
-              cariAd: d.cariAd,
-              miktar: d.miktar,
-              fiyat: d.fiyat ?? null,
-              tarih,
-            },
-          });
-          kalanIds.add(yeni.id);
-        }
-      }
-      // Listede olmayan ve hiç tedarik edilmemiş siparişleri sil.
-      const silinecek = satir.siparisler.filter(
-        (o) => !kalanIds.has(o.id) && Number(o.tedarikEdilen) <= 1e-9,
-      );
-      if (silinecek.length)
-        await tx.satinAlmaTalepSiparis.deleteMany({
-          where: { id: { in: silinecek.map((o) => o.id) } },
-        });
 
-      // Satır durumunu yeniden hesapla.
-      const guncel = await tx.satinAlmaTalepSiparis.findMany({
-        where: { satirId: satir.id },
+    await db.$transaction(async (tx) => {
+      await tx.satinAlmaSiparis.create({
+        data: {
+          id,
+          talepId: talep.id,
+          cariId: girdi.cariId,
+          cariAd: girdi.cariAd,
+          tarih,
+          depo: talep.depo,
+          notlar: girdi.notlar ?? null,
+          olusturanAd: k?.adSoyad ?? null,
+          satirlar: {
+            create: net.map((kk) => ({
+              satirId: kk.satirId,
+              cariId: girdi.cariId,
+              cariAd: girdi.cariAd,
+              miktar: kk.miktar,
+              fiyat: kk.fiyat ?? null,
+              tarih,
+            })),
+          },
+        },
       });
-      const toplamGelen = guncel.reduce(
-        (t, o) => t + Number(o.tedarikEdilen),
-        0,
-      );
-      const durum =
-        toplamGelen >= Number(satir.miktar) - 1e-9
-          ? "Tedarik Edildi"
-          : toplamGelen > 0
-            ? "Kısmi"
-            : guncel.length > 0
-              ? "Sipariş Verildi"
-              : "Bekliyor";
-      await tx.satinAlmaTalepSatiri.update({
-        where: { id: satir.id },
-        data: { satirDurum: durum, tedarikEdilen: toplamGelen },
+      // Sipariş verilen satırlar Bekliyor'dan çıkar.
+      await tx.satinAlmaTalepSatiri.updateMany({
+        where: { id: { in: net.map((kk) => kk.satirId) }, satirDurum: "Bekliyor" },
+        data: { satirDurum: "Sipariş Verildi" },
       });
     });
     revalidatePath("/satin-alma/talepler");
     revalidatePath("/satin-alma/siparisler");
-    return { ok: true };
+    return { ok: true, id };
   } catch (e) {
-    console.error("talepDagit:", e);
-    return { ok: false, error: "Dağıtım kaydedilemedi." };
+    console.error("siparisOlustur:", e);
+    return { ok: false, error: "Sipariş oluşturulamadı." };
   }
 }
+
+/** Siparişin tedarikçiye mail atıldığını işaretler.
+ *  TODO: mail altyapısı gelince gerçek gönderim buradan tetiklenecek. */
+export async function siparisMailIsaretle(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await db.satinAlmaSiparis.update({
+      where: { id },
+      data: { mailTarihi: new Date() },
+    });
+    revalidatePath("/satin-alma/talepler");
+    return { ok: true };
+  } catch (e) {
+    console.error("siparisMailIsaretle:", e);
+    return { ok: false, error: "İşaretlenemedi." };
+  }
+}
+
 
 /** Talebi siler (tedarik süreci başlamış / tamamlanmış talep silinemez). */
 export async function talepSil(

@@ -2,11 +2,19 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Receipt } from "lucide-react";
+import { AlertTriangle, Info, Receipt } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ListHeader } from "@/components/ui/list-header";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
@@ -33,6 +41,8 @@ export function SiparisListe({
   siparisler: BekleyenSiparis[];
 }) {
   const router = useRouter();
+  // Bilgi modalında gösterilen sipariş.
+  const [bilgi, setBilgi] = React.useState<BekleyenSiparis | null>(null);
   const [malzemeF, setMalzemeF] = React.useState("");
   const [firmaF, setFirmaF] = React.useState("Tümü");
   const [durumF, setDurumF] = React.useState("Tümü");
@@ -246,16 +256,29 @@ export function SiparisListe({
                     {s.sonAlisTarih ? formatTarih(s.sonAlisTarih) : "—"}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        router.push(`/satin-alma/yeni?siparisFirma=${s.cariId}`)
-                      }
-                      title={`${s.cariAd} faturası gir`}
-                    >
-                      <Receipt className="size-3.5" /> Fatura
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          router.push(
+                            `/satin-alma/yeni?siparisFirma=${s.cariId}`,
+                          )
+                        }
+                        title={`${s.cariAd} faturası gir`}
+                      >
+                        <Receipt className="size-3.5" /> Fatura
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        onClick={() => setBilgi(s)}
+                        title="Sipariş bilgileri"
+                      >
+                        <Info className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -266,6 +289,165 @@ export function SiparisListe({
       <span className="text-sm text-muted-foreground">
         {filtreli.length} bekleyen sipariş
       </span>
+
+      <BilgiDialog
+        siparis={bilgi}
+        onKapat={() => setBilgi(null)}
+        onFatura={(cariId) =>
+          router.push(`/satin-alma/yeni?siparisFirma=${cariId}`)
+        }
+        onBelge={(id) => router.push(`/satin-alma/siparis/${id}`)}
+      />
     </div>
+  );
+}
+
+/** Özet satırı: etiket solda, değer sağda. */
+function Satir({
+  etiket,
+  children,
+}: {
+  etiket: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <span className="shrink-0 text-xs text-muted-foreground">{etiket}</span>
+      <span className="min-w-0 text-right text-sm font-medium">{children}</span>
+    </div>
+  );
+}
+
+/** Bekleyen siparişin tüm künyesi: hangi talep/model için, hangi belgeyle,
+ *  ne kadarı geldi, teslim ne zaman bekleniyor ve son alışla kıyası. */
+function BilgiDialog({
+  siparis: s,
+  onKapat,
+  onFatura,
+  onBelge,
+}: {
+  siparis: BekleyenSiparis | null;
+  onKapat: () => void;
+  onFatura: (cariId: string) => void;
+  onBelge: (belgeId: string) => void;
+}) {
+  if (!s) return null;
+  const tutar = s.siparisFiyat != null ? s.siparisMiktar * s.siparisFiyat : null;
+  // Sipariş fiyatının son alışa göre farkı (referans).
+  const fark =
+    s.siparisFiyat != null && s.sonAlisFiyat
+      ? (s.siparisFiyat - s.sonAlisFiyat) / s.sonAlisFiyat
+      : null;
+  const miktar = (n: number) =>
+    `${n.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${s.birim}`;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onKapat()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{s.malzemeAd}</DialogTitle>
+          <DialogDescription>
+            {s.cariAd} · {formatTarih(s.siparisTarihi)} tarihli sipariş
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="divide-y">
+          <div>
+            <Satir etiket="Sipariş belgesi">
+              {s.belgeId ? (
+                <button
+                  type="button"
+                  onClick={() => onBelge(s.belgeId!)}
+                  className="cursor-pointer font-mono underline-offset-2 hover:underline"
+                >
+                  {s.belgeId}
+                </button>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </Satir>
+            <Satir etiket="Talep">
+              <span className="font-mono">{s.talepId}</span>
+            </Satir>
+            {s.modeller && <Satir etiket="Model">{s.modeller}</Satir>}
+            {s.depo && <Satir etiket="Teslim yeri">{s.depo}</Satir>}
+            {s.olusturanAd && (
+              <Satir etiket="Sipariş veren">{s.olusturanAd}</Satir>
+            )}
+          </div>
+
+          <div>
+            <Satir etiket="Sipariş miktarı">{miktar(s.siparisMiktar)}</Satir>
+            <Satir etiket="Gelen">
+              <span className="text-muted-foreground">
+                {miktar(s.tedarikEdilen)}
+              </span>
+            </Satir>
+            <Satir etiket="Bekleyen">
+              <span className="text-amber-700">{miktar(s.kalan)}</span>
+            </Satir>
+            <Satir etiket="Birim fiyat">
+              {s.siparisFiyat != null ? formatTL(s.siparisFiyat) : "—"}
+            </Satir>
+            {tutar != null && <Satir etiket="Tutar">{formatTL(tutar)}</Satir>}
+          </div>
+
+          <div>
+            <Satir etiket="Tahmini teslim">
+              {s.tahminiTeslim ? (
+                <span className={cn(s.gecikti && "text-rose-600")}>
+                  {formatTarih(s.tahminiTeslim)}
+                  {s.gecikti && " · gecikti"}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  şartlarda tedarik süresi yok
+                </span>
+              )}
+            </Satir>
+            <Satir etiket="Son alış">
+              {s.sonAlisFiyat != null ? (
+                <>
+                  {formatTL(s.sonAlisFiyat)}
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    {s.sonAlisCariAd}
+                    {s.sonAlisTarih && ` · ${formatTarih(s.sonAlisTarih)}`}
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">kayıt yok</span>
+              )}
+            </Satir>
+            {fark != null && Math.abs(fark) >= 0.005 && (
+              <Satir etiket="Son alışa göre">
+                <span className={fark > 0 ? "text-rose-600" : "text-emerald-600"}>
+                  %
+                  {Math.abs(fark * 100).toLocaleString("tr-TR", {
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  {fark > 0 ? "yüksek" : "düşük"}
+                </span>
+              </Satir>
+            )}
+          </div>
+
+          {s.notlar && (
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground">Sipariş notu</p>
+              <p className="mt-1 text-sm whitespace-pre-wrap">{s.notlar}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" variant="outline" onClick={onKapat}>
+            Kapat
+          </Button>
+          <Button size="sm" onClick={() => onFatura(s.cariId)}>
+            <Receipt className="size-3.5" /> Fatura Gir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
