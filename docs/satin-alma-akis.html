@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satın Alma Modülü — Aşamalar</title>
+</head>
+<body>
+<title>Satın Alma Modülü — Aşamalar</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --card-2: #fbfcfe;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --faint: #8a97ab;
+    --line: #e6e8ee;
+    --line-strong: #d3d8e2;
+    --accent: #2563eb;
+    --accent-ink: #1d4ed8;
+    --accent-soft: #eef3ff;
+    /* durum rozetleri (uygulamayla birebir) */
+    --amber-bg:#fef3c7; --amber-ink:#b45309;
+    --blue-bg:#dbeafe;  --blue-ink:#1d4ed8;
+    --violet-bg:#ede9fe;--violet-ink:#6d28d9;
+    --emerald-bg:#d1fae5;--emerald-ink:#047857;
+    --rose-bg:#ffe4e6;  --rose-ink:#be123c;
+    --slate-bg:#eef1f6; --slate-ink:#475569;
+    /* rol noktaları */
+    --role-admin:#4f46e5;
+    --role-buyer:#0d9488;
+    --role-auto:#64748b;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -16px rgba(15,23,42,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0b1020; --card:#121a2e; --card-2:#0f1728;
+      --ink:#e8edf6; --muted:#9aa8c0; --faint:#7181a0;
+      --line:#233049; --line-strong:#2c3b58;
+      --accent:#5b8cff; --accent-ink:#9db8ff; --accent-soft:#16233f;
+      --amber-bg:#3a2c0c; --amber-ink:#fbbf24;
+      --blue-bg:#152647; --blue-ink:#93c0ff;
+      --violet-bg:#2a1a52; --violet-ink:#c4b5fd;
+      --emerald-bg:#06301f; --emerald-ink:#6ee7b7;
+      --rose-bg:#3e1220; --rose-ink:#fda4af;
+      --slate-bg:#1c2740; --slate-ink:#c2cddf;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -18px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg:#f7f8fa; --card:#ffffff; --card-2:#fbfcfe; --ink:#0f172a; --muted:#64748b; --faint:#8a97ab;
+    --line:#e6e8ee; --line-strong:#d3d8e2; --accent:#2563eb; --accent-ink:#1d4ed8; --accent-soft:#eef3ff;
+    --amber-bg:#fef3c7;--amber-ink:#b45309;--blue-bg:#dbeafe;--blue-ink:#1d4ed8;--violet-bg:#ede9fe;--violet-ink:#6d28d9;
+    --emerald-bg:#d1fae5;--emerald-ink:#047857;--rose-bg:#ffe4e6;--rose-ink:#be123c;--slate-bg:#eef1f6;--slate-ink:#475569;
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -16px rgba(15,23,42,.18);
+  }
+  :root[data-theme="dark"] {
+    --bg:#0b1020; --card:#121a2e; --card-2:#0f1728; --ink:#e8edf6; --muted:#9aa8c0; --faint:#7181a0;
+    --line:#233049; --line-strong:#2c3b58; --accent:#5b8cff; --accent-ink:#9db8ff; --accent-soft:#16233f;
+    --amber-bg:#3a2c0c;--amber-ink:#fbbf24;--blue-bg:#152647;--blue-ink:#93c0ff;--violet-bg:#2a1a52;--violet-ink:#c4b5fd;
+    --emerald-bg:#06301f;--emerald-ink:#6ee7b7;--rose-bg:#3e1220;--rose-ink:#fda4af;--slate-bg:#1c2740;--slate-ink:#c2cddf;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 22px 72px; }
+  code, .mono { font-family: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace; font-size: .82em; }
+
+  /* ---- header ---- */
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); }
+  h1 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -.02em; margin: 8px 0 6px; text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 15.5px; max-width: 64ch; margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+  /* ---- section ---- */
+  section { margin-top: 40px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .sec-head h2 { font-size: 17px; font-weight: 750; letter-spacing: -.01em; margin: 0; }
+  .sec-head .kicker { font-size: 12px; font-weight: 700; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+  .sec-head::after { content:""; flex:1; height:1px; background: var(--line); align-self:center; }
+
+  /* ---- stepper ---- */
+  .stepper-scroll { overflow-x: auto; padding-bottom: 6px; margin: 0 -4px; }
+  .stepper { display: flex; align-items: stretch; gap: 0; min-width: min-content; padding: 2px 4px; }
+  .stage { position: relative; flex: 0 0 224px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 15px 15px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+  .stage .top { display: flex; align-items: center; gap: 9px; }
+  .stage .num { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 800; background: var(--accent-soft); color: var(--accent-ink); }
+  .stage h3 { font-size: 14.5px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .stage .note { font-size: 12.7px; color: var(--muted); margin: 0; }
+  .stage .meta { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
+  .connector { flex: 0 0 34px; align-self: center; display: grid; place-items: center; color: var(--line-strong); }
+  .connector svg { width: 26px; height: 26px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 12px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .pill.amber{background:var(--amber-bg);color:var(--amber-ink);} .pill.blue{background:var(--blue-bg);color:var(--blue-ink);}
+  .pill.violet{background:var(--violet-bg);color:var(--violet-ink);} .pill.emerald{background:var(--emerald-bg);color:var(--emerald-ink);}
+  .pill.rose{background:var(--rose-bg);color:var(--rose-ink);} .pill.slate{background:var(--slate-bg);color:var(--slate-ink);}
+
+  .role { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 650; color: var(--muted); }
+  .role .rd { width: 7px; height: 7px; border-radius: 50%; }
+  .rd.admin{background:var(--role-admin);} .rd.buyer{background:var(--role-buyer);} .rd.auto{background:var(--role-auto);}
+  .trig { font-size: 11.5px; color: var(--faint); }
+  .trig code { color: var(--accent-ink); background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; }
+
+  /* reddedildi branch */
+  .branch { margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    border: 1px dashed var(--rose-ink); background: color-mix(in srgb, var(--rose-bg) 55%, transparent);
+    border-radius: 12px; padding: 11px 14px; }
+  .branch .b-ico { color: var(--rose-ink); display: grid; place-items: center; }
+  .branch p { margin: 0; font-size: 13px; color: var(--ink); }
+  .branch p b { color: var(--rose-ink); }
+
+  /* ---- operation loop ---- */
+  .loop { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; }
+  .op { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 16px 17px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 11px; }
+  .op h3 { margin: 0; font-size: 15px; font-weight: 720; display: flex; align-items: center; gap: 8px; }
+  .op h3 .g { color: var(--accent); display: grid; place-items: center; }
+  .op ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .op li { position: relative; padding-left: 16px; font-size: 13px; color: var(--muted); }
+  .op li::before { content:""; position:absolute; left:2px; top:8px; width:5px; height:5px; border-radius:50%; background: var(--accent); opacity:.65; }
+  .op li b { color: var(--ink); font-weight: 650; }
+  .op .fx { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .tag { font-size: 11px; font-weight: 650; padding: 3px 8px; border-radius: 7px; background: var(--card-2);
+    border: 1px solid var(--line-strong); color: var(--muted); }
+  .loop .cycle { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--accent); }
+  .loop .cycle span { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--faint); text-transform: uppercase; text-align:center; }
+
+  /* satır durumu flow */
+  .rowflow { margin-top: 18px; background: var(--card-2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .rowflow .rf-label { font-size: 12px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .rowflow .rf-line { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .rowflow .arrow { color: var(--line-strong); display: grid; place-items: center; }
+  .rowflow .arrow svg { width: 20px; height: 20px; }
+
+  /* ---- support cards ---- */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .sc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 8px; }
+  .sc h3 { margin: 0; font-size: 14.5px; font-weight: 720; }
+  .sc .sub { font-size: 11.5px; color: var(--accent-ink); font-weight: 650; }
+  .sc p { margin: 0; font-size: 13px; color: var(--muted); }
+  .sc .kv { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+
+  /* ---- legend ---- */
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted); }
+  .legend .lg { display: inline-flex; align-items: center; gap: 7px; }
+
+  .foot { margin-top: 30px; font-size: 12px; color: var(--faint); }
+
+  @media (max-width: 820px) {
+    .loop { grid-template-columns: 1fr; }
+    .loop .cycle { flex-direction: row; }
+    .grid3 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">MobilyumPro · Satın Alma</div>
+    <h1>Satın Alma Modülü — Aşamalar</h1>
+    <p class="lede">Üretim planındaki eksik malzemeden başlayıp mal kabulle stoğa girişe kadar; talebin onaydan tedarik sürecine, oradan firmalara sipariş ve faturayla eşleşen mal kabule uzanan yaşam döngüsü.</p>
+    <div class="chips">
+      <span class="chip"><span class="dot"></span>Satın Alma Talepleri</span>
+      <span class="chip"><span class="dot"></span>Bekleyen Siparişler</span>
+      <span class="chip"><span class="dot"></span>Satın Alma Şartları</span>
+      <span class="chip"><span class="dot"></span>Satın Alma (Alış)</span>
+    </div>
+  </header>
+
+  <!-- ============ ANA YAŞAM DÖNGÜSÜ ============ -->
+  <section>
+    <div class="sec-head"><span class="kicker">01</span><h2>Talep Yaşam Döngüsü</h2></div>
+    <div class="stepper-scroll">
+      <div class="stepper">
+
+        <div class="stage">
+          <div class="top"><span class="num">1</span><h3>Talep Oluştur</h3></div>
+          <span class="pill amber">Beklemede</span>
+          <p class="note">Üretim planındaki eksik malzeme (ya da elle) talebe dönüşür. Stoku henüz etkilemez.</p>
+          <div class="meta">
+            <span class="role"><span class="rd buyer"></span>Planlama / Kullanıcı</span>
+            <span class="trig">Tetik: <code>talepOlustur</code></span>
+          </div>
+        </div>
+
+        <div class="connector" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+
+        <div class="stage">
+          <div class="top"><span class="num">2</span><h3>Onay</h3></div>
+          <span class="pill blue">Onaylandı</span>
+          <p class="note">Yönetici talebi onaylar; audit'e onaylayan + tarih düşer. Reddedilirse süreç kapanır.</p>
+          <div class="meta">
+            <span class="role"><span class="rd admin"></span>Yönetici</span>
+            <span class="trig">Tetik: <code>talepOnayla</code></span>
+          </div>
+        </div>
+
+        <div class="connector" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+
+        <div class="stage">
+          <div class="top"><span class="num">3</span><h3>Tedarike Başla</h3></div>
+          <span class="pill violet">Tedarik Sürecinde</span>
+          <p class="note">Satın Alma departmanı süreci başlatır; artık firmalara sipariş ve mal kabul yapılabilir.</p>
+          <div class="meta">
+            <span class="role"><span class="rd buyer"></span>Satın Alma Dept.</span>
+            <span class="trig">Tetik: <code>talepBaslat</code></span>
+          </div>
+        </div>
+
+        <div class="connector" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+
+        <div class="stage">
+          <div class="top"><span class="num">4</span><h3>Tamamlandı</h3></div>
+          <span class="pill emerald">Tamamlandı</span>
+          <p class="note">Tüm satırlar tam tedarik edilince talep otomatik kapanır; son alış fişi talebe bağlanır.</p>
+          <div class="meta">
+            <span class="role"><span class="rd auto"></span>Otomatik</span>
+            <span class="trig">Tetik: mal kabul eşleşmesi</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="branch">
+      <span class="b-ico" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </span>
+      <p>2. adımda <b>Reddedildi</b> dalı: yönetici <code class="mono">talepReddet</code> ile talebi kapatır (red nedeni yazılır). Bu bir bitiş durumudur — tedarik başlamaz.</p>
+    </div>
+  </section>
+
+  <!-- ============ TEDARİK SÜRECİNDE ============ -->
+  <section>
+    <div class="sec-head"><span class="kicker">02</span><h2>“Tedarik Sürecinde” — Operasyon Döngüsü</h2></div>
+    <div class="loop">
+
+      <div class="op">
+        <h3><span class="g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 6v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6M9 10h6"/></svg></span>Sipariş / Dağıtım</h3>
+        <ul>
+          <li>Talep satırı bir ya da <b>birden çok firmaya</b> bölünerek sipariş edilir.</li>
+          <li><b>Satın Alma Şartları</b>'ndan firmanın fiyatı, dövizi ve tedarik süresi önerilir.</li>
+          <li>Verilen sipariş <b>Bekleyen Siparişler</b> ekranında toplanır.</li>
+        </ul>
+        <div class="fx">
+          <span class="tag mono">talepSiparisEkle</span>
+          <span class="tag mono">talepDagit</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:2px;">
+          <span class="pill slate">Bekliyor</span>
+          <span class="arrow" style="color:var(--line-strong)" aria-hidden="true">→</span>
+          <span class="pill blue">Sipariş Verildi</span>
+        </div>
+      </div>
+
+      <div class="cycle" aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+        <span>Kalan bitene<br>kadar tekrar</span>
+      </div>
+
+      <div class="op">
+        <h3><span class="g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.3 9 5.2v9L7.5 13.3zM16.5 9.5 21 6.9M3 6.9l4.5 2.6M12 22V12M3 6.9v10.2l9 5 9-5V6.9l-9-5z"/></svg></span>Mal Kabul (Alış)</h3>
+        <ul>
+          <li>Alış fişi (<span class="mono">ALS-####</span>) kesilir: <b>stok girişi</b> + <b>tedarikçiye cari borç</b>.</li>
+          <li><b>FIFO</b> ile açık siparişlere otomatik eşleşir (malzeme + firma).</li>
+          <li>Satır kısmen ya da tam kapanır; tümü kapanınca talep tamamlanır.</li>
+        </ul>
+        <div class="fx">
+          <span class="tag mono">alisKaydet</span>
+          <span class="tag mono">talepOtoEslesme</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:2px;">
+          <span class="pill blue">Sipariş Verildi</span>
+          <span class="arrow" style="color:var(--line-strong)" aria-hidden="true">→</span>
+          <span class="pill amber">Kısmi</span>
+          <span class="arrow" style="color:var(--line-strong)" aria-hidden="true">→</span>
+          <span class="pill emerald">Tedarik Edildi</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="rowflow">
+      <div class="rf-label">Satır durumu — bir talep kaleminin ilerleyişi</div>
+      <div class="rf-line">
+        <span class="pill slate">Bekliyor</span>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="pill blue">Sipariş Verildi</span>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="pill amber">Kısmi</span>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="pill emerald">Tedarik Edildi</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DESTEK KAVRAMLAR ============ -->
+  <section>
+    <div class="sec-head"><span class="kicker">03</span><h2>Bağlı Kayıtlar &amp; Ekranlar</h2></div>
+    <div class="grid3">
+
+      <div class="sc">
+        <h3>Satın Alma Şartları</h3>
+        <span class="sub">Firma × malzeme anlaşması</span>
+        <p>Tedarikçiyle önceden anlaşılan koşullar; sipariş ve mal kabulde fiyat ile tahmini teslimi besler.</p>
+        <div class="kv">
+          <span class="tag">Fiyat</span><span class="tag">Döviz</span><span class="tag">Tedarik süresi</span><span class="tag">Min. sipariş</span>
+        </div>
+      </div>
+
+      <div class="sc">
+        <h3>Bekleyen Siparişler</h3>
+        <span class="sub">Talepler arası açık siparişler</span>
+        <p>Sipariş verilmiş ama tam tedarik edilmemiş kalemlerin birleşik görünümü; gelen / kalan ve gecikme takibi.</p>
+        <div class="kv">
+          <span class="tag">Kalan miktar</span><span class="tag">Tahmini teslim</span><span class="tag mono" style="color:var(--rose-ink)">Gecikti</span>
+        </div>
+      </div>
+
+      <div class="sc">
+        <h3>Satın Alma (Alış)</h3>
+        <span class="sub">Mal kabul fişleri</span>
+        <p>Her mal kabul bir alış fişi üretir; stok hareketi (Giriş) ve tedarikçi cari Alacak işlemi tek transaction'da.</p>
+        <div class="kv">
+          <span class="tag">Stok girişi</span><span class="tag">Cari borç</span><span class="tag mono">ALS-####</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <span class="lg"><span class="rd admin" style="width:9px;height:9px;border-radius:50%"></span>Yönetici — onay / red</span>
+      <span class="lg"><span class="rd buyer" style="width:9px;height:9px;border-radius:50%"></span>Satın Alma Dept. — başlat · sipariş / dağıtım · mal kabul</span>
+      <span class="lg"><span class="rd auto" style="width:9px;height:9px;border-radius:50%"></span>Otomatik — FIFO eşleşme · tamamlanma</span>
+    </div>
+
+    <p class="foot">Durum renkleri uygulamadaki rozetlerle birebir. Roller şimdilik stub kullanıcıdan çözülüyor (oturum altyapısı gelince gerçek kimliğe bağlanacak).</p>
+  </section>
+</div>
+
+</body>
+</html>
