@@ -421,6 +421,8 @@ export type StokKarti = {
   ureticiCariId?: string;
   ureticiKodu?: string;
   bolum?: string;
+  /** Dekor/renk adı (Tanımlamalar → Renkler; malzemenin cinsine göre süzülür). */
+  renk?: string;
   renkKodu?: string;
   barkod?: string;
   aciklama?: string;

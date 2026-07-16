@@ -143,24 +143,43 @@ const GRUP_RENK: Record<StokGrubu, string> = {
 
 /** Sınıflama'daki DB destekli comboboxlar (tanim tablosundan; "yeni ekle"). */
 type TanimAlan =
-  | "cins"
-  | "tip"
-  | "marka"
-  | "model"
-  | "bolum"
-  | "renkKodu"
-  | "birim";
+  "cins" | "tip" | "marka" | "model" | "bolum" | "renkKodu" | "birim";
 const TANIM_ALAN: Record<
   TanimAlan,
   { tip: TanimTip; formKey: keyof Form; etiket: string; ornek: string }
 > = {
   cins: { tip: "cins", formKey: "cins", etiket: "Cins", ornek: "Örn. Masa" },
   tip: { tip: "tip", formKey: "grup", etiket: "Tip", ornek: "Örn. Ticari Mal" },
-  marka: { tip: "marka", formKey: "marka", etiket: "Marka", ornek: "Örn. Bellona" },
-  model: { tip: "model", formKey: "model", etiket: "Model", ornek: "Örn. 2026 Serisi" },
-  bolum: { tip: "bolum", formKey: "bolum", etiket: "Bölüm", ornek: "Örn. Döşeme" },
-  renkKodu: { tip: "renkKodu", formKey: "renkKodu", etiket: "Renk Kodu", ornek: "Örn. RAL 9010" },
-  birim: { tip: "birim", formKey: "stokBirimi", etiket: "Stok Birimi", ornek: "Örn. adet" },
+  marka: {
+    tip: "marka",
+    formKey: "marka",
+    etiket: "Marka",
+    ornek: "Örn. Bellona",
+  },
+  model: {
+    tip: "model",
+    formKey: "model",
+    etiket: "Model",
+    ornek: "Örn. 2026 Serisi",
+  },
+  bolum: {
+    tip: "bolum",
+    formKey: "bolum",
+    etiket: "Bölüm",
+    ornek: "Örn. Döşeme",
+  },
+  renkKodu: {
+    tip: "renkKodu",
+    formKey: "renkKodu",
+    etiket: "Renk Kodu",
+    ornek: "Örn. RAL 9010",
+  },
+  birim: {
+    tip: "birim",
+    formKey: "stokBirimi",
+    etiket: "Stok Birimi",
+    ornek: "Örn. adet",
+  },
 };
 
 /** Üst şerit için gruba göre yumuşak gradient arka planı. */
@@ -177,12 +196,28 @@ function stokDurumu(
 ): { etiket: string; renk: string; bar: string } | null {
   if (kart.grup === "Hizmet") return null;
   if (kart.miktar <= 0)
-    return { etiket: "Tükendi", renk: "bg-rose-100 text-rose-700", bar: "bg-rose-500" };
+    return {
+      etiket: "Tükendi",
+      renk: "bg-rose-100 text-rose-700",
+      bar: "bg-rose-500",
+    };
   if (kart.minStok != null && kart.miktar <= kart.minStok)
-    return { etiket: "Kritik Stok", renk: "bg-amber-100 text-amber-700", bar: "bg-amber-500" };
+    return {
+      etiket: "Kritik Stok",
+      renk: "bg-amber-100 text-amber-700",
+      bar: "bg-amber-500",
+    };
   if (kart.maxStok != null && kart.miktar >= kart.maxStok)
-    return { etiket: "Fazla Stok", renk: "bg-sky-100 text-sky-700", bar: "bg-sky-500" };
-  return { etiket: "Normal", renk: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" };
+    return {
+      etiket: "Fazla Stok",
+      renk: "bg-sky-100 text-sky-700",
+      bar: "bg-sky-500",
+    };
+  return {
+    etiket: "Normal",
+    renk: "bg-emerald-100 text-emerald-700",
+    bar: "bg-emerald-500",
+  };
 }
 
 // Varsayılan prop'lar MODÜL sabiti olmalı: inline `= []` / `?? []` her
@@ -201,6 +236,7 @@ const BOS_MARKALAR: string[] = [];
 const BOS_MODELLER: string[] = [];
 const BOS_BOLUMLER: string[] = [];
 const BOS_RENK_KODLARI: string[] = [];
+const BOS_RENKLER: { ad: string; cinsler?: string[] }[] = [];
 const BOS_BIRIMLER: string[] = [];
 const BOS_PARCALAR: Parca[] = [];
 const BOS_MALZEMELER: Malzeme[] = [];
@@ -234,6 +270,7 @@ type Form = {
   ureticiCariId: string;
   ureticiKodu: string;
   bolum: string;
+  renk: string;
   renkKodu: string;
   barkod: string;
   aciklama: string;
@@ -278,6 +315,7 @@ const bos: Form = {
   ureticiCariId: "",
   ureticiKodu: "",
   bolum: "",
+  renk: "",
   renkKodu: "",
   barkod: "",
   aciklama: "",
@@ -343,6 +381,7 @@ function formToKart(form: Form): Omit<StokKarti, "miktar"> {
     ureticiCariId: t(form.ureticiCariId),
     ureticiKodu: t(form.ureticiKodu),
     bolum: t(form.bolum),
+    renk: t(form.renk),
     renkKodu: t(form.renkKodu),
     barkod: t(form.barkod),
     aciklama: t(form.aciklama),
@@ -374,6 +413,7 @@ export function StokKartForm({
   modeller = BOS_MODELLER,
   bolumler = BOS_BOLUMLER,
   renkKodlari = BOS_RENK_KODLARI,
+  renkler = BOS_RENKLER,
   birimler = BOS_BIRIMLER,
   parcalar = BOS_PARCALAR,
   malzemeler = BOS_MALZEMELER,
@@ -400,6 +440,8 @@ export function StokKartForm({
   bolumler?: string[];
   /** Tanımlamalar → Renk Kodları. */
   renkKodlari?: string[];
+  /** Renk tanımları (cins bağlantısıyla) — malzemenin cinsine göre süzülür. */
+  renkler?: { ad: string; cinsler?: string[] }[];
   /** Tanımlamalar → Birimler (boşsa varsayılan liste). */
   birimler?: string[];
   /** Reçete havuzu (Parçalar, reçete satırlarıyla). */
@@ -440,6 +482,7 @@ export function StokKartForm({
         ureticiCariId: kart.ureticiCariId ?? "",
         ureticiKodu: kart.ureticiKodu ?? "",
         bolum: kart.bolum ?? "",
+        renk: kart.renk ?? "",
         renkKodu: kart.renkKodu ?? "",
         barkod: kart.barkod ?? "",
         aciklama: kart.aciklama ?? "",
@@ -588,12 +631,15 @@ export function StokKartForm({
                 modeller={modeller}
                 bolumler={bolumler}
                 renkKodlari={renkKodlari}
+                renkler={renkler}
                 birimler={birimler}
                 parcalar={parcalar}
                 tedarikciler={tedarikciler}
               />
             )}
-            {tab === "fiyat" && <FiyatTab form={form} setForm={setForm} set={set} />}
+            {tab === "fiyat" && (
+              <FiyatTab form={form} setForm={setForm} set={set} />
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -631,7 +677,10 @@ export function StokKartForm({
           />
         )}
         {duzenleme && kart && tab === "hareketler" && (
-          <HareketlerTab hareketler={detay.hareketler} birim={kart.stokBirimi} />
+          <HareketlerTab
+            hareketler={detay.hareketler}
+            birim={kart.stokBirimi}
+          />
         )}
         {duzenleme && kart && tab === "analiz" && (
           <AnalizTab kart={kart} hareketler={detay.hareketler} />
@@ -701,9 +750,7 @@ function ReceteTab({
     const kendiBirim = malzemeler.find((m) => m.id === stokId)?.birim ?? "";
     return parcalar.flatMap((p) =>
       p.recete
-        .filter(
-          (r) => r.bilesen.tip === "malzeme" && r.bilesen.ref === stokId,
-        )
+        .filter((r) => r.bilesen.tip === "malzeme" && r.bilesen.ref === stokId)
         .map((r) => ({
           parca: p,
           miktar: r.miktar,
@@ -773,7 +820,8 @@ function ReceteTab({
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {k.istasyon
-                      ? (ISTASYON_MAP.get(k.istasyon as never)?.ad ?? k.istasyon)
+                      ? (ISTASYON_MAP.get(k.istasyon as never)?.ad ??
+                        k.istasyon)
                       : "—"}
                   </TableCell>
                 </TableRow>
@@ -913,7 +961,9 @@ function HareketlerTab({
                     {h.birim || birim}
                   </span>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{h.depo}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {h.depo}
+                </TableCell>
                 <TableCell className="text-muted-foreground">
                   {h.aciklama}
                 </TableCell>
@@ -1166,7 +1216,13 @@ function SeritMetrik({
  * Kart başlığı şeridi — görsel + kimlik + metrikler (değer/son hareket dahil)
  * + miktar/durum/seviye barı + hızlı aksiyonlar.
  */
-function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) {
+function StokKartiSerit({
+  kart,
+  detay,
+}: {
+  kart: StokKarti;
+  detay: StokDetay;
+}) {
   const durum = stokDurumu(kart);
   const hizmet = kart.grup === "Hizmet";
   const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
@@ -1318,10 +1374,7 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
                   {kart.stokBirimi}
                 </span>
                 {durum && (
-                  <Badge
-                    variant="secondary"
-                    className={cn("ml-1", durum.renk)}
-                  >
+                  <Badge variant="secondary" className={cn("ml-1", durum.renk)}>
                     {durum.etiket}
                   </Badge>
                 )}
@@ -1335,7 +1388,9 @@ function StokKartiSerit({ kart, detay }: { kart: StokKarti; detay: StokDetay }) 
                     />
                   </div>
                   <div className="mt-1 flex justify-between text-[10px] text-muted-foreground tabular-nums">
-                    <span>{kart.minStok != null ? `Min ${kart.minStok}` : "0"}</span>
+                    <span>
+                      {kart.minStok != null ? `Min ${kart.minStok}` : "0"}
+                    </span>
                     <span>Max {kart.maxStok}</span>
                   </div>
                 </div>
@@ -1394,6 +1449,7 @@ function GenelTab({
   modeller,
   bolumler,
   renkKodlari,
+  renkler,
   birimler,
   parcalar,
   tedarikciler,
@@ -1409,22 +1465,23 @@ function GenelTab({
   modeller: string[];
   bolumler: string[];
   renkKodlari: string[];
+  renkler: { ad: string; cinsler?: string[] }[];
   birimler: string[];
   parcalar: { id: string; ad: string }[];
   tedarikciler: { id: string; ad: string }[];
 }) {
   // DB'den beslenen comboboxların seçenekleri — "yeni ekle" ile anında büyür.
-  const [secenekler, setSecenekler] = React.useState<Record<TanimAlan, string[]>>(
-    {
-      cins: cinsler,
-      tip: tipler.length > 0 ? tipler : GRUPLAR,
-      marka: markalar,
-      model: modeller,
-      bolum: bolumler,
-      renkKodu: renkKodlari,
-      birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
-    },
-  );
+  const [secenekler, setSecenekler] = React.useState<
+    Record<TanimAlan, string[]>
+  >({
+    cins: cinsler,
+    tip: tipler.length > 0 ? tipler : GRUPLAR,
+    marka: markalar,
+    model: modeller,
+    bolum: bolumler,
+    renkKodu: renkKodlari,
+    birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
+  });
   React.useEffect(() => {
     setSecenekler({
       cins: cinsler,
@@ -1436,6 +1493,15 @@ function GenelTab({
       birim: birimler.length > 0 ? birimler : VARSAYILAN_BIRIMLER,
     });
   }, [cinsler, tipler, markalar, modeller, bolumler, renkKodlari, birimler]);
+
+  // Renk seçenekleri: kartın cinsine bağlanmış renkler + cins bağı olmayanlar
+  // (boş = tüm malzemelerde geçerli). Cins seçilmemişse hepsi listelenir.
+  const renkSecenekleri = React.useMemo(() => {
+    const cins = form.cins;
+    return renkler
+      .filter((r) => !cins || !r.cinsler?.length || r.cinsler.includes(cins))
+      .map((r) => r.ad);
+  }, [renkler, form.cins]);
 
   const [yeniAlan, setYeniAlan] = React.useState<TanimAlan | null>(null);
   const [yeniDeger, setYeniDeger] = React.useState("");
@@ -1617,6 +1683,16 @@ function GenelTab({
                   value={form.bolum || null}
                   onValueChange={(v) => set("bolum")(v ?? "")}
                   placeholder="İstasyon seç"
+                />
+              </AnimatedField>
+              <AnimatedField label="Renk" icon={ScanTextIcon}>
+                <SearchSelect
+                  items={renkSecenekleri}
+                  value={form.renk || null}
+                  onValueChange={(v) => set("renk")(v ?? "")}
+                  placeholder={
+                    form.cins ? `${form.cins} rengi seç` : "Renk seç"
+                  }
                 />
               </AnimatedField>
               <AnimatedField label="Renk Kodu" icon={ScanTextIcon}>
@@ -1899,12 +1975,36 @@ function FiyatTab({
     fiyatKey: keyof Form;
     dovizKey: keyof Form;
   }[] = [
-    { etiket: "Maliyet Fiyatı", fiyatKey: "maliyetFiyati", dovizKey: "maliyetBirimi" },
-    { etiket: "Satış Fiyatı 1", fiyatKey: "satisFiyat1", dovizKey: "satisBirim1" },
-    { etiket: "Satış Fiyatı 2", fiyatKey: "satisFiyat2", dovizKey: "satisBirim2" },
-    { etiket: "Satış Fiyatı 3", fiyatKey: "satisFiyat3", dovizKey: "satisBirim3" },
-    { etiket: "Satış Fiyatı 4", fiyatKey: "satisFiyat4", dovizKey: "satisBirim4" },
-    { etiket: "Satış Fiyatı 5", fiyatKey: "satisFiyat5", dovizKey: "satisBirim5" },
+    {
+      etiket: "Maliyet Fiyatı",
+      fiyatKey: "maliyetFiyati",
+      dovizKey: "maliyetBirimi",
+    },
+    {
+      etiket: "Satış Fiyatı 1",
+      fiyatKey: "satisFiyat1",
+      dovizKey: "satisBirim1",
+    },
+    {
+      etiket: "Satış Fiyatı 2",
+      fiyatKey: "satisFiyat2",
+      dovizKey: "satisBirim2",
+    },
+    {
+      etiket: "Satış Fiyatı 3",
+      fiyatKey: "satisFiyat3",
+      dovizKey: "satisBirim3",
+    },
+    {
+      etiket: "Satış Fiyatı 4",
+      fiyatKey: "satisFiyat4",
+      dovizKey: "satisBirim4",
+    },
+    {
+      etiket: "Satış Fiyatı 5",
+      fiyatKey: "satisFiyat5",
+      dovizKey: "satisBirim5",
+    },
   ];
 
   return (
@@ -2015,7 +2115,13 @@ function AltListeKart({
 function satirAksiyonlari(onDuzenle: () => void, onSil: () => void) {
   return [
     { etiket: "Düzenle", ikon: Pencil, onSecim: onDuzenle },
-    { etiket: "Sil", ikon: Trash2, tehlike: true, ayracOnce: true, onSecim: onSil },
+    {
+      etiket: "Sil",
+      ikon: Trash2,
+      tehlike: true,
+      ayracOnce: true,
+      onSecim: onSil,
+    },
   ];
 }
 
@@ -2134,22 +2240,24 @@ function UreticiTab({
                 () => sil(u),
               )}
             >
-            <TableRow>
-              <TableCell className="font-medium">{u.cariAd}</TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
-                {u.ureticiKodu ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {fiyatYaz(u.fiyat, u.doviz)}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{u.doviz}</TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {u.minSiparis ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {u.tedarikGun ?? "—"}
-              </TableCell>
-            </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">{u.cariAd}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {u.ureticiKodu ?? "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fiyatYaz(u.fiyat, u.doviz)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {u.doviz}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {u.minSiparis ?? "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {u.tedarikGun ?? "—"}
+                </TableCell>
+              </TableRow>
             </SatirMenu>
           ))}
           {liste.length === 0 && (
@@ -2409,22 +2517,24 @@ function MusterilerTab({
                 () => sil(m),
               )}
             >
-            <TableRow>
-              <TableCell className="font-medium">{m.cariAd}</TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
-                {m.musteriKodu ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {fiyatYaz(m.fiyat, m.doviz)}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{m.doviz}</TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {m.minSiparis ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {m.iskontoOrani != null ? `%${m.iskontoOrani}` : "—"}
-              </TableCell>
-            </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">{m.cariAd}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {m.musteriKodu ?? "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {fiyatYaz(m.fiyat, m.doviz)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {m.doviz}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {m.minSiparis ?? "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {m.iskontoOrani != null ? `%${m.iskontoOrani}` : "—"}
+                </TableCell>
+              </TableRow>
             </SatirMenu>
           ))}
           {liste.length === 0 && (
@@ -2687,7 +2797,8 @@ export function DokumanlarTab({
     if (
       !(await onayla({
         title: `"${d.ad}" silinsin mi?`,
-        description: "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        description:
+          "Bu kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       }))
     )
       return;
@@ -2733,23 +2844,23 @@ export function DokumanlarTab({
                   () => sil(d),
                 )}
               >
-              <Attachment orientation="vertical" state="done">
-                <AttachmentTrigger
-                  onClick={() => setBuyuk(d)}
-                  aria-label={`${d.ad} — büyüt`}
-                  className="cursor-zoom-in"
-                />
-                <AttachmentMedia variant="image">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={d.url} alt={d.ad} />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                  <AttachmentDescription>
-                    {dokumanAciklama(d)}
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
+                <Attachment orientation="vertical" state="done">
+                  <AttachmentTrigger
+                    onClick={() => setBuyuk(d)}
+                    aria-label={`${d.ad} — büyüt`}
+                    className="cursor-zoom-in"
+                  />
+                  <AttachmentMedia variant="image">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={d.url} alt={d.ad} />
+                  </AttachmentMedia>
+                  <AttachmentContent>
+                    <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                    <AttachmentDescription>
+                      {dokumanAciklama(d)}
+                    </AttachmentDescription>
+                  </AttachmentContent>
+                </Attachment>
               </SatirMenu>
             ))}
           </div>
@@ -2767,21 +2878,21 @@ export function DokumanlarTab({
                   () => sil(d),
                 )}
               >
-              <Attachment orientation="horizontal" state="done">
-                <AttachmentTrigger
-                  render={<a href={d.url} target="_blank" rel="noreferrer" />}
-                  aria-label={`${d.ad} — aç`}
-                />
-                <AttachmentMedia variant="icon">
-                  <FileText />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
-                  <AttachmentDescription>
-                    {dokumanAciklama(d)}
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
+                <Attachment orientation="horizontal" state="done">
+                  <AttachmentTrigger
+                    render={<a href={d.url} target="_blank" rel="noreferrer" />}
+                    aria-label={`${d.ad} — aç`}
+                  />
+                  <AttachmentMedia variant="icon">
+                    <FileText />
+                  </AttachmentMedia>
+                  <AttachmentContent>
+                    <AttachmentTitle title={d.ad}>{d.ad}</AttachmentTitle>
+                    <AttachmentDescription>
+                      {dokumanAciklama(d)}
+                    </AttachmentDescription>
+                  </AttachmentContent>
+                </Attachment>
               </SatirMenu>
             ))}
           </div>
@@ -3047,7 +3158,9 @@ function DokumanSheet({
           <FileImage className="size-5 text-muted-foreground" />
           {coklu ? (
             <>
-              <span className="font-medium">{dosyalar.length} dosya seçildi</span>
+              <span className="font-medium">
+                {dosyalar.length} dosya seçildi
+              </span>
               <span className="text-xs text-muted-foreground">
                 değiştirmek için tıklayın
               </span>

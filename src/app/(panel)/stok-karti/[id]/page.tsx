@@ -41,6 +41,7 @@ export default async function StokKartiDuzenleRoute({
       modeller={tanimlar.model.map((t) => t.ad)}
       bolumler={istasyonlar.map((i) => i.ad)}
       renkKodlari={tanimlar.renkKodu.map((t) => t.ad)}
+      renkler={tanimlar.renk.map((t) => ({ ad: t.ad, cinsler: t.cinsler }))}
       birimler={tanimlar.birim.map((t) => t.ad)}
       parcalar={parcalar}
       malzemeler={malzemeler}

@@ -742,6 +742,8 @@ model Stok {
   ureticiCariId  String?  @map("uretici_cari_id")
   ureticiKodu    String?  @map("uretici_kodu")
   bolum          String?
+  // Dekor/renk adı (Tanımlamalar → Renkler; cinse göre süzülür)
+  renk           String?
   renkKodu       String?  @map("renk_kodu")
   barkod         String?
   aciklama       String?  @db.NVarChar(Max)

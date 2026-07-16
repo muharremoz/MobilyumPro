@@ -2403,6 +2403,7 @@ export async function stokKaydet(
       ureticiCariId: s.ureticiCariId ?? null,
       ureticiKodu: s.ureticiKodu ?? null,
       bolum: s.bolum ?? null,
+      renk: s.renk ?? null,
       renkKodu: s.renkKodu ?? null,
       barkod,
       aciklama: s.aciklama ?? null,

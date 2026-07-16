@@ -1466,6 +1466,7 @@ function mapStok(s: StokRow, miktar: number, gorseller?: string[]): StokKarti {
     ureticiCariId: s.ureticiCariId ?? undefined,
     ureticiKodu: s.ureticiKodu ?? undefined,
     bolum: s.bolum ?? undefined,
+    renk: s.renk ?? undefined,
     renkKodu: s.renkKodu ?? undefined,
     barkod: s.barkod ?? kodBarkod(s.id),
     gorsel: gorseller?.[0],
