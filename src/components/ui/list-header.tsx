@@ -6,11 +6,14 @@ import { cn } from "@/lib/utils";
  * Liste kartı başlığı — proje standardı (ilk kullanım: kullanıcılar listesi).
  * Kartın en üstünde kompakt bir şerit: solda başlık, sağda aksiyon butonları.
  *
+ * Aksiyon butonları size="sm" (h-8) olur — şeritteki tüm butonlar aynı
+ * yükseklikte dursun diye; "Yeni X" butonu Plus ikonuyla gelir.
+ *
  * Kullanım:
  *   <div className="overflow-hidden rounded-md border bg-card">
  *     <ListHeader title="Kullanıcılar">
- *       <Button variant="outline">…</Button>
- *       <Button>Yeni Kullanıcı</Button>
+ *       <Button variant="outline" size="sm">…</Button>
+ *       <Button size="sm"><Plus className="size-4" /> Yeni Kullanıcı</Button>
  *     </ListHeader>
  *     <Table>…</Table>
  *   </div>

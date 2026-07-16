@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -278,10 +279,11 @@ export function ReceteListe({
         <ListHeader title="Reçeteler">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
+            size="sm"
             nativeButton={false}
             render={<Link href="/parcalar/yeni" />}
           >
-            Yeni Reçete
+            <Plus className="size-4" /> Yeni Reçete
           </Button>
         </ListHeader>
         <Table>

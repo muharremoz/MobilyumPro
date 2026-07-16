@@ -12,6 +12,7 @@ import {
   Copy,
   CopyPlus,
   Power,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -350,18 +351,20 @@ export function KullanicilarTable({
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             variant="outline"
+            size="sm"
             nativeButton={false}
             render={<Link href="/kullanicilar/yetkiler" />}
           >
             Yetkilendirmeler
           </Button>
           <Button
+            size="sm"
             onClick={() => {
               setDuzenlenen(null);
               setSheetOpen(true);
             }}
           >
-            Yeni Kullanıcı
+            <Plus className="size-4" /> Yeni Kullanıcı
           </Button>
         </ListHeader>
 

@@ -147,7 +147,7 @@ export function useKolonAyarlari({
 
 export type KolonAyarlariApi = ReturnType<typeof useKolonAyarlari>;
 
-/** ListHeader'a konulan "Sütunlar" butonu. */
+/** ListHeader'a konulan "Sütunlar" butonu — ikon-only; "Yeni X" ile aynı h-8. */
 export function KolonAyarButonu({
   kolon,
   className,
@@ -158,10 +158,13 @@ export function KolonAyarButonu({
   return (
     <Button
       variant="outline"
-      className={className}
+      size="sm"
+      aria-label="Sütunlar"
+      title="Sütunlar"
+      className={cn("w-8 px-0", className)}
       onClick={() => kolon.setAcik(true)}
     >
-      <Columns3 className="size-4" /> Sütunlar
+      <Columns3 className="size-4" />
     </Button>
   );
 }

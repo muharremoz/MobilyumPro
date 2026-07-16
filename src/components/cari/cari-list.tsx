@@ -241,7 +241,11 @@ export function CariList({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Cari Hesaplar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button nativeButton={false} render={<Link href="/cari/yeni" />}>
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/cari/yeni" />}
+          >
             <Plus className="size-4" /> Yeni Cari
           </Button>
         </ListHeader>

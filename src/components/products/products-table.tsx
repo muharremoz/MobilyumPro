@@ -31,6 +31,7 @@ import {
   Check,
   ArrowUpNarrowWide,
   ArrowDownWideNarrow,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -558,8 +559,12 @@ export function ProductsTable({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Modeller">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button nativeButton={false} render={<Link href="/urunler/yeni" />}>
-            Yeni Model
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/urunler/yeni" />}
+          >
+            <Plus className="size-4" /> Yeni Model
           </Button>
         </ListHeader>
         <Table>
