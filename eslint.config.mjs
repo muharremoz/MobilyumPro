@@ -16,6 +16,28 @@ const eslintConfig = defineConfig([
     // Yukarıdaki ".next/**" kök dizine göre çözüldüğü için onları kapsamaz.
     ".claude/**",
   ]),
+  {
+    rules: {
+      /**
+       * "Sheet/dialog açılınca formu kayda göre sıfırla" kalıbı (kalan ~24
+       * ihlalin tamamı) bu kuralı ihlal ediyor ama DOĞRU çalışıyor. React'ın
+       * önerdiği `key` ile remount alternatifinin iki varyantı da regresyon
+       * üretiyor:
+       *   key={item.id}              → aynı kaydı kaydetmeden kapatıp tekrar
+       *                                açınca eski düzenleme kalıntısı kalır
+       *   key={open ? item.id : "-"} → kapanma animasyonu sırasında alanlar
+       *                                gözle görülür şekilde boşalır
+       *
+       * Gerçekten çözülebilir olanlar zaten düzeltildi: harici kaynaklar
+       * useSyncExternalStore'a (use-mobile, app-nav, error-shake), prop→state
+       * aynalaması usePropAynasi'ya (19 yer) alındı — 48'den 24'e indi.
+       *
+       * warning: yeni ihlaller görünür kalsın, ama lint bu kalıp yüzünden
+       * kırmızı olmasın.
+       */
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
