@@ -36,7 +36,7 @@ export const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
           id={inputId}
           ref={ref}
           className={cn(
-            "h-10 w-full rounded-md border-0 bg-white bg-clip-padding px-3 text-sm shadow-[0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-all duration-200 placeholder:text-[#8f8f8f] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_rgba(37,99,235,0.5),0_0_0_4px_rgba(37,99,235,0.16)] [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
+            "h-10 w-full rounded-md border-0 bg-white bg-clip-padding px-3 text-sm shadow-[0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-all duration-200 placeholder:text-[#8f8f8f] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_var(--ring-cizgi),0_0_0_4px_var(--ring-hale)] [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
             className,
           )}
           {...props}

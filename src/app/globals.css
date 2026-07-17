@@ -57,8 +57,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: #ffffff;
   --popover-foreground: oklch(0.145 0 0);
-  /* Primary: kurumsal mavi (blue-600) */
-  --primary: oklch(0.546 0.245 262.9);
+  /* Primary: kurumsal lacivert (#000E4F) */
+  --primary: oklch(0.216 0.119 263.7);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -69,8 +69,11 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  /* Odak halkası: primary mavi tonu */
-  --ring: oklch(0.62 0.2 262.9);
+  /* Odak halkası: primary lacivert tonu */
+  --ring: oklch(0.216 0.119 263.7);
+  /* Form kontrolü odak gölgesi (input/select) — --ring'den türer, elle renk yazma */
+  --ring-cizgi: color-mix(in oklab, var(--ring) 50%, transparent);
+  --ring-hale: color-mix(in oklab, var(--ring) 16%, transparent);
   --radius: 10px;
   /* Gri ton grafik renkleri */
   --chart-1: oklch(0.205 0 0);
