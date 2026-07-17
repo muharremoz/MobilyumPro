@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
@@ -147,11 +148,14 @@ export function DefinitionsPage({
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
 } = {}) {
   const { onayla, onayDialog } = useOnay();
-  const [data, setData] = React.useState<Record<DuzTab, Tanim[]>>(() =>
-    tanimlardanData(tanimlar),
+  // Türetilmiş veri önce memo'lanır: usePropAynasi kimlik (===) karşılaştırır,
+  // her render'da yeniden hesaplanan nesne verilirse sonsuz döngü olur.
+  const tanimVerisi = React.useMemo(
+    () => tanimlardanData(tanimlar),
+    [tanimlar],
   );
+  const [data, setData] = usePropAynasi(tanimVerisi);
   const [tabState, setTabState] = React.useState<TabKey>("gruplar");
-  React.useEffect(() => setData(tanimlardanData(tanimlar)), [tanimlar]);
   // Renk sekmesinde seçilebilecek malzeme cinsleri (cins tanımları).
   const cinsAdlari = React.useMemo(
     () =>

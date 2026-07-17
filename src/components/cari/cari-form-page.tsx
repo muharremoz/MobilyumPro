@@ -1143,9 +1143,7 @@ function GenelTab({
   adresSecenekleri: AdresSecenekleri;
 }) {
   // Adres seçenekleri — "yeni ekle" ile oturum içinde büyür (DB'ye de yazılır).
-  const [secenekler, setSecenekler] =
-    React.useState<AdresSecenekleri>(adresSecenekleri);
-  React.useEffect(() => setSecenekler(adresSecenekleri), [adresSecenekleri]);
+  const [secenekler, setSecenekler] = usePropAynasi(adresSecenekleri);
   const [yeniAlan, setYeniAlan] = React.useState<
     "ulke" | "bolge" | "sehir" | "semt" | null
   >(null);
@@ -2005,9 +2003,7 @@ function SubeSheet({
   });
 
   // Adres seçenekleri — "yeni ekle" ile büyür (Tanımlamalar'a da yazılır).
-  const [secenekler, setSecenekler] =
-    React.useState<AdresSecenekleri>(adresSecenekleri);
-  React.useEffect(() => setSecenekler(adresSecenekleri), [adresSecenekleri]);
+  const [secenekler, setSecenekler] = usePropAynasi(adresSecenekleri);
   const [yeniAlan, setYeniAlan] = React.useState<
     "ulke" | "sehir" | "semt" | null
   >(null);
