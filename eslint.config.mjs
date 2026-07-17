@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code worktree'leri: projenin kopyaları + kendi .next'leri.
+    // Yukarıdaki ".next/**" kök dizine göre çözüldüğü için onları kapsamaz.
+    ".claude/**",
   ]),
 ]);
 
