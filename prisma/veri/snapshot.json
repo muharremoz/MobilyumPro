@@ -1492,6 +1492,59 @@
   "musteri": [],
   "stok": [
     {
+      "id": "01-000001",
+      "kod": null,
+      "ad": "LOREN ŞİFONYER",
+      "cins": null,
+      "grup": "Mamül",
+      "altGrup": "YATAK ODASI",
+      "detayGrup": null,
+      "kategori": null,
+      "marka": null,
+      "model": null,
+      "stokBirimi": "adet",
+      "puan": null,
+      "yukseklik": null,
+      "genislik": null,
+      "boy": null,
+      "kalinlik": null,
+      "agirlik": null,
+      "minSiparis": null,
+      "minStok": null,
+      "maxStok": null,
+      "muhasebeKodu": null,
+      "receteParcaId": null,
+      "rota": "fabrika",
+      "ureticiCariId": null,
+      "ureticiKodu": null,
+      "bolum": null,
+      "renk": "SEFER",
+      "renkKodu": null,
+      "barkod": "8690000000012",
+      "aciklama": null,
+      "durum": "Aktif",
+      "stokMiktar": "0",
+      "varyantlarJson": null,
+      "gorsel": null,
+      "gorsellerJson": null,
+      "createDate": "2026-07-17T13:31:29.719Z",
+      "createUserId": null,
+      "updateDate": "2026-07-17T13:31:29.719Z",
+      "updateUserId": null,
+      "maliyetFiyati": "0",
+      "maliyetBirimi": "TL",
+      "satisFiyat1": "0",
+      "satisBirim1": "TL",
+      "satisFiyat2": "0",
+      "satisBirim2": "TL",
+      "satisFiyat3": "0",
+      "satisBirim3": "TL",
+      "satisFiyat4": "0",
+      "satisBirim4": "TL",
+      "satisFiyat5": "0",
+      "satisBirim5": "TL"
+    },
+    {
       "id": "STK-1001",
       "kod": null,
       "ad": "05 MM 2100*2800 GANA CEVİZ TEK YÜZ MDF",
@@ -14745,11 +14798,358 @@
   "stokDokuman": [],
   "stokUretici": [],
   "stokMusteri": [],
-  "parca": [],
+  "parca": [
+    {
+      "id": "PRC-2001",
+      "ad": "LOREN Şifonyer Yan Panel",
+      "kategori": "Gövde",
+      "aciklama": "850×450×18 — gövde yan, ön kenarı bantlı",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2002",
+      "ad": "LOREN Şifonyer Üst Tabla",
+      "kategori": "Gövde",
+      "aciklama": "1000×450×18 — dört kenarı bantlı",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2003",
+      "ad": "LOREN Şifonyer Alt Tabla",
+      "kategori": "Gövde",
+      "aciklama": "1000×450×18 — yalnız ön kenar bantlı",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2004",
+      "ad": "LOREN Şifonyer Arkalık",
+      "kategori": "Gövde",
+      "aciklama": "1000×850×5 — çift yüz boyalı arkalık",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2005",
+      "ad": "LOREN Çekmece Ön Kapak",
+      "kategori": "Çekmece",
+      "aciklama": "950×190×18 — kulplu, dört kenarı bantlı",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2006",
+      "ad": "LOREN Çekmece Kutusu",
+      "kategori": "Çekmece",
+      "aciklama": "900×450×150 — yan/arka/taban + teleskopik ray",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2007",
+      "ad": "LOREN Şifonyer Ayna Panosu",
+      "kategori": "Pano",
+      "aciklama": "1100×550×25 — çift renk boyalı pano (ayna camı ayrı sipariş)",
+      "durum": "Aktif"
+    },
+    {
+      "id": "PRC-2008",
+      "ad": "LOREN Şifonyer Montaj & Ambalaj",
+      "kategori": "Genel",
+      "aciklama": "Model seviyesi kalemler — ModelParca yalnız parçaya bağlandığı için burada toplanır",
+      "durum": "Aktif"
+    }
+  ],
   "parcaDokuman": [],
-  "receteSatiri": [],
+  "receteSatiri": [
+    {
+      "id": 1,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.383",
+      "fire": "5",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 2,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "2.6",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 3,
+      "parcaId": "PRC-2002",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.45",
+      "fire": "5",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 4,
+      "parcaId": "PRC-2002",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "2.9",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 5,
+      "parcaId": "PRC-2003",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.45",
+      "fire": "5",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 6,
+      "parcaId": "PRC-2003",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 7,
+      "parcaId": "PRC-2004",
+      "tip": "malzeme",
+      "malzemeId": "STK-1010",
+      "altParcaId": null,
+      "miktar": "0.85",
+      "fire": "4",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 8,
+      "parcaId": "PRC-2005",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.181",
+      "fire": "6",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 9,
+      "parcaId": "PRC-2005",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "2.28",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 10,
+      "parcaId": "PRC-2005",
+      "tip": "malzeme",
+      "malzemeId": "STK-1060",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 11,
+      "parcaId": "PRC-2005",
+      "tip": "malzeme",
+      "malzemeId": "STK-1195",
+      "altParcaId": null,
+      "miktar": "2",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 12,
+      "parcaId": "PRC-2006",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.38",
+      "fire": "6",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 13,
+      "parcaId": "PRC-2006",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "1.7",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 14,
+      "parcaId": "PRC-2006",
+      "tip": "malzeme",
+      "malzemeId": "STK-1199",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 15,
+      "parcaId": "PRC-2006",
+      "tip": "malzeme",
+      "malzemeId": "STK-1195",
+      "altParcaId": null,
+      "miktar": "8",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 16,
+      "parcaId": "PRC-2007",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.605",
+      "fire": "5",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 17,
+      "parcaId": "PRC-2007",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "3.3",
+      "fire": "3",
+      "istasyon": "bantlama"
+    },
+    {
+      "id": 18,
+      "parcaId": "PRC-2007",
+      "tip": "malzeme",
+      "malzemeId": "STK-1238",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 19,
+      "parcaId": "PRC-2007",
+      "tip": "malzeme",
+      "malzemeId": "STK-1217",
+      "altParcaId": null,
+      "miktar": "0.2",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 20,
+      "parcaId": "PRC-2008",
+      "tip": "malzeme",
+      "malzemeId": "STK-1195",
+      "altParcaId": null,
+      "miktar": "24",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 21,
+      "parcaId": "PRC-2008",
+      "tip": "malzeme",
+      "malzemeId": "STK-1217",
+      "altParcaId": null,
+      "miktar": "0.3",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 22,
+      "parcaId": "PRC-2008",
+      "tip": "malzeme",
+      "malzemeId": "STK-1239",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "0",
+      "istasyon": "montaj"
+    },
+    {
+      "id": 23,
+      "parcaId": "PRC-2008",
+      "tip": "malzeme",
+      "malzemeId": "STK-1085",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "0",
+      "istasyon": "paketleme"
+    },
+    {
+      "id": 24,
+      "parcaId": "PRC-2008",
+      "tip": "malzeme",
+      "malzemeId": "STK-1084",
+      "altParcaId": null,
+      "miktar": "4",
+      "fire": "0",
+      "istasyon": "paketleme"
+    }
+  ],
   "receteVersiyon": [],
-  "modelParca": [],
+  "modelParca": [
+    {
+      "id": 1,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2001",
+      "miktar": "2"
+    },
+    {
+      "id": 2,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2002",
+      "miktar": "1"
+    },
+    {
+      "id": 3,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2003",
+      "miktar": "1"
+    },
+    {
+      "id": 4,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2004",
+      "miktar": "1"
+    },
+    {
+      "id": 5,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2005",
+      "miktar": "4"
+    },
+    {
+      "id": 6,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2006",
+      "miktar": "4"
+    },
+    {
+      "id": 7,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2007",
+      "miktar": "1"
+    },
+    {
+      "id": 8,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2008",
+      "miktar": "1"
+    }
+  ],
   "poset": [],
   "posetMalzeme": [],
   "siparis": [],
