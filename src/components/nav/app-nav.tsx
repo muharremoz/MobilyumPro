@@ -41,6 +41,39 @@ import {
 
 const DARALT_KEY = "mp_nav_daralt";
 
+/**
+ * Daraltma tercihi localStorage'da — harici bir kaynak, useSyncExternalStore
+ * ile okunur. Effect'te setState edilmez ve sunucu render'ı ile istemcinin
+ * ilk render'ı uyuşur (ikisi de false = geniş).
+ */
+const daraltDinleyiciler = new Set<() => void>();
+
+function daraltAbone(cb: () => void): () => void {
+  daraltDinleyiciler.add(cb);
+  window.addEventListener("storage", cb); // başka sekmede değişirse
+  return () => {
+    daraltDinleyiciler.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+function daraltOku(): boolean {
+  try {
+    return window.localStorage.getItem(DARALT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function daraltYaz(yeni: boolean): void {
+  try {
+    window.localStorage.setItem(DARALT_KEY, yeni ? "1" : "0");
+  } catch {
+    // Gizli sekme / kota dolu → tercih kaydedilmez, menü yine çalışır.
+  }
+  for (const cb of daraltDinleyiciler) cb();
+}
+
 function useAktif() {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -236,7 +269,11 @@ function AppNavInner() {
   const router = useRouter();
   const { bolumAktif, ogeAktif } = useAktif();
   const [openId, setOpenId] = React.useState<string | null>(null);
-  const [daralt, setDaralt] = React.useState(false);
+  const daralt = React.useSyncExternalStore(
+    daraltAbone,
+    daraltOku,
+    () => false, // sunucu: tercih bilinmez, geniş
+  );
   // Drill-in'den geri dönüşte ana menü de aynı animasyonla gelsin (ilk
   // yüklemede oynamaz; her dönüşte key değişip animasyon yeniden tetiklenir).
   const [donus, setDonus] = React.useState(0);
@@ -280,18 +317,10 @@ function AppNavInner() {
     return sonuc;
   }, [arama]);
 
-  // Daraltma durumunu localStorage'dan yükle.
-  React.useEffect(() => {
-    setDaralt(localStorage.getItem(DARALT_KEY) === "1");
-  }, []);
-
   function daraltDegis() {
-    setDaralt((d) => {
-      const yeni = !d;
-      localStorage.setItem(DARALT_KEY, yeni ? "1" : "0");
-      if (yeni) setOpenId(null);
-      return yeni;
-    });
+    const yeni = !daralt;
+    daraltYaz(yeni);
+    if (yeni) setOpenId(null);
   }
 
   const acikBolum = React.useMemo(
@@ -314,10 +343,7 @@ function AppNavInner() {
   function handleSelect(s: Section) {
     if (s.items?.length) {
       // Dar moddayken alt menü açılırsa sidebar'ı genişlet (drill-in sığsın).
-      if (daralt) {
-        setDaralt(false);
-        localStorage.setItem(DARALT_KEY, "0");
-      }
+      if (daralt) daraltYaz(false);
       setOpenId((prev) => (prev === s.id ? null : s.id));
     } else {
       setOpenId(null);

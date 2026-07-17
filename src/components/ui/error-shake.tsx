@@ -35,19 +35,21 @@ export function ErrorShakeField({
 
   // Hata temizlendiğinde mesaj, fade-out bitene dek boyalı kalsın diye
   // son mesajı sakla (görünürlüğü .is-error yönetir).
+  // Prop değişince state'i render sırasında ayarlama kalıbı (react.dev:
+  // "Adjusting some state when a prop changes") — effect gerekmez.
   const [sonMesaj, setSonMesaj] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    if (error) setSonMesaj(error);
-  }, [error]);
+  if (error && error !== sonMesaj) setSonMesaj(error);
 
   // is-shaking'i state ile yönet: sınıfı düşür → bir frame bekle → geri tak.
   // (classList ile eklemek işe yaramaz; React render'ı className'i ezer.)
   React.useEffect(() => {
     if (!error) return;
-    setSallaniyor(false);
-    const id = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setSallaniyor(true)),
-    );
+    // Sınıfı düşürme de frame içinde: effect gövdesinde senkron setState
+    // zincirleme render tetikler (react-hooks/set-state-in-effect).
+    const id = requestAnimationFrame(() => {
+      setSallaniyor(false);
+      requestAnimationFrame(() => setSallaniyor(true));
+    });
     return () => cancelAnimationFrame(id);
   }, [error, shakeNonce]);
 

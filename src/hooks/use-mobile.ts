@@ -2,18 +2,23 @@ import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+/**
+ * Pencere genişliği harici bir kaynak — useSyncExternalStore ile okunur.
+ * Effect'te setState edilmez (react-hooks/set-state-in-effect) ve sunucu
+ * render'ı ile istemcinin ilk render'ı uyuşur (ikisi de false).
+ */
+const SORGU = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+function abone(cb: () => void): () => void {
+  const mql = window.matchMedia(SORGU)
+  mql.addEventListener("change", cb)
+  return () => mql.removeEventListener("change", cb)
+}
 
-  return !!isMobile
+export function useIsMobile(): boolean {
+  return React.useSyncExternalStore(
+    abone,
+    () => window.innerWidth < MOBILE_BREAKPOINT,
+    () => false, // sunucu: genişlik bilinmez, masaüstü varsayılır
+  )
 }
