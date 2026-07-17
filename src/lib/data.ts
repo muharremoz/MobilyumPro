@@ -56,6 +56,8 @@ export type Model = {
   varyantlar?: ModelVaryant[];
   /** Serbest etiketler (filtre/gruplama). Boş = etiketsiz. */
   etiketler?: string[];
+  /** Sabitleme/yıldız (global — oturum yok). */
+  favori?: boolean;
 };
 
 // Reçete bileşeni — malzeme veya başka parça (alt-parça).

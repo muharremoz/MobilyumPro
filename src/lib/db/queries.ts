@@ -102,6 +102,7 @@ export async function getModeller(): Promise<Model[]> {
       gorsellerByModel.get(u.id) ?? parseJson<string[]>(u.gorsellerJson),
     varyantlar: parseJson<ModelVaryant[]>(u.varyantlarJson),
     etiketler: u.etiketler ? u.etiketler.split(",").filter(Boolean) : undefined,
+    favori: u.favori || undefined,
   }));
 }
 

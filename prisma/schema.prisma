@@ -750,6 +750,9 @@ model Stok {
   // Serbest etiketler (virgülle ayrılmış; "cinsler" ile aynı desen). Filtre/
   // gruplama için; boş = etiketsiz.
   etiketler      String?  @db.NVarChar(Max)
+  // Sabitleme/yıldız. Oturum altyapısı yok — GLOBAL bir işaret (kullanıcı-başına
+  // değil); auth gelince kullanıcıya taşınabilir.
+  favori         Boolean  @default(false)
   durum          String   @default("Aktif")
   // Eldeki miktar özeti (ledger yetkili; malzeme.stok/model.stok yerine)
   stokMiktar     Decimal  @default(0) @map("stok_miktar") @db.Decimal(14, 3)

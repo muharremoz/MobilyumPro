@@ -508,6 +508,25 @@ export async function modelEtiketGuncelle(
   }
 }
 
+/**
+ * Model favori (sabitleme) durumunu günceller. GLOBAL işaret — oturum yok;
+ * auth gelince kullanıcıya taşınabilir.
+ */
+export async function modelFavoriGuncelle(
+  id: string,
+  favori: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!id) return { ok: false, error: "Model bulunamadı." };
+  try {
+    await db.stok.update({ where: { id }, data: { favori } });
+    revalidatePath("/urunler");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Favori güncellenemedi." };
+  }
+}
+
 /** Model kategorisini günceller (tek kolon; BOM'a dokunmaz). */
 export async function modelKategoriGuncelle(
   id: string,

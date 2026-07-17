@@ -21,7 +21,6 @@ import {
   FolderInput,
   Tags,
   Star,
-  Archive,
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +56,7 @@ import {
   modelSil,
   modelDurumGuncelle,
   modelKategoriGuncelle,
+  modelFavoriGuncelle,
 } from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
@@ -379,6 +379,21 @@ export function ProductsTable({
   function fiyatUygulandi(id: string, yeniFiyat: number) {
     setListe((l) => l.map((u) => (u.id === id ? { ...u, fiyat: yeniFiyat } : u)));
   }
+  async function favoriDegistir(u: Model) {
+    const yeni = !u.favori;
+    setListe((l) =>
+      l.map((x) => (x.id === u.id ? { ...x, favori: yeni || undefined } : x)),
+    );
+    const res = await modelFavoriGuncelle(u.id, yeni);
+    if (res.ok) {
+      toast.success(yeni ? `${u.ad} favorilere eklendi` : `${u.ad} favoriden çıkarıldı`);
+    } else {
+      setListe((l) =>
+        l.map((x) => (x.id === u.id ? { ...x, favori: u.favori } : x)),
+      );
+      toast.error(res.error ?? "Güncellenemedi.");
+    }
+  }
   function etiketUygulandi(id: string, etiketler: string[]) {
     setListe((l) =>
       l.map((u) =>
@@ -388,7 +403,6 @@ export function ProductsTable({
       ),
     );
   }
-  const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
   /**
    * CSV dışa aktarma. Kolonlar GÖRÜNÜR olanlarla sınırlı: ekranda gizlediğiniz
@@ -690,14 +704,9 @@ export function ProductsTable({
                         onSecim: () => setEtiketHedef(u),
                       },
                       {
-                        etiket: "Favorile",
+                        etiket: u.favori ? "Favoriden Çıkar" : "Favorile",
                         ikon: Star,
-                        onSecim: () => yakinda("Favorile"),
-                      },
-                      {
-                        etiket: "Arşivle",
-                        ikon: Archive,
-                        onSecim: () => yakinda("Arşivle"),
+                        onSecim: () => favoriDegistir(u),
                       },
                     ],
                   },
@@ -730,7 +739,14 @@ export function ProductsTable({
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <GorselHucre gorseller={u.gorseller} alt={u.ad} />
                   </TableCell>
-                  <TableCell className="font-medium">{u.ad}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {u.favori && (
+                        <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-400" />
+                      )}
+                      {u.ad}
+                    </span>
+                  </TableCell>
                   {temelGorunur("kategori") && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <button
