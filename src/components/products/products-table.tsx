@@ -4,10 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ChevronUp,
-  ChevronDown,
-  ChevronsUpDown,
-  Copy,
   Trash2,
   ExternalLink,
   History,
@@ -26,17 +22,14 @@ import {
   Tags,
   Star,
   Archive,
-  Check,
-  ArrowUpNarrowWide,
-  ArrowDownWideNarrow,
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
@@ -46,11 +39,6 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
@@ -342,197 +330,9 @@ export function ProductsTable({
   }
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
-  const sortIkon = (key: SortKey) =>
-    sort.key !== key ? (
-      <ChevronsUpDown className="size-3.5 text-muted-foreground/50" />
-    ) : sort.dir === "asc" ? (
-      <ChevronUp className="size-3.5" />
-    ) : (
-      <ChevronDown className="size-3.5" />
-    );
-
-  const kolonFiltreAktif = (k: SortKey) => {
-    if (k === "kategori") return kategori !== "Tümü";
-    if (k === "durum") return durum !== "Tümü";
-    if (k === "id") return metinFiltre.id !== "";
-    if (k === "ad") return metinFiltre.ad !== "";
-    if (k === "fiyat")
-      return sayiFiltre.fiyat.min !== "" || sayiFiltre.fiyat.max !== "";
-    if (k === "stok")
-      return sayiFiltre.stok.min !== "" || sayiFiltre.stok.max !== "";
-    return false;
-  };
-  const kolonFiltreTemizle = (k: SortKey) => {
-    if (k === "kategori") setKategori("Tümü");
-    else if (k === "durum") setDurum("Tümü");
-    else if (k === "id") setMetinFiltre((f) => ({ ...f, id: "" }));
-    else if (k === "ad") setMetinFiltre((f) => ({ ...f, ad: "" }));
-    else if (k === "fiyat")
-      setSayiFiltre((f) => ({ ...f, fiyat: { min: "", max: "" } }));
-    else if (k === "stok")
-      setSayiFiltre((f) => ({ ...f, stok: { min: "", max: "" } }));
-  };
-
-  const ogeCls = (secili: boolean) =>
-    cn(
-      "flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-      secili && "bg-accent/60 font-medium",
-    );
-
-  const SortBaslik = ({
-    k,
-    children,
-    className,
-  }: {
-    k: SortKey;
-    children: React.ReactNode;
-    className?: string;
-  }) => {
-    const aktif = kolonFiltreAktif(k);
-    const sagda = className?.includes("text-right");
-    return (
-      <TableHead className={className}>
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex cursor-pointer items-center gap-1 hover:text-foreground",
-                  sagda && "flex-row-reverse",
-                )}
-              >
-                {children}
-                {sortIkon(k)}
-                {aktif && (
-                  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                )}
-              </button>
-            }
-          />
-          <PopoverContent
-            align={sagda ? "end" : "start"}
-            className="w-56 gap-0 p-1.5 text-left"
-          >
-            {/* Sıralama */}
-            <p className="px-1.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Sırala
-            </p>
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "asc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "asc" })}
-              >
-                <ArrowUpNarrowWide className="size-4" /> Artan
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  ogeCls(sort.key === k && sort.dir === "desc"),
-                  "justify-center",
-                )}
-                onClick={() => setSort({ key: k, dir: "desc" })}
-              >
-                <ArrowDownWideNarrow className="size-4" /> Azalan
-              </button>
-            </div>
-
-            <div className="my-1.5 h-px bg-border" />
-
-            {/* Filtre — sütun tipine göre */}
-            <p className="px-1.5 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Filtre
-            </p>
-
-            {(k === "kategori" || k === "durum") && (
-              <div className="grid max-h-56 gap-0.5 overflow-auto">
-                {(k === "kategori"
-                  ? ["Tümü", ...KATEGORILER]
-                  : ["Tümü", "Aktif", "Pasif"]
-                ).map((v) => {
-                  const seciliDeger = k === "kategori" ? kategori : durum;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      className={ogeCls(seciliDeger === v)}
-                      onClick={() =>
-                        k === "kategori" ? setKategori(v) : setDurum(v)
-                      }
-                    >
-                      {v}
-                      {seciliDeger === v && (
-                        <Check className="ml-auto size-4" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {(k === "id" || k === "ad") && (
-              <Input
-                autoFocus
-                placeholder="İçeren metin..."
-                value={metinFiltre[k]}
-                onChange={(e) =>
-                  setMetinFiltre((f) => ({ ...f, [k]: e.target.value }))
-                }
-                className="h-8"
-              />
-            )}
-
-            {(k === "fiyat" || k === "stok") && (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={sayiFiltre[k].min}
-                  onChange={(e) =>
-                    setSayiFiltre((f) => ({
-                      ...f,
-                      [k]: { ...f[k], min: e.target.value },
-                    }))
-                  }
-                  className="h-8"
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={sayiFiltre[k].max}
-                  onChange={(e) =>
-                    setSayiFiltre((f) => ({
-                      ...f,
-                      [k]: { ...f[k], max: e.target.value },
-                    }))
-                  }
-                  className="h-8"
-                />
-              </div>
-            )}
-
-            {aktif && (
-              <>
-                <div className="my-1.5 h-px bg-border" />
-                <button
-                  type="button"
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
-                  onClick={() => kolonFiltreTemizle(k)}
-                >
-                  <Trash2 className="size-3.5" /> Filtreyi temizle
-                </button>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
-      </TableHead>
-    );
-  };
+  // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
+  const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
+  const sirala = (k: SortKey) => (dir: SortDir) => setSort({ key: k, dir });
 
   return (
     <div className="flex flex-col gap-3">
@@ -581,21 +381,76 @@ export function ProductsTable({
                   aria-label="Tümünü seç"
                 />
               </TableHead>
-              {temelGorunur("kod") && <SortBaslik k="id">Kod</SortBaslik>}
+              {temelGorunur("kod") && (
+                <SiralaFiltreBaslik
+                  sira={sira("id")}
+                  onSirala={sirala("id")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.id,
+                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, id: v })),
+                  }}
+                >
+                  Kod
+                </SiralaFiltreBaslik>
+              )}
               <TableHead className="w-14">Görsel</TableHead>
-              <SortBaslik k="ad">Model</SortBaslik>
+              <SiralaFiltreBaslik
+                sira={sira("ad")}
+                onSirala={sirala("ad")}
+                filtre={{
+                  tip: "metin",
+                  deger: metinFiltre.ad,
+                  onDeger: (v) => setMetinFiltre((f) => ({ ...f, ad: v })),
+                }}
+              >
+                Model
+              </SiralaFiltreBaslik>
               {temelGorunur("kategori") && (
-                <SortBaslik k="kategori">Kategori</SortBaslik>
+                <SiralaFiltreBaslik
+                  sira={sira("kategori")}
+                  onSirala={sirala("kategori")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: KATEGORILER,
+                    deger: kategori,
+                    onDeger: setKategori,
+                  }}
+                >
+                  Kategori
+                </SiralaFiltreBaslik>
               )}
               {temelGorunur("fiyat") && (
-                <SortBaslik k="fiyat" className="text-right">
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("fiyat")}
+                  onSirala={sirala("fiyat")}
+                  filtre={{
+                    tip: "sayi",
+                    min: sayiFiltre.fiyat.min,
+                    max: sayiFiltre.fiyat.max,
+                    onDegis: (min, max) =>
+                      setSayiFiltre((f) => ({ ...f, fiyat: { min, max } })),
+                  }}
+                >
                   Fiyat
-                </SortBaslik>
+                </SiralaFiltreBaslik>
               )}
               {temelGorunur("stok") && (
-                <SortBaslik k="stok" className="text-right">
+                <SiralaFiltreBaslik
+                  className="text-right"
+                  sira={sira("stok")}
+                  onSirala={sirala("stok")}
+                  filtre={{
+                    tip: "sayi",
+                    min: sayiFiltre.stok.min,
+                    max: sayiFiltre.stok.max,
+                    onDegis: (min, max) =>
+                      setSayiFiltre((f) => ({ ...f, stok: { min, max } })),
+                  }}
+                >
                   Stok
-                </SortBaslik>
+                </SiralaFiltreBaslik>
               )}
               {gorunurEk.map((k) => (
                 <TableHead key={k.key} className={cn(k.sag && "text-right")}>
@@ -603,7 +458,18 @@ export function ProductsTable({
                 </TableHead>
               ))}
               {temelGorunur("durum") && (
-                <SortBaslik k="durum">Durum</SortBaslik>
+                <SiralaFiltreBaslik
+                  sira={sira("durum")}
+                  onSirala={sirala("durum")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: ["Aktif", "Pasif"],
+                    deger: durum,
+                    onDeger: setDurum,
+                  }}
+                >
+                  Durum
+                </SiralaFiltreBaslik>
               )}
             </TableRow>
           </TableHeader>
