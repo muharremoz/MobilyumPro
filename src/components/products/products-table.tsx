@@ -52,7 +52,12 @@ import {
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Model } from "@/lib/data";
 import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
-import { modelKaydet, modelSil } from "@/lib/db/actions";
+import {
+  modelKaydet,
+  modelSil,
+  modelDurumGuncelle,
+  modelKategoriGuncelle,
+} from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
 import { UretimeGonderDialog } from "./uretime-gonder-dialog";
@@ -335,23 +340,34 @@ export function ProductsTable({
     navigator.clipboard?.writeText(text);
     toast.success(`${etiket} kopyalandı`);
   }
-  function durumDegistir(u: Model) {
-    setListe((l) =>
-      l.map((x) =>
-        x.id === u.id
-          ? { ...x, durum: x.durum === "Aktif" ? "Pasif" : "Aktif" }
-          : x,
-      ),
-    );
-    toast.success(`${u.ad} ${u.durum === "Aktif" ? "pasif" : "aktif"} yapıldı`);
+  // İyimser güncelleme + DB'ye yaz; hata olursa eski hâle döndür. (Önceden bu
+  // iki işlem yalnız yerel state'i değiştirip toast atıyordu — sayfa yenilenince
+  // değişiklik kayboluyordu.)
+  async function durumDegistir(u: Model) {
+    const yeni: Model["durum"] = u.durum === "Aktif" ? "Pasif" : "Aktif";
+    setListe((l) => l.map((x) => (x.id === u.id ? { ...x, durum: yeni } : x)));
+    const res = await modelDurumGuncelle(u.id, yeni);
+    if (res.ok) {
+      toast.success(`${u.ad} ${yeni === "Pasif" ? "pasif" : "aktif"} yapıldı`);
+    } else {
+      setListe((l) =>
+        l.map((x) => (x.id === u.id ? { ...x, durum: u.durum } : x)),
+      );
+      toast.error(res.error ?? "Durum güncellenemedi.");
+    }
   }
-  function kategoriyeTasi(u: Model, k: string) {
-    setListe((l) =>
-      l.map((x) =>
-        x.id === u.id ? { ...x, kategori: k as Model["kategori"] } : x,
-      ),
-    );
-    toast.success(`"${k}" kategorisine taşındı`);
+  async function kategoriyeTasi(u: Model, k: string) {
+    const eski = u.kategori;
+    setListe((l) => l.map((x) => (x.id === u.id ? { ...x, kategori: k } : x)));
+    const res = await modelKategoriGuncelle(u.id, k);
+    if (res.ok) {
+      toast.success(`"${k}" kategorisine taşındı`);
+    } else {
+      setListe((l) =>
+        l.map((x) => (x.id === u.id ? { ...x, kategori: eski } : x)),
+      );
+      toast.error(res.error ?? "Taşınamadı.");
+    }
   }
   // Stok düzeltme uygulandığında listedeki eldeki miktarı yerinde güncelle
   // (server action revalidate ediyor; bu anlık geri bildirim içindir).

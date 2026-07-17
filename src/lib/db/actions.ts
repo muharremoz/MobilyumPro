@@ -459,6 +459,42 @@ export async function modelFiyatGuncelle(
   }
 }
 
+/**
+ * Model satış durumunu (Aktif/Pasif) günceller. Tek kolon — modelKaydet BOM'u
+ * yeniden yazdığından (parcalar taşımayan liste satırıyla çağrılırsa reçeteyi
+ * siler) menü işlemleri için ayrı ve güvenli bir yol.
+ */
+export async function modelDurumGuncelle(
+  id: string,
+  durum: "Aktif" | "Pasif",
+): Promise<{ ok: boolean; error?: string }> {
+  if (!id) return { ok: false, error: "Model bulunamadı." };
+  try {
+    await db.stok.update({ where: { id }, data: { durum } });
+    revalidatePath("/urunler");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Durum güncellenemedi." };
+  }
+}
+
+/** Model kategorisini günceller (tek kolon; BOM'a dokunmaz). */
+export async function modelKategoriGuncelle(
+  id: string,
+  kategori: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!id) return { ok: false, error: "Model bulunamadı." };
+  try {
+    await db.stok.update({ where: { id }, data: { kategori } });
+    revalidatePath("/urunler");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Kategori güncellenemedi." };
+  }
+}
+
 /** Versiyon anlık kopyasındaki satır biçimi. */
 export type ReceteSnapshotSatir = {
   tip: "malzeme" | "parca";
