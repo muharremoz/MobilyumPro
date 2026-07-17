@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/table";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Model } from "@/lib/data";
+import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import { modelKaydet, modelSil } from "@/lib/db/actions";
 
 const KATEGORILER = [
@@ -348,6 +349,37 @@ export function ProductsTable({
   }
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
+  /**
+   * CSV dışa aktarma. Kolonlar GÖRÜNÜR olanlarla sınırlı: ekranda gizlediğiniz
+   * kolon dosyaya da girmez. Satırlar filtrelenmiş/sıralanmış hâliyle gider.
+   */
+  function disaAktar(satirlar: Model[], ad: string) {
+    if (satirlar.length === 0) {
+      toast.error("Dışa aktarılacak kayıt yok.");
+      return;
+    }
+    const kolonlar: CsvKolon<Model>[] = [];
+    if (temelGorunur("kod")) kolonlar.push({ baslik: "Kod", deger: (u) => u.id });
+    kolonlar.push({ baslik: "Model", deger: (u) => u.ad });
+    if (temelGorunur("kategori"))
+      kolonlar.push({ baslik: "Kategori", deger: (u) => u.kategori });
+    if (temelGorunur("fiyat"))
+      kolonlar.push({ baslik: "Fiyat", deger: (u) => u.fiyat });
+    if (temelGorunur("stok"))
+      kolonlar.push({ baslik: "Stok", deger: (u) => u.stok });
+    for (const k of gorunurEk)
+      kolonlar.push({
+        baslik: k.label,
+        // Ek kolonların hücresi JSX üretiyor; CSV için ham alanı okuruz.
+        deger: (u) => (u as unknown as Record<string, string>)[k.key] ?? "",
+      });
+    if (temelGorunur("durum"))
+      kolonlar.push({ baslik: "Durum", deger: (u) => u.durum });
+
+    csvIndir(ad, satirlar, kolonlar);
+    toast.success(`${satirlar.length} model dışa aktarıldı.`);
+  }
+
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
   const sirala = (k: SortKey) => (dir: SortDir) => setSort({ key: k, dir });
@@ -361,7 +393,20 @@ export function ProductsTable({
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto text-rose-600"
+            className="ml-auto"
+            onClick={() =>
+              disaAktar(
+                liste.filter((u) => secili.has(u.id)),
+                "modeller-secili",
+              )
+            }
+          >
+            <Download className="size-3.5" /> Seçilenleri dışa aktar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-rose-600"
             onClick={() => sil([...secili])}
           >
             <Trash2 className="size-3.5" /> Seçilenleri sil
@@ -380,6 +425,17 @@ export function ProductsTable({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Modeller" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
+          {/* Filtrelenmiş listeyi aktarır — satır menüsünde değil, çünkü tek
+              satırı dışa aktarmak anlamsız (AGENTS.md: menüdeki aksiyonlar
+              satırın yapabildikleridir). */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => disaAktar(filtreli, "modeller")}
+            disabled={filtreli.length === 0}
+          >
+            <Download className="size-4" /> Dışa Aktar
+          </Button>
           <Button
             size="sm"
             nativeButton={false}
@@ -601,11 +657,6 @@ export function ProductsTable({
                         etiket: "Arşivle",
                         ikon: Archive,
                         onSecim: () => yakinda("Arşivle"),
-                      },
-                      {
-                        etiket: "Dışa Aktar",
-                        ikon: Download,
-                        onSecim: () => yakinda("Dışa aktar"),
                       },
                     ],
                   },
