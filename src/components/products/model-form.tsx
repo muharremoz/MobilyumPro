@@ -16,7 +16,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Repeat,
-  CircleCheck,
+  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -817,19 +817,9 @@ export function ModelForm({
             {/* Sağ: Özet + Durum */}
             <aside className="flex flex-col gap-4">
               <div className="rounded-md border bg-card">
-                <div className="flex items-center justify-between border-b px-4 py-3">
-                  <span className="text-sm font-medium">Özet</span>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      form.durum === "Aktif"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-muted text-muted-foreground"
-                    }
-                  >
-                    {form.durum}
-                  </Badge>
-                </div>
+                {/* Durum rozeti yok: hemen altındaki Durum kartı zaten
+                    gösteriyor ve değiştirilebiliyor. */}
+                <KartBaslik ikon={Receipt} baslik="Özet" />
                 <dl className="flex flex-col gap-2.5 p-4 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <dt className="text-muted-foreground">Parça</dt>
