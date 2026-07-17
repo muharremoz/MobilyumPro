@@ -23,6 +23,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import {
   useKolonAyarlari,
@@ -199,6 +200,23 @@ export function KullanicilarTable({
     [metinFiltre, rol, departman, durum, setSayfa],
   );
 
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  for (const [kol, etiket] of [
+    ["adSoyad", "Ad Soyad"],
+    ["email", "E-posta"],
+    ["telefon", "Telefon"],
+  ] as const) {
+    cip.metin(etiket, metinFiltre[kol], (k) => k[kol] ?? "", () =>
+      setMetinFiltre((f) => ({ ...f, [kol]: "" })),
+    );
+  }
+  cip.liste("Rol", rol, (k) => k.rol, () => setRol("Tümü"));
+  cip.liste("Departman", departman, (k) => k.departman, () =>
+    setDepartman("Tümü"),
+  );
+  cip.liste("Durum", durum, (k) => k.durum, () => setDurum("Tümü"));
+
   const sayfaIds = sayfalik.map((k) => k.id);
   const tumuSecili =
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
@@ -345,7 +363,7 @@ export function KullanicilarTable({
       )}
 
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Kullanıcılar">
+        <ListHeader title="Kullanıcılar" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             variant="outline"

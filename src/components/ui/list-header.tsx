@@ -1,6 +1,22 @@
 import * as React from "react";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+/** Başlıkta gösterilen aktif filtre çipi. */
+export type AktifFiltre = {
+  /** Kolon adı — "Grup", "Cins"… */
+  etiket: string;
+  /** Seçili değer — "KENARBANT", "18–24"… */
+  deger: string;
+  /**
+   * Bu filtrenin TEK BAŞINA kaç kayıt tuttuğu (diğer filtreler yokmuş gibi).
+   * Ekranda kalan toplam değil — o her çipte aynı sayıyı gösterirdi.
+   */
+  adet?: number;
+  /** Çipin × düğmesi: filtreyi pasif değerine döndürür. */
+  onKaldir: () => void;
+};
 
 /**
  * Liste kartı başlığı — proje standardı (ilk kullanım: kullanıcılar listesi).
@@ -9,25 +25,35 @@ import { cn } from "@/lib/utils";
  * Aksiyon butonları size="sm" (h-8) olur — şeritteki tüm butonlar aynı
  * yükseklikte dursun diye; "Yeni X" butonu Plus ikonuyla gelir.
  *
+ * `filtreler` verilirse başlığın yanında aktif filtre çipleri çıkar: hangi
+ * kolonun süzüldüğü tek bakışta görünür, çipin ×'i o filtreyi kaldırır.
+ * Kolon başlığı popover'ını tek tek açmaya gerek kalmaz.
+ *
  * Kullanım:
- *   <div className="overflow-hidden rounded-md border bg-card">
- *     <ListHeader title="Kullanıcılar">
- *       <Button variant="outline" size="sm">…</Button>
- *       <Button size="sm"><Plus className="size-4" /> Yeni Kullanıcı</Button>
- *     </ListHeader>
- *     <Table>…</Table>
- *   </div>
+ *   <ListHeader
+ *     title="Malzeme"
+ *     filtreler={[
+ *       { etiket: "Grup", deger: grupF, onKaldir: () => setGrupF("Tümü") },
+ *     ]}
+ *   >
+ *     <Button size="sm"><Plus className="size-4" /> Yeni</Button>
+ *   </ListHeader>
  */
 export function ListHeader({
   title,
+  filtreler,
   children,
   className,
 }: {
   title: React.ReactNode;
+  /** Aktif filtreler — boş/verilmezse çip şeridi hiç render edilmez. */
+  filtreler?: AktifFiltre[];
   /** Sağa yaslanan aksiyonlar (genelde butonlar). */
   children?: React.ReactNode;
   className?: string;
 }) {
+  const aktif = filtreler?.length ? filtreler : null;
+
   return (
     <div
       className={cn(
@@ -36,10 +62,48 @@ export function ListHeader({
         className,
       )}
     >
-      <h2 className="text-sm font-semibold text-primary">{title}</h2>
-      {children && (
-        <div className="flex items-center gap-1.5">{children}</div>
-      )}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <h2 className="shrink-0 text-sm font-semibold text-primary">{title}</h2>
+
+        {aktif && (
+          <>
+            {aktif.map((f) => (
+              <span
+                key={f.etiket}
+                className="inline-flex items-center gap-1 rounded-full bg-card py-0.5 pr-1 pl-2 text-xs shadow-[0_0_0_1px_rgba(0,0,0,0.08)]"
+              >
+                <span className="text-muted-foreground">{f.etiket}:</span>
+                <span className="max-w-40 truncate font-medium">{f.deger}</span>
+                {f.adet !== undefined && (
+                  <span className="rounded-full bg-primary/10 px-1.5 font-medium tabular-nums text-primary">
+                    {f.adet}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={f.onKaldir}
+                  aria-label={`${f.etiket} filtresini kaldır`}
+                  className="cursor-pointer rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+
+            {aktif.length > 1 && (
+              <button
+                type="button"
+                onClick={() => aktif.forEach((f) => f.onKaldir())}
+                className="cursor-pointer rounded-full px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                Tümünü temizle
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {children && <div className="flex shrink-0 items-center gap-1.5">{children}</div>}
     </div>
   );
 }

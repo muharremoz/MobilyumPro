@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
@@ -242,6 +243,23 @@ export function ProductsTable({
     setSayfa(1);
   }, [kategori, durum, metinFiltre, sayiFiltre, setSayfa]);
 
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  cip.metin("Kod", metinFiltre.id, (u) => u.id, () =>
+    setMetinFiltre((f) => ({ ...f, id: "" })),
+  );
+  cip.metin("Model", metinFiltre.ad, (u) => u.ad, () =>
+    setMetinFiltre((f) => ({ ...f, ad: "" })),
+  );
+  cip.liste("Kategori", kategori, (u) => u.kategori, () => setKategori("Tümü"));
+  cip.liste("Durum", durum, (u) => u.durum, () => setDurum("Tümü"));
+  cip.sayi("Fiyat", sayiFiltre.fiyat, (u) => u.fiyat, () =>
+    setSayiFiltre((f) => ({ ...f, fiyat: { min: "", max: "" } })),
+  );
+  cip.sayi("Stok", sayiFiltre.stok, (u) => u.stok, () =>
+    setSayiFiltre((f) => ({ ...f, stok: { min: "", max: "" } })),
+  );
+
   const sayfaIds = sayfalik.map((u) => u.id);
   const tumuSecili =
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
@@ -360,7 +378,7 @@ export function ProductsTable({
 
       {/* Tablo */}
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Modeller">
+        <ListHeader title="Modeller" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"

@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -205,11 +206,14 @@ export function DefinitionsPage({
     });
   }
 
+  // Gruplar sekmesi ağaç olarak render edilir, düz liste yok. memo şart:
+  // çıplak "[]" her render'da yeni dizi üretip alttaki memo'yu işlevsiz bırakır.
+  const liste = React.useMemo(
+    () => (tab === "gruplar" ? [] : data[tab]),
+    [tab, data],
+  );
+
   const filtreli = React.useMemo(() => {
-    // Gruplar sekmesi ağaç olarak render edilir, düz liste yok. Bu satır
-    // memo'nun İÇİNDE: dışarıda "[]" her render'da yeni dizi üretip memo'yu
-    // işlevsiz bırakıyordu.
-    const liste = tab === "gruplar" ? [] : data[tab];
     const qAd = adFiltre.toLowerCase();
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
@@ -226,7 +230,15 @@ export function DefinitionsPage({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [tab, data, adFiltre, adetAralik, durum, sort]);
+  }, [liste, adFiltre, adetAralik, durum, sort]);
+
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  cip.metin("Ad", adFiltre, (x) => x.ad, () => setAdFiltre(""));
+  cip.liste("Durum", durum, (x) => x.durum, () => setDurum("Tümü"));
+  cip.sayi("Adet", adetAralik, (x) => x.adet, () =>
+    setAdetAralik({ min: "", max: "" }),
+  );
 
   const sayfalama = useSayfalama(filtreli, "tanimlamalar");
   const { sayfalik, setSayfa } = sayfalama;
@@ -414,7 +426,7 @@ export function DefinitionsPage({
 
         {/* Tablo — proje standardı liste kartı */}
         <div className="overflow-hidden rounded-md border bg-card">
-          <ListHeader title={aktifTab.label}>
+          <ListHeader title={aktifTab.label} filtreler={cip.sonuc()}>
             {yonetici && <KolonAyarButonu kolon={kolon} />}
             <Button
               size="sm"

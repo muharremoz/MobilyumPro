@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -215,6 +216,23 @@ export function CariList({
   const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
     setSort({ key: k, dir });
 
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  cip.metin("Kod", kodFiltre, (c) => c.id, () => setKodFiltre(""));
+  // Ad kolonunda e-posta da gösterilir; filtre ikisine birden bakar.
+  cip.metin("Ad", adFiltre, (c) => `${c.ad}\n${c.email ?? ""}`, () =>
+    setAdFiltre(""),
+  );
+  cip.metin("Şehir", sehirFiltre, (c) => c.sehir, () => setSehirFiltre(""));
+  cip.metin("Telefon", telefonFiltre, (c) => c.telefon, () =>
+    setTelefonFiltre(""),
+  );
+  cip.liste("Tip", tip, (c) => c.tip, () => setTip("Tümü"));
+  cip.liste("Durum", durum, (c) => c.durum, () => setDurum("Tümü"));
+  cip.sayi("Bakiye", bakiyeAralik, (c) => c.bakiye, () =>
+    setBakiyeAralik({ min: "", max: "" }),
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {secili.size > 0 && (
@@ -239,7 +257,7 @@ export function CariList({
       )}
 
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Cari Hesaplar">
+        <ListHeader title="Cari Hesaplar" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"

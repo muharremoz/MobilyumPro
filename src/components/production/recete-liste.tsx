@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -166,16 +167,23 @@ export function ReceteListe({
     return m;
   }, [liste, modeller]);
 
+  // Zenginleştirme (maliyet/kullanım) filtreden ayrı: başlıktaki filtre
+  // çipleri adetleri süzülmemiş liste üzerinden sayabilsin.
+  const zenginler = React.useMemo(
+    () =>
+      liste.map((p) => ({
+        p,
+        maliyet: receteMaliyeti(p.recete, malzemeMap, parcaMap),
+        kullanimSayisi: kullanim.get(p.id) ?? 0,
+      })),
+    [liste, malzemeMap, parcaMap, kullanim],
+  );
+
   const satirlar = React.useMemo(() => {
     const q = adFiltre.toLocaleLowerCase("tr");
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
-    const arr = liste
-      .map((p) => ({
-        p,
-        maliyet: receteMaliyeti(p.recete, malzemeMap, parcaMap),
-        kullanimSayisi: kullanim.get(p.id) ?? 0,
-      }))
+    const arr = zenginler
       .filter(
         (x) =>
           (!q || x.p.ad.toLocaleLowerCase("tr").includes(q)) &&
@@ -206,7 +214,7 @@ export function ReceteListe({
       return String(va).localeCompare(String(vb), "tr") * yon;
     });
   }, [
-    liste,
+    zenginler,
     adFiltre,
     kategori,
     bilesenAralik,
@@ -214,10 +222,24 @@ export function ReceteListe({
     kullanimAralik,
     durum,
     sort,
-    malzemeMap,
-    parcaMap,
-    kullanim,
   ]);
+
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(zenginler);
+  cip.metin("Ad", adFiltre, (x) => x.p.ad, () => setAdFiltre(""));
+  cip.liste("Kategori", kategori, (x) => x.p.kategori, () =>
+    setKategori("Tümü"),
+  );
+  cip.liste("Durum", durum, (x) => x.p.durum, () => setDurum("Tümü"));
+  cip.sayi("Bileşen", bilesenAralik, (x) => x.p.recete.length, () =>
+    setBilesenAralik({ min: "", max: "" }),
+  );
+  cip.sayi("Maliyet", maliyetAralik, (x) => x.maliyet, () =>
+    setMaliyetAralik({ min: "", max: "" }),
+  );
+  cip.sayi("Kullanım", kullanimAralik, (x) => x.kullanimSayisi, () =>
+    setKullanimAralik({ min: "", max: "" }),
+  );
 
   const sayfalama = useSayfalama(satirlar, "receteler");
   const { sayfalik, setSayfa } = sayfalama;
@@ -273,7 +295,7 @@ export function ReceteListe({
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Reçeteler">
+        <ListHeader title="Reçeteler" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"

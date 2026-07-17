@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -294,6 +295,26 @@ export function StokKartListe({
 
   const sayfalik = sayfalama.sayfalik;
 
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  cip.metin("Kod", metinFiltre.id, (s) => s.kod ?? s.id, () =>
+    setMetinFiltre((f) => ({ ...f, id: "" })),
+  );
+  cip.metin("Ad", metinFiltre.ad, (s) => s.ad, () =>
+    setMetinFiltre((f) => ({ ...f, ad: "" })),
+  );
+  cip.liste("Tip", grupF, (s) => s.grup, () => setGrupF("Tümü"));
+  cip.liste("Grup", altGrupF, (s) => s.altGrup, () => setAltGrupF("Tümü"));
+  cip.liste("Cins", cinsF, (s) => s.cins, () => setCinsF("Tümü"));
+  cip.liste("Birim", birimF, (s) => s.stokBirimi, () => setBirimF("Tümü"));
+  cip.liste("Durum", durumF, (s) => s.durum, () => setDurumF("Tümü"));
+  cip.sayi("Miktar", sayiFiltre.miktar, (s) => s.miktar, () =>
+    setSayiFiltre((f) => ({ ...f, miktar: { min: "", max: "" } })),
+  );
+  cip.sayi("Satış Fiyatı", sayiFiltre.satisFiyat1, (s) => s.satisFiyat1, () =>
+    setSayiFiltre((f) => ({ ...f, satisFiyat1: { min: "", max: "" } })),
+  );
+
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
   const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
@@ -302,7 +323,7 @@ export function StokKartListe({
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Malzeme">
+        <ListHeader title="Malzeme" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button
             size="sm"
@@ -580,7 +601,10 @@ export function StokKartListe({
             {sayfalik.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={2 + kolon.gorunurTemelSayisi + gorunurEk.length}
+                  // Sabit kolon yalnızca "Görsel" (1). Kod dahil temel
+                  // kolonlar gorunurTemelSayisi'na girer; 2 yazılıysa boş
+                  // listede tablo bir kolon genişler.
+                  colSpan={1 + kolon.gorunurTemelSayisi + gorunurEk.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Stok kartı bulunamadı.

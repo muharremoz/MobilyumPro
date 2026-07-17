@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
+import { filtreCipleri } from "@/components/ui/filtre-cipleri";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
@@ -143,6 +144,20 @@ export function Parts({
     [metinFiltre, kategori, durum, receteAralik, setSayfa],
   );
 
+  // Başlıktaki aktif filtre çipleri — proje standardı (ui/filtre-cipleri).
+  const cip = filtreCipleri(liste);
+  cip.metin("Kod", metinFiltre.id, (p) => p.id, () =>
+    setMetinFiltre((f) => ({ ...f, id: "" })),
+  );
+  cip.metin("Ad", metinFiltre.ad, (p) => p.ad, () =>
+    setMetinFiltre((f) => ({ ...f, ad: "" })),
+  );
+  cip.liste("Kategori", kategori, (p) => p.kategori, () => setKategori("Tümü"));
+  cip.liste("Durum", durum, (p) => p.durum, () => setDurum("Tümü"));
+  cip.sayi("Reçete", receteAralik, (p) => p.recete.length, () =>
+    setReceteAralik({ min: "", max: "" }),
+  );
+
   const sayfaIds = sayfalik.map((p) => p.id);
   const tumuSecili =
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
@@ -260,7 +275,7 @@ export function Parts({
 
       {/* Tablo — proje standardı liste kartı */}
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Parçalar">
+        <ListHeader title="Parçalar" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
           <Button size="sm" onClick={() => router.push("/parcalar/yeni")}>
             <Plus className="size-4" /> Yeni Parça
