@@ -36,6 +36,7 @@ import {
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { StokGrup } from "@/lib/data";
 import { grupKaydet, grupSil, grupSiraKaydet } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 /**
  * Stok grup ağacı — Tanımlamalar → Gruplar.
@@ -143,7 +144,7 @@ function GrupSatiri({
 
 export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
+  const [liste, setListe] = usePropAynasi(gruplar);
   // Sütunlu (Finder) gezinme yolu — seçili grup id'leri (kök → derin).
   const [yolIds, setYolIds] = React.useState<string[]>([]);
   const [sheetAcik, setSheetAcik] = React.useState(false);
@@ -151,7 +152,6 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
   const [duzenlenen, setDuzenlenen] = React.useState<StokGrup | null>(null);
   const [ustGrup, setUstGrup] = React.useState<StokGrup | null>(null);
 
-  React.useEffect(() => setListe(gruplar), [gruplar]);
 
   // ustId → alt gruplar (sürükle-bırak sırasıyla; eşitse kod)
   const altlar = React.useMemo(() => {

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import type { StokGrup } from "@/lib/data";
 import { grupKaydet } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 /**
  * Ağaçlı grup seçici — Finder/Miller sütun stili.
@@ -47,8 +48,7 @@ export function GrupSecici({
   // Açık sütun yolu — sürüklenen (drill) grup id'leri; kök sütun her zaman var.
   const [yolIds, setYolIds] = React.useState<string[]>([]);
   // Yerel liste — inline "yeni ekle" ile anında büyür.
-  const [liste, setListe] = React.useState<StokGrup[]>(gruplar);
-  React.useEffect(() => setListe(gruplar), [gruplar]);
+  const [liste, setListe] = usePropAynasi(gruplar);
   // Yeni grup modalı — hangi üst gruba ekleneceği + girilen ad/kod.
   const [ekleAcik, setEkleAcik] = React.useState(false);
   const [ekleUstId, setEkleUstId] = React.useState<string | null>(null);

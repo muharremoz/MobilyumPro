@@ -19,6 +19,7 @@ import { SatirMenu } from "@/components/ui/satir-menu";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Istasyon } from "@/lib/fabrika";
 import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 type Form = {
   id?: string;
@@ -41,8 +42,7 @@ export function IstasyonTanim({
   istasyonlar?: Istasyon[];
 }) {
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<Istasyon[]>(istasyonlar);
-  React.useEffect(() => setListe(istasyonlar), [istasyonlar]);
+  const [liste, setListe] = usePropAynasi(istasyonlar);
   const [acik, setAcik] = React.useState(false);
   const [form, setForm] = React.useState<Form>(BOS);
 

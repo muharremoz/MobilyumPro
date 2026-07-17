@@ -89,6 +89,7 @@ import {
   tanimKaydet,
 } from "@/lib/db/actions";
 import { useOnay } from "@/components/ui/confirm-dialog";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import {
   Dialog,
   DialogContent,
@@ -2148,8 +2149,7 @@ function UreticiTab({
   kayitlar: StokUretici[];
   tedarikciler: { id: string; ad: string }[];
 }) {
-  const [liste, setListe] = React.useState<StokUretici[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokUretici | null>(null);
 
@@ -2425,8 +2425,7 @@ function MusterilerTab({
   kayitlar: StokMusteri[];
   musteriCariler: { id: string; ad: string }[];
 }) {
-  const [liste, setListe] = React.useState<StokMusteri[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokMusteri | null>(null);
 
@@ -2746,8 +2745,7 @@ export function DokumanlarTab({
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<StokDokuman[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<StokDokuman | null>(null);
   const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);

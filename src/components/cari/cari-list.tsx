@@ -33,6 +33,7 @@ import {
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Cari, type CariTip } from "@/lib/data";
 import { cariSil } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi", "Banka"];
 const TIP_RENK: Record<CariTip, string> = {
@@ -77,8 +78,7 @@ export function CariList({
 }) {
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<Cari[]>(cariler);
-  React.useEffect(() => setListe(cariler), [cariler]);
+  const [liste, setListe] = usePropAynasi(cariler);
   // Kolon filtreleri (başlık popover'larından)
   const [kodFiltre, setKodFiltre] = React.useState("");
   const [adFiltre, setAdFiltre] = React.useState("");

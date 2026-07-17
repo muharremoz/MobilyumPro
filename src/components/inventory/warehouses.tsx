@@ -32,6 +32,7 @@ import {
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Depo } from "@/lib/data";
 import { depoKaydet, depoSil } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 type SortKey = "id" | "ad" | "sehir" | "kapasite" | "doluluk" | "durum";
 
@@ -60,7 +61,7 @@ export function Warehouses({
   yonetici?: boolean;
 }) {
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<Depo[]>(depolar);
+  const [liste, setListe] = usePropAynasi(depolar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
     id: "",
@@ -77,7 +78,6 @@ export function Warehouses({
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Depo | null>(null);
 
-  React.useEffect(() => setListe(depolar), [depolar]);
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({

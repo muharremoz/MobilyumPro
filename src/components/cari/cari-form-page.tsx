@@ -93,6 +93,7 @@ import {
 } from "@/lib/data";
 import type { Malzeme, SatinAlmaSarti } from "@/lib/data";
 import { CariSartlarTab } from "@/components/satin-alma/sart-liste";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import {
   cariKaydet,
   cariIslemEkle,
@@ -361,8 +362,7 @@ export function CariFormPage({
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
   // Mevcut cari'nin işlemleri (DB'den prop olarak gelir; refresh ile senkron)
-  const [islemler, setIslemler] = React.useState<CariIslem[]>(islemlerProp);
-  React.useEffect(() => setIslemler(islemlerProp), [islemlerProp]);
+  const [islemler, setIslemler] = usePropAynasi(islemlerProp);
 
   const set = (k: keyof Form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -1639,8 +1639,7 @@ function BankaTab({
   cariId: string;
   kayitlar: CariBanka[];
 }) {
-  const [liste, setListe] = React.useState<CariBanka[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<CariBanka | null>(null);
 
@@ -1857,8 +1856,7 @@ function SubelerTab({
   kayitlar: CariSube[];
   adresSecenekleri: AdresSecenekleri;
 }) {
-  const [liste, setListe] = React.useState<CariSube[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<CariSube | null>(null);
 
@@ -2209,8 +2207,7 @@ function YetkililerTab({
   kayitlar: CariYetkili[];
   subeler: string[];
 }) {
-  const [liste, setListe] = React.useState<CariYetkili[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<CariYetkili | null>(null);
 
@@ -2475,8 +2472,7 @@ function CrmTab({
   kayitlar: CariCrm[];
   kullanicilar: string[];
 }) {
-  const [liste, setListe] = React.useState<CariCrm[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<CariCrm | null>(null);
 
@@ -2741,8 +2737,7 @@ function DokumanlarTab({
   cariId: string;
   kayitlar: CariDokuman[];
 }) {
-  const [liste, setListe] = React.useState<CariDokuman[]>(kayitlar);
-  React.useEffect(() => setListe(kayitlar), [kayitlar]);
+  const [liste, setListe] = usePropAynasi(kayitlar);
   const [sheetAcik, setSheetAcik] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<CariDokuman | null>(null);
 

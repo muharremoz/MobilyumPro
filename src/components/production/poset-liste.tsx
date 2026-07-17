@@ -28,6 +28,7 @@ import {
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Poset } from "@/lib/data";
 import { posetSil } from "@/lib/db/actions";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 type SortKey = "kod" | "ad" | "aciklama" | "malzeme" | "durum";
 
@@ -57,7 +58,7 @@ export function PosetListe({
 }) {
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<Poset[]>(posetler);
+  const [liste, setListe] = usePropAynasi(posetler);
   // Kolon filtreleri (başlık popover'larından)
   const [kodFiltre, setKodFiltre] = React.useState("");
   const [adFiltre, setAdFiltre] = React.useState("");
@@ -71,7 +72,6 @@ export function PosetListe({
     { key: "kod", dir: "asc" },
   );
 
-  React.useEffect(() => setListe(posetler), [posetler]);
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({

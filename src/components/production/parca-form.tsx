@@ -82,6 +82,7 @@ import {
   resimMi,
 } from "@/components/stok-karti/stok-kart-form";
 import { receteMaliyeti } from "@/components/production/recete-liste";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 const KATEGORILER: ParcaKategori[] = [
   "Karyola",
@@ -243,14 +244,13 @@ export function ParcaForm({
     () => new Map(modeller.map((m) => [m.id, m])),
     [modeller],
   );
-  const [versiyonlar, setVersiyonlar] = React.useState(versiyonlarProp);
+  const [versiyonlar, setVersiyonlar] = usePropAynasi(versiyonlarProp);
   const [acikAltlar, setAcikAltlar] = React.useState<Set<number>>(new Set());
   const [kaydetOnay, setKaydetOnay] = React.useState(false);
   const [degisiklikNotu, setDegisiklikNotu] = React.useState("");
   const [geriYukleNo, setGeriYukleNo] = React.useState<number | null>(null);
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
-  React.useEffect(() => setVersiyonlar(versiyonlarProp), [versiyonlarProp]);
 
   const malzemeMap = React.useMemo(
     () => new Map(malzemeler.map((m) => [m.id, m])),

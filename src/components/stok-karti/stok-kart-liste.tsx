@@ -14,6 +14,7 @@ import {
   Link2,
 } from "lucide-react";
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -135,8 +136,7 @@ export function StokKartListe({
 }) {
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
-  const [liste, setListe] = React.useState<StokKarti[]>(stoklar);
-  React.useEffect(() => setListe(stoklar), [stoklar]);
+  const [liste, setListe] = usePropAynasi(stoklar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
     id: "",
