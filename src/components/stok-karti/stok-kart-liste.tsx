@@ -138,13 +138,11 @@ export function StokKartListe({
   const { onayla, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(stoklar);
   // Kolon filtreleri (başlık popover'larından)
-  const [metinFiltre, setMetinFiltre] = React.useState({
-    id: "",
-    ad: "",
-    altGrup: "",
-    cins: "",
-  });
+  const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [grupF, setGrupF] = React.useState("Tümü");
+  const [altGrupF, setAltGrupF] = React.useState("Tümü");
+  const [cinsF, setCinsF] = React.useState("Tümü");
+  const [birimF, setBirimF] = React.useState("Tümü");
   const [durumF, setDurumF] = React.useState("Tümü");
   const [sayiFiltre, setSayiFiltre] = React.useState<
     Record<"miktar" | "satisFiyat1", { min: string; max: string }>
@@ -164,20 +162,40 @@ export function StokKartListe({
   });
   const gorunurEk = EK_KOLONLAR.filter((k) => kolon.ekGorunur(k.key));
 
+  // Liste filtrelerinin seçenekleri veriden türer: ölü seçenek çıkmaz, yeni
+  // değer girildikçe kendiliğinden listeye düşer.
+  const secenek = (deger: (s: StokKarti) => string | undefined) =>
+    [...new Set(liste.map(deger).filter((v): v is string => !!v))].sort((a, b) =>
+      a.localeCompare(b, "tr"),
+    );
+  const altGrupSecenekleri = React.useMemo(
+    () => secenek((s) => s.altGrup),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liste],
+  );
+  const cinsSecenekleri = React.useMemo(
+    () => secenek((s) => s.cins),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liste],
+  );
+  const birimSecenekleri = React.useMemo(
+    () => secenek((s) => s.stokBirimi),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liste],
+  );
+
   const filtreli = React.useMemo(() => {
     const qId = metinFiltre.id.toLocaleLowerCase("tr");
     const qAd = metinFiltre.ad.toLocaleLowerCase("tr");
-    const qAltGrup = metinFiltre.altGrup.toLocaleLowerCase("tr");
-    const qCins = metinFiltre.cins.toLocaleLowerCase("tr");
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter(
       (s) =>
         (!qId || (s.kod ?? s.id).toLocaleLowerCase("tr").includes(qId)) &&
         (!qAd || s.ad.toLocaleLowerCase("tr").includes(qAd)) &&
-        (!qAltGrup ||
-          (s.altGrup?.toLocaleLowerCase("tr").includes(qAltGrup) ?? false)) &&
-        (!qCins || (s.cins?.toLocaleLowerCase("tr").includes(qCins) ?? false)) &&
+        (altGrupF === "Tümü" || s.altGrup === altGrupF) &&
+        (cinsF === "Tümü" || s.cins === cinsF) &&
+        (birimF === "Tümü" || s.stokBirimi === birimF) &&
         (grupF === "Tümü" || s.grup === grupF) &&
         (durumF === "Tümü" || s.durum === durumF) &&
         arada(s.miktar, sayiFiltre.miktar.min, sayiFiltre.miktar.max) &&
@@ -197,14 +215,24 @@ export function StokKartListe({
         return (va - vb) * yon;
       return String(va).localeCompare(String(vb), "tr") * yon;
     });
-  }, [liste, metinFiltre, grupF, durumF, sayiFiltre, sort]);
+  }, [
+    liste,
+    metinFiltre,
+    grupF,
+    altGrupF,
+    cinsF,
+    birimF,
+    durumF,
+    sayiFiltre,
+    sort,
+  ]);
 
   const sayfalama = useSayfalama(filtreli, "stok-kartlari");
   const { setSayfa } = sayfalama;
   // Filtre değişince ilk sayfaya dön.
   React.useEffect(
     () => setSayfa(1),
-    [metinFiltre, grupF, durumF, sayiFiltre, setSayfa],
+    [metinFiltre, grupF, altGrupF, cinsF, birimF, durumF, sayiFiltre, setSayfa],
   );
 
   async function sil(s: StokKarti) {
@@ -331,10 +359,10 @@ export function StokKartListe({
                   sira={sira("altGrup")}
                   onSirala={sirala("altGrup")}
                   filtre={{
-                    tip: "metin",
-                    deger: metinFiltre.altGrup,
-                    onDeger: (v) =>
-                      setMetinFiltre((f) => ({ ...f, altGrup: v })),
+                    tip: "liste",
+                    secenekler: altGrupSecenekleri,
+                    deger: altGrupF,
+                    onDeger: setAltGrupF,
                   }}
                 >
                   Grup
@@ -345,9 +373,10 @@ export function StokKartListe({
                   sira={sira("cins")}
                   onSirala={sirala("cins")}
                   filtre={{
-                    tip: "metin",
-                    deger: metinFiltre.cins,
-                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, cins: v })),
+                    tip: "liste",
+                    secenekler: cinsSecenekleri,
+                    deger: cinsF,
+                    onDeger: setCinsF,
                   }}
                 >
                   Cins
@@ -357,6 +386,12 @@ export function StokKartListe({
                 <SiralaFiltreBaslik
                   sira={sira("stokBirimi")}
                   onSirala={sirala("stokBirimi")}
+                  filtre={{
+                    tip: "liste",
+                    secenekler: birimSecenekleri,
+                    deger: birimF,
+                    onDeger: setBirimF,
+                  }}
                 >
                   Birim
                 </SiralaFiltreBaslik>

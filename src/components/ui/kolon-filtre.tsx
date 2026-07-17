@@ -74,6 +74,48 @@ const ogeCls = (seciliMi: boolean) =>
     seciliMi && "bg-accent/60 font-medium",
   );
 
+/** Liste filtresinin aranabilir seçenek listesi. Türkçe'ye duyarlı eşleşme. */
+function ListeSecenekleri({
+  secenekler,
+  arama,
+  deger,
+  onDeger,
+}: {
+  secenekler: string[];
+  arama: string;
+  deger: string;
+  onDeger: (v: string) => void;
+}) {
+  const q = arama.trim().toLocaleLowerCase("tr");
+  const gorunur = q
+    ? secenekler.filter((s) => s.toLocaleLowerCase("tr").includes(q))
+    : secenekler;
+
+  if (gorunur.length === 0) {
+    return (
+      <p className="px-1.5 py-2 text-center text-xs text-muted-foreground">
+        Eşleşen seçenek yok
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid max-h-56 gap-0.5 overflow-y-auto">
+      {gorunur.map((v) => (
+        <button
+          key={v}
+          type="button"
+          className={ogeCls(deger === v)}
+          onClick={() => onDeger(v)}
+        >
+          {v}
+          {deger === v && <Check className="ml-auto size-4" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SiralaFiltreBaslik({
   children,
   className,
@@ -95,6 +137,11 @@ export function SiralaFiltreBaslik({
   const tumu = filtre?.tip === "liste" ? (filtre.tumu ?? "Tümü") : "Tümü";
   const aktif = filtre ? filtreAktif(filtre, tumu) : false;
 
+  // Liste filtresi içi arama. Popover kapanınca sıfırlanır ki bir dahaki
+  // açılışta önceki arama kalmasın.
+  const [acik, setAcik] = React.useState(false);
+  const [arama, setArama] = React.useState("");
+
   function temizle() {
     if (!filtre) return;
     if (filtre.tip === "metin") filtre.onDeger("");
@@ -103,7 +150,13 @@ export function SiralaFiltreBaslik({
   }
 
   const icerik = (
-      <Popover>
+      <Popover
+        open={acik}
+        onOpenChange={(v) => {
+          setAcik(v);
+          if (!v) setArama("");
+        }}
+      >
         <PopoverTrigger
           render={
             <button
@@ -180,23 +233,24 @@ export function SiralaFiltreBaslik({
                 </div>
               )}
               {filtre.tip === "liste" && (
-                <div className="grid max-h-56 gap-0.5 overflow-y-auto">
-                  {[tumu, ...filtre.secenekler.filter((s) => s !== tumu)].map(
-                    (v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className={ogeCls(filtre.deger === v)}
-                        onClick={() => filtre.onDeger(v)}
-                      >
-                        {v}
-                        {filtre.deger === v && (
-                          <Check className="ml-auto size-4" />
-                        )}
-                      </button>
-                    ),
-                  )}
-                </div>
+                <>
+                  <Input
+                    autoFocus
+                    placeholder="Ara…"
+                    value={arama}
+                    onChange={(e) => setArama(e.target.value)}
+                    className="mb-1 h-8"
+                  />
+                  <ListeSecenekleri
+                    secenekler={[
+                      tumu,
+                      ...filtre.secenekler.filter((s) => s !== tumu),
+                    ]}
+                    arama={arama}
+                    deger={filtre.deger}
+                    onDeger={filtre.onDeger}
+                  />
+                </>
               )}
 
               {aktif && (
