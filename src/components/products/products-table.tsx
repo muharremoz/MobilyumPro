@@ -61,6 +61,7 @@ import {
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
 import { UretimeGonderDialog } from "./uretime-gonder-dialog";
+import { EtiketDialog } from "./etiket-dialog";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -223,6 +224,7 @@ export function ProductsTable({
   const [duzeltHedef, setDuzeltHedef] = React.useState<Model | null>(null);
   const [fiyatHedef, setFiyatHedef] = React.useState<Model | null>(null);
   const [uretimHedef, setUretimHedef] = React.useState<Model | null>(null);
+  const [etiketHedef, setEtiketHedef] = React.useState<Model | null>(null);
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
 
@@ -376,6 +378,15 @@ export function ProductsTable({
   }
   function fiyatUygulandi(id: string, yeniFiyat: number) {
     setListe((l) => l.map((u) => (u.id === id ? { ...u, fiyat: yeniFiyat } : u)));
+  }
+  function etiketUygulandi(id: string, etiketler: string[]) {
+    setListe((l) =>
+      l.map((u) =>
+        u.id === id
+          ? { ...u, etiketler: etiketler.length ? etiketler : undefined }
+          : u,
+      ),
+    );
   }
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
@@ -674,9 +685,9 @@ export function ProductsTable({
                         onSecim: () => setUretimHedef(u),
                       },
                       {
-                        etiket: "Etiket Ekle",
+                        etiket: "Etiketler",
                         ikon: Tags,
-                        onSecim: () => yakinda("Etiket ekle"),
+                        onSecim: () => setEtiketHedef(u),
                       },
                       {
                         etiket: "Favorile",
@@ -827,6 +838,20 @@ export function ProductsTable({
       <UretimeGonderDialog
         hedef={uretimHedef ? { id: uretimHedef.id, ad: uretimHedef.ad } : null}
         onKapat={() => setUretimHedef(null)}
+      />
+
+      <EtiketDialog
+        hedef={
+          etiketHedef
+            ? {
+                id: etiketHedef.id,
+                ad: etiketHedef.ad,
+                etiketler: etiketHedef.etiketler,
+              }
+            : null
+        }
+        onKapat={() => setEtiketHedef(null)}
+        onUygulandi={etiketUygulandi}
       />
     </div>
   );

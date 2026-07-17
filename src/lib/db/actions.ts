@@ -479,6 +479,35 @@ export async function modelDurumGuncelle(
   }
 }
 
+/**
+ * Model etiketlerini günceller. "cinsler" deseni: virgülle ayrılmış tek kolon.
+ * Etiketler kırpılır, boşlar atılır, tekilleştirilir; hiç yoksa null yazılır.
+ */
+export async function modelEtiketGuncelle(
+  id: string,
+  etiketler: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!id) return { ok: false, error: "Model bulunamadı." };
+  const temiz = [
+    ...new Set(etiketler.map((e) => e.trim()).filter(Boolean)),
+  ];
+  // Virgül ayraç olduğundan etiketin içinde virgül olamaz.
+  if (temiz.some((e) => e.includes(","))) {
+    return { ok: false, error: "Etiket virgül içeremez." };
+  }
+  try {
+    await db.stok.update({
+      where: { id },
+      data: { etiketler: temiz.length ? temiz.join(",") : null },
+    });
+    revalidatePath("/urunler");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Etiketler güncellenemedi." };
+  }
+}
+
 /** Model kategorisini günceller (tek kolon; BOM'a dokunmaz). */
 export async function modelKategoriGuncelle(
   id: string,

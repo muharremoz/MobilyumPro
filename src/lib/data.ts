@@ -54,6 +54,8 @@ export type Model = {
   gorseller?: string[];
   /** Renk / Kumaş varyantları (her satır bir kombinasyon). */
   varyantlar?: ModelVaryant[];
+  /** Serbest etiketler (filtre/gruplama). Boş = etiketsiz. */
+  etiketler?: string[];
 };
 
 // Reçete bileşeni — malzeme veya başka parça (alt-parça).
