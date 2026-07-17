@@ -1,14 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +19,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
@@ -113,7 +107,6 @@ function tanimlardanData(
 }
 
 type SortKey = "ad" | "adet" | "durum";
-const SAYFA_BOYUT = 8;
 
 /** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
 const TEMEL_KOLONLAR: KolonTanim[] = [
@@ -181,7 +174,6 @@ export function DefinitionsPage({
     dir: "asc",
   });
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
-  const [sayfa, setSayfa] = React.useState(1);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Tanim | null>(null);
   const [acikGrup, setAcikGrup] = React.useState<Set<string>>(
@@ -200,16 +192,6 @@ export function DefinitionsPage({
 
   const aktifTab = TABS[tab];
   const liste = tab === "gruplar" ? [] : data[tab];
-
-  // Tip değişince filtre/seçim/sayfa sıfırla; filtre değişince sayfaya dön.
-  React.useEffect(() => {
-    setAdFiltre("");
-    setAdetAralik({ min: "", max: "" });
-    setDurum("Tümü");
-    setSecili(new Set());
-    setSayfa(1);
-  }, [tab]);
-  React.useEffect(() => setSayfa(1), [adFiltre, adetAralik, durum]);
 
   function grupAcKapa(label: string) {
     setAcikGrup((s) => {
@@ -239,12 +221,22 @@ export function DefinitionsPage({
     });
   }, [liste, adFiltre, adetAralik, durum, sort]);
 
-  const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = filtreli.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
+  const sayfalama = useSayfalama(filtreli, "tanimlamalar");
+  const { sayfalik, setSayfa } = sayfalama;
+
+  // Tip değişince filtre/seçim/sayfa sıfırla; filtre değişince sayfaya dön.
+  React.useEffect(() => {
+    setAdFiltre("");
+    setAdetAralik({ min: "", max: "" });
+    setDurum("Tümü");
+    setSecili(new Set());
+    setSayfa(1);
+  }, [tab, setSayfa]);
+  React.useEffect(
+    () => setSayfa(1),
+    [adFiltre, adetAralik, durum, setSayfa],
   );
+
   const sayfaIds = sayfalik.map((x) => x.id);
   const tumuSecili = sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
   const baziSecili = sayfaIds.some((id) => secili.has(id));
@@ -569,29 +561,7 @@ export function DefinitionsPage({
             {filtreli.length} kayıt
             {secili.size > 0 ? ` · ${secili.size} seçili` : ""}
           </span>
-          <div className="flex items-center gap-2">
-            <span>
-              Sayfa {aktifSayfa} / {toplamSayfa}
-            </span>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              disabled={aktifSayfa <= 1}
-              onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-              aria-label="Önceki"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              disabled={aktifSayfa >= toplamSayfa}
-              onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-              aria-label="Sonraki"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+          <SayfalamaKontrol sayfalama={sayfalama} />
         </div>
       </div>
       )}

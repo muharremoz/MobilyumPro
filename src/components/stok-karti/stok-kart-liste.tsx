@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   CopyPlus,
   Power,
@@ -15,6 +13,7 @@ import {
   Type,
   Link2,
 } from "lucide-react";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -50,13 +49,12 @@ const GRUP_RENK: Record<StokGrubu, string> = {
   Mamül: "bg-emerald-100 text-emerald-800",
   Hizmet: "bg-slate-100 text-slate-800",
 };
-const SAYFA_BOYUT = 10;
-
 type SortKey =
   | "id"
   | "ad"
   | "grup"
   | "altGrup"
+  | "cins"
   | "stokBirimi"
   | "miktar"
   | "satisFiyat1"
@@ -71,8 +69,11 @@ const TEMEL_KOLONLAR: KolonTanim[] = [
     kilitli: true,
   },
   { key: "ad", label: "Ad", aciklama: "Stok kartı adı." },
-  { key: "grup", label: "Grup", aciklama: "Hammadde/Yarı Mamül/Mamül/Hizmet." },
-  { key: "altGrup", label: "Alt Grup", aciklama: "Bağlı olduğu alt grup." },
+  // Not: "grup" alanı tipi tutar (form da "Tip" der), "altGrup" grup ağacından
+  // seçilen gerçek gruptur (form da "Grup" der). Etiketler formla hizalı.
+  { key: "grup", label: "Tip", aciklama: "Hammadde/Yarı Mamül/Mamül/Hizmet." },
+  { key: "altGrup", label: "Grup", aciklama: "Grup ağacından seçilen grup." },
+  { key: "cins", label: "Cins", aciklama: "Malzeme cinsi (MDF, Suntalam, …)." },
   { key: "stokBirimi", label: "Birim", aciklama: "Stok birimi (adet, m², …)." },
   {
     key: "miktar",
@@ -141,6 +142,7 @@ export function StokKartListe({
     id: "",
     ad: "",
     altGrup: "",
+    cins: "",
   });
   const [grupF, setGrupF] = React.useState("Tümü");
   const [durumF, setDurumF] = React.useState("Tümü");
@@ -150,7 +152,6 @@ export function StokKartListe({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "id", dir: "asc" },
   );
-  const [sayfa, setSayfa] = React.useState(1);
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -163,13 +164,11 @@ export function StokKartListe({
   });
   const gorunurEk = EK_KOLONLAR.filter((k) => kolon.ekGorunur(k.key));
 
-  // Filtre değişince ilk sayfaya dön.
-  React.useEffect(() => setSayfa(1), [metinFiltre, grupF, durumF, sayiFiltre]);
-
   const filtreli = React.useMemo(() => {
     const qId = metinFiltre.id.toLocaleLowerCase("tr");
     const qAd = metinFiltre.ad.toLocaleLowerCase("tr");
     const qAltGrup = metinFiltre.altGrup.toLocaleLowerCase("tr");
+    const qCins = metinFiltre.cins.toLocaleLowerCase("tr");
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter(
@@ -178,6 +177,7 @@ export function StokKartListe({
         (!qAd || s.ad.toLocaleLowerCase("tr").includes(qAd)) &&
         (!qAltGrup ||
           (s.altGrup?.toLocaleLowerCase("tr").includes(qAltGrup) ?? false)) &&
+        (!qCins || (s.cins?.toLocaleLowerCase("tr").includes(qCins) ?? false)) &&
         (grupF === "Tümü" || s.grup === grupF) &&
         (durumF === "Tümü" || s.durum === durumF) &&
         arada(s.miktar, sayiFiltre.miktar.min, sayiFiltre.miktar.max) &&
@@ -198,6 +198,14 @@ export function StokKartListe({
       return String(va).localeCompare(String(vb), "tr") * yon;
     });
   }, [liste, metinFiltre, grupF, durumF, sayiFiltre, sort]);
+
+  const sayfalama = useSayfalama(filtreli, "stok-kartlari");
+  const { setSayfa } = sayfalama;
+  // Filtre değişince ilk sayfaya dön.
+  React.useEffect(
+    () => setSayfa(1),
+    [metinFiltre, grupF, durumF, sayiFiltre, setSayfa],
+  );
 
   async function sil(s: StokKarti) {
     if (
@@ -256,12 +264,7 @@ export function StokKartListe({
     toast.success(`${etiket} kopyalandı`);
   }
 
-  const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = filtreli.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
-  );
+  const sayfalik = sayfalama.sayfalik;
 
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
@@ -320,7 +323,7 @@ export function StokKartListe({
                     onDeger: setGrupF,
                   }}
                 >
-                  Grup
+                  Tip
                 </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("altGrup") && (
@@ -334,7 +337,20 @@ export function StokKartListe({
                       setMetinFiltre((f) => ({ ...f, altGrup: v })),
                   }}
                 >
-                  Alt Grup
+                  Grup
+                </SiralaFiltreBaslik>
+              )}
+              {kolon.temelGorunur("cins") && (
+                <SiralaFiltreBaslik
+                  sira={sira("cins")}
+                  onSirala={sirala("cins")}
+                  filtre={{
+                    tip: "metin",
+                    deger: metinFiltre.cins,
+                    onDeger: (v) => setMetinFiltre((f) => ({ ...f, cins: v })),
+                  }}
+                >
+                  Cins
                 </SiralaFiltreBaslik>
               )}
               {kolon.temelGorunur("stokBirimi") && (
@@ -486,6 +502,11 @@ export function StokKartListe({
                       {s.altGrup ?? "—"}
                     </TableCell>
                   )}
+                  {kolon.temelGorunur("cins") && (
+                    <TableCell className="text-muted-foreground">
+                      {s.cins ?? "—"}
+                    </TableCell>
+                  )}
                   {kolon.temelGorunur("stokBirimi") && (
                     <TableCell className="text-muted-foreground">
                       {s.stokBirimi}
@@ -537,29 +558,7 @@ export function StokKartListe({
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{filtreli.length} stok kartı</span>
-        <div className="flex items-center gap-2">
-          <span>
-            Sayfa {aktifSayfa} / {toplamSayfa}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa <= 1}
-            onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-            aria-label="Önceki"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa >= toplamSayfa}
-            onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-            aria-label="Sonraki"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        <SayfalamaKontrol sayfalama={sayfalama} />
       </div>
 
       {/* Sütun ayarları sheet'i — proje standardı */}

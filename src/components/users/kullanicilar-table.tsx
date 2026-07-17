@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   Pencil,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   Check,
   Wand2,
   Copy,
@@ -25,6 +23,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Switch } from "@/components/ui/switch";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { ListHeader } from "@/components/ui/list-header";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -76,7 +75,6 @@ const ROL_RENK: Record<string, string> = {
   Kullanıcı: "bg-blue-100 text-blue-800",
   Görüntüleyici: "bg-slate-100 text-slate-700",
 };
-const SAYFA_BOYUT = 8;
 type SortKey = "adSoyad" | "email" | "telefon" | "departman" | "rol" | "durum";
 type MetinKolon = "adSoyad" | "email" | "telefon";
 
@@ -130,7 +128,6 @@ export function KullanicilarTable({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "adSoyad", dir: "asc" },
   );
-  const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<KullaniciGorunum | null>(
@@ -172,9 +169,6 @@ export function KullanicilarTable({
     mevcutKullaniciId,
   });
 
-  // Filtre değişince ilk sayfaya dön.
-  React.useEffect(() => setSayfa(1), [metinFiltre, rol, departman, durum]);
-
   const filtreli = React.useMemo(() => {
     const arr = liste.filter((k) => {
       const metin = (Object.keys(metinFiltre) as MetinKolon[]).every((kol) => {
@@ -197,12 +191,14 @@ export function KullanicilarTable({
     );
   }, [liste, metinFiltre, rol, departman, durum, sort]);
 
-  const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = filtreli.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
+  const sayfalama = useSayfalama(filtreli, "kullanicilar");
+  const { sayfalik, setSayfa } = sayfalama;
+  // Filtre değişince ilk sayfaya dön.
+  React.useEffect(
+    () => setSayfa(1),
+    [metinFiltre, rol, departman, durum, setSayfa],
   );
+
   const sayfaIds = sayfalik.map((k) => k.id);
   const tumuSecili =
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
@@ -584,29 +580,7 @@ export function KullanicilarTable({
           {filtreli.length} kullanıcı
           {secili.size > 0 ? ` · ${secili.size} seçili` : ""}
         </span>
-        <div className="flex items-center gap-2">
-          <span>
-            Sayfa {aktifSayfa} / {toplamSayfa}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa <= 1}
-            onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-            aria-label="Önceki"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa >= toplamSayfa}
-            onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-            aria-label="Sonraki"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        <SayfalamaKontrol sayfalama={sayfalama} />
       </div>
 
       <KullaniciSheet

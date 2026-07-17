@@ -7,8 +7,6 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
-  ChevronLeft,
-  ChevronRight,
   Copy,
   Trash2,
   ExternalLink,
@@ -39,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
   useKolonAyarlari,
@@ -72,7 +71,6 @@ const KATEGORILER = [
   "Çalışma",
   "Aksesuar",
 ];
-const SAYFA_BOYUT = 8;
 
 type SortKey = "id" | "ad" | "kategori" | "fiyat" | "stok" | "durum";
 type SortDir = "asc" | "desc";
@@ -223,7 +221,6 @@ export function ProductsTable({
     key: "id",
     dir: "asc",
   });
-  const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
@@ -250,17 +247,12 @@ export function ProductsTable({
     });
   }, [liste, kategori, durum, metinFiltre, sayiFiltre, sort]);
 
+  const sayfalama = useSayfalama(filtreli, "urunler");
+  const { sayfalik, setSayfa } = sayfalama;
   // Filtre değişince sayfayı başa al
   React.useEffect(() => {
     setSayfa(1);
-  }, [kategori, durum, metinFiltre, sayiFiltre]);
-
-  const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = filtreli.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
-  );
+  }, [kategori, durum, metinFiltre, sayiFiltre, setSayfa]);
 
   const sayfaIds = sayfalik.map((u) => u.id);
   const tumuSecili =
@@ -840,29 +832,7 @@ export function ProductsTable({
           {filtreli.length} model
           {secili.size > 0 ? ` · ${secili.size} seçili` : ""}
         </span>
-        <div className="flex items-center gap-2">
-          <span>
-            Sayfa {aktifSayfa} / {toplamSayfa}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa <= 1}
-            onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-            aria-label="Önceki"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa >= toplamSayfa}
-            onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-            aria-label="Sonraki"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        <SayfalamaKontrol sayfalama={sayfalama} />
       </div>
 
       {/* Sütun ayarları sheet'i — proje standardı */}

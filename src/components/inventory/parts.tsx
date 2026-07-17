@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   CopyPlus,
   Power,
@@ -22,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import {
   useKolonAyarlari,
@@ -55,7 +54,6 @@ const KATEGORILER: ParcaKategori[] = [
   "Koltuk",
   "Diğer",
 ];
-const SAYFA_BOYUT = 8;
 type SortKey = "id" | "ad" | "kategori" | "recete" | "durum";
 
 /** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
@@ -102,7 +100,6 @@ export function Parts({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "id", dir: "asc" },
   );
-  const [sayfa, setSayfa] = React.useState(1);
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
@@ -116,11 +113,6 @@ export function Parts({
     ayar: kolonAyari,
     mevcutKullaniciId,
   });
-
-  React.useEffect(
-    () => setSayfa(1),
-    [metinFiltre, kategori, durum, receteAralik],
-  );
 
   const filtreli = React.useMemo(() => {
     const arada = (n: number, min: string, max: string) =>
@@ -143,12 +135,14 @@ export function Parts({
     });
   }, [liste, metinFiltre, kategori, durum, receteAralik, sort]);
 
-  const toplamSayfa = Math.max(1, Math.ceil(filtreli.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = filtreli.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
+  const sayfalama = useSayfalama(filtreli, "parcalar");
+  const { sayfalik, setSayfa } = sayfalama;
+  // Filtre değişince ilk sayfaya dön.
+  React.useEffect(
+    () => setSayfa(1),
+    [metinFiltre, kategori, durum, receteAralik, setSayfa],
   );
+
   const sayfaIds = sayfalik.map((p) => p.id);
   const tumuSecili =
     sayfaIds.length > 0 && sayfaIds.every((id) => secili.has(id));
@@ -479,29 +473,7 @@ export function Parts({
           {filtreli.length} parça
           {secili.size > 0 ? ` · ${secili.size} seçili` : ""}
         </span>
-        <div className="flex items-center gap-2">
-          <span>
-            Sayfa {aktifSayfa} / {toplamSayfa}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa <= 1}
-            onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-            aria-label="Önceki"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa >= toplamSayfa}
-            onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-            aria-label="Sonraki"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        <SayfalamaKontrol sayfalama={sayfalama} />
       </div>
 
       {/* Sütun ayarları sheet'i — proje standardı */}

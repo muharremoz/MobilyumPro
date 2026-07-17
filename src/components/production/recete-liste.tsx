@@ -3,15 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Pencil,
-  Copy,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  Plus,
-} from "lucide-react";
+import { Pencil, Copy, Trash2, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +18,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Dialog,
@@ -56,7 +49,6 @@ const KATEGORILER = [
   "Koltuk",
   "Diğer",
 ];
-const SAYFA_BOYUT = 10;
 
 type SortKey = "ad" | "kategori" | "bilesen" | "maliyet" | "kullanim" | "durum";
 
@@ -139,7 +131,6 @@ export function ReceteListe({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "ad", dir: "asc" },
   );
-  const [sayfa, setSayfa] = React.useState(1);
   const [kopyaKaynak, setKopyaKaynak] = React.useState<Parca | null>(null);
   const [kopyaAd, setKopyaAd] = React.useState("");
 
@@ -174,11 +165,6 @@ export function ReceteListe({
           m.set(r.bilesen.ref, (m.get(r.bilesen.ref) ?? 0) + 1);
     return m;
   }, [liste, modeller]);
-
-  React.useEffect(
-    () => setSayfa(1),
-    [adFiltre, kategori, bilesenAralik, maliyetAralik, kullanimAralik, durum],
-  );
 
   const satirlar = React.useMemo(() => {
     const q = adFiltre.toLocaleLowerCase("tr");
@@ -233,11 +219,20 @@ export function ReceteListe({
     kullanim,
   ]);
 
-  const toplamSayfa = Math.max(1, Math.ceil(satirlar.length / SAYFA_BOYUT));
-  const aktifSayfa = Math.min(sayfa, toplamSayfa);
-  const sayfalik = satirlar.slice(
-    (aktifSayfa - 1) * SAYFA_BOYUT,
-    aktifSayfa * SAYFA_BOYUT,
+  const sayfalama = useSayfalama(satirlar, "receteler");
+  const { sayfalik, setSayfa } = sayfalama;
+  // Filtre değişince ilk sayfaya dön.
+  React.useEffect(
+    () => setSayfa(1),
+    [
+      adFiltre,
+      kategori,
+      bilesenAralik,
+      maliyetAralik,
+      kullanimAralik,
+      durum,
+      setSayfa,
+    ],
   );
 
   async function sil(p: Parca) {
@@ -459,29 +454,7 @@ export function ReceteListe({
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{satirlar.length} reçete</span>
-        <div className="flex items-center gap-2">
-          <span>
-            Sayfa {aktifSayfa} / {toplamSayfa}
-          </span>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa <= 1}
-            onClick={() => setSayfa((p) => Math.max(1, p - 1))}
-            aria-label="Önceki"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            disabled={aktifSayfa >= toplamSayfa}
-            onClick={() => setSayfa((p) => Math.min(toplamSayfa, p + 1))}
-            aria-label="Sonraki"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        <SayfalamaKontrol sayfalama={sayfalama} />
       </div>
 
       {/* Kopyala dialogu */}
