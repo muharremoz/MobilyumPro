@@ -62,15 +62,17 @@ export function SearchSelect({
   );
   // Popup, içteki input'a değil görünür kontrolün tamamına hizalansın.
   const anchorRef = React.useRef<HTMLDivElement>(null);
-  // Aktif kaynak: sekmeli modda seçili sekmenin öğeleri.
-  const kaynak = sekmeler
-    ? (sekmeler.find((s) => s.key === aktifSekme) ?? sekmeler[0])?.items ?? []
-    : items;
   // Yinelenen öğeler tekilleştirilir (aynı key hatası + kaybolan öğe önlenir).
-  const benzersiz = React.useMemo(
-    () => Array.from(new Set(kaynak)),
-    [kaynak],
-  );
+  // Aktif kaynak (sekmeli modda seçili sekmenin öğeleri) memo'nun İÇİNDE
+  // hesaplanır: dışarıda "?? []" her render'da yeni dizi üretip memo'yu
+  // işlevsiz bırakıyordu.
+  const benzersiz = React.useMemo(() => {
+    const kaynak = sekmeler
+      ? ((sekmeler.find((s) => s.key === aktifSekme) ?? sekmeler[0])?.items ??
+        [])
+      : items;
+    return Array.from(new Set(kaynak));
+  }, [sekmeler, aktifSekme, items]);
   // Sekmeli modda gösterimde "Etiket · " öneki atılır (değer korunur).
   const gosterim = (item: string) =>
     sekmeler ? item.replace(/^[^·]+·\s*/, "") : item;

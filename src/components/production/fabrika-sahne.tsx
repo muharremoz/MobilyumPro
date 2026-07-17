@@ -604,7 +604,9 @@ export default function FabrikaSahne({
       });
     }
     return { gruplar, sonuc };
-  }, [emirler]);
+    // istasyonlar şart: istasyon eklenince/konumu değişince paletler yeniden
+    // yerleşmeli; yoksa bir sonraki emir değişikliğine kadar eski konumda kalır.
+  }, [emirler, istasyonlar]);
 
   const depoM = merkez(DEPO.konum);
 

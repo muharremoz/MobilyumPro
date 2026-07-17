@@ -191,7 +191,6 @@ export function DefinitionsPage({
   });
 
   const aktifTab = TABS[tab];
-  const liste = tab === "gruplar" ? [] : data[tab];
 
   function grupAcKapa(label: string) {
     setAcikGrup((s) => {
@@ -203,6 +202,10 @@ export function DefinitionsPage({
   }
 
   const filtreli = React.useMemo(() => {
+    // Gruplar sekmesi ağaç olarak render edilir, düz liste yok. Bu satır
+    // memo'nun İÇİNDE: dışarıda "[]" her render'da yeni dizi üretip memo'yu
+    // işlevsiz bırakıyordu.
+    const liste = tab === "gruplar" ? [] : data[tab];
     const qAd = adFiltre.toLowerCase();
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
@@ -219,7 +222,7 @@ export function DefinitionsPage({
       if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
       return String(x).localeCompare(String(y), "tr") * yon;
     });
-  }, [liste, adFiltre, adetAralik, durum, sort]);
+  }, [tab, data, adFiltre, adetAralik, durum, sort]);
 
   const sayfalama = useSayfalama(filtreli, "tanimlamalar");
   const { sayfalik, setSayfa } = sayfalama;

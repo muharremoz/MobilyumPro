@@ -97,7 +97,9 @@ export function StockTracker({
       return { ...h, bakiye };
     });
     return ileri.reverse(); // gösterimde yeni → eski
-  }, [tip, secimId, mevcutStok]);
+    // tumHareketler şart: Transfer net stoğu değiştirmediği için mevcutStok
+    // aynı kalır ve yeni transfer listeye hiç düşmezdi.
+  }, [tip, secimId, mevcutStok, tumHareketler]);
 
   // Toplamlar — Giriş ekle, Çıkış çıkar, Transfer (depo değişimi) net 0
   const ozet = React.useMemo(() => {
