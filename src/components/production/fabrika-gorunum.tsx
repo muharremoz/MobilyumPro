@@ -27,6 +27,98 @@ const FabrikaSahne = dynamic(() => import("./fabrika-sahne"), {
   ),
 });
 
+function EmirKarti({
+e,
+rota,
+istasyonMap,
+seciliEmirId,
+onSec,
+ilerleyen,
+onIlerlet,
+}: {
+e: FabrikaEmri;
+rota: IstasyonSlug[];
+istasyonMap: Map<IstasyonSlug, Istasyon>;
+seciliEmirId: string | null;
+onSec: (id: string) => void;
+ilerleyen: string | null;
+onIlerlet: (id: string) => void;
+}) {
+  const aktifSlug = aktifIstasyon(e);
+  const aktifAdimNo = e.adimlar.find((a) => a.durum === "İşleniyor")?.sira;
+  const tamamlanan = e.adimlar.filter((a) => a.durum === "Tamamlandı").length;
+  const sonAdimda = aktifSlug === rota[rota.length - 1];
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-md border bg-card p-3",
+        seciliEmirId === e.id && "ring-1 ring-foreground/20",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => onSec(e.id)}
+          className="cursor-pointer truncate text-sm font-medium hover:underline"
+        >
+          {e.id}
+        </button>
+        {e.oncelik && e.oncelik !== "Normal" && (
+          <Badge variant="secondary" className="shrink-0">
+            {e.oncelik}
+          </Badge>
+        )}
+      </div>
+      <p className="truncate text-sm text-muted-foreground">
+        {e.modelAd} × {e.adet}
+      </p>
+      {/* Rota ilerleme çubukları */}
+      <div className="flex items-center gap-1">
+        {e.adimlar.map((a) => (
+          <span
+            key={a.sira}
+            title={`${istasyonMap.get(a.istasyon)?.ad} — ${a.durum}`}
+            className={cn(
+              "h-1.5 flex-1 rounded-full",
+              a.durum === "Tamamlandı"
+                ? "bg-emerald-500"
+                : a.durum === "İşleniyor"
+                  ? "bg-amber-400"
+                  : "bg-[#e5e5e5]",
+            )}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">
+          {aktifAdimNo
+            ? `${tamamlanan + 1}/${e.adimlar.length} · ${istasyonMap.get(aktifSlug!)?.ad}`
+            : e.adimlar.length > 0
+              ? "Başlamadı"
+              : "Rota yok"}
+        </span>
+        <Button
+          size="sm"
+          variant={sonAdimda ? "default" : "outline"}
+          disabled={ilerleyen === e.id || e.adimlar.length === 0}
+          onClick={() => onIlerlet(e.id)}
+        >
+          {ilerleyen === e.id ? (
+            "…"
+          ) : aktifAdimNo ? (
+            <>
+              {sonAdimda ? "Tamamla" : "İlerlet"}
+              <ArrowRight className="size-3.5" />
+            </>
+          ) : (
+            "Başlat"
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function FabrikaGorunum({
   emirler,
   istasyonlar,
@@ -92,82 +184,6 @@ export function FabrikaGorunum({
     router.refresh();
   }
 
-  function EmirKarti({ e }: { e: FabrikaEmri }) {
-    const aktifSlug = aktifIstasyon(e);
-    const aktifAdimNo = e.adimlar.find((a) => a.durum === "İşleniyor")?.sira;
-    const tamamlanan = e.adimlar.filter((a) => a.durum === "Tamamlandı").length;
-    const sonAdimda = aktifSlug === ROTA[ROTA.length - 1];
-    return (
-      <div
-        className={cn(
-          "flex flex-col gap-2 rounded-md border bg-card p-3",
-          seciliEmirId === e.id && "ring-1 ring-foreground/20",
-        )}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setSeciliEmirId(e.id)}
-            className="cursor-pointer truncate text-sm font-medium hover:underline"
-          >
-            {e.id}
-          </button>
-          {e.oncelik && e.oncelik !== "Normal" && (
-            <Badge variant="secondary" className="shrink-0">
-              {e.oncelik}
-            </Badge>
-          )}
-        </div>
-        <p className="truncate text-sm text-muted-foreground">
-          {e.modelAd} × {e.adet}
-        </p>
-        {/* Rota ilerleme çubukları */}
-        <div className="flex items-center gap-1">
-          {e.adimlar.map((a) => (
-            <span
-              key={a.sira}
-              title={`${ISTASYON_MAP.get(a.istasyon)?.ad} — ${a.durum}`}
-              className={cn(
-                "h-1.5 flex-1 rounded-full",
-                a.durum === "Tamamlandı"
-                  ? "bg-emerald-500"
-                  : a.durum === "İşleniyor"
-                    ? "bg-amber-400"
-                    : "bg-[#e5e5e5]",
-              )}
-            />
-          ))}
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            {aktifAdimNo
-              ? `${tamamlanan + 1}/${e.adimlar.length} · ${ISTASYON_MAP.get(aktifSlug!)?.ad}`
-              : e.adimlar.length > 0
-                ? "Başlamadı"
-                : "Rota yok"}
-          </span>
-          <Button
-            size="sm"
-            variant={sonAdimda ? "default" : "outline"}
-            disabled={ilerleyen === e.id || e.adimlar.length === 0}
-            onClick={() => ilerlet(e.id)}
-          >
-            {ilerleyen === e.id ? (
-              "…"
-            ) : aktifAdimNo ? (
-              <>
-                {sonAdimda ? "Tamamla" : "İlerlet"}
-                <ArrowRight className="size-3.5" />
-              </>
-            ) : (
-              "Başlat"
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 xl:flex-row">
       {/* Sahne */}
@@ -231,11 +247,28 @@ export function FabrikaGorunum({
               </p>
             )}
             {istasyonEmirleri.map((e) => (
-              <EmirKarti key={e.id} e={e} />
+              <EmirKarti
+                key={e.id}
+                e={e}
+                rota={ROTA}
+                istasyonMap={ISTASYON_MAP}
+                seciliEmirId={seciliEmirId}
+                onSec={setSeciliEmirId}
+                ilerleyen={ilerleyen}
+                onIlerlet={ilerlet}
+              />
             ))}
           </div>
         ) : seciliEmir ? (
-          <EmirKarti e={seciliEmir} />
+          <EmirKarti
+            e={seciliEmir}
+            rota={ROTA}
+            istasyonMap={ISTASYON_MAP}
+            seciliEmirId={seciliEmirId}
+            onSec={setSeciliEmirId}
+            ilerleyen={ilerleyen}
+            onIlerlet={ilerlet}
+          />
         ) : (
           <div className="flex flex-col gap-1.5 overflow-y-auto">
             {ISTASYONLAR.map((i) => {
@@ -262,7 +295,7 @@ export function FabrikaGorunum({
             })}
             <p className="mt-1 px-1 text-xs text-muted-foreground">
               Bölüme veya palete tıklayarak detayına inebilirsin; sahne 30
-              sn'de bir tazelenir.
+              sn&apos;de bir tazelenir.
             </p>
           </div>
         )}
