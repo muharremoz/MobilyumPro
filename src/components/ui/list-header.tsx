@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X } from "lucide-react";
+import { X, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -41,11 +41,14 @@ export type AktifFiltre = {
  */
 export function ListHeader({
   title,
+  ikon: Ikon,
   filtreler,
   children,
   className,
 }: {
   title: React.ReactNode;
+  /** Başlığın solundaki ikon (KartBaslik'teki gibi) — opsiyonel. */
+  ikon?: LucideIcon;
   /** Aktif filtreler — boş/verilmezse çip şeridi hiç render edilmez. */
   filtreler?: AktifFiltre[];
   /** Sağa yaslanan aksiyonlar (genelde butonlar). */
@@ -63,7 +66,10 @@ export function ListHeader({
       )}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        <h2 className="shrink-0 text-sm font-semibold text-primary">{title}</h2>
+        <h2 className="flex shrink-0 items-center gap-2 text-sm font-semibold text-primary">
+          {Ikon && <Ikon className="size-4" />}
+          {title}
+        </h2>
 
         {aktif && (
           <>

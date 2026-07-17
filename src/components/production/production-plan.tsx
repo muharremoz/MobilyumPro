@@ -11,6 +11,8 @@ import {
   ShoppingCart,
   AlertTriangle,
   CheckCircle2,
+  ClipboardList,
+  Boxes,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -519,13 +521,15 @@ export function ProductionPlan({
           <TableCell>
             {s.urunId ? (
               <span className="flex items-center gap-2">
-                <span className="font-medium" title={satirAd(s)}>
+                {/* min-w: rozetler satırlar arası aynı hizada başlasın. Sabit
+                    genişlik değil — uzun ad kırpılmaz, rozeti sağa iter. */}
+                <span className="min-w-64 font-medium" title={satirAd(s)}>
                   {satirAd(s)}
                 </span>
                 {parca && (
                   <Badge
                     variant="secondary"
-                    className="bg-violet-100 text-[10px] text-violet-800"
+                    className="shrink-0 bg-violet-100 text-[10px] text-violet-800"
                   >
                     Parça
                   </Badge>
@@ -665,7 +669,7 @@ export function ProductionPlan({
     <div className="flex flex-col gap-3">
       {/* Plan bilgileri — standart liste kartı kabuğu */}
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Plan Bilgileri" />
+        <ListHeader title="Plan Bilgileri" ikon={ClipboardList} />
         <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
           <Alan label="Üretim nedeni">
             <SearchSelect
@@ -748,7 +752,7 @@ export function ProductionPlan({
 
       {/* Üretim planı tablosu — standart liste kartı kabuğu */}
       <div className="overflow-hidden rounded-md border bg-card">
-        <ListHeader title="Üretim Planı">
+        <ListHeader title="Üretim Planı" ikon={Hammer}>
           <Button
             size="sm"
             variant="outline"
@@ -758,7 +762,10 @@ export function ProductionPlan({
             <Plus className="size-4" /> Model / Parça Ekle
           </Button>
         </ListHeader>
-        <Table>
+        {/* Plan satırları liste standardından (h-10) yüksek: hücrelerin içinde
+            h-10 seçiciler var, kompakt yükseklikte sıkışık duruyor. Yalnız bu
+            tabloya — paylaşılan Table bileşenine dokunulmuyor. */}
+        <Table className="[&_tbody_td]:h-14 [&_tbody_td]:py-2">
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">#</TableHead>
@@ -859,7 +866,7 @@ export function ProductionPlan({
       {/* Malzeme ihtiyacı — standart liste kartı kabuğu */}
       {yeterlilik && (
         <div className="overflow-hidden rounded-md border bg-card">
-          <ListHeader title="Malzeme İhtiyacı">
+          <ListHeader title="Malzeme İhtiyacı" ikon={Boxes}>
             {yeterli ? (
               <Badge
                 variant="secondary"
@@ -1078,7 +1085,9 @@ export function ProductionPlan({
 function Alan({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
       {children}
     </div>
   );
