@@ -434,6 +434,31 @@ export async function stokDuzelt(
   return sonuc;
 }
 
+/**
+ * Model satış fiyatını (satisFiyat1) günceller. Tüm kartı yeniden yazan
+ * modelKaydet yerine yalnız fiyatı dokunur — menüden hızlı fiyat düzeltme için.
+ */
+export async function modelFiyatGuncelle(
+  id: string,
+  yeniFiyat: number,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!id) return { ok: false, error: "Model bulunamadı." };
+  if (!Number.isFinite(yeniFiyat) || yeniFiyat < 0) {
+    return { ok: false, error: "Fiyat geçersiz." };
+  }
+  try {
+    await db.stok.update({
+      where: { id },
+      data: { satisFiyat1: yeniFiyat },
+    });
+    revalidatePath("/urunler");
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Fiyat güncellenemedi." };
+  }
+}
+
 /** Versiyon anlık kopyasındaki satır biçimi. */
 export type ReceteSnapshotSatir = {
   tip: "malzeme" | "parca";

@@ -54,6 +54,7 @@ import { formatTL, type Model } from "@/lib/data";
 import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import { modelKaydet, modelSil } from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
+import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -214,6 +215,7 @@ export function ProductsTable({
   });
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const [duzeltHedef, setDuzeltHedef] = React.useState<Model | null>(null);
+  const [fiyatHedef, setFiyatHedef] = React.useState<Model | null>(null);
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
 
@@ -353,6 +355,9 @@ export function ProductsTable({
   // (server action revalidate ediyor; bu anlık geri bildirim içindir).
   function stokDuzeltmeUygulandi(id: string, yeniMiktar: number) {
     setListe((l) => l.map((u) => (u.id === id ? { ...u, stok: yeniMiktar } : u)));
+  }
+  function fiyatUygulandi(id: string, yeniFiyat: number) {
+    setListe((l) => l.map((u) => (u.id === id ? { ...u, fiyat: yeniFiyat } : u)));
   }
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
@@ -643,7 +648,7 @@ export function ProductsTable({
                       {
                         etiket: "Fiyat Güncelle",
                         ikon: Banknote,
-                        onSecim: () => yakinda("Fiyat güncelle"),
+                        onSecim: () => setFiyatHedef(u),
                       },
                       {
                         etiket: "Üretime Gönder",
@@ -789,6 +794,16 @@ export function ProductsTable({
         }
         onKapat={() => setDuzeltHedef(null)}
         onUygulandi={stokDuzeltmeUygulandi}
+      />
+
+      <FiyatGuncelleDialog
+        hedef={
+          fiyatHedef
+            ? { id: fiyatHedef.id, ad: fiyatHedef.ad, fiyat: fiyatHedef.fiyat }
+            : null
+        }
+        onKapat={() => setFiyatHedef(null)}
+        onUygulandi={fiyatUygulandi}
       />
     </div>
   );
