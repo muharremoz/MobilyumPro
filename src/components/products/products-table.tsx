@@ -55,6 +55,7 @@ import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import { modelKaydet, modelSil } from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
+import { UretimeGonderDialog } from "./uretime-gonder-dialog";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -216,6 +217,7 @@ export function ProductsTable({
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const [duzeltHedef, setDuzeltHedef] = React.useState<Model | null>(null);
   const [fiyatHedef, setFiyatHedef] = React.useState<Model | null>(null);
+  const [uretimHedef, setUretimHedef] = React.useState<Model | null>(null);
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
 
@@ -653,7 +655,7 @@ export function ProductsTable({
                       {
                         etiket: "Üretime Gönder",
                         ikon: Hammer,
-                        onSecim: () => yakinda("Üretime gönder"),
+                        onSecim: () => setUretimHedef(u),
                       },
                       {
                         etiket: "Etiket Ekle",
@@ -804,6 +806,11 @@ export function ProductsTable({
         }
         onKapat={() => setFiyatHedef(null)}
         onUygulandi={fiyatUygulandi}
+      />
+
+      <UretimeGonderDialog
+        hedef={uretimHedef ? { id: uretimHedef.id, ad: uretimHedef.ad } : null}
+        onKapat={() => setUretimHedef(null)}
       />
     </div>
   );
