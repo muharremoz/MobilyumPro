@@ -283,14 +283,18 @@ export function GrupSecici({
                 <motion.div
                   key={kolon.ustId ?? "__root"}
                   initial={ki === 0 ? false : { width: 0, opacity: 0 }}
-                  animate={{ width: 192, opacity: 1 }}
+                  // Genişlik içeriğe göre: "İLK MADDE MALZEME" gibi uzun adlar
+                  // sabit 192px'e sığmıyordu. motion "auto"yu ölçerek animasyonlar.
+                  animate={{ width: "auto", opacity: 1 }}
                   exit={{ width: 0, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 550, damping: 42 }}
                   className={cn("shrink-0 overflow-hidden", ki > 0 && "border-l")}
                 >
                 <div
                   className={cn(
-                    "flex max-h-72 w-48 flex-col overflow-y-auto",
+                    // w-max: en uzun satır kadar. min: dar sütun tuhaf durmasın,
+                    // max: çok uzun bir ad menüyü şişirmesin (o zaman truncate).
+                    "flex max-h-72 w-max min-w-48 max-w-80 flex-col overflow-y-auto",
                     ki > 0 && "pl-1",
                   )}
                 >
@@ -306,7 +310,9 @@ export function GrupSecici({
                         type="button"
                         onClick={() => sec(g, ki)}
                         className={cn(
-                          "flex w-full cursor-pointer items-center gap-1.5 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors",
+                          // gap-6: sütun w-max olduğu için ml-auto'nun itecek
+                          // boşluğu yok; ad ile kod arasını bu gap belirliyor.
+                          "flex w-full cursor-pointer items-center gap-6 rounded-[5px] px-1.5 py-1 text-left text-sm transition-colors",
                           aktif
                             ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
                             : "hover:bg-accent hover:text-accent-foreground",
@@ -324,16 +330,17 @@ export function GrupSecici({
                           >
                             {g.kod}
                           </span>
-                          {cocuklar.length > 0 && (
-                            <ChevronRight
-                              className={cn(
-                                "size-3.5",
-                                aktif
-                                  ? "text-emerald-600"
-                                  : "text-muted-foreground",
-                              )}
-                            />
-                          )}
+                          {/* Ok her satırda yer tutar (yaprakta görünmez) —
+                              yoksa kodlar hizasız kalıyor. */}
+                          <ChevronRight
+                            className={cn(
+                              "size-3.5",
+                              cocuklar.length === 0 && "invisible",
+                              aktif
+                                ? "text-emerald-600"
+                                : "text-muted-foreground",
+                            )}
+                          />
                         </span>
                       </button>
                     );
