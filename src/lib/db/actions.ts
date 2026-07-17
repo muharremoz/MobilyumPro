@@ -21,8 +21,10 @@ async function rotaSluglari(): Promise<string[]> {
 import {
   istasyonDusumu,
   mamulGirisi,
+  stokDuzeltmeYaz,
   uretimeGecisDusumu,
   type EksikMalzeme,
+  type StokDuzeltSonuc,
 } from "./stok";
 import type { ModulYetki } from "../yetki";
 import type {
@@ -412,6 +414,24 @@ export async function modelSil(
   } catch {
     return { ok: false, error: "Üretim emri olan model silinemez." };
   }
+}
+
+/**
+ * Elle stok düzeltme (sayım farkı). Miktarı ezmez — farkı Giriş/Çıkış
+ * hareketine çevirir; gerekçe zorunludur. Motor: stokDuzeltmeYaz (db/stok.ts).
+ */
+export async function stokDuzelt(
+  stokId: string,
+  sayilanMiktar: number,
+  aciklama: string,
+): Promise<StokDuzeltSonuc> {
+  const sonuc = await stokDuzeltmeYaz(stokId, sayilanMiktar, aciklama);
+  if (sonuc.ok) {
+    revalidatePath("/urunler");
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/");
+  }
+  return sonuc;
 }
 
 /** Versiyon anlık kopyasındaki satır biçimi. */

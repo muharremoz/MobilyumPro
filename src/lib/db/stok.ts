@@ -352,6 +352,87 @@ export async function mamulGirisi(emir: {
   });
 }
 
+// ── Elle stok düzeltme (sayım farkı) ────────────────────────────────────
+export type StokDuzeltSonuc = {
+  ok: boolean;
+  error?: string;
+  /** Düzeltme sonrası eldeki miktar (ok:true ise dolu). */
+  yeniMiktar?: number;
+};
+
+/**
+ * Eldeki miktarı sayılan değere çeker. Miktarı DOĞRUDAN yazmaz: farkı bir
+ * Giriş/Çıkış hareketine çevirir — defter tek kaynak olduğu için düzeltme de
+ * diğer her hareket gibi izlenebilir kalmalı (kim, ne zaman, neden).
+ *
+ * `aciklama` zorunlu: gerekçesiz düzeltme denetlenemez, sayım farkının anlamı
+ * (fire/kayıp/hatalı giriş) yalnız burada yaşar.
+ *
+ * Fark transaction İÇİNDE taze okunur ve `increment` ile uygulanır — `set`
+ * kullansaydık, sayımla yazım arasına giren gerçek bir hareket (üretim düşümü)
+ * sessizce ezilirdi. increment ile sonuç `sayılan + araya giren` olur; bu
+ * doğrudur, çünkü o hareket gerçekten oldu.
+ */
+export async function stokDuzeltmeYaz(
+  stokId: string,
+  sayilanMiktar: number,
+  aciklama: string,
+): Promise<StokDuzeltSonuc> {
+  const gerekce = aciklama.trim();
+  if (!gerekce) return { ok: false, error: "Düzeltme gerekçesi zorunlu." };
+  if (!Number.isFinite(sayilanMiktar)) {
+    return { ok: false, error: "Sayılan miktar geçersiz." };
+  }
+
+  const [kart, negatifIzin, depo] = await Promise.all([
+    db.stok.findUnique({ where: { id: stokId } }),
+    parametreDegeri("negatif_stok").then(acikMi),
+    parametreDegeri("varsayilan_depo"),
+  ]);
+  if (!kart) return { ok: false, error: "Stok kartı bulunamadı." };
+  if (sayilanMiktar < 0 && !negatifIzin) {
+    return { ok: false, error: "Negatif stok — Negatif Stok parametresi kapalı." };
+  }
+
+  const bugun = new Date(new Date().toISOString().slice(0, 10));
+  // Mamul de malzeme de aynı stok tablosunda; hareketin ref'i ayrımı taşır.
+  const refTip = kart.grup === "Mamül" ? "model" : "malzeme";
+
+  let sonuc: StokDuzeltSonuc = { ok: true, yeniMiktar: Number(kart.stokMiktar) };
+  await db.$transaction(async (tx) => {
+    const taze = await tx.stok.findUniqueOrThrow({
+      where: { id: stokId },
+      select: { stokMiktar: true },
+    });
+    const onceki = Number(taze.stokMiktar);
+    const fark = sayilanMiktar - onceki;
+    // dusumYaz ile aynı eşik: 0.0005 altı fark Decimal(14,3) gürültüsüdür.
+    if (Math.abs(fark) < 0.0005) {
+      sonuc = { ok: true, yeniMiktar: onceki };
+      return;
+    }
+    await tx.stokHareket.create({
+      data: {
+        id: `SH-${await sonrakiHareketNo()}`,
+        tarih: bugun,
+        tur: fark > 0 ? "Giriş" : "Çıkış",
+        refTip,
+        refId: stokId,
+        miktar: Math.abs(fark),
+        birim: kart.stokBirimi,
+        depo,
+        aciklama: `Stok düzeltme (${onceki} → ${sayilanMiktar}) — ${gerekce}`,
+      },
+    });
+    await tx.stok.update({
+      where: { id: stokId },
+      data: { stokMiktar: { increment: fark } },
+    });
+    sonuc = { ok: true, yeniMiktar: onceki + fark };
+  });
+  return sonuc;
+}
+
 // ── Rezerv / kullanılabilir stok ────────────────────────────────────────
 export type StokOzeti = {
   malzemeId: string;

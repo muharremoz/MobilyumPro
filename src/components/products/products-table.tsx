@@ -53,6 +53,7 @@ import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Model } from "@/lib/data";
 import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import { modelKaydet, modelSil } from "@/lib/db/actions";
+import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -212,6 +213,7 @@ export function ProductsTable({
     dir: "asc",
   });
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
+  const [duzeltHedef, setDuzeltHedef] = React.useState<Model | null>(null);
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
 
@@ -346,6 +348,11 @@ export function ProductsTable({
       ),
     );
     toast.success(`"${k}" kategorisine taşındı`);
+  }
+  // Stok düzeltme uygulandığında listedeki eldeki miktarı yerinde güncelle
+  // (server action revalidate ediyor; bu anlık geri bildirim içindir).
+  function stokDuzeltmeUygulandi(id: string, yeniMiktar: number) {
+    setListe((l) => l.map((u) => (u.id === id ? { ...u, stok: yeniMiktar } : u)));
   }
   const yakinda = (ad: string) => toast.success(`${ad} (yakında)`);
 
@@ -631,7 +638,7 @@ export function ProductsTable({
                       {
                         etiket: "Stok Düzelt",
                         ikon: Boxes,
-                        onSecim: () => yakinda("Stok düzelt"),
+                        onSecim: () => setDuzeltHedef(u),
                       },
                       {
                         etiket: "Fiyat Güncelle",
@@ -773,6 +780,16 @@ export function ProductsTable({
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
       {onayDialog}
+
+      <StokDuzeltDialog
+        hedef={
+          duzeltHedef
+            ? { id: duzeltHedef.id, ad: duzeltHedef.ad, stok: duzeltHedef.stok }
+            : null
+        }
+        onKapat={() => setDuzeltHedef(null)}
+        onUygulandi={stokDuzeltmeUygulandi}
+      />
     </div>
   );
 }
