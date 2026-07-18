@@ -8,11 +8,15 @@ import {
   AlertTriangle,
   ChevronRight,
   History,
+  ChevronDown,
+  ChevronUp,
   Info,
   Layers,
+  ListOrdered,
   Plus,
   RockingChair,
   RotateCcw,
+  Ruler,
   Trash,
   X,
 } from "lucide-react";
@@ -59,11 +63,14 @@ import {
 import {
   formatTL,
   formatTarih,
+  type Makine,
   type Malzeme,
   type MalzemeAlisOzeti,
   type Model,
   type Parca,
+  type ParcaIslem,
   type ParcaKategori,
+  type ParcaOlculeri,
   type ReceteSatiri,
   type StokDokuman,
 } from "@/lib/data";
@@ -95,7 +102,19 @@ const KATEGORILER: ParcaKategori[] = [
   "Diğer",
 ];
 
-type Tab = "genel" | "recete" | "kullanim" | "dokuman" | "versiyon";
+type Tab = "genel" | "recete" | "islem" | "kullanim" | "dokuman" | "versiyon";
+
+/** Ölçü alanları — form state'inde metin tutulur, kayıtta sayıya çevrilir. */
+type OlcuAlan = keyof ParcaOlculeri;
+const OLCU_BOS: Record<OlcuAlan, string> = {
+  kabaUzunluk: "",
+  kabaGenislik: "",
+  netUzunluk: "",
+  netGenislik: "",
+  bitmisUzunluk: "",
+  bitmisGenislik: "",
+  kalinlik: "",
+};
 
 function tarihYaz(iso: string): string {
   const d = new Date(iso);
@@ -171,6 +190,7 @@ export function ParcaForm({
   modeller,
   versiyonlar: versiyonlarProp,
   istasyonlar = [],
+  makineler = [],
   dokumanlar = [],
   alisOzetleri = [],
 }: {
@@ -181,6 +201,7 @@ export function ParcaForm({
   modeller: Model[];
   versiyonlar: ReceteVersiyonGorunum[];
   istasyonlar?: Istasyon[];
+  makineler?: Makine[];
   dokumanlar?: StokDokuman[];
   /** Malzeme bazında alış istihbaratı (son/min/max, firma ort., son hareket). */
   alisOzetleri?: MalzemeAlisOzeti[];
@@ -236,6 +257,21 @@ export function ParcaForm({
   const [satirlar, setSatirlar] = React.useState<ReceteSatiri[]>(
     recete?.recete.map((r) => ({ ...r, bilesen: { ...r.bilesen } })) ?? [],
   );
+  // Refakat kağıdı ölçüleri — metin olarak tutulur (boş = tanımsız).
+  const [olculer, setOlculer] = React.useState<Record<OlcuAlan, string>>(() => {
+    const o = recete?.olculer;
+    if (!o) return { ...OLCU_BOS };
+    const d = { ...OLCU_BOS };
+    for (const k of Object.keys(OLCU_BOS) as OlcuAlan[])
+      d[k] = o[k] === undefined || o[k] === null ? "" : String(o[k]);
+    return d;
+  });
+  const olcuYaz = (k: OlcuAlan, v: string) =>
+    setOlculer((o) => ({ ...o, [k]: v }));
+  // Refakat kağıdı işlem sırası
+  const [islemler, setIslemler] = React.useState<ParcaIslem[]>(
+    () => recete?.islemler?.map((i) => ({ ...i })) ?? [],
+  );
   // Bu parçanın bağlı olduğu modeller (Model ağacına eklenir).
   const [bagliModeller, setBagliModeller] = React.useState<
     { modelId: string; miktar: number }[]
@@ -289,14 +325,35 @@ export function ParcaForm({
         .map((b) => [b.modelId, b.miktar])
         .sort(),
     );
+  const olcuKey = (o: ParcaOlculeri | undefined) =>
+    JSON.stringify(
+      (Object.keys(OLCU_BOS) as OlcuAlan[]).map((k) =>
+        o?.[k] === undefined || o[k] === null ? "" : String(o[k]),
+      ),
+    );
+  const olcuDoluMu = Object.values(olculer).some((v) => v.trim() !== "");
+  const islemKey = (l: ParcaIslem[]) =>
+    JSON.stringify(
+      l.map((i) => [i.sira, i.istasyon, i.makineId ?? 0, i.operasyon]),
+    );
   const kirli = React.useMemo(() => {
     if (yeniMi)
       return (
         ad.trim() !== "" ||
         satirlar.length > 0 ||
+        islemler.length > 0 ||
+        olcuDoluMu ||
         bagliModeller.some((b) => b.modelId)
       );
     if (!recete) return false;
+    if (
+      olcuKey(recete.olculer) !==
+        JSON.stringify(
+          (Object.keys(OLCU_BOS) as OlcuAlan[]).map((k) => olculer[k].trim()),
+        ) ||
+      islemKey(islemler) !== islemKey(recete.islemler ?? [])
+    )
+      return true;
     if (
       ad !== recete.ad ||
       kategori !== recete.kategori ||
@@ -318,7 +375,19 @@ export function ParcaForm({
       );
     return key(satirlar) !== key(recete.recete);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ad, kategori, aciklama, durum, satirlar, bagliModeller, recete, yeniMi]);
+  }, [
+    ad,
+    kategori,
+    aciklama,
+    durum,
+    satirlar,
+    olculer,
+    olcuDoluMu,
+    islemler,
+    bagliModeller,
+    recete,
+    yeniMi,
+  ]);
 
   // ── Maliyet özeti ─────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.bilesen.ref);
@@ -560,6 +629,38 @@ export function ParcaForm({
     setBagliModeller((b) => b.filter((_, j) => j !== i));
   }
 
+  // ── İşlem sırası satırları ────────────────────────────────────────────
+  /** Sıra numaralarını 1..n olarak tazeler. */
+  const siraTazele = (l: ParcaIslem[]) =>
+    l.map((x, i) => ({ ...x, sira: i + 1 }));
+  function islemEkle() {
+    setIslemler((l) =>
+      siraTazele([
+        ...l,
+        {
+          sira: l.length + 1,
+          istasyon: ilkIstasyonSlug ?? "",
+          operasyon: "",
+        },
+      ]),
+    );
+  }
+  function islemGuncelle(i: number, degisim: Partial<ParcaIslem>) {
+    setIslemler((l) => l.map((x, j) => (j === i ? { ...x, ...degisim } : x)));
+  }
+  function islemSil(i: number) {
+    setIslemler((l) => siraTazele(l.filter((_, j) => j !== i)));
+  }
+  function islemTasi(i: number, yon: -1 | 1) {
+    setIslemler((l) => {
+      const h = i + yon;
+      if (h < 0 || h >= l.length) return l;
+      const n = [...l];
+      [n[i], n[h]] = [n[h], n[i]];
+      return siraTazele(n);
+    });
+  }
+
   async function kaydetUygula() {
     if (!ad.trim()) {
       toast.error("Parça adı gerekli");
@@ -567,6 +668,12 @@ export function ParcaForm({
       return;
     }
     setKaydediliyor(true);
+    const olcuVeri: ParcaOlculeri = {};
+    for (const k of Object.keys(OLCU_BOS) as OlcuAlan[]) {
+      const v = olculer[k].trim();
+      const n = Number(v);
+      olcuVeri[k] = v === "" || isNaN(n) ? undefined : n;
+    }
     const res = await parcaKaydet(
       {
         id: recete?.id,
@@ -580,6 +687,13 @@ export function ParcaForm({
             ? { ...s, istasyon: ilkIstasyonSlug }
             : s,
         ),
+        olculer: olcuVeri,
+        islemler: siraTazele(islemler.filter((x) => x.istasyon)).map((x) => ({
+          sira: x.sira,
+          istasyon: x.istasyon,
+          makineId: x.makineId,
+          operasyon: x.operasyon.trim(),
+        })),
       },
       degisiklikNotu || undefined,
       bagliModeller.filter((b) => b.modelId),
@@ -743,6 +857,9 @@ export function ParcaForm({
         </TabBtn>
         <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
           Reçete{gecerli.length ? ` (${gecerli.length})` : ""}
+        </TabBtn>
+        <TabBtn aktif={tab === "islem"} onClick={() => setTab("islem")}>
+          İşlem Sırası{islemler.length ? ` (${islemler.length})` : ""}
         </TabBtn>
         <TabBtn
           aktif={tab === "kullanim"}
@@ -946,6 +1063,191 @@ export function ParcaForm({
                   </p>
                 </div>
               </div>
+
+              {/* Ölçüler — refakat kağıdı ölçü tablosu (mm) */}
+              <div className="rounded-md border bg-card lg:col-span-2">
+                <KartBaslik
+                  ikon={Ruler}
+                  baslik="Ölçüler"
+                  sag={
+                    <span className="text-xs text-muted-foreground">mm</span>
+                  }
+                />
+                <div className="grid gap-4 p-4 sm:grid-cols-3">
+                  <OlcuGrubu
+                    baslik="Kaba Kesim Ölçüsü"
+                    uzunluk={olculer.kabaUzunluk}
+                    genislik={olculer.kabaGenislik}
+                    onUzunluk={(v) => olcuYaz("kabaUzunluk", v)}
+                    onGenislik={(v) => olcuYaz("kabaGenislik", v)}
+                  />
+                  <OlcuGrubu
+                    baslik="Net Kesim Ölçüsü"
+                    uzunluk={olculer.netUzunluk}
+                    genislik={olculer.netGenislik}
+                    onUzunluk={(v) => olcuYaz("netUzunluk", v)}
+                    onGenislik={(v) => olcuYaz("netGenislik", v)}
+                  />
+                  <OlcuGrubu
+                    baslik="Bitmiş Ölçü"
+                    uzunluk={olculer.bitmisUzunluk}
+                    genislik={olculer.bitmisGenislik}
+                    onUzunluk={(v) => olcuYaz("bitmisUzunluk", v)}
+                    onGenislik={(v) => olcuYaz("bitmisGenislik", v)}
+                  />
+                  <div className="sm:max-w-48">
+                    <IconInput
+                      label="Kalınlık"
+                      type="number"
+                      min={0}
+                      step="any"
+                      inputMode="decimal"
+                      placeholder="—"
+                      value={olculer.kalinlik}
+                      onChange={(e) => olcuYaz("kalinlik", e.target.value)}
+                      className="text-right tabular-nums"
+                    />
+                  </div>
+                </div>
+              </div>
+          </div>
+        )}
+
+        {/* ── İŞLEM SIRASI ──────────────────────────────────────── */}
+        {tab === "islem" && (
+          <div className="rounded-md border bg-card">
+            <KartBaslik
+              ikon={ListOrdered}
+              baslik="İşlem Sırası"
+              sag={
+                <span className="text-xs text-muted-foreground">
+                  {islemler.length} satır
+                </span>
+              }
+            />
+            <div className="grid gap-2 p-4">
+              {islemler.length > 0 && (
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead className="w-14">Sıra</TableHead>
+                        <TableHead className="w-48">İstasyon</TableHead>
+                        <TableHead className="w-52">Makine</TableHead>
+                        <TableHead>Operasyon</TableHead>
+                        <TableHead className="w-24" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {islemler.map((x, i) => {
+                        const istMakineler = makineler.filter(
+                          (m) => m.istasyon === x.istasyon,
+                        );
+                        const seciliMakine = istMakineler.find(
+                          (m) => m.id === x.makineId,
+                        );
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm font-medium tabular-nums">
+                              {x.sira}
+                            </TableCell>
+                            <TableCell>
+                              <SearchSelect
+                                items={istasyonlar.map((s) => s.ad)}
+                                value={istasyonMap.get(x.istasyon)?.ad ?? null}
+                                onValueChange={(adSecim) =>
+                                  islemGuncelle(i, {
+                                    istasyon:
+                                      istasyonlar.find((s) => s.ad === adSecim)
+                                        ?.slug ?? "",
+                                    // İstasyon değişince makine seçimi düşer.
+                                    makineId: undefined,
+                                  })
+                                }
+                                placeholder="İstasyon"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <SearchSelect
+                                items={istMakineler.map((m) => m.ad)}
+                                value={seciliMakine?.ad ?? null}
+                                onValueChange={(adSecim) =>
+                                  islemGuncelle(i, {
+                                    makineId: istMakineler.find(
+                                      (m) => m.ad === adSecim,
+                                    )?.id,
+                                  })
+                                }
+                                placeholder={
+                                  istMakineler.length
+                                    ? "Makine (opsiyonel)"
+                                    : "Makine yok"
+                                }
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={x.operasyon}
+                                onChange={(e) =>
+                                  islemGuncelle(i, {
+                                    operasyon: e.target.value,
+                                  })
+                                }
+                                placeholder="Örn. NET KESİM"
+                                className="h-8"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => islemTasi(i, -1)}
+                                  disabled={i === 0}
+                                  aria-label="Yukarı taşı"
+                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                                >
+                                  <ChevronUp className="size-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => islemTasi(i, 1)}
+                                  disabled={i === islemler.length - 1}
+                                  aria-label="Aşağı taşı"
+                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                                >
+                                  <ChevronDown className="size-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => islemSil(i)}
+                                  aria-label="Kaldır"
+                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
+                                >
+                                  <Trash className="size-3.5" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={islemEkle}
+                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground"
+              >
+                <Plus className="size-3.5" /> İşlem ekle
+              </button>
+              <p className="text-[11px] text-muted-foreground">
+                Refakat kağıdındaki işlem sırası. Aynı istasyon birden çok kez
+                yazılabilir (örn. dört kenar için dört bantlama satırı).
+              </p>
+            </div>
           </div>
         )}
 
@@ -1713,6 +2015,56 @@ export function ParcaForm({
       )}
 
       {onayDialog}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ÖLÇÜ GRUBU                                                         */
+/* ------------------------------------------------------------------ */
+/** Refakat kağıdı ölçü çifti — uzunluk × genişlik (mm). */
+function OlcuGrubu({
+  baslik,
+  uzunluk,
+  genislik,
+  onUzunluk,
+  onGenislik,
+}: {
+  baslik: string;
+  uzunluk: string;
+  genislik: string;
+  onUzunluk: (v: string) => void;
+  onGenislik: (v: string) => void;
+}) {
+  return (
+    <div className="rounded-md border bg-muted/20 p-3">
+      <p className="mb-2 text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
+        {baslik}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <IconInput
+          label="Uzunluk"
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          placeholder="—"
+          value={uzunluk}
+          onChange={(e) => onUzunluk(e.target.value)}
+          className="text-right tabular-nums"
+        />
+        <IconInput
+          label="Genişlik"
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          placeholder="—"
+          value={genislik}
+          onChange={(e) => onGenislik(e.target.value)}
+          className="text-right tabular-nums"
+        />
+      </div>
     </div>
   );
 }

@@ -108,7 +108,7 @@ export async function getModeller(): Promise<Model[]> {
 
 export async function getParcalar(): Promise<Parca[]> {
   const [parcaRows, receteRows, docs] = await Promise.all([
-    db.parca.findMany(),
+    db.parca.findMany({ include: { islemler: { orderBy: { sira: "asc" } } } }),
     db.receteSatiri.findMany(),
     db.parcaDokuman.findMany({
       select: { parcaId: true, url: true, tip: true },
@@ -135,6 +135,7 @@ export async function getParcalar(): Promise<Parca[]> {
     arr.push(satir);
     receteByParca.set(r.parcaId, arr);
   }
+  const sayi = (v: unknown) => (v == null ? undefined : Number(v));
   return parcaRows.map((p) => ({
     id: p.id,
     ad: p.ad,
@@ -144,6 +145,23 @@ export async function getParcalar(): Promise<Parca[]> {
     recete: receteByParca.get(p.id) ?? [],
     gorsel: tumGorseller(docsByParca.get(p.id) ?? [])[0],
     gorseller: tumGorseller(docsByParca.get(p.id) ?? []),
+    olculer: {
+      kabaUzunluk: sayi(p.kabaUzunluk),
+      kabaGenislik: sayi(p.kabaGenislik),
+      netUzunluk: sayi(p.netUzunluk),
+      netGenislik: sayi(p.netGenislik),
+      bitmisUzunluk: sayi(p.bitmisUzunluk),
+      bitmisGenislik: sayi(p.bitmisGenislik),
+      kalinlik: sayi(p.kalinlik),
+    },
+    islemler: p.islemler.map((i) => ({
+      id: i.id,
+      sira: i.sira,
+      istasyon: i.istasyon,
+      makineId: i.makineId ?? undefined,
+      operasyon: i.operasyon,
+      aciklama: i.aciklama ?? undefined,
+    })),
   }));
 }
 
@@ -488,6 +506,124 @@ export async function getFabrikaEmirleri(): Promise<
       bitis: a.bitis?.toISOString(),
       not: a.not ?? undefined,
     })),
+  }));
+}
+
+/**
+ * Bir üretim emrinin refakat kağıtları — parça başına bir kağıt.
+ * Model emrinde modelin her parçası için, parça emrinde tek kağıt üretilir.
+ * Malzeme/PVC ayrımı reçeteden: kenar bandı adı "PVC"/"BANT" içerenler
+ * PVC bloğuna, en çok tüketilen diğer malzeme ana plaka sayılır.
+ */
+export async function getRefakatKagitlari(
+  emirId: string,
+): Promise<import("../data").RefakatKagidi[]> {
+  const emir = await db.uretimEmri.findUnique({ where: { id: emirId } });
+  if (!emir) return [];
+
+  const [istasyonlar, makineler] = await Promise.all([
+    getIstasyonlar(),
+    getMakineler(),
+  ]);
+  const istAd = new Map(istasyonlar.map((i) => [i.slug, i.ad]));
+  const makineAd = new Map(makineler.map((m) => [m.id, m.ad]));
+
+  // Emrin parçaları: model → BOM satırları, parça → kendisi (miktar 1).
+  const bom =
+    emir.refTip === "parca"
+      ? [{ parcaId: emir.modelId, miktar: 1 }]
+      : (
+          await db.modelParca.findMany({ where: { modelId: emir.modelId } })
+        ).map((mp) => ({ parcaId: mp.parcaId, miktar: Number(mp.miktar) }));
+  if (bom.length === 0) return [];
+
+  const parcalar = await db.parca.findMany({
+    where: { id: { in: bom.map((b) => b.parcaId) } },
+    include: {
+      islemler: { orderBy: { sira: "asc" } },
+      recete: { include: { stok: { select: { id: true, ad: true } } } },
+    },
+  });
+  const parcaMap = new Map(parcalar.map((p) => [p.id, p]));
+
+  // Görseller
+  const [stokDok, parcaDok] = await Promise.all([
+    db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
+    db.parcaDokuman.findMany({
+      select: { parcaId: true, url: true, tip: true },
+    }),
+  ]);
+  const stokGorsel = new Map<string, string>();
+  for (const [id, d] of gruplaDokuman(stokDok, "stokId"))
+    stokGorsel.set(id, tumGorseller(d)[0] ?? "");
+  const parcaGorsel = new Map<string, string>();
+  for (const [id, d] of gruplaDokuman(parcaDok, "parcaId"))
+    parcaGorsel.set(id, tumGorseller(d)[0] ?? "");
+
+  const pvcMi = (ad: string) => /PVC|BANT/i.test(ad);
+  const sayi = (v: unknown) => (v == null ? undefined : Number(v));
+
+  return bom.map((b, i) => {
+    const p = parcaMap.get(b.parcaId);
+    const receteSatirlari = (p?.recete ?? []).filter((r) => r.stok);
+    const pvcler = receteSatirlari
+      .filter((r) => pvcMi(r.stok!.ad))
+      .map((r) => r.stok!.ad);
+    // Ana plaka: PVC olmayanlar arasında en çok tüketilen.
+    const plaka = receteSatirlari
+      .filter((r) => !pvcMi(r.stok!.ad))
+      .sort((a, c) => Number(c.miktar) - Number(a.miktar))[0];
+
+    return {
+      emirId: emir.id,
+      emirTarihi: tarihStr(emir.olusturma),
+      termin: emir.termin ? tarihStr(emir.termin) : undefined,
+      musteri: emir.musteri ?? undefined,
+      hedefDepo: emir.hedefDepo ?? undefined,
+      barkod: kodBarkod(`${emir.id}${b.parcaId}`),
+      urunId: emir.modelId,
+      urunAd: emir.modelAd,
+      parcaId: b.parcaId,
+      parcaAd: p?.ad ?? b.parcaId,
+      sayfaNo: i + 1,
+      sayfaToplam: bom.length,
+      miktar: emir.adet * b.miktar,
+      malzeme: plaka?.stok?.ad,
+      pvcler,
+      olculer: p
+        ? {
+            kabaUzunluk: sayi(p.kabaUzunluk),
+            kabaGenislik: sayi(p.kabaGenislik),
+            netUzunluk: sayi(p.netUzunluk),
+            netGenislik: sayi(p.netGenislik),
+            bitmisUzunluk: sayi(p.bitmisUzunluk),
+            bitmisGenislik: sayi(p.bitmisGenislik),
+            kalinlik: sayi(p.kalinlik),
+          }
+        : undefined,
+      islemler: (p?.islemler ?? []).map((x) => ({
+        sira: x.sira,
+        istasyonAd: istAd.get(x.istasyon) ?? x.istasyon,
+        makineAd: x.makineId ? makineAd.get(x.makineId) : undefined,
+        operasyon: x.operasyon,
+      })),
+      urunGorsel: stokGorsel.get(emir.modelId) || undefined,
+      parcaGorsel: parcaGorsel.get(b.parcaId) || undefined,
+    };
+  });
+}
+
+/** İstasyona bağlı makineler (refakat kağıdı işlem sırası için). */
+export async function getMakineler(): Promise<import("../data").Makine[]> {
+  const rows = await db.makine.findMany({
+    orderBy: [{ istasyon: "asc" }, { sira: "asc" }],
+  });
+  return rows.map((m) => ({
+    id: m.id,
+    ad: m.ad,
+    istasyon: m.istasyon,
+    sira: m.sira,
+    durum: m.durum as Durum,
   }));
 }
 

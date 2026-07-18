@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   History,
   Play,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -379,6 +380,12 @@ export function FabrikaPanel({
                           etiket: "Üretim Geçmişi",
                           ikon: History,
                           onSecim: () => setGecmisId(e.id),
+                        },
+                        {
+                          etiket: "Refakat Kağıtları",
+                          ikon: Printer,
+                          onSecim: () =>
+                            router.push(`/uretim/refakat/${e.id}`),
                         },
                         {
                           etiket: "Fabrikada Gör",

@@ -1,6 +1,7 @@
 import { ParcaForm } from "@/components/production/parca-form";
 import {
   getIstasyonlar,
+  getMakineler,
   getMalzemeAlisOzetleri,
   getMalzemeler,
   getModeller,
@@ -8,12 +9,13 @@ import {
 } from "@/lib/db/queries";
 
 export default async function YeniParcaRoute() {
-  const [parcalar, malzemeler, modeller, istasyonlar, alisOzetleri] =
+  const [parcalar, malzemeler, modeller, istasyonlar, makineler, alisOzetleri] =
     await Promise.all([
       getParcalar(),
       getMalzemeler(),
       getModeller(),
       getIstasyonlar(),
+      getMakineler(),
       getMalzemeAlisOzetleri(),
     ]);
   return (
@@ -24,6 +26,7 @@ export default async function YeniParcaRoute() {
       modeller={modeller}
       versiyonlar={[]}
       istasyonlar={istasyonlar}
+      makineler={makineler}
       alisOzetleri={alisOzetleri}
     />
   );

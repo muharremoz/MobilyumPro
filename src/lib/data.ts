@@ -80,6 +80,76 @@ export type ParcaSatiri = { parcaId: string; miktar: number };
  */
 export type ParcaKategori = string;
 
+/** Refakat kağıdındaki işlem sırası satırı (istasyon · makine · operasyon). */
+export type ParcaIslem = {
+  id?: number;
+  sira: number;
+  /** İstasyon slug'ı (kesim, bantlama …). */
+  istasyon: string;
+  makineId?: number;
+  /** "NET KESİM", "UK1-(BOY ÖN)" gibi. */
+  operasyon: string;
+  aciklama?: string;
+};
+
+/** Bir parça için basılan refakat kağıdı (parça ürünle birlikte gezer). */
+export type RefakatKagidi = {
+  /** İş emri (UE-####). */
+  emirId: string;
+  emirTarihi: string;
+  termin?: string;
+  musteri?: string;
+  hedefDepo?: string;
+  /** Kağıdın barkodu (emir + parça). */
+  barkod: string;
+  /** Üretilen ürün (model) — parça üretiminde parçanın kendisi. */
+  urunId: string;
+  urunAd: string;
+  /** Refakat kağıdının ait olduğu parça. */
+  parcaId: string;
+  parcaAd: string;
+  /** Kaç parça basıldı / bu kaçıncı (10 / 3 gibi). */
+  sayfaNo: number;
+  sayfaToplam: number;
+  /** Üretim miktarı: model adedi × parçanın modeldeki miktarı. */
+  miktar: number;
+  /** Ana plaka malzemesi (en büyük tüketimli m²/m malzeme). */
+  malzeme?: string;
+  /** Kenar bantları (PVC) — refakatta ayrı blok. */
+  pvcler: string[];
+  olculer?: ParcaOlculeri;
+  /** İşlem sırası (istasyon · makine · operasyon). */
+  islemler: {
+    sira: number;
+    istasyonAd: string;
+    makineAd?: string;
+    operasyon: string;
+  }[];
+  urunGorsel?: string;
+  parcaGorsel?: string;
+};
+
+/** İstasyona bağlı tezgah (SAWTECH EBATLAMA, EDGETECH 1 …). */
+export type Makine = {
+  id: number;
+  ad: string;
+  /** Bağlı istasyon slug'ı. */
+  istasyon: string;
+  sira: number;
+  durum: "Aktif" | "Pasif";
+};
+
+/** Parçanın refakat kağıdı ölçüleri (mm). */
+export type ParcaOlculeri = {
+  kabaUzunluk?: number;
+  kabaGenislik?: number;
+  netUzunluk?: number;
+  netGenislik?: number;
+  bitmisUzunluk?: number;
+  bitmisGenislik?: number;
+  kalinlik?: number;
+};
+
 export type Parca = {
   id: string;
   ad: string;
@@ -91,6 +161,10 @@ export type Parca = {
   gorsel?: string;
   /** Liste görsel kolonu — tüm resimler (Ürün Resmi öncelikli). */
   gorseller?: string[];
+  /** Refakat kağıdı ölçüleri (mm). */
+  olculer?: ParcaOlculeri;
+  /** Refakat kağıdındaki işlem sırası. */
+  islemler?: ParcaIslem[];
 };
 
 // Stok hareketleri — model (ürün) veya malzeme için.

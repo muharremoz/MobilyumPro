@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ParcaForm } from "@/components/production/parca-form";
 import {
   getIstasyonlar,
+  getMakineler,
   getMalzemeAlisOzetleri,
   getMalzemeler,
   getModeller,
@@ -23,6 +24,7 @@ export default async function ParcaDetayRoute({
     modeller,
     versiyonlar,
     istasyonlar,
+    makineler,
     dokumanlar,
     alisOzetleri,
   ] = await Promise.all([
@@ -31,6 +33,7 @@ export default async function ParcaDetayRoute({
     getModeller(),
     getReceteVersiyonlari(),
     getIstasyonlar(),
+    getMakineler(),
     getParcaDokumanlar(id),
     getMalzemeAlisOzetleri(),
   ]);
@@ -45,6 +48,7 @@ export default async function ParcaDetayRoute({
       modeller={modeller}
       versiyonlar={versiyonlar[id] ?? []}
       istasyonlar={istasyonlar}
+      makineler={makineler}
       dokumanlar={dokumanlar}
       alisOzetleri={alisOzetleri}
     />

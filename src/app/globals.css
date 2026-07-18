@@ -279,6 +279,15 @@
   .yazdir-gizle {
     display: none !important;
   }
+  /* Refakat kağıtları: her kağıt kendi sayfasına. */
+  .yazdir-sayfa {
+    break-after: page;
+    page-break-after: always;
+  }
+  .yazdir-sayfa:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
   @page {
     size: A4;
     margin: 14mm;

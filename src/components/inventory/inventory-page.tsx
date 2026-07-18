@@ -22,6 +22,7 @@ import type {
   StokGrup,
   TanimTip,
   TanimKalemi,
+  Makine,
 } from "@/lib/data";
 
 const TANIM_TIPLERI: DefTab[] = [
@@ -47,6 +48,7 @@ export function InventoryPage({
   tanimlar,
   tedarikciler,
   istasyonlar,
+  makineler,
 }: {
   bolum: string;
   urunler: Model[];
@@ -66,6 +68,8 @@ export function InventoryPage({
   tedarikciler?: string[];
   /** Üretim istasyonları (dinamik rota). */
   istasyonlar?: Istasyon[];
+  /** İstasyonlara bağlı makineler (tezgahlar). */
+  makineler?: Makine[];
 }) {
   // Stok bölümleri
   if (bolum === "takip")
@@ -107,7 +111,7 @@ export function InventoryPage({
 
   // Üretim
   if (bolum === "istasyonlar")
-    return <IstasyonTanim istasyonlar={istasyonlar} />;
+    return <IstasyonTanim istasyonlar={istasyonlar} makineler={makineler} />;
   if (bolum === "parcalar")
     return (
       <Parts

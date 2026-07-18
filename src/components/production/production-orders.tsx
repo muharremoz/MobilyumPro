@@ -3,7 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Ban, Factory, Plus } from "lucide-react";
+import { ArrowRight, Ban, Factory, Plus,
+  Printer,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -371,6 +373,11 @@ export function ProductionOrders({
                       ),
                       pasif: ilerleyen === e.id,
                       onSecim: () => ilerlet(e),
+                    },
+                    {
+                      etiket: "Refakat Kağıtları",
+                      ikon: Printer,
+                      onSecim: () => router.push(`/uretim/refakat/${e.id}`),
                     },
                     {
                       etiket: "Fabrikada Gör",

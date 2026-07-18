@@ -760,17 +760,42 @@ export async function parcaKaydet(
     const parcaId = id;
 
     await db.$transaction(async (tx) => {
+      const o = p.olculer;
       const veri = {
         ad: p.ad,
         kategori: p.kategori,
         aciklama: p.aciklama ?? null,
         durum: p.durum,
+        // Refakat kağıdı ölçüleri (mm) — boş bırakılabilir.
+        kabaUzunluk: o?.kabaUzunluk ?? null,
+        kabaGenislik: o?.kabaGenislik ?? null,
+        netUzunluk: o?.netUzunluk ?? null,
+        netGenislik: o?.netGenislik ?? null,
+        bitmisUzunluk: o?.bitmisUzunluk ?? null,
+        bitmisGenislik: o?.bitmisGenislik ?? null,
+        kalinlik: o?.kalinlik ?? null,
       };
       await tx.parca.upsert({
         where: { id: parcaId },
         create: { id: parcaId, ...veri },
         update: veri,
       });
+
+      // İşlem sırası (refakat kağıdı): verilmişse tamamen yeniden yazılır.
+      if (p.islemler) {
+        await tx.parcaIslem.deleteMany({ where: { parcaId } });
+        if (p.islemler.length)
+          await tx.parcaIslem.createMany({
+            data: p.islemler.map((i, idx) => ({
+              parcaId,
+              sira: i.sira || idx + 1,
+              istasyon: i.istasyon,
+              makineId: i.makineId ?? null,
+              operasyon: i.operasyon,
+              aciklama: i.aciklama ?? null,
+            })),
+          });
+      }
 
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
       await tx.receteSatiri.deleteMany({ where: { parcaId } });
@@ -1689,6 +1714,58 @@ export async function istasyonSil(
   } catch (e) {
     console.error("istasyonSil:", e);
     return { ok: false, error: "İstasyon silinemedi." };
+  }
+}
+
+// ── Makineler (istasyona bağlı tezgahlar) ───────────────────────────────
+
+/** Makine ekle/güncelle. */
+export async function makineKaydet(m: {
+  id?: number;
+  ad: string;
+  istasyon: string;
+  sira?: number;
+  durum?: "Aktif" | "Pasif";
+}): Promise<{ ok: boolean; id?: number; error?: string }> {
+  if (!m.ad.trim()) return { ok: false, error: "Makine adı gerekli." };
+  if (!m.istasyon) return { ok: false, error: "İstasyon seçin." };
+  try {
+    const veri = {
+      ad: m.ad.trim(),
+      istasyon: m.istasyon,
+      sira: m.sira ?? 0,
+      durum: m.durum ?? "Aktif",
+    };
+    const kayit = m.id
+      ? await db.makine.update({ where: { id: m.id }, data: veri })
+      : await db.makine.create({ data: veri });
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/uretim/recete");
+    return { ok: true, id: kayit.id };
+  } catch (e) {
+    console.error("makineKaydet:", e);
+    return { ok: false, error: "Makine kaydedilemedi." };
+  }
+}
+
+/** Makineyi siler — parça işlem sırasında kullanılıyorsa engellenir. */
+export async function makineSil(
+  id: number,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const kullanim = await db.parcaIslem.count({ where: { makineId: id } });
+    if (kullanim > 0)
+      return {
+        ok: false,
+        error: `Makine silinemez — ${kullanim} parça işlem satırında kullanılıyor.`,
+      };
+    await db.makine.delete({ where: { id } });
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/uretim/recete");
+    return { ok: true };
+  } catch (e) {
+    console.error("makineSil:", e);
+    return { ok: false, error: "Makine silinemedi." };
   }
 }
 
