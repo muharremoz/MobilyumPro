@@ -54,6 +54,8 @@ export const TABLO_SIRASI = [
   "satinAlmaTalepSatiri",
   "satinAlmaSiparis",
   "satinAlmaTalepSiparis",
+  "sayim",
+  "sayimSatiri",
 ];
 
 /** Kendine referans veren tablolar: aynı tablo içinde üst→alt sırası korunmalı. */
@@ -86,6 +88,7 @@ export const IDENTITY_TABLOLAR = {
   kullaniciCariYetki: "kullanici_cari_yetki",
   listeAyar: "liste_ayar",
   sayac: "sayac",
+  sayimSatiri: "sayim_satiri",
   sistemParametre: "sistem_parametre",
   posetMalzeme: "poset_malzeme",
   alisSatiri: "alis_satiri",

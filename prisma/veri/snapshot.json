@@ -3700,7 +3700,7 @@
       "gorsellerJson": null,
       "createDate": "2026-07-17T09:39:24.225Z",
       "createUserId": null,
-      "updateDate": "2026-07-17T10:45:13.386Z",
+      "updateDate": "2026-07-18T22:51:51.663Z",
       "updateUserId": null,
       "maliyetFiyati": "0",
       "maliyetBirimi": "TL",
@@ -16394,5 +16394,7 @@
   "satinAlmaTalep": [],
   "satinAlmaTalepSatiri": [],
   "satinAlmaSiparis": [],
-  "satinAlmaTalepSiparis": []
+  "satinAlmaTalepSiparis": [],
+  "sayim": [],
+  "sayimSatiri": []
 }
