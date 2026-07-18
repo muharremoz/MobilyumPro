@@ -358,6 +358,10 @@ model CariDokuman {
   cariId String @map("cari_id")
   ad     String
   url    String @db.NVarChar(Max)
+  /// Fiyat Listesi / Sözleşme / Katalog / Diğer
+  tip    String @default("Diğer")
+  /// Fiyat listesinin yürürlük tarihi — şart fiyatının bayatlığı buna göre ölçülür.
+  gecerlilik DateTime? @db.Date
 
   cari Cari @relation(fields: [cariId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -866,6 +870,8 @@ model StokUretici {
   doviz       String   @default("TL")
   minSiparis  Decimal? @map("min_siparis") @db.Decimal(14, 3)
   tedarikGun  Int?     @map("tedarik_gun")
+  /// Fiyatın en son ne zaman girildiği/güncellendiği — bayatlık göstergesi için.
+  fiyatTarihi DateTime? @map("fiyat_tarihi") @db.Date
 
   stok Stok @relation(fields: [stokId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 

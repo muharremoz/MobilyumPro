@@ -1428,6 +1428,8 @@ export async function getCariDetay(cariId: string): Promise<CariDetay> {
       cariId: d.cariId,
       ad: d.ad,
       url: d.url,
+      tip: d.tip as import("../data").CariDokumanTipi,
+      gecerlilik: d.gecerlilik ? tarihStr(d.gecerlilik) : undefined,
     })),
   };
 }
@@ -1757,23 +1759,46 @@ export async function getMalzemeAlisOzetleri(): Promise<
 export async function getSatinAlmaSartlari(): Promise<
   import("../data").SatinAlmaSarti[]
 > {
-  const rows = await db.stokUretici.findMany({
-    include: { stok: { select: { ad: true, stokBirimi: true } } },
-    orderBy: [{ stokId: "asc" }, { fiyat: "asc" }],
+  const [rows, listeler] = await Promise.all([
+    db.stokUretici.findMany({
+      include: { stok: { select: { ad: true, stokBirimi: true } } },
+      orderBy: [{ stokId: "asc" }, { fiyat: "asc" }],
+    }),
+    db.cariDokuman.findMany({
+      where: { tip: "Fiyat Listesi" },
+      orderBy: [{ gecerlilik: "asc" }, { id: "asc" }],
+    }),
+  ]);
+  // Firma başına en güncel liste — sıralama artan olduğu için son yazan kazanır.
+  const listeMap = new Map<string, (typeof listeler)[number]>();
+  for (const d of listeler) listeMap.set(d.cariId, d);
+
+  return rows.map((u) => {
+    const liste = listeMap.get(u.cariId);
+    return {
+      id: u.id,
+      stokId: u.stokId,
+      cariId: u.cariId,
+      cariAd: u.cariAd,
+      ureticiKodu: u.ureticiKodu ?? undefined,
+      fiyat: Number(u.fiyat),
+      doviz: u.doviz as import("../data").Doviz,
+      minSiparis: u.minSiparis != null ? Number(u.minSiparis) : undefined,
+      tedarikGun: u.tedarikGun ?? undefined,
+      fiyatTarihi: u.fiyatTarihi ? tarihStr(u.fiyatTarihi) : undefined,
+      malzemeAd: u.stok.ad,
+      birim: u.stok.stokBirimi,
+      fiyatListesi: liste
+        ? {
+            ad: liste.ad,
+            url: liste.url,
+            gecerlilik: liste.gecerlilik
+              ? tarihStr(liste.gecerlilik)
+              : undefined,
+          }
+        : undefined,
+    };
   });
-  return rows.map((u) => ({
-    id: u.id,
-    stokId: u.stokId,
-    cariId: u.cariId,
-    cariAd: u.cariAd,
-    ureticiKodu: u.ureticiKodu ?? undefined,
-    fiyat: Number(u.fiyat),
-    doviz: u.doviz as import("../data").Doviz,
-    minSiparis: u.minSiparis != null ? Number(u.minSiparis) : undefined,
-    tedarikGun: u.tedarikGun ?? undefined,
-    malzemeAd: u.stok.ad,
-    birim: u.stok.stokBirimi,
-  }));
 }
 
 /**

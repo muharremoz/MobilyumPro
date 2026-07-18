@@ -372,11 +372,23 @@ export type CariCrm = {
   aciklama?: string;
 };
 
+/** Cari dokümanının türü — fiyat listesi ayrıca bayatlık ölçümünde kullanılır. */
+export const CARI_DOKUMAN_TIPLERI = [
+  "Fiyat Listesi",
+  "Sözleşme",
+  "Katalog",
+  "Diğer",
+] as const;
+export type CariDokumanTipi = (typeof CARI_DOKUMAN_TIPLERI)[number];
+
 export type CariDokuman = {
   id: number;
   cariId: string;
   ad: string;
   url: string;
+  tip: CariDokumanTipi;
+  /** Fiyat listesinin yürürlük tarihi (ISO). */
+  gecerlilik?: string;
 };
 
 // Cari işlemleri — tahsilat/ödeme/borç/alacak hareketleri.
@@ -623,12 +635,19 @@ export type StokUretici = {
   doviz: Doviz;
   minSiparis?: number;
   tedarikGun?: number;
+  /** Fiyatın son güncellenme tarihi (ISO). */
+  fiyatTarihi?: string;
 };
 
 /** Satın alma şartı — stok_uretici kayıtlarının malzeme bilgisiyle görünümü. */
 export type SatinAlmaSarti = StokUretici & {
   malzemeAd: string;
   birim: string;
+  /**
+   * Firmanın en güncel fiyat listesi (varsa). Listenin yürürlük tarihi şartın
+   * fiyat tarihinden yeniyse fiyat "bayat" sayılır — PDF okunmaz, yalnız gösterilir.
+   */
+  fiyatListesi?: { ad: string; url: string; gecerlilik?: string };
 };
 
 export type StokMusteri = {

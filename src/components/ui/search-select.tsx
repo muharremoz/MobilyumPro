@@ -29,6 +29,11 @@ export interface SearchSelectProps {
   searchPlaceholder?: string;
   emptyText?: string;
   className?: string;
+  /**
+   * Açılan listeye sınıf. Liste genişliğini en uzun öğe belirler; dar bir
+   * kapsayıcıda (sheet vb.) taşmasın diye buradan sınırlandırılır.
+   */
+  listeClassName?: string;
   /** Dropdown altına "yeni ekle" butonu koyar; tıklanınca çağrılır. */
   addLabel?: string;
   onAdd?: () => void;
@@ -50,6 +55,7 @@ export function SearchSelect({
   placeholder = "Seçin",
   emptyText = "Sonuç bulunamadı",
   className,
+  listeClassName,
   addLabel,
   onAdd,
   sekmeler,
@@ -95,7 +101,7 @@ export function SearchSelect({
       <ComboboxContent
         anchor={anchorRef}
         sideOffset={10}
-        className="min-w-(--anchor-width)"
+        className={cn("min-w-(--anchor-width)", listeClassName)}
       >
         {sekmeler && (
           <div className="flex gap-1 border-b p-1">

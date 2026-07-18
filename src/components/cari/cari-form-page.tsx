@@ -55,6 +55,7 @@ import { UsersRoundIcon } from "@/components/ui/icons/users-round";
 import { UsersIcon } from "@/components/ui/icons/users";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
+import { CalendarDaysIcon } from "@/components/ui/icons/calendar-days";
 import { BadgePercentIcon } from "@/components/ui/icons/badge-percent";
 import { SendIcon } from "@/components/ui/icons/send";
 import { WalletIcon } from "@/components/ui/icons/wallet";
@@ -80,7 +81,9 @@ import {
   type CariCrm,
   type CariCrmDurum,
   type CariCrmTip,
+  CARI_DOKUMAN_TIPLERI,
   type CariDokuman,
+  type CariDokumanTipi,
   type CariIslem,
   type CariIslemTuru,
   type CariSinifi,
@@ -2909,13 +2912,23 @@ function DokumanSheet({
   const [ad, setAd] = React.useState("");
   const [dosya, setDosya] = React.useState<File | null>(null);
   const [yukleniyor, setYukleniyor] = React.useState(false);
+  const [tip, setTip] = React.useState<CariDokumanTipi>("Diğer");
+  const [gecerlilik, setGecerlilik] = React.useState("");
+  // Firma fiyat listesini kendi sitesinde yayımlıyorsa dosya yüklemek yerine
+  // adres verilir; belge yalnızca görüntülenir, içeriği okunmaz.
+  const [disUrl, setDisUrl] = React.useState("");
   const dosyaRef = React.useRef<HTMLInputElement>(null);
+
+  const disKayit = (u: string) => /^https?:\/\//i.test(u);
 
   React.useEffect(() => {
     if (!open) return;
     setAd(kayit?.ad ?? "");
     setDosya(null);
     setYukleniyor(false);
+    setTip(kayit?.tip ?? "Diğer");
+    setGecerlilik(kayit?.gecerlilik ?? "");
+    setDisUrl(kayit && disKayit(kayit.url) ? kayit.url : "");
   }, [open, kayit]);
 
   function dosyaSecildi(f: File | null) {
@@ -2930,11 +2943,16 @@ function DokumanSheet({
       toast.error("Doküman adı gerekli");
       return;
     }
-    if (!kayit && !dosya) {
-      toast.error("Dosya seçin");
+    const adres = disUrl.trim();
+    if (adres && !disKayit(adres)) {
+      toast.error("Adres http:// veya https:// ile başlamalı");
       return;
     }
-    let url = kayit?.url ?? "";
+    if (!kayit && !dosya && !adres) {
+      toast.error("Dosya seçin veya adres girin");
+      return;
+    }
+    let url = adres || (kayit ? (disKayit(kayit.url) ? "" : kayit.url) : "");
     if (dosya) {
       setYukleniyor(true);
       try {
@@ -2955,7 +2973,16 @@ function DokumanSheet({
         setYukleniyor(false);
       }
     }
-    onSave({ ad: ad.trim(), url });
+    if (!url) {
+      toast.error("Dosya seçin veya adres girin");
+      return;
+    }
+    onSave({
+      ad: ad.trim(),
+      url,
+      tip,
+      gecerlilik: gecerlilik || undefined,
+    });
     onOpenChange(false);
   }
 
@@ -3007,6 +3034,18 @@ function DokumanSheet({
             Mevcut dosya korunur; yalnızca adı değiştirebilirsiniz.
           </p>
         )}
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">veya adres</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <IconInput
+          label="Belge Adresi"
+          icon={ScanTextIcon}
+          placeholder="https://firma.com/fiyat-listesi.pdf"
+          value={disUrl}
+          onChange={(e) => setDisUrl(e.target.value)}
+        />
         <IconInput
           label="Ad"
           icon={ScanTextIcon}
@@ -3014,6 +3053,22 @@ function DokumanSheet({
           value={ad}
           onChange={(e) => setAd(e.target.value)}
         />
+        <AnimatedField label="Tür" icon={FolderOpenIcon}>
+          <SearchSelect
+            items={[...CARI_DOKUMAN_TIPLERI]}
+            value={tip}
+            onValueChange={(v) => setTip((v as CariDokumanTipi) || "Diğer")}
+          />
+        </AnimatedField>
+        {tip === "Fiyat Listesi" && (
+          <IconInput
+            label="Yürürlük Tarihi"
+            icon={CalendarDaysIcon}
+            type="date"
+            value={gecerlilik}
+            onChange={(e) => setGecerlilik(e.target.value)}
+          />
+        )}
         {yukleniyor && (
           <p className="text-xs text-muted-foreground">Yükleniyor…</p>
         )}

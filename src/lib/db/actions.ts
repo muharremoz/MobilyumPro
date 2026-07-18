@@ -2032,7 +2032,13 @@ export async function cariDokumanKaydet(
   d: Omit<CariDokuman, "id"> & { id?: number },
 ): Promise<CariAltSonuc> {
   try {
-    const veri = { cariId: d.cariId, ad: d.ad, url: d.url };
+    const veri = {
+      cariId: d.cariId,
+      ad: d.ad,
+      url: d.url,
+      tip: d.tip,
+      gecerlilik: d.gecerlilik ? tarihDate(d.gecerlilik) : null,
+    };
     const kayit = d.id
       ? await db.cariDokuman.update({ where: { id: d.id }, data: veri })
       : await db.cariDokuman.create({ data: veri });
@@ -2889,9 +2895,27 @@ export async function stokUreticiKaydet(
       minSiparis: u.minSiparis ?? null,
       tedarikGun: u.tedarikGun ?? null,
     };
+    // Fiyat tarihi: kullanıcı girdiyse o geçerli (eski tarihli listeden fiyat
+    // girilebilir). Girmediyse, fiyat gerçekten değiştiyse bugün damgalanır —
+    // yalnız min. sipariş/kod düzeltmesi fiyatı "taze" göstermemeli.
+    const elleTarih = u.fiyatTarihi ? tarihDate(u.fiyatTarihi) : null;
+    const oncekiFiyat = u.id
+      ? await db.stokUretici.findUnique({
+          where: { id: u.id },
+          select: { fiyat: true },
+        })
+      : null;
+    const fiyatDegisti =
+      !u.id || oncekiFiyat == null || Number(oncekiFiyat.fiyat) !== u.fiyat;
+    const damga = elleTarih ?? (fiyatDegisti ? new Date() : null);
     const kayit = u.id
-      ? await db.stokUretici.update({ where: { id: u.id }, data: veri })
-      : await db.stokUretici.create({ data: veri });
+      ? await db.stokUretici.update({
+          where: { id: u.id },
+          data: damga ? { ...veri, fiyatTarihi: damga } : veri,
+        })
+      : await db.stokUretici.create({
+          data: { ...veri, fiyatTarihi: damga ?? new Date() },
+        });
     revalidatePath(`/stok-karti/${u.stokId}`);
     revalidatePath("/satin-alma/sartlar");
     return { ok: true, id: kayit.id };

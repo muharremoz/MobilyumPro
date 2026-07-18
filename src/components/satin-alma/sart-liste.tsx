@@ -2,10 +2,22 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListHeader } from "@/components/ui/list-header";
@@ -20,6 +32,7 @@ import { BoxesIcon } from "@/components/ui/icons/boxes";
 import { BadgePercentIcon } from "@/components/ui/icons/badge-percent";
 import { TurkishLiraIcon } from "@/components/ui/icons/turkish-lira";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
+import { CalendarDaysIcon } from "@/components/ui/icons/calendar-days";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
@@ -39,6 +52,135 @@ const fiyatYaz = (n: number, d: Doviz) =>
 
 type SortKey = "malzeme" | "firma" | "fiyat" | "tedarik";
 
+/** Fiyat kaç gün sonra "eski" sayılır (firmanın listesi yoksa tek ölçü budur). */
+const ESKI_GUN = 180;
+
+type Bayatlik = { seviye: "bayat" | "eski" | "bilinmiyor"; mesaj: string };
+
+/**
+ * Şart fiyatının güncelliği. İki ayrı durum var:
+ *  - "bayat": firmanın fiyat listesi, fiyatın girildiği tarihten YENİ →
+ *    liste değişmiş ama şart güncellenmemiş olabilir (asıl uyarı budur).
+ *  - "eski": liste yok ama fiyat 6 aydan uzun süredir dokunulmamış.
+ * PDF'in içi okunmaz; yalnız tarihler karşılaştırılır.
+ */
+function bayatlik(s: SatinAlmaSarti): Bayatlik | null {
+  const listeTarih = s.fiyatListesi?.gecerlilik;
+  // Tarih yoksa fiyatın eski OLDUĞUNU bilmiyoruz — yalnız bilmediğimizi biliyoruz.
+  // Bu yüzden "bayat" demiyor; sessiz bir bilgi işareti bırakıyoruz. Şart bir kez
+  // kaydedilince tarih damgalanır ve işaret kendiliğinden kaybolur.
+  if (!s.fiyatTarihi) {
+    return listeTarih
+      ? {
+          seviye: "bilinmiyor",
+          mesaj: `Bu fiyatın ne zaman girildiği kayıtlı değil, bu yüzden güncelliği ölçülemiyor. Firmanın ${tarihYaz(listeTarih)} tarihli fiyat listesi var; karşılaştırıp şartı bir kez kaydedersen tarih damgalanır.`,
+        }
+      : null;
+  }
+  if (listeTarih && listeTarih > s.fiyatTarihi)
+    return {
+      seviye: "bayat",
+      mesaj: `Firmanın fiyat listesi ${tarihYaz(listeTarih)} tarihli; şarttaki fiyat ise ${tarihYaz(s.fiyatTarihi)} tarihinden kalma.`,
+    };
+  const gun = Math.floor(
+    (Date.now() - new Date(s.fiyatTarihi).getTime()) / 86_400_000,
+  );
+  if (gun > ESKI_GUN)
+    return {
+      seviye: "eski",
+      mesaj: `Fiyat ${gun} gündür güncellenmedi (${tarihYaz(s.fiyatTarihi)}).`,
+    };
+  return null;
+}
+
+const tarihYaz = (iso: string) =>
+  new Date(iso).toLocaleDateString("tr-TR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+/**
+ * Seçili firmanın fiyat listesi — sheet'te fiyat girilirken referans olsun diye
+ * gösterilir. Belge yalnızca açılır; içeriğinden fiyat okunmaz.
+ */
+function FiyatListesiNotu({
+  sartlar,
+  cariId,
+}: {
+  sartlar: SatinAlmaSarti[];
+  cariId: string;
+}) {
+  const liste = cariId
+    ? sartlar.find((x) => x.cariId === cariId && x.fiyatListesi)?.fiyatListesi
+    : undefined;
+  if (!liste) return null;
+  return (
+    <a
+      href={liste.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs transition-colors hover:bg-muted"
+    >
+      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate font-medium">{liste.ad}</span>
+      {liste.gecerlilik && (
+        <span className="shrink-0 text-muted-foreground">
+          {tarihYaz(liste.gecerlilik)}
+        </span>
+      )}
+    </a>
+  );
+}
+
+/** Fiyatın yanındaki uyarı işareti — sebebi hover'da açılır. */
+function BayatlikIsareti({ sart }: { sart: SatinAlmaSarti }) {
+  const b = bayatlik(sart);
+  if (!b) return null;
+  const bayat = b.seviye === "bayat";
+  const Ikon = bayat ? AlertTriangle : Clock;
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        delay={0}
+        closeDelay={0}
+        render={
+          <span
+            className={
+              bayat
+                ? "cursor-help text-amber-600"
+                : "cursor-help text-muted-foreground/60"
+            }
+          />
+        }
+      >
+        <Ikon className="size-3.5" />
+      </HoverCardTrigger>
+      <HoverCardContent className="w-72 text-xs">
+        <p className="font-medium">
+          {b.seviye === "bayat"
+            ? "Fiyat listeden eski"
+            : b.seviye === "eski"
+              ? "Fiyat uzun süredir güncellenmedi"
+              : "Fiyat tarihi bilinmiyor"}
+        </p>
+        <p className="mt-1 text-muted-foreground">{b.mesaj}</p>
+        {sart.fiyatListesi && (
+          <a
+            href={sart.fiyatListesi.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center gap-1 text-primary underline underline-offset-2"
+          >
+            <FileText className="size-3" />
+            {sart.fiyatListesi.ad}
+          </a>
+        )}
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 type Form = {
   id?: number;
   stokId: string;
@@ -48,6 +190,8 @@ type Form = {
   minSiparis: string;
   tedarikGun: string;
   ureticiKodu: string;
+  /** Fiyatın geçerli olduğu tarih; boş bırakılırsa kayıt anı damgalanır. */
+  fiyatTarihi: string;
 };
 
 const BOS: Form = {
@@ -58,7 +202,16 @@ const BOS: Form = {
   minSiparis: "",
   tedarikGun: "",
   ureticiKodu: "",
+  fiyatTarihi: "",
 };
+
+/**
+ * Malzeme adları uzun; liste kendini en uzun ada göre genişletince sheet'i
+ * aşıyordu. Genişliği alanla sınırlayıp uzun adları alt satıra sardırıyoruz —
+ * ad kesilmiyor, taşma da olmuyor.
+ */
+const SARAN_LISTE =
+  "max-w-(--anchor-width) [&_[data-slot=combobox-item]]:h-auto [&_[data-slot=combobox-item]]:py-2 [&_[data-slot=combobox-item]]:whitespace-normal";
 
 export function SartListe({
   sartlar,
@@ -169,6 +322,7 @@ export function SartListe({
       minSiparis: s.minSiparis != null ? String(s.minSiparis) : "",
       tedarikGun: s.tedarikGun != null ? String(s.tedarikGun) : "",
       ureticiKodu: s.ureticiKodu ?? "",
+      fiyatTarihi: s.fiyatTarihi ?? "",
     });
     setHatalar({});
     setAcik(true);
@@ -208,6 +362,7 @@ export function SartListe({
       minSiparis: form.minSiparis ? Number(form.minSiparis) : undefined,
       tedarikGun: form.tedarikGun ? Number(form.tedarikGun) : undefined,
       ureticiKodu: form.ureticiKodu.trim() || undefined,
+      fiyatTarihi: form.fiyatTarihi || undefined,
     });
     setKaydediliyor(false);
     if (!res.ok) {
@@ -345,6 +500,7 @@ export function SartListe({
                               En uygun
                             </Badge>
                           )}
+                        <BayatlikIsareti sart={s} />
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground tabular-nums">
@@ -379,6 +535,7 @@ export function SartListe({
         saveLabel={
           kaydediliyor ? "Kaydediliyor..." : form.id ? "Güncelle" : "Ekle"
         }
+        sheetClassName="data-[side=right]:sm:max-w-xl"
         contentClassName="flex flex-col gap-4"
       >
         <ErrorShakeField error={hatalar.stokId} shakeNonce={shakeNonce}>
@@ -394,6 +551,7 @@ export function SartListe({
                 setHatalar((h) => ({ ...h, stokId: undefined }));
               }}
               placeholder="Malzeme seç"
+              listeClassName={SARAN_LISTE}
             />
           </AnimatedField>
         </ErrorShakeField>
@@ -413,6 +571,7 @@ export function SartListe({
             />
           </AnimatedField>
         </ErrorShakeField>
+        <FiyatListesiNotu sartlar={sartlar} cariId={form.cariId} />
         <div className="grid grid-cols-[1fr_96px] gap-3">
           <ErrorShakeField error={hatalar.fiyat} shakeNonce={shakeNonce}>
             <IconInput
@@ -469,6 +628,19 @@ export function SartListe({
             setForm((f) => ({ ...f, ureticiKodu: e.target.value }))
           }
         />
+        <IconInput
+          label="Fiyat Tarihi"
+          icon={CalendarDaysIcon}
+          type="date"
+          value={form.fiyatTarihi}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, fiyatTarihi: e.target.value }))
+          }
+        />
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Fiyatın hangi tarihli listeden alındığı. Boş bırakılırsa kayıt tarihi
+          kullanılır; güncelliği bu tarihe göre ölçülür.
+        </p>
         <p className="text-xs text-muted-foreground">
           Şartlar stok kartının Üretici sekmesiyle aynı kayıtlardır; alış
           formunda firma seçilince anlaşma fiyatı otomatik önerilir.
@@ -535,6 +707,7 @@ export function CariSartlarTab({
       minSiparis: s.minSiparis != null ? String(s.minSiparis) : "",
       tedarikGun: s.tedarikGun != null ? String(s.tedarikGun) : "",
       ureticiKodu: s.ureticiKodu ?? "",
+      fiyatTarihi: s.fiyatTarihi ?? "",
     });
     setHatalar({});
     setAcik(true);
@@ -567,6 +740,7 @@ export function CariSartlarTab({
       minSiparis: form.minSiparis ? Number(form.minSiparis) : undefined,
       tedarikGun: form.tedarikGun ? Number(form.tedarikGun) : undefined,
       ureticiKodu: form.ureticiKodu.trim() || undefined,
+      fiyatTarihi: form.fiyatTarihi || undefined,
     });
     setKaydediliyor(false);
     if (!res.ok) {
@@ -651,11 +825,14 @@ export function CariSartlarTab({
                 >
                   <TableCell className="font-medium">{s.malzemeAd}</TableCell>
                   <TableCell>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {fiyatYaz(s.fiyat, s.doviz)}
-                    </span>{" "}
-                    <span className="text-xs text-muted-foreground">
-                      / {s.birim}
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold tabular-nums">
+                        {fiyatYaz(s.fiyat, s.doviz)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        / {s.birim}
+                      </span>
+                      <BayatlikIsareti sart={s} />
                     </span>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground tabular-nums">
@@ -685,6 +862,7 @@ export function CariSartlarTab({
         saveLabel={
           kaydediliyor ? "Kaydediliyor..." : form.id ? "Güncelle" : "Ekle"
         }
+        sheetClassName="data-[side=right]:sm:max-w-xl"
         contentClassName="flex flex-col gap-4"
       >
         <ErrorShakeField error={hatalar.stokId} shakeNonce={shakeNonce}>
@@ -700,6 +878,7 @@ export function CariSartlarTab({
                 setHatalar((h) => ({ ...h, stokId: undefined }));
               }}
               placeholder="Malzeme seç"
+              listeClassName={SARAN_LISTE}
             />
           </AnimatedField>
         </ErrorShakeField>
@@ -759,6 +938,19 @@ export function CariSartlarTab({
             setForm((f) => ({ ...f, ureticiKodu: e.target.value }))
           }
         />
+        <IconInput
+          label="Fiyat Tarihi"
+          icon={CalendarDaysIcon}
+          type="date"
+          value={form.fiyatTarihi}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, fiyatTarihi: e.target.value }))
+          }
+        />
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Fiyatın hangi tarihli listeden alındığı. Boş bırakılırsa kayıt tarihi
+          kullanılır; güncelliği bu tarihe göre ölçülür.
+        </p>
       </FormSheet>
 
       {onayDialog}
