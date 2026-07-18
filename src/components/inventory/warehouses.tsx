@@ -160,6 +160,7 @@ export function Warehouses({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Depo silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

@@ -214,6 +214,7 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Grup silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

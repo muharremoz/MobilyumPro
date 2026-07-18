@@ -70,6 +70,7 @@ export function IstasyonTanim({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "İstasyon silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

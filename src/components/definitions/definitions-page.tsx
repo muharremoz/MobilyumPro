@@ -320,6 +320,7 @@ export function DefinitionsPage({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Tanım silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

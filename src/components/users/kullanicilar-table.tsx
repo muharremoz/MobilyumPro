@@ -245,6 +245,7 @@ export function KullanicilarTable({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Kullanıcı silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

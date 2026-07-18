@@ -190,6 +190,7 @@ export function CariList({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Cari silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

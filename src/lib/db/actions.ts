@@ -355,6 +355,9 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
 
 
 
+/** Engel detayının bir bölümü — modaldaki "kullanım yerleri" listesi. */
+export type SilmeDetay = { baslik: string; ogeler: string[] };
+
 /** Silme kontrolünde kullanılan varlık türleri. */
 export type SilmeTipi =
   | "stok"
@@ -386,10 +389,32 @@ const SILME_KONTROL: Record<SilmeTipi, (id: string) => Promise<SilmeSonucu>> = {
 export async function silinebilirMi(
   tip: SilmeTipi,
   ids: string[],
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; detaylar?: SilmeDetay[] }> {
   if (ids.length === 0) return { ok: true };
-  const on = await silmeOnKontrol(ids, SILME_KONTROL[tip]);
-  return on.ok ? { ok: true } : { ok: false, error: on.error };
+  const sonuclar = await Promise.all(ids.map((id) => SILME_KONTROL[tip](id)));
+  const engelli = sonuclar.filter((r) => !r.silinebilir);
+  if (engelli.length === 0) return { ok: true };
+
+  // "Kullanım yerlerini göster" için bölüm listesi (kayıt → engel → örnekler).
+  const detaylar: SilmeDetay[] = engelli.flatMap((r) =>
+    r.engeller.map((e) => {
+      const ogeler = [...(e.ornekler ?? [])];
+      if (e.adet > ogeler.length && ogeler.length > 0)
+        ogeler.push(`… ve ${e.adet - ogeler.length} kayıt daha`);
+      return {
+        baslik:
+          engelli.length > 1
+            ? `${r.ad ?? "?"} — ${e.etiket} (${e.adet})`
+            : `${e.etiket} (${e.adet})`,
+        ogeler,
+      };
+    }),
+  );
+  const error =
+    engelli.length === 1
+      ? (engelli[0].mesaj ?? "Kayıt silinemez.")
+      : `${engelli.length} kayıt silinemez — işlem görmüş. Örn: ${engelli[0].mesaj ?? ""}`;
+  return { ok: false, error, detaylar };
 }
 
 /**

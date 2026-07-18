@@ -193,6 +193,7 @@ export function Parts({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Parça silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

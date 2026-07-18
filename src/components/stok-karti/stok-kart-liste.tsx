@@ -245,6 +245,7 @@ export function StokKartListe({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Kart silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

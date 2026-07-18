@@ -266,6 +266,7 @@ export function ReceteListe({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Reçete silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

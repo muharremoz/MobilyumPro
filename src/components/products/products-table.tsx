@@ -304,6 +304,7 @@ export function ProductsTable({
       await uyar({
         title: "Silinemedi",
         description: kontrol.error ?? "Model silinemez.",
+        detaylar: kontrol.detaylar,
       });
       return;
     }

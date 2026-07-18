@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -19,6 +20,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+/** Uyarı modalındaki açılır detay bölümü (başlık + kayıt listesi). */
+export type UyariDetay = { baslik: string; ogeler: string[] };
+
 export type OnaySecenek = {
   title: string;
   description?: string;
@@ -28,6 +32,8 @@ export type OnaySecenek = {
   destructive?: boolean;
   /** Bilgilendirme modu: tek buton, iptal yok (uyar() bunu kullanır). */
   tekButon?: boolean;
+  /** Açılır "kullanım yerleri" bölümleri (silme engeli detayı). */
+  detaylar?: UyariDetay[];
 };
 
 /**
@@ -90,6 +96,7 @@ export function useOnay() {
       cancelLabel={durum.opts.cancelLabel ?? "İptal"}
       destructive={durum.opts.destructive ?? true}
       tekButon={durum.opts.tekButon}
+      detaylar={durum.opts.detaylar}
       onConfirm={() => bitir(true)}
     />
   );
@@ -111,6 +118,7 @@ export function ConfirmDialog({
   cancelLabel = "İptal",
   destructive = false,
   tekButon = false,
+  detaylar,
   onConfirm,
 }: {
   open: boolean;
@@ -123,6 +131,8 @@ export function ConfirmDialog({
   destructive?: boolean;
   /** Tek buton (bilgilendirme) — İptal gizlenir. */
   tekButon?: boolean;
+  /** Açılır "kullanım yerleri" listesi. */
+  detaylar?: UyariDetay[];
   onConfirm?: () => void;
 }) {
   const iconRef = React.useRef<AnimatedIconHandle>(null);
@@ -149,6 +159,11 @@ export function ConfirmDialog({
             <AlertDialogDescription>{description}</AlertDialogDescription>
           )}
         </AlertDialogHeader>
+
+        {detaylar && detaylar.length > 0 && (
+          <UyariDetaylar detaylar={detaylar} />
+        )}
+
         <AlertDialogFooter>
           {!tekButon && <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>}
           <AlertDialogAction
@@ -160,5 +175,48 @@ export function ConfirmDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/** Uyarı modalındaki açılır "kullanım yerleri" bölümü. Dialog içeriği
+ *  kapanınca unmount olduğundan açık/kapalı durumu kendiliğinden sıfırlanır. */
+function UyariDetaylar({ detaylar }: { detaylar: UyariDetay[] }) {
+  const [acik, setAcik] = React.useState(false);
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setAcik((a) => !a)}
+        className="flex cursor-pointer items-center gap-1 self-start text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      >
+        <ChevronDown
+          className={cn("size-3.5 transition-transform", acik && "rotate-180")}
+        />
+        {acik ? "Kullanım yerlerini gizle" : "Kullanım yerlerini göster"}
+      </button>
+      {acik && (
+        <div className="max-h-52 overflow-y-auto rounded-md border bg-muted/30 p-3">
+          <div className="flex flex-col gap-2.5">
+            {detaylar.map((d) => (
+              <div key={d.baslik}>
+                <p className="text-xs font-medium">{d.baslik}</p>
+                {d.ogeler.length > 0 && (
+                  <ul className="mt-1 flex flex-col gap-0.5">
+                    {d.ogeler.map((o) => (
+                      <li
+                        key={o}
+                        className="truncate text-xs text-muted-foreground"
+                      >
+                        {o}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
