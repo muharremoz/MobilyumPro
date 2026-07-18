@@ -858,129 +858,156 @@ export function TalepListe({
 
             {/* Firma bazlı gruplar — bir firma = bir sipariş belgesi */}
             <div className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
-              {firmaGruplari(detay, tedarikciler).map((g) => (
-                <div key={g.cariId || "yok"} className="rounded-md border">
-                  <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        {g.cariAd}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
-                        {g.siparisBelgeleri.length > 0 && " · "}
-                        {g.siparisBelgeleri.map((sip, i) => (
-                          <React.Fragment key={sip}>
-                            {i > 0 && ", "}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                router.push(`/satin-alma/siparis/${sip}`)
-                              }
-                              className="cursor-pointer font-mono underline-offset-2 hover:underline"
-                            >
-                              {sip}
-                            </button>
-                          </React.Fragment>
-                        ))}
-                      </p>
-                    </div>
-                    {detay.durum === "Tedarik Sürecinde" &&
-                      satinAlmaci &&
-                      g.siparisKalanVar && (
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            setSiparisHedef({
-                              talepId: detay.id,
-                              cariId: g.cariId,
-                            })
-                          }
-                        >
-                          <PackageCheck className="size-3.5" /> Sipariş Oluştur
-                        </Button>
-                      )}
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Malzeme</TableHead>
-                        <TableHead className="text-right">İstenen</TableHead>
-                        <TableHead className="text-right">Sipariş</TableHead>
-                        <TableHead className="text-right">Tedarik</TableHead>
-                        <TableHead className="text-right">
-                          Sipariş Kalan
-                        </TableHead>
-                        <TableHead>Durum</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {g.satirlar.map((e) => {
-                        const s = e.satir;
-                        return (
-                          <TableRow key={`${s.id}-${g.cariId}`}>
-                            <TableCell className="font-medium">
-                              {s.malzemeAd}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {s.miktar.toLocaleString("tr-TR", {
-                                maximumFractionDigits: 2,
-                              })}{" "}
-                              {s.birim}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {e.siparisMiktar > 0 ? (
-                                <>
-                                  {e.siparisMiktar.toLocaleString("tr-TR", {
-                                    maximumFractionDigits: 2,
-                                  })}{" "}
-                                  {s.birim}
-                                </>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">
-                              {e.tedarik.toLocaleString("tr-TR", {
-                                maximumFractionDigits: 2,
-                              })}{" "}
-                              {s.birim}
-                            </TableCell>
-                            {/* Sipariş verilmemiş kalan — yalnız satırın
-                                  kendi firmasının grubunda anlamlı. */}
-                            <TableCell
-                              className={cn(
-                                "text-right tabular-nums",
-                                e.kalan
-                                  ? "font-medium text-amber-700"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {e.kalan ? (
-                                <>
-                                  {e.kalan.toLocaleString("tr-TR", {
-                                    maximumFractionDigits: 2,
-                                  })}{" "}
-                                  {s.birim}
-                                </>
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="secondary"
-                                className={SATIR_DURUM_RENK[s.durum]}
+              {firmaGruplari(detay, tedarikciler).map((g) => {
+                // Başlıkta sipariş bekleyen toplam (birim bazında).
+                const bekleyenler = new Map<string, number>();
+                for (const e of g.satirlar)
+                  if (e.kalan)
+                    bekleyenler.set(
+                      e.satir.birim,
+                      (bekleyenler.get(e.satir.birim) ?? 0) + e.kalan,
+                    );
+                const bekleyenMetni = [...bekleyenler]
+                  .map(
+                    ([b, n]) =>
+                      `${n.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${b}`,
+                  )
+                  .join(" + ");
+                return (
+                  <div key={g.cariId || "yok"} className="rounded-md border">
+                    <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {g.cariAd}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
+                          {g.siparisBelgeleri.length > 0 && " · "}
+                          {g.siparisBelgeleri.map((sip, i) => (
+                            <React.Fragment key={sip}>
+                              {i > 0 && ", "}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(`/satin-alma/siparis/${sip}`)
+                                }
+                                className="cursor-pointer font-mono underline-offset-2 hover:underline"
                               >
-                                {s.durum}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ))}
+                                {sip}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                          {bekleyenMetni && (
+                            <>
+                              {" · "}
+                              <span className="font-medium text-amber-700">
+                                {bekleyenMetni} sipariş bekliyor
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      {detay.durum === "Tedarik Sürecinde" &&
+                        satinAlmaci &&
+                        g.siparisKalanVar && (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              setSiparisHedef({
+                                talepId: detay.id,
+                                cariId: g.cariId,
+                              })
+                            }
+                          >
+                            <PackageCheck className="size-3.5" /> Sipariş
+                            Oluştur
+                          </Button>
+                        )}
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Malzeme</TableHead>
+                          <TableHead className="text-right">İstenen</TableHead>
+                          <TableHead className="text-right">Sipariş</TableHead>
+                          <TableHead className="text-right">Tedarik</TableHead>
+                          <TableHead className="text-right">
+                            Sipariş Kalan
+                          </TableHead>
+                          <TableHead>Durum</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.satirlar.map((e) => {
+                          const s = e.satir;
+                          return (
+                            <TableRow key={`${s.id}-${g.cariId}`}>
+                              <TableCell className="font-medium">
+                                {s.malzemeAd}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {s.miktar.toLocaleString("tr-TR", {
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                {s.birim}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {e.siparisMiktar > 0 ? (
+                                  <>
+                                    {e.siparisMiktar.toLocaleString("tr-TR", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    {s.birim}
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    —
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {e.tedarik.toLocaleString("tr-TR", {
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                {s.birim}
+                              </TableCell>
+                              {/* Sipariş verilmemiş kalan — yalnız satırın
+                                  kendi firmasının grubunda anlamlı. */}
+                              <TableCell
+                                className={cn(
+                                  "text-right tabular-nums",
+                                  e.kalan
+                                    ? "font-medium text-amber-700"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {e.kalan ? (
+                                  <>
+                                    {e.kalan.toLocaleString("tr-TR", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    {s.birim}
+                                  </>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="secondary"
+                                  className={SATIR_DURUM_RENK[s.durum]}
+                                >
+                                  {s.durum}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                );
+              })}
             </div>
 
             {detay.aciklama && (
@@ -1202,11 +1229,12 @@ function TedarikIlerleme({ talep }: { talep: SatinAlmaTalep }) {
           )
         }
       />
-      <HoverCardContent align="start" className="w-80 text-xs">
+      <HoverCardContent align="start" className="w-96 text-xs">
         <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
           {talep.satirlar.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3">
-              <span className="min-w-0 truncate">{s.malzemeAd}</span>
+            <div key={s.id} className="flex items-start justify-between gap-3">
+              {/* Ad kırpılmaz — sığmazsa alt satıra sarar. */}
+              <span className="min-w-0">{s.malzemeAd}</span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-muted-foreground tabular-nums">
                   {s.miktar.toLocaleString("tr-TR", {
@@ -1311,7 +1339,7 @@ function SiparisDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onKapat()}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Sipariş Oluştur — {grup.cariAd}</DialogTitle>
           <DialogDescription>
@@ -1359,7 +1387,10 @@ function SiparisDialog({
                     : 0;
                 return (
                   <TableRow key={k.satirId}>
-                    <TableCell className="font-medium">{s.malzemeAd}</TableCell>
+                    {/* Ad kırpılmaz — sığmazsa sarar (yatay kaydırma yerine). */}
+                    <TableCell className="font-medium break-words whitespace-normal">
+                      {s.malzemeAd}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {kalan.toLocaleString("tr-TR", {
                         maximumFractionDigits: 2,
