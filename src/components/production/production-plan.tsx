@@ -1129,6 +1129,15 @@ function Alan({
   );
 }
 
+/**
+ * Gerekli/stok yuvarlanınca eşit görünüyorsa (örn. 0,884 ve 0,88 → "0,88")
+ * farkı gösterecek hane sayısını bulur — "aynı ama eksik" yanılgısı olmasın.
+ */
+function hane(a: number, b: number): number {
+  for (let h = 2; h <= 4; h++) if (a.toFixed(h) !== b.toFixed(h)) return h;
+  return 2;
+}
+
 function MalzemeTablosu({
   ihtiyac,
   secim,
@@ -1168,6 +1177,8 @@ function MalzemeTablosu({
       <TableBody>
         {ihtiyac.map((m, i) => {
           const yetersiz = m.toplamMiktar > m.malzeme.stok;
+          // Eksikte fark görünsün diye gerekli/stok aynı hassasiyette yazılır.
+          const basamak = yetersiz ? hane(m.toplamMiktar, m.malzeme.stok) : 2;
           return (
             <TableRow key={m.malzeme.id}>
               {secim && (
@@ -1202,12 +1213,15 @@ function MalzemeTablosu({
                 )}
               >
                 {m.toplamMiktar.toLocaleString("tr-TR", {
-                  maximumFractionDigits: 2,
+                  maximumFractionDigits: basamak,
                 })}{" "}
                 {m.malzeme.birim}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {m.malzeme.stok.toLocaleString("tr-TR")} {m.malzeme.birim}
+                {m.malzeme.stok.toLocaleString("tr-TR", {
+                  maximumFractionDigits: basamak,
+                })}{" "}
+                {m.malzeme.birim}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatTL(m.toplamFiyat)}
