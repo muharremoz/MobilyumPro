@@ -685,6 +685,11 @@
       "id": 5,
       "listeId": "pano-kisayol:USR-1001:Satın Alma",
       "kolonlarJson": "{\"kisayollar\":[\"uretimTakip\",\"hareketler\",\"siparisler\",\"sartlar\",\"talepler\",\"alis\",\"bekleyenSiparis\",\"recete\"]}"
+    },
+    {
+      "id": 6,
+      "listeId": "pano-kisayol:USR-1002:Satın Alma",
+      "kolonlarJson": "{\"kisayollar\":[\"talepler\",\"bekleyenSiparis\",\"alis\",\"sartlar\"]}"
     }
   ],
   "sistemParametre": [
