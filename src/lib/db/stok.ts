@@ -410,6 +410,8 @@ export async function mamulGirisi(emir: {
   modelId: string;
   modelAd: string;
   adet: number;
+  /** Emrin hedef deposu; yoksa varsayılan depoya girer. */
+  hedefDepo?: string | null;
 }): Promise<void> {
   // Parça emri: stok kartı yok — mamul girişi yazılmaz (iç üretim).
   if (emir.refTip === "parca") return;
@@ -419,7 +421,10 @@ export async function mamulGirisi(emir: {
   });
   if (mevcut) return;
 
-  const depo = await parametreDegeri("varsayilan_depo");
+  // Emirde hedef depo varsa ORA kullanılır. Alan kaydediliyordu ama okunmuyordu;
+  // üretim planında başka depo seçilse bile mamul varsayılana giriyordu.
+  const depo =
+    emir.hedefDepo?.trim() || (await parametreDegeri("varsayilan_depo"));
   const bugun = new Date(new Date().toISOString().slice(0, 10));
 
   await hareketTx(async (tx) => {

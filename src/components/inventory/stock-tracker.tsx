@@ -85,6 +85,9 @@ export function StockTracker({
       if (h.tur === "Çıkış") return t - h.miktar;
       return t;
     }, 0);
+    // Bakiye mevcut stoktan geriye kurgulanır. Defter eksiksizse başlangıç 0
+    // çıkar; çıkmıyorsa aradaki fark "defterde karşılığı olmayan bakiye"dir
+    // (aşağıda uyarı olarak gösterilir) — sessizce yutulmamalı.
     let bakiye = mevcutStok - netDelta;
     const ileri = eskiYeni.map((h) => {
       if (h.tur === "Giriş") bakiye += h.miktar;
@@ -106,13 +109,17 @@ export function StockTracker({
       else if (h.tur === "Çıkış") cikis += h.miktar;
       else transfer += h.miktar;
     }
+    // Defterin açıkladığı net değişim ile karttaki bakiye arasındaki fark:
+    // 0 değilse deftere yazılmamış bir hareket var (eski açılış bakiyeleri gibi).
+    const defterFarki = mevcutStok - (giris - cikis);
     return {
       giris,
       cikis,
       transfer,
+      defterFarki,
       sonHareket: hareketler[0]?.tarih,
     };
-  }, [hareketler]);
+  }, [hareketler, mevcutStok]);
 
   const birim =
     tip === "Model"
@@ -197,6 +204,13 @@ export function StockTracker({
               deger={`${mevcutStok} ${birim}`}
               // Negatif stok bir tutarsızlık işaretidir; sessizce geçmesin.
               ton={mevcutStok < 0 ? "rose" : "primary"}
+              // Defterle uyuşmazlık varsa söyle: satır bakiyeleri bu farkın
+              // üstüne kurulduğu için "neden böyle" sorusunun cevabı budur.
+              alt={
+                Math.abs(ozet.defterFarki) >= 0.0005
+                  ? `${ozet.defterFarki > 0 ? "+" : ""}${ozet.defterFarki} defterde yok`
+                  : undefined
+              }
             />
             <OzetKart
               ikon={TrendingUp}

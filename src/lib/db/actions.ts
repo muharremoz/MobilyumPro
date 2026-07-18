@@ -278,6 +278,8 @@ export async function emriIlerlet(
       modelId: emir.modelId,
       modelAd: emir.modelAd,
       adet: emir.adet,
+      // Mamul girişi emrin hedef deposuna yazılsın (alan vardı, okunmuyordu).
+      hedefDepo: emir.hedefDepo,
     };
     const simdi = new Date();
     const isleniyor = adimlar.find((a) => a.durum === "İşleniyor");

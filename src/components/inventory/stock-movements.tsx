@@ -19,6 +19,7 @@ import {
   type ListeKolonAyariDegeri,
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
   Table,
@@ -73,6 +74,7 @@ export function StockMovements({
   hareketler,
   urunler,
   malzemeler,
+  depoAdlari = [],
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
@@ -80,6 +82,8 @@ export function StockMovements({
   hareketler: StokHareket[];
   urunler: Model[];
   malzemeler: Malzeme[];
+  /** Tanımlı depolar — filtrede hiç hareketi olmayanlar da görünsün. */
+  depoAdlari?: string[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
@@ -124,9 +128,11 @@ export function StockMovements({
     () => [...new Set(hareketler.map((h) => h.birim))],
     [hareketler],
   );
-  const depolar = React.useMemo(
-    () => [...new Set(hareketler.map((h) => h.depo))],
-    [hareketler],
+  // Depo listesi Depo tablosundan; hareketlerden türetilseydi hiç hareketi
+  // olmayan depo filtrede hiç görünmezdi.
+  const depoSecenek = React.useMemo(
+    () => [...new Set([...depoAdlari, ...hareketler.map((h) => h.depo)])],
+    [depoAdlari, hareketler],
   );
 
   const filtreli = React.useMemo(() => {
@@ -154,6 +160,10 @@ export function StockMovements({
       return String(x).localeCompare(String(y), "tr") * yon;
     });
   }, [hareketler, metinFiltre, tur, birimF, depoF, miktarAralik, sort, refAd]);
+
+  // Hareket defteri sınırsız büyür; sayfalama olmadan tüm kayıtlar tek tabloya
+  // basılıyor ve sayfa donuyordu.
+  const sayfalama = useSayfalama(filtreli, "stok-hareketleri");
 
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
   const sira = (k: SortKey) => (sort.key === k ? sort.dir : null);
@@ -251,7 +261,7 @@ export function StockMovements({
                   onSirala={sirala("depo")}
                   filtre={{
                     tip: "liste",
-                    secenekler: depolar,
+                    secenekler: depoSecenek,
                     deger: depoF,
                     onDeger: setDepoF,
                   }}
@@ -276,7 +286,7 @@ export function StockMovements({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtreli.map((h) => (
+            {sayfalama.sayfalik.map((h) => (
               <SatirMenu
                 key={h.id}
                 aksiyonlar={[
@@ -356,9 +366,12 @@ export function StockMovements({
           </TableBody>
         </Table>
       </div>
-      <span className="text-sm text-muted-foreground">
-        {filtreli.length} hareket
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {filtreli.length} hareket
+        </span>
+        <SayfalamaKontrol sayfalama={sayfalama} />
+      </div>
 
       {/* Sütun ayarları sheet'i — proje standardı */}
       <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />

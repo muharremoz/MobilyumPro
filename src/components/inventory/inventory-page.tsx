@@ -90,6 +90,7 @@ export function InventoryPage({
     return (
       <StockMovements
         hareketler={hareketler}
+        depoAdlari={depolar.map((d) => d.ad)}
         urunler={urunler}
         malzemeler={malzemeler}
         kolonAyari={kolonAyarlari?.["stok-hareketleri"]}
