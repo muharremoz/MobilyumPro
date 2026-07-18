@@ -19,6 +19,7 @@ export const TABLO_SIRASI = [
   "tanim",
   "kur",
   "istasyon",
+  "makine",
   // Kartlar
   "cari",
   "cariBanka",
@@ -34,6 +35,7 @@ export const TABLO_SIRASI = [
   "stokMusteri",
   "parca",
   "parcaDokuman",
+  "parcaIslem",
   "receteSatiri",
   "receteVersiyon",
   "modelParca",
@@ -63,6 +65,8 @@ export const KENDINE_REFERANS = { grup: "ustId" };
  */
 export const IDENTITY_TABLOLAR = {
   parcaDokuman: "parca_dokuman",
+  parcaIslem: "parca_islem",
+  makine: "makine",
   receteVersiyon: "recete_versiyon",
   receteSatiri: "recete_satiri",
   modelParca: "model_parca",

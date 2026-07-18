@@ -464,6 +464,7 @@
       "email": "muharrem.oz@mobilyum.pro",
       "telefon": "0553 603 5703",
       "departman": "Yönetim",
+      "istasyon": null,
       "sifreHash": "2931269eb1af3f2abef63d7f3eff3570:a83906b37713677fd2879379712b12ce992bb2581eac176730693340889c3ff09c1cefd3c47605c4b284b5c80f214f17e0222f60066740eba451d2c3c58c99c7",
       "rol": "Yönetici",
       "durum": "Aktif",
@@ -1482,6 +1483,15 @@
       "durum": "Aktif"
     }
   ],
+  "makine": [
+    {
+      "id": 1,
+      "ad": "SAWTECH EBATLAMA",
+      "istasyon": "kesim",
+      "sira": 1,
+      "durum": "Aktif"
+    }
+  ],
   "cari": [
     {
       "id": "1001",
@@ -1513,13 +1523,13 @@
       "sehir": "Düzce",
       "semt": null,
       "adres": null,
-      "bakiye": "13800",
+      "bakiye": "31300",
       "paraBirimi": "TL",
       "durum": "Aktif",
       "not": null,
       "createDate": "2026-07-18T11:22:55.577Z",
       "createUserId": null,
-      "updateDate": "2026-07-18T11:45:50.473Z",
+      "updateDate": "2026-07-18T15:40:15.663Z",
       "updateUserId": null
     },
     {
@@ -2271,13 +2281,13 @@
       "etiketler": null,
       "favori": false,
       "durum": "Aktif",
-      "stokMiktar": "0.88",
+      "stokMiktar": "0.996",
       "varyantlarJson": null,
       "gorsel": null,
       "gorsellerJson": null,
       "createDate": "2026-07-16T20:16:50.568Z",
       "createUserId": null,
-      "updateDate": "2026-07-18T15:02:53.095Z",
+      "updateDate": "2026-07-18T15:40:41.600Z",
       "updateUserId": null,
       "maliyetFiyati": "17500",
       "maliyetBirimi": "TL",
@@ -15502,80 +15512,142 @@
       "ad": "LOREN Şifonyer Yan Panel",
       "kategori": "Gövde",
       "aciklama": "850×450×18 — gövde yan, ön kenarı bantlı",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2002",
       "ad": "LOREN Şifonyer Üst Tabla",
       "kategori": "Gövde",
       "aciklama": "1000×450×18 — dört kenarı bantlı",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2003",
       "ad": "LOREN Şifonyer Alt Tabla",
       "kategori": "Gövde",
       "aciklama": "1000×450×18 — yalnız ön kenar bantlı",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2004",
       "ad": "LOREN Şifonyer Arkalık",
       "kategori": "Gövde",
       "aciklama": "1000×850×5 — çift yüz boyalı arkalık",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": "0",
+      "kabaGenislik": "0",
+      "netUzunluk": "1712",
+      "netGenislik": "448",
+      "bitmisUzunluk": "1714",
+      "bitmisGenislik": "450",
+      "kalinlik": "18"
     },
     {
       "id": "PRC-2005",
       "ad": "LOREN Çekmece Ön Kapak",
       "kategori": "Çekmece",
       "aciklama": "950×190×18 — kulplu, dört kenarı bantlı",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2006",
       "ad": "LOREN Çekmece Kutusu",
       "kategori": "Çekmece",
       "aciklama": "900×450×150 — yan/arka/taban + teleskopik ray",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2007",
       "ad": "LOREN Şifonyer Ayna Panosu",
       "kategori": "Pano",
       "aciklama": "1100×550×25 — çift renk boyalı pano (ayna camı ayrı sipariş)",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     },
     {
       "id": "PRC-2008",
       "ad": "LOREN Şifonyer Montaj & Ambalaj",
       "kategori": "Genel",
       "aciklama": "Model seviyesi kalemler — ModelParca yalnız parçaya bağlandığı için burada toplanır",
-      "durum": "Aktif"
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
     }
   ],
-  "parcaDokuman": [],
+  "parcaDokuman": [
+    {
+      "id": 18,
+      "parcaId": "PRC-2001",
+      "ad": "kulp",
+      "url": "/api/dosya/parca-PRC-2001/1784392833075-kulp.jpg",
+      "tip": "Ürün Resmi"
+    },
+    {
+      "id": 19,
+      "parcaId": "PRC-2001",
+      "ad": "A4 - 3",
+      "url": "/api/dosya/parca-PRC-2001/1784392841883-A4%20-%203.pdf",
+      "tip": "PDF"
+    }
+  ],
+  "parcaIslem": [
+    {
+      "id": 3,
+      "parcaId": "PRC-2001",
+      "sira": 1,
+      "istasyon": "kesim",
+      "makineId": null,
+      "operasyon": "",
+      "aciklama": null
+    }
+  ],
   "receteSatiri": [
-    {
-      "id": 1,
-      "parcaId": "PRC-2001",
-      "tip": "malzeme",
-      "malzemeId": "STK-1004",
-      "altParcaId": null,
-      "miktar": "0.383",
-      "fire": "5",
-      "istasyon": "kesim"
-    },
-    {
-      "id": 2,
-      "parcaId": "PRC-2001",
-      "tip": "malzeme",
-      "malzemeId": "STK-1031",
-      "altParcaId": null,
-      "miktar": "2.6",
-      "fire": "3",
-      "istasyon": "bantlama"
-    },
     {
       "id": 3,
       "parcaId": "PRC-2002",
@@ -15615,16 +15687,6 @@
       "miktar": "1",
       "fire": "3",
       "istasyon": "bantlama"
-    },
-    {
-      "id": 7,
-      "parcaId": "PRC-2004",
-      "tip": "malzeme",
-      "malzemeId": "STK-1010",
-      "altParcaId": null,
-      "miktar": "0.85",
-      "fire": "4",
-      "istasyon": "kesim"
     },
     {
       "id": 8,
@@ -15795,16 +15857,57 @@
       "miktar": "4",
       "fire": "0",
       "istasyon": "paketleme"
+    },
+    {
+      "id": 1079,
+      "parcaId": "PRC-2004",
+      "tip": "malzeme",
+      "malzemeId": "STK-1010",
+      "altParcaId": null,
+      "miktar": "0.85",
+      "fire": "4",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 1084,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1004",
+      "altParcaId": null,
+      "miktar": "0.383",
+      "fire": "5",
+      "istasyon": "kesim"
+    },
+    {
+      "id": 1085,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1031",
+      "altParcaId": null,
+      "miktar": "2.6",
+      "fire": "3",
+      "istasyon": "bantlama"
     }
   ],
-  "receteVersiyon": [],
-  "modelParca": [
+  "receteVersiyon": [
     {
-      "id": 1,
-      "modelId": "01-000001",
-      "parcaId": "PRC-2001",
-      "miktar": "2"
+      "id": 1010,
+      "parcaId": "PRC-2004",
+      "versiyonNo": 1,
+      "tarih": "2026-07-18T16:25:29.971Z",
+      "aciklama": null,
+      "satirlarJson": "[{\"tip\":\"malzeme\",\"ref\":\"STK-1010\",\"miktar\":0.85,\"fire\":4,\"istasyon\":\"kesim\"}]"
     },
+    {
+      "id": 1011,
+      "parcaId": "PRC-2001",
+      "versiyonNo": 1,
+      "tarih": "2026-07-18T16:38:38.887Z",
+      "aciklama": null,
+      "satirlarJson": "[{\"tip\":\"malzeme\",\"ref\":\"STK-1004\",\"miktar\":0.383,\"fire\":5,\"istasyon\":\"kesim\"},{\"tip\":\"malzeme\",\"ref\":\"STK-1031\",\"miktar\":2.6,\"fire\":3,\"istasyon\":\"bantlama\"}]"
+    }
+  ],
+  "modelParca": [
     {
       "id": 2,
       "modelId": "01-000001",
@@ -15815,12 +15918,6 @@
       "id": 3,
       "modelId": "01-000001",
       "parcaId": "PRC-2003",
-      "miktar": "1"
-    },
-    {
-      "id": 4,
-      "modelId": "01-000001",
-      "parcaId": "PRC-2004",
       "miktar": "1"
     },
     {
@@ -15846,6 +15943,18 @@
       "modelId": "01-000001",
       "parcaId": "PRC-2008",
       "miktar": "1"
+    },
+    {
+      "id": 1022,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2004",
+      "miktar": "1"
+    },
+    {
+      "id": 1025,
+      "modelId": "01-000001",
+      "parcaId": "PRC-2001",
+      "miktar": "2"
     }
   ],
   "poset": [],
@@ -15905,6 +16014,15 @@
       "tutar": "15400",
       "belge": "897986546516",
       "aciklama": "Satın alma ALS-1006 (1 kalem)"
+    },
+    {
+      "id": "CI-3007",
+      "cariId": "1001",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "tur": "Alacak",
+      "tutar": "17500",
+      "belge": "456465465456",
+      "aciklama": "Satın alma ALS-1007 (1 kalem)"
     }
   ],
   "stokHareket": [
@@ -16063,6 +16181,32 @@
       "aciklama": "Satın alma ALS-1006 — Çamsan Entegre",
       "emirId": null,
       "istasyon": null
+    },
+    {
+      "id": "SH-3013",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "tur": "Giriş",
+      "refTip": "malzeme",
+      "refId": "STK-1010",
+      "miktar": "1",
+      "birim": "m²",
+      "depo": "DEP-01",
+      "aciklama": "Satın alma ALS-1007 — Starwood",
+      "emirId": null,
+      "istasyon": null
+    },
+    {
+      "id": "SH-3014",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "tur": "Çıkış",
+      "refTip": "malzeme",
+      "refId": "STK-1010",
+      "miktar": "0.884",
+      "birim": "m²",
+      "depo": "DEP-01",
+      "aciklama": "UE-4003 · LOREN Şifonyer Arkalık — kesim istasyonu tüketimi",
+      "emirId": "UE-4003",
+      "istasyon": "kesim"
     }
   ],
   "uretimEmri": [
@@ -16093,6 +16237,22 @@
       "olusturma": "2026-07-18T00:00:00.000Z",
       "terminBaslangic": "2026-07-20T00:00:00.000Z",
       "termin": "2026-07-25T00:00:00.000Z",
+      "kaynakSiparis": null,
+      "musteri": null,
+      "hedefDepo": "DEP-01",
+      "not": null
+    },
+    {
+      "id": "UE-4003",
+      "refTip": "parca",
+      "modelId": "PRC-2004",
+      "modelAd": "LOREN Şifonyer Arkalık",
+      "adet": 1,
+      "durum": "Tamamlandı",
+      "oncelik": "Normal",
+      "olusturma": "2026-07-18T00:00:00.000Z",
+      "terminBaslangic": null,
+      "termin": null,
       "kaynakSiparis": null,
       "musteri": null,
       "hedefDepo": "DEP-01",
@@ -16219,6 +16379,66 @@
       "baslangic": "2026-07-18T14:56:57.906Z",
       "bitis": "2026-07-18T14:57:01.455Z",
       "not": null
+    },
+    {
+      "id": 1026,
+      "emirId": "UE-4003",
+      "istasyon": "kesim",
+      "sira": 1,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T15:40:32.975Z",
+      "bitis": "2026-07-18T15:40:41.571Z",
+      "not": null
+    },
+    {
+      "id": 1027,
+      "emirId": "UE-4003",
+      "istasyon": "bantlama",
+      "sira": 2,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T15:40:41.571Z",
+      "bitis": "2026-07-18T15:42:17.204Z",
+      "not": null
+    },
+    {
+      "id": 1028,
+      "emirId": "UE-4003",
+      "istasyon": "delik",
+      "sira": 3,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T15:42:17.204Z",
+      "bitis": "2026-07-18T16:03:42.949Z",
+      "not": null
+    },
+    {
+      "id": 1029,
+      "emirId": "UE-4003",
+      "istasyon": "montaj",
+      "sira": 4,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T16:03:42.949Z",
+      "bitis": "2026-07-18T16:03:48.752Z",
+      "not": null
+    },
+    {
+      "id": 1030,
+      "emirId": "UE-4003",
+      "istasyon": "paketleme",
+      "sira": 5,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T16:03:48.752Z",
+      "bitis": "2026-07-18T16:03:55.962Z",
+      "not": null
+    },
+    {
+      "id": 1031,
+      "emirId": "UE-4003",
+      "istasyon": "sevkiyat",
+      "sira": 6,
+      "durum": "Tamamlandı",
+      "baslangic": "2026-07-18T16:03:55.962Z",
+      "bitis": "2026-07-18T16:04:02.631Z",
+      "not": null
     }
   ],
   "alis": [
@@ -16281,6 +16501,16 @@
       "belgeNo": "897986546516",
       "aciklama": "Üretim planı malzeme ihtiyacı",
       "toplam": "15400"
+    },
+    {
+      "id": "ALS-1007",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "depo": "DEP-01",
+      "belgeNo": "456465465456",
+      "aciklama": "Üretim planı malzeme ihtiyacı",
+      "toplam": "17500"
     }
   ],
   "alisSatiri": [
@@ -16347,6 +16577,17 @@
       "malzemeId": "STK-1010",
       "malzemeAd": "05 MM BOYALI ARKALIK VİZON KUMAŞ ÇİFT YÜZ BOYALI 2100*2800",
       "miktar": "0.88",
+      "birim": "m²",
+      "birimFiyat": "17500"
+    },
+    {
+      "id": 47,
+      "alisId": "ALS-1007",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "malzemeId": "STK-1010",
+      "malzemeAd": "05 MM BOYALI ARKALIK VİZON KUMAŞ ÇİFT YÜZ BOYALI 2100*2800",
+      "miktar": "1",
       "birim": "m²",
       "birimFiyat": "17500"
     }
@@ -16435,6 +16676,27 @@
       "redNedeni": null,
       "baslatanAd": "Muharrem ÖZ",
       "baslatmaTarihi": "2026-07-18T00:00:00.000Z"
+    },
+    {
+      "id": "TAL-1005",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "kaynak": "Üretim Planı",
+      "modeller": "LOREN Şifonyer Arkalık × 1",
+      "aciklama": "Üretim planı malzeme ihtiyacı",
+      "durum": "Tamamlandı",
+      "alisId": "ALS-1007",
+      "createDate": "2026-07-18T15:39:59.908Z",
+      "depo": "DEP-01",
+      "uretimMusteri": null,
+      "uretimTermin": null,
+      "uretimOncelik": "Normal",
+      "uretimEmirleri": "UE-4003",
+      "olusturanAd": "Muharrem ÖZ",
+      "onaylayanAd": "Muharrem ÖZ",
+      "onayTarihi": "2026-07-18T00:00:00.000Z",
+      "redNedeni": null,
+      "baslatanAd": "Muharrem ÖZ",
+      "baslatmaTarihi": "2026-07-18T00:00:00.000Z"
     }
   ],
   "satinAlmaTalepSatiri": [
@@ -16513,6 +16775,19 @@
       "tedarikEdilen": "0.88",
       "cariId": "1005",
       "cariAd": "Çamsan Entegre",
+      "tahminiFiyat": "17500",
+      "satirDurum": "Tedarik Edildi"
+    },
+    {
+      "id": 67,
+      "talepId": "TAL-1005",
+      "malzemeId": "STK-1010",
+      "malzemeAd": "05 MM BOYALI ARKALIK VİZON KUMAŞ ÇİFT YÜZ BOYALI 2100*2800",
+      "miktar": "1",
+      "birim": "m²",
+      "tedarikEdilen": "1",
+      "cariId": "1001",
+      "cariAd": "Starwood",
       "tahminiFiyat": "17500",
       "satirDurum": "Tedarik Edildi"
     }
@@ -16608,6 +16883,19 @@
       "mailTarihi": null,
       "olusturanAd": "Muharrem ÖZ",
       "createDate": "2026-07-18T15:02:19.695Z"
+    },
+    {
+      "id": "SIP-1008",
+      "talepId": "TAL-1005",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "depo": "DEP-01",
+      "notlar": null,
+      "durum": "Açık",
+      "mailTarihi": null,
+      "olusturanAd": "Muharrem ÖZ",
+      "createDate": "2026-07-18T15:40:06.451Z"
     }
   ],
   "satinAlmaTalepSiparis": [
@@ -16694,6 +16982,18 @@
       "tarih": "2026-07-18T00:00:00.000Z",
       "tedarikEdilen": "0.88",
       "alisIds": "ALS-1006"
+    },
+    {
+      "id": 18,
+      "satirId": 67,
+      "siparisId": "SIP-1008",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "miktar": "1",
+      "fiyat": "17500",
+      "tarih": "2026-07-18T00:00:00.000Z",
+      "tedarikEdilen": "1",
+      "alisIds": "ALS-1007"
     }
   ]
 }
