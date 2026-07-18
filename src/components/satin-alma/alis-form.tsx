@@ -50,7 +50,12 @@ import {
   type Malzeme,
   type SatinAlmaSarti,
 } from "@/lib/data";
-import { donusumVar, girisBirimi, stokMiktarina } from "@/lib/birim";
+import {
+  donusumVar,
+  girisBirimi,
+  satirTutari as birimSatirTutari,
+  stokMiktarina,
+} from "@/lib/birim";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { alisKaydet, depoKaydet, talepOlustur } from "@/lib/db/actions";
 
@@ -327,7 +332,21 @@ export function AlisForm({
 
   // ── Özet ──────────────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId && s.miktar > 0);
-  const satirTutari = (s: Satir) => s.miktar * paraDegeri(s.birimFiyat);
+  // Tutar birim farkındalıklı: fiyat stok biriminde girilmişse düz
+  // miktar × fiyat yanlış tutar verir (bkz. lib/birim.ts satirTutari).
+  const satirTutari = (s: Satir) => {
+    const m = malzemeMap.get(s.malzemeId);
+    return birimSatirTutari(
+      {
+        stokBirimi: m?.birim ?? s.birim,
+        alisBirimi: m?.alisBirimi,
+        alisCarpani: m?.alisCarpani,
+        alisFiyatBirimi: m?.alisFiyatBirimi,
+      },
+      s.miktar,
+      paraDegeri(s.birimFiyat),
+    );
+  };
   // Miktarlar birim bazında gruplanır (m² + adet toplamak anlamsız).
   const birimToplamlari = React.useMemo(() => {
     const m = new Map<string, number>();

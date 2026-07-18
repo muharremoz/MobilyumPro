@@ -8,6 +8,7 @@ import { getOturum } from "@/lib/oturum";
 import { sayacHazirla, sonrakiNo } from "./sayac";
 import {
   donusumVar,
+  satirTutari,
   stokBirimFiyati,
   stokMiktarina,
   type BirimBilgisi,
@@ -2268,7 +2269,38 @@ async function alisUygula(
   const alisId = `ALS-${maxNo(alisler, "ALS", 1000) + 1}`;
   let ciNo = maxNo(islemler, "CI", 3000);
 
-  const toplam = satirlar.reduce((t, s) => t + s.miktar * s.birimFiyat, 0);
+  // Kart birim tanımları tutar hesabında da gerekli (bkz. lib/birim.ts
+  // satirTutari): fiyat stok biriminde girilmişse düz miktar × fiyat yanlış
+  // tutar verir.
+  const tutarKartlari = await tx.stok.findMany({
+    where: { id: { in: satirlar.map((s) => s.malzemeId) } },
+    select: {
+      id: true,
+      stokBirimi: true,
+      alisBirimi: true,
+      alisCarpani: true,
+      alisFiyatBirimi: true,
+    },
+  });
+  const tutarKartMap = new Map(tutarKartlari.map((k) => [k.id, k]));
+  const birimBilgisi = (malzemeId: string, yedekBirim: string): BirimBilgisi => {
+    const k = tutarKartMap.get(malzemeId);
+    return {
+      stokBirimi: k?.stokBirimi ?? yedekBirim,
+      alisBirimi: k?.alisBirimi ?? undefined,
+      alisCarpani: k?.alisCarpani != null ? Number(k.alisCarpani) : undefined,
+      alisFiyatBirimi: (k?.alisFiyatBirimi ?? undefined) as
+        | "alis"
+        | "stok"
+        | undefined,
+    };
+  };
+
+  const toplam = satirlar.reduce(
+    (t, s) =>
+      t + satirTutari(birimBilgisi(s.malzemeId, s.birim), s.miktar, s.birimFiyat),
+    0,
+  );
   const tarih = tarihDate(fis.tarih);
 
   // Tedarikçiye göre grupla (her tedarikçiye ayrı Alacak).
@@ -2278,7 +2310,11 @@ async function alisUygula(
   >();
   for (const s of satirlar) {
     const g = gruplar.get(s.cariId) ?? { ad: s.cariAd, tutar: 0, adet: 0 };
-    g.tutar += s.miktar * s.birimFiyat;
+    g.tutar += satirTutari(
+      birimBilgisi(s.malzemeId, s.birim),
+      s.miktar,
+      s.birimFiyat,
+    );
     g.adet += 1;
     gruplar.set(s.cariId, g);
   }
@@ -2310,31 +2346,10 @@ async function alisUygula(
   });
 
   // 2) Stok girişleri + hareketler (+ opsiyonel fiyat güncelleme)
-  // Kartların birim tanımları: alış birimi ≠ stok birimi olabilir
-  // (levha adetle alınır, m² ile stoklanır) — bkz. lib/birim.ts
-  const kartlar = await tx.stok.findMany({
-    where: { id: { in: satirlar.map((s) => s.malzemeId) } },
-    select: {
-      id: true,
-      stokBirimi: true,
-      alisBirimi: true,
-      alisCarpani: true,
-      alisFiyatBirimi: true,
-    },
-  });
-  const kartMap = new Map(kartlar.map((k) => [k.id, k]));
-
   for (const s of satirlar) {
-    const k = kartMap.get(s.malzemeId);
-    const bilgi: BirimBilgisi = {
-      stokBirimi: k?.stokBirimi ?? s.birim,
-      alisBirimi: k?.alisBirimi ?? undefined,
-      alisCarpani: k?.alisCarpani != null ? Number(k.alisCarpani) : undefined,
-      alisFiyatBirimi: (k?.alisFiyatBirimi ?? undefined) as
-        | "alis"
-        | "stok"
-        | undefined,
-    };
+    // Alış birimi ≠ stok birimi olabilir (levha adetle alınır, m² ile
+    // stoklanır) — bkz. lib/birim.ts
+    const bilgi = birimBilgisi(s.malzemeId, s.birim);
     // Miktar STOK birimine çevrilir; bakiye ve reçeteler onunla çalışıyor.
     const stokArtis = stokMiktarina(bilgi, s.miktar);
     // Maliyet HER ZAMAN stok birimi başına saklanır: ₺/levha doğrudan

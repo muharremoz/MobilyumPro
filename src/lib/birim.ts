@@ -64,3 +64,22 @@ export function donusumEtiketi(b: BirimBilgisi): string | null {
   });
   return `1 ${b.alisBirimi} = ${c} ${b.stokBirimi}`;
 }
+
+/**
+ * Satır tutarı — birim farkındalıklı.
+ *
+ * Miktar ALIŞ biriminde girilir, fiyat ise karta göre alış VEYA stok
+ * biriminde. İkisi farklı birimdeyse düz `miktar × fiyat` yanlış tutar verir:
+ * 10 levha, m² fiyatı 85,03 ile 850 ₺ çıkardı; doğrusu 58,8 m² × 85,03 =
+ * 5.000 ₺. Tutar bu yüzden HER İKİSİ de stok birimine çevrilerek hesaplanır.
+ *
+ * Fiyat alış birimindeyse sonuç zaten `miktar × fiyat`'a eşittir
+ * ((miktar × çarpan) × (fiyat / çarpan)), yani eski davranış korunur.
+ */
+export function satirTutari(
+  b: BirimBilgisi,
+  alisMiktari: number,
+  girilenFiyat: number,
+): number {
+  return stokMiktarina(b, alisMiktari) * stokBirimFiyati(b, girilenFiyat);
+}
