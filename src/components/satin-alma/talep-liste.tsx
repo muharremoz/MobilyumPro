@@ -21,6 +21,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ListHeader } from "@/components/ui/list-header";
 import { SearchSelect } from "@/components/ui/search-select";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { SatirMenu } from "@/components/ui/satir-menu";
@@ -86,6 +91,24 @@ function DurumBadge({ durum }: { durum: TalepDurum }) {
       {durum}
     </Badge>
   );
+}
+
+/** "Ad × N, Ad2 × M" metnini adlara ve toplam adede ayırır (Adet kolonu). */
+function modelParcala(modeller?: string): {
+  adlar: string;
+  adet: number | null;
+} {
+  if (!modeller) return { adlar: "", adet: null };
+  let toplam = 0;
+  let bulundu = false;
+  const adlar = modeller.split(", ").map((parca) => {
+    const m = /^(.*) × (\d+)$/.exec(parca.trim());
+    if (!m) return parca;
+    toplam += Number(m[2]);
+    bulundu = true;
+    return m[1];
+  });
+  return { adlar: adlar.join(", "), adet: bulundu ? toplam : null };
 }
 
 /** Tam tedarik edilen satır sayısı. */
@@ -542,6 +565,7 @@ export function TalepListe({
                     Kaynak
                   </SiralaFiltreBaslik>
                   <TableHead>Model</TableHead>
+                  <TableHead className="w-16 text-right">Adet</TableHead>
                   <TableHead>Oluşturan</TableHead>
                   <TableHead>Tedarik</TableHead>
                   <SiralaFiltreBaslik
@@ -569,7 +593,7 @@ export function TalepListe({
                 {filtreli.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="h-24 text-center text-muted-foreground"
                     >
                       Talep yok. Üretim Planı&apos;nda eksik malzemeleri seçip
@@ -662,9 +686,14 @@ export function TalepListe({
                               title={t.modeller}
                               className="block truncate text-sm font-medium"
                             >
-                              {t.modeller}
+                              {modelParcala(t.modeller).adlar}
                             </span>
                           ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {modelParcala(t.modeller).adet ?? (
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
@@ -1137,32 +1166,66 @@ export function TalepListe({
   );
 }
 
-/** Liste kolonundaki tedarik ilerlemesi: "5/10 kalem" + mini bar. */
+/** Liste kolonundaki tedarik ilerlemesi: "5/10 kalem" + mini bar.
+ *  Hover'da talebin kalemleri (malzeme · miktar · durum) listelenir. */
 function TedarikIlerleme({ talep }: { talep: SatinAlmaTalep }) {
   const tedarikte =
     talep.durum === "Tedarik Sürecinde" || talep.durum === "Tamamlandı";
-  if (!tedarikte)
-    return (
-      <span className="text-sm text-muted-foreground">
-        {talep.durum === "Reddedildi" ? "—" : `${talep.satirlar.length} kalem`}
-      </span>
-    );
+  if (talep.durum === "Reddedildi")
+    return <span className="text-sm text-muted-foreground">—</span>;
   const oran = tedarikOrani(talep);
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm tabular-nums">
-        {tamamSatir(talep)}/{talep.satirlar.length} kalem
-      </span>
-      <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full",
-            oran >= 1 ? "bg-emerald-500" : "bg-violet-500",
-          )}
-          style={{ width: `${Math.round(oran * 100)}%` }}
-        />
-      </div>
-    </div>
+    <HoverCard>
+      <HoverCardTrigger
+        delay={0}
+        closeDelay={0}
+        render={
+          tedarikte ? (
+            <div className="flex cursor-help items-center gap-2">
+              <span className="text-sm tabular-nums">
+                {tamamSatir(talep)}/{talep.satirlar.length} kalem
+              </span>
+              <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    oran >= 1 ? "bg-emerald-500" : "bg-violet-500",
+                  )}
+                  style={{ width: `${Math.round(oran * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <span className="cursor-help text-sm text-muted-foreground">
+              {talep.satirlar.length} kalem
+            </span>
+          )
+        }
+      />
+      <HoverCardContent align="start" className="w-80 text-xs">
+        <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+          {talep.satirlar.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 truncate">{s.malzemeAd}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="text-muted-foreground tabular-nums">
+                  {s.miktar.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  {s.birim}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className={cn("text-[10px]", SATIR_DURUM_RENK[s.durum])}
+                >
+                  {s.durum}
+                </Badge>
+              </span>
+            </div>
+          ))}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
