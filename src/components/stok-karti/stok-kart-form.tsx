@@ -111,6 +111,7 @@ import {
   AttachmentDescription,
   AttachmentTrigger,
 } from "@/components/ui/attachment";
+import { useYetki } from "@/components/yetki/yetki-baglam";
 
 /**
  * Stok kartının alt kayıtları — queries.getStok(id).detay ile aynı şekil.
@@ -454,6 +455,7 @@ export function StokKartForm({
   /** Müşteri tipli cariler (Müşteriler sekmesi). */
   musteriCariler?: { id: string; ad: string }[];
 } = {}) {
+  const yetki = useYetki("stok");
   const router = useRouter();
   const duzenleme = !!kart;
   const baslangic: Form = kart
@@ -649,7 +651,10 @@ export function StokKartForm({
               >
                 İptal
               </Button>
-              <Button onClick={kaydet}>Kaydet</Button>
+              {/* Kayıt yetkisi: yeni kartta ekleme, mevcutta güncelleme. */}
+              {(duzenleme ? yetki.isUpdate : yetki.isAdd) && (
+                <Button onClick={kaydet}>Kaydet</Button>
+              )}
             </div>
           </>
         )}

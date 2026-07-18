@@ -30,14 +30,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Model } from "@/lib/data";
+import {
+  stokDurumu,
+  STOK_DURUM_ETIKET,
+  STOK_DURUM_RENK,
+} from "@/lib/stok-durum";
 import { useYonetici } from "@/components/yetki/yetki-baglam";
 
-function durum(stok: number) {
-  if (stok === 0)
-    return { etiket: "Tükendi", renk: "bg-rose-100 text-rose-800" };
-  if (stok <= 5)
-    return { etiket: "Kritik", renk: "bg-amber-100 text-amber-800" };
-  return { etiket: "Yeterli", renk: "bg-emerald-100 text-emerald-800" };
+function durum(stok: number, minStok?: number) {
+  const d = stokDurumu(stok, minStok);
+  return { etiket: STOK_DURUM_ETIKET[d], renk: STOK_DURUM_RENK[d] };
 }
 
 type SortKey = "id" | "ad" | "kategori" | "stok" | "durum";
@@ -103,9 +105,9 @@ export function StockStatus({
       const k = kategoriF === "Tümü" || u.kategori === kategoriF;
       const s = arada(u.stok, stokAralik.min, stokAralik.max);
       let dur = true;
-      if (filt === "Tükendi") dur = u.stok === 0;
-      else if (filt === "Kritik") dur = u.stok > 0 && u.stok <= 5;
-      else if (filt === "Yeterli") dur = u.stok > 5;
+      if (filt === "Tükendi") dur = stokDurumu(u.stok, u.minStok) === "tukendi";
+      else if (filt === "Kritik") dur = stokDurumu(u.stok, u.minStok) === "kritik";
+      else if (filt === "Yeterli") dur = stokDurumu(u.stok, u.minStok) === "yeterli";
       return kod && ad && k && s && dur;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
@@ -113,7 +115,10 @@ export function StockStatus({
       if (sort.key === "stok") return (a.stok - b.stok) * yon;
       if (sort.key === "durum")
         return (
-          durum(a.stok).etiket.localeCompare(durum(b.stok).etiket, "tr") * yon
+          durum(a.stok, a.minStok).etiket.localeCompare(
+            durum(b.stok, b.minStok).etiket,
+            "tr",
+          ) * yon
         );
       const x = a[sort.key];
       const y = b[sort.key];
@@ -121,8 +126,12 @@ export function StockStatus({
     });
   }, [urunler, metinFiltre, kategoriF, stokAralik, filt, sort]);
 
-  const kritik = urunler.filter((u) => u.stok > 0 && u.stok <= 5).length;
-  const tukenen = urunler.filter((u) => u.stok === 0).length;
+  const kritik = urunler.filter(
+    (u) => stokDurumu(u.stok, u.minStok) === "kritik",
+  ).length;
+  const tukenen = urunler.filter(
+    (u) => stokDurumu(u.stok, u.minStok) === "tukendi",
+  ).length;
   const toplamAdet = urunler.reduce((t, u) => t + u.stok, 0);
 
   // Kolon başlığı sıralama yardımcıları — SiralaFiltreBaslik (proje standardı).
@@ -144,7 +153,7 @@ export function StockStatus({
           etiket="Kritik Stok"
           deger={kritik}
           ton={kritik > 0 ? "amber" : "primary"}
-          alt="5 adet ve altı"
+          alt="min. stok altı"
         />
         <OzetKart
           ikon={AlertOctagon}
@@ -234,7 +243,7 @@ export function StockStatus({
           </TableHeader>
           <TableBody>
             {filtreli.map((u) => {
-              const d = durum(u.stok);
+              const d = durum(u.stok, u.minStok);
               return (
                 <SatirMenu
                   key={u.id}

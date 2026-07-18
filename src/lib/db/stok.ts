@@ -493,6 +493,67 @@ export async function stokDuzeltmeYaz(
   return sonuc;
 }
 
+
+// ── Emir iptalinde stok iadesi ──────────────────────────────────────────
+
+/** İade hareketlerinin açıklama öneki — çifte iadeyi tespit etmek için. */
+const IADE_ONEKI = "İptal iadesi";
+
+/**
+ * Bir emrin stok hareketlerini TERS KAYITLA geri alır.
+ *
+ * Hareketler silinmez, karşı hareket yazılır: defter mantığı bu (geçmiş
+ * silinmez, düzeltilir) ve iz kalır. Malzeme çıkışları giriş olarak,
+ * mamul girişi çıkış olarak yazılır.
+ *
+ * Önceden iptalde hiçbir iade yapılmıyordu: düşülen malzeme geri gelmiyor,
+ * rezerv de iptal emrini dışladığı için malzeme kalıcı olarak kayboluyordu.
+ *
+ * Çifte çalıştırmaya karşı korumalı — daha önce iade yazılmışsa hiçbir şey
+ * yapmaz (emir iptali zaten tek yönlü ama iade tek başına da çağrılabilir).
+ */
+export async function emirHareketleriniIadeEt(
+  emirId: string,
+): Promise<{ iadeEdilen: number }> {
+  const hareketler = await db.stokHareket.findMany({ where: { emirId } });
+  if (hareketler.length === 0) return { iadeEdilen: 0 };
+  if (hareketler.some((h) => h.aciklama.startsWith(IADE_ONEKI))) {
+    return { iadeEdilen: 0 };
+  }
+
+  const bugun = new Date(new Date().toISOString().slice(0, 10));
+  let sayi = 0;
+
+  await hareketTx(async (tx) => {
+    for (const h of hareketler) {
+      const tersTur = h.tur === "Çıkış" ? "Giriş" : "Çıkış";
+      const yon = tersTur === "Giriş" ? 1 : -1;
+      await tx.stokHareket.create({
+        data: {
+          id: `SH-${await sonrakiHareketNo(tx)}`,
+          tarih: bugun,
+          tur: tersTur,
+          refTip: h.refTip,
+          refId: h.refId,
+          miktar: h.miktar,
+          birim: h.birim,
+          depo: h.depo,
+          aciklama: `${IADE_ONEKI} — ${emirId} (${h.id})`,
+          emirId,
+          istasyon: h.istasyon,
+        },
+      });
+      await tx.stok.update({
+        where: { id: h.refId },
+        data: { stokMiktar: { increment: yon * Number(h.miktar) } },
+      });
+      sayi += 1;
+    }
+  });
+
+  return { iadeEdilen: sayi };
+}
+
 // ── Rezerv / kullanılabilir stok ────────────────────────────────────────
 export type StokOzeti = {
   malzemeId: string;

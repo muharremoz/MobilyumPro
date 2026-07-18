@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/table";
 import { type Parca, type Malzeme, type ParcaKategori } from "@/lib/data";
 import { flattenParca } from "@/lib/bom";
+import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import { parcaKaydet, parcaSil,
   silinebilirMi,
 } from "@/lib/db/actions";
@@ -96,7 +97,9 @@ export function Parts({
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("stok");
-  const [liste, setListe] = React.useState<Parca[]>(parcalar);
+  // usePropAynasi: router.refresh() sonrası prop değişince liste de tazelenir.
+  // React.useState ile ilk değerde donuyordu ve kullanıcı eski veriyi görüyordu.
+  const [liste, setListe] = usePropAynasi(parcalar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
   const [kategori, setKategori] = React.useState("Tümü");
@@ -237,8 +240,16 @@ export function Parts({
       ad: `${p.ad} (kopya)`,
       recete: [...p.recete],
     };
+    const onceki = liste;
     setListe((l) => [k, ...l]);
-    await parcaKaydet(k);
+    const res = await parcaKaydet(k);
+    // Sonuç kontrol edilmezse kaydedilmemiş kopya listede kalır ve kullanıcı
+    // onu gerçek sanar; hata halinde iyimser eklemeyi geri al.
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Parça kopyalanamadı.");
+      return;
+    }
     toast.success("Parça kopyalandı");
   }
   async function durumDegistir(p: Parca) {
@@ -269,7 +280,7 @@ export function Parts({
 
   return (
     <div className="flex flex-col gap-3">
-      {secili.size > 0 && (
+      {secili.size > 0 && yetki.isDelete && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span className="font-medium">{secili.size} seçili</span>
           <Button
@@ -398,11 +409,13 @@ export function Parts({
                   },
                   {
                     etiket: "Çoğalt",
+                    gizli: !yetki.isAdd,
                     ikon: CopyPlus,
                     onSecim: () => kopyala(p),
                   },
                   {
                     etiket: p.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
+                    gizli: !yetki.isUpdate,
                     ikon: Power,
                     onSecim: () => durumDegistir(p),
                   },

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db, tarihStr } from "./index";
+import { stokDurumu } from "../stok-durum";
 import QRCode from "qrcode";
 
 import { kodBarkod } from "../barkod";
@@ -216,13 +217,35 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
 }
 
 export async function getDepolar(): Promise<Depo[]> {
-  const rows = await db.depo.findMany();
+  // Doluluk SAKLANMAZ, hareketlerden türetilir: depo.doluluk sütunu hiçbir
+  // yerde yazılmıyordu ve her depo kalıcı olarak "0 (%0)" görünüyordu.
+  // Türetmek ayrıca senkron kalma derdini de ortadan kaldırır.
+  const [rows, hareketler] = await Promise.all([
+    db.depo.findMany(),
+    db.stokHareket.groupBy({
+      by: ["depo", "tur"],
+      _sum: { miktar: true },
+    }),
+  ]);
+
+  // Hareketlerde depo ADIYLA tutuluyor (FK değil) — eşleme ada göre.
+  const dolulukMap = new Map<string, number>();
+  for (const h of hareketler) {
+    const yon = h.tur === "Giriş" ? 1 : -1;
+    dolulukMap.set(
+      h.depo,
+      (dolulukMap.get(h.depo) ?? 0) + yon * Number(h._sum.miktar ?? 0),
+    );
+  }
+
   return rows.map((d) => ({
     id: d.id,
     ad: d.ad,
     sehir: d.sehir,
     kapasite: d.kapasite,
-    doluluk: d.doluluk,
+    // Negatife düşmesin: eksi doluluk ekranda anlamsız, tutarsızlık zaten
+    // stok kartı tarafında görünür.
+    doluluk: Math.max(0, Math.round(dolulukMap.get(d.ad) ?? 0)),
     durum: d.durum as Durum,
   }));
 }
@@ -912,8 +935,9 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
       birim: m.stokBirimi,
       minStok: m.minStok != null ? Number(m.minStok) : undefined,
     }))
-    // Min stok tanımlıysa onun altı; değilse sıfır/negatif olanlar kritiktir.
-    .filter((m) => (m.minStok != null ? m.stok <= m.minStok : m.stok <= 0))
+    // Eşik tek kaynaktan (lib/stok-durum): pano ile stok durumu ekranı aynı
+    // ürüne farklı durum vermesin.
+    .filter((m) => stokDurumu(m.stok, m.minStok) !== "yeterli")
     .sort((a, b) => a.stok - b.stok)
     .slice(0, 12);
 
@@ -1083,7 +1107,8 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
   const [urunRows, siparisRows, musteriSayisi] = await Promise.all([
     db.stok.findMany({
       where: { grup: "Mamül" },
-      select: { stokMiktar: true },
+      // minStok da çekilir: kritik eşiği karta özel olabilir (lib/stok-durum).
+      select: { stokMiktar: true, minStok: true },
     }),
     db.siparis.findMany(),
     db.musteri.count(),
@@ -1096,8 +1121,20 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
     siparisSayisi: siparisRows.length,
     urunSayisi: urunRows.length,
     musteriSayisi,
-    kritikStok: urunRows.filter((u) => stokAdet(u) > 0 && stokAdet(u) <= 5).length,
-    tukenenStok: urunRows.filter((u) => stokAdet(u) === 0).length,
+    kritikStok: urunRows.filter(
+      (u) =>
+        stokDurumu(
+          stokAdet(u),
+          u.minStok != null ? Number(u.minStok) : undefined,
+        ) === "kritik",
+    ).length,
+    tukenenStok: urunRows.filter(
+      (u) =>
+        stokDurumu(
+          stokAdet(u),
+          u.minStok != null ? Number(u.minStok) : undefined,
+        ) === "tukendi",
+    ).length,
   };
 }
 

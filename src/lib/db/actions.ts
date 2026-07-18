@@ -48,8 +48,10 @@ async function rotaSluglari(): Promise<string[]> {
     : ["kesim", "bantlama", "delik", "montaj", "paketleme", "sevkiyat"];
 }
 import {
+  emirHareketleriniIadeEt,
   istasyonDusumu,
   mamulGirisi,
+  parametreDegeri,
   stokDuzeltmeYaz,
   uretimeGecisDusumu,
   type EksikMalzeme,
@@ -392,8 +394,7 @@ export async function emriIlerlet(
 
 /**
  * Emri iptal eder. Tamamlanmış emir iptal edilemez.
- * Not: Düşülmüş stokların iadesi şimdilik kapsam dışı — hareketler
- * ledger'da kalır, rezerv hesabı iptal emrini zaten dışlar.
+ * Düşülmüş stoklar ters kayıtla iade edilir (hareketler silinmez).
  */
 export async function emriIptalEt(
   emirId: string,
@@ -406,10 +407,15 @@ export async function emriIptalEt(
     if (emir.durum === "İptal")
       return { ok: false, error: "Emir zaten iptal edilmiş." };
 
+    // Önce iade, sonra durum: iade patlarsa emir açık kalsın ve tekrar
+    // denenebilsin. Tersi sırada emir "İptal" görünürken stok geri gelmemiş
+    // olurdu ve ikinci deneme "zaten iptal" diyerek iadeyi hiç yapmazdı.
+    const iade = await emirHareketleriniIadeEt(emirId);
     await db.uretimEmri.update({
       where: { id: emirId },
       data: { durum: "İptal" },
     });
+    if (iade.iadeEdilen > 0) revalidatePath("/stok-karti");
     revalidatePath("/uretim/emirler");
     revalidatePath("/uretim/fabrika");
     revalidatePath("/stok-yonetimi");
@@ -447,6 +453,46 @@ export async function eksikAdimlariOlustur(): Promise<{
   return { ok: true, eklenen: eksikler.length };
 }
 
+
+/**
+ * Yeni kartın açılış bakiyesini LEDGER'A yazar.
+ *
+ * Önceden açılış miktarı doğrudan stok.stokMiktar'a yazılıyordu; hareket
+ * kaydı oluşmadığı için defter ile önbellek daha ilk günden ayrışıyordu
+ * (stok takip ekranındaki bakiye kurgusu da bu yüzden tutmuyordu).
+ *
+ * Sıfır/negatif miktarda hareket yazılmaz — anlamsız kayıt üretmesin.
+ */
+async function acilisBakiyesiYaz(
+  stokId: string,
+  miktar: number,
+  birim: string,
+  refTip: "malzeme" | "model",
+): Promise<void> {
+  if (!Number.isFinite(miktar) || miktar <= 0) return;
+  const depo = await parametreDegeri("varsayilan_depo");
+  await sayacHazirla("SH", enBuyukSH);
+  await db.$transaction(async (tx) => {
+    await tx.stokHareket.create({
+      data: {
+        id: `SH-${await sonrakiNo(tx, "SH")}`,
+        tarih: new Date(new Date().toISOString().slice(0, 10)),
+        tur: "Giriş",
+        refTip,
+        refId: stokId,
+        miktar,
+        birim,
+        depo,
+        aciklama: "Açılış bakiyesi (kart oluşturma)",
+      },
+    });
+    await tx.stok.update({
+      where: { id: stokId },
+      data: { stokMiktar: { increment: miktar } },
+    });
+  });
+}
+
 /** Malzeme ekle/güncelle → stok tablosu (grup Hammadde varsayılan). */
 export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
   const ortak = {
@@ -457,11 +503,19 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
     ureticiCariId: m.tedarikci ?? null,
     durum: m.durum,
   };
+  const vardi = await db.stok.findUnique({
+    where: { id: m.id },
+    select: { id: true },
+  });
   await db.stok.upsert({
     where: { id: m.id },
-    create: { id: m.id, grup: "Hammadde", stokMiktar: m.stok, ...ortak },
+    // Miktar 0 açılır; açılış bakiyesi hareket olarak yazılır (ledger tek kaynak).
+    create: { id: m.id, grup: "Hammadde", stokMiktar: 0, ...ortak },
     update: ortak,
   });
+  // Yalnız YENİ kartta: güncellemede miktara dokunulmaz, aksi halde her
+  // kaydetmede açılış hareketi tekrar yazılırdı.
+  if (!vardi) await acilisBakiyesiYaz(m.id, m.stok, m.birim, "malzeme");
   revalidatePath("/stok-yonetimi");
   return { ok: true };
 }
@@ -589,10 +643,15 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
     gorsellerJson: u.gorseller ? JSON.stringify(u.gorseller) : null,
     varyantlarJson: u.varyantlar ? JSON.stringify(u.varyantlar) : null,
   };
+  const modelVardi = await db.stok.findUnique({
+    where: { id },
+    select: { id: true },
+  });
   await db.$transaction(async (tx) => {
     await tx.stok.upsert({
       where: { id },
-      create: { id, stokBirimi: "adet", stokMiktar: u.stok ?? 0, ...veri },
+      // Miktar 0 açılır; açılış bakiyesi hareket olarak yazılır (ledger tek kaynak).
+      create: { id, stokBirimi: "adet", stokMiktar: 0, ...veri },
       update: veri,
     });
 
@@ -603,6 +662,10 @@ export async function modelKaydet(u: Model): Promise<{ ok: boolean; id: string }
       .map((p) => ({ modelId: id, parcaId: p.parcaId, miktar: p.miktar }));
     if (bom.length) await tx.modelParca.createMany({ data: bom });
   });
+
+  // Yalnız YENİ modelde: güncellemede miktara dokunulmaz, aksi halde her
+  // kaydetmede açılış hareketi tekrar yazılırdı.
+  if (!modelVardi) await acilisBakiyesiYaz(id, u.stok ?? 0, "adet", "model");
 
   revalidatePath("/urunler");
   revalidatePath("/stok-yonetimi");

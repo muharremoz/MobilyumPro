@@ -324,11 +324,18 @@ export function Warehouses({
                   ]}
                 >
                   <TableRow
-                    className="cursor-pointer"
-                    onClick={() => {
-                      setDuzenlenen(d);
-                      setSheetOpen(true);
-                    }}
+                    // Menüdeki "Düzenle" yetkiye bağlıydı ama satıra tıklayınca
+                    // form yine açılıyordu; yetkisiz kullanıcı kaydet deyip
+                    // sunucudan hata alıyordu.
+                    className={yetki.isUpdate ? "cursor-pointer" : undefined}
+                    onClick={
+                      yetki.isUpdate
+                        ? () => {
+                            setDuzenlenen(d);
+                            setSheetOpen(true);
+                          }
+                        : undefined
+                    }
                   >
                     {kolon.temelGorunur("id") && (
                       <TableCell className="font-mono text-xs text-muted-foreground">
