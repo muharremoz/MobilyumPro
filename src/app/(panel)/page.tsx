@@ -1,35 +1,32 @@
 import { GenelBakis } from "@/components/pano/genel-bakis";
 import {
   getPanoVerisi,
-  getKullanicilar,
   getDepartmanlar,
   getPanoKisayollari,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardRoute() {
-  const [veri, kullanicilar, departmanlar] = await Promise.all([
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const oturum = await oturumZorunlu();
+  const [veri, departmanlar, kisayollar] = await Promise.all([
     getPanoVerisi(),
-    getKullanicilar(),
     getDepartmanlar(),
+    getPanoKisayollari(oturum.id),
   ]);
-  // TODO: oturum altyapısı gelince giriş yapan kullanıcı kullanılacak.
-  const mevcut =
-    kullanicilar.find((k) => k.rol === "Yönetici") ?? kullanicilar[0];
-  // Kısayollar kullanıcı + departman bazında; kaydı yoksa varsayılan kullanılır.
-  const kisayollar = mevcut ? await getPanoKisayollari(mevcut.id) : {};
 
   return (
     <GenelBakis
       veri={veri}
-      kullaniciId={mevcut?.id}
+      kullaniciId={oturum.id}
       kisayollar={kisayollar}
-      kullaniciAd={mevcut?.adSoyad ?? "Kullanıcı"}
-      departman={mevcut?.departman}
+      kullaniciAd={oturum.adSoyad}
+      departman={oturum.departman}
       departmanlar={departmanlar}
-      istasyon={mevcut?.istasyon}
-      yonetici={mevcut?.rol === "Yönetici"}
+      istasyon={oturum.istasyon}
+      yonetici={oturum.yonetici}
     />
   );
 }

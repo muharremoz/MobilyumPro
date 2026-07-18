@@ -8,18 +8,15 @@ import { getKullanicilar, getVeritabanlari } from "@/lib/db/queries"
 // Şirket/kullanıcı listeleri her istekte sunucudan okunur (build'de donmasın).
 export const dynamic = "force-dynamic"
 
-// DB'de henüz kullanıcı yoksa combobox mock adlarla dolar.
-const MOCK_KULLANICILAR = ["muharrem.oz", "ahmet.yilmaz", "ayse.demir"]
-
 export default async function LoginPage() {
-  const [veritabanlari, kullaniciListesi] = await Promise.all([
+  // Kullanıcı listesi giriş öncesi gönderilir — fabrika içi panelde vardiya
+  // personeli adını yazmak yerine seçsin diye. Bunun bedeli: kullanıcı adları
+  // giriş yapılmadan görünür. Panel internete açılırsa burası elle yazılan
+  // alana dönmeli (kullanıcı numaralandırma).
+  const [veritabanlari, kullanicilar] = await Promise.all([
     getVeritabanlari(),
     getKullanicilar().catch(() => []),
   ])
-  const kullanicilar =
-    kullaniciListesi.length > 0
-      ? kullaniciListesi.map((k) => k.kullaniciAdi)
-      : MOCK_KULLANICILAR
   return (
     <div className="grid min-h-svh bg-white lg:grid-cols-2">
       {/* Sol: giriş formu */}
@@ -36,7 +33,9 @@ export default async function LoginPage() {
           <div className="w-full max-w-xs">
             <LoginForm
               veritabanlari={veritabanlari}
-              kullanicilar={kullanicilar}
+              kullanicilar={kullanicilar
+                .filter((k) => k.durum === "Aktif")
+                .map((k) => ({ ad: k.adSoyad, kullaniciAdi: k.kullaniciAdi }))}
             />
           </div>
         </div>

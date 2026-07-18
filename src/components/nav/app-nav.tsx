@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Search,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +38,7 @@ import {
   type SubItem,
 } from "@/components/nav/nav-config";
 import { KomutPaleti } from "@/components/nav/komut-paleti";
+import { cikisYap } from "@/lib/db/oturum-actions";
 
 const DARALT_KEY = "mp_nav_daralt";
 
@@ -204,7 +204,7 @@ function RailUser({ daralt }: { daralt: boolean }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          onClick={() => toast.success("Çıkış yapıldı (demo)")}
+          onClick={() => cikisYap()}
         >
           <LogOut className="mr-2 h-4 w-4" /> Çıkış Yap
         </DropdownMenuItem>

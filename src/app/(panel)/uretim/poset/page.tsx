@@ -6,6 +6,7 @@ import {
   getModeller,
   getParcalar,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export default async function PosetRoute() {
   const [posetler, kolonAyari, kullanicilar, modeller, parcalar] =
@@ -16,11 +17,9 @@ export default async function PosetRoute() {
       getModeller(),
       getParcalar(),
     ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcutKullaniciId =
-    kullanicilar.find((k) => k.rol === "Yönetici")?.id ??
-    kullanicilar[0]?.id ??
-    "";
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const oturum = await oturumZorunlu();
+  const mevcutKullaniciId = oturum.id;
   return (
     <PosetListe
       posetler={posetler}

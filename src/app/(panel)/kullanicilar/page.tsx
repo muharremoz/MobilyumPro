@@ -6,6 +6,7 @@ import {
   getListeKolonAyari,
   getRoller,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export default async function KullanicilarPage() {
   const [kullanicilar, roller, departmanlar, istasyonlar, kolonAyari] =
@@ -16,11 +17,9 @@ export default async function KullanicilarPage() {
       getIstasyonlar(),
       getListeKolonAyari("kullanicilar"),
     ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcutKullaniciId =
-    kullanicilar.find((k) => k.rol === "Yönetici")?.id ??
-    kullanicilar[0]?.id ??
-    "";
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const oturum = await oturumZorunlu();
+  const mevcutKullaniciId = oturum.id;
   return (
     <KullanicilarTable
       kullanicilar={kullanicilar}

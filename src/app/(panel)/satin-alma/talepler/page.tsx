@@ -2,20 +2,18 @@ import { TalepListe } from "@/components/satin-alma/talep-liste";
 import {
   getTalepler,
   getCariler,
-  getKullanicilar,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export const dynamic = "force-dynamic";
 
 export default async function TaleplerRoute() {
-  const [talepler, cariler, kullanicilar] = await Promise.all([
+  const [talepler, cariler] = await Promise.all([
     getTalepler(),
     getCariler(),
-    getKullanicilar(),
   ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcut =
-    kullanicilar.find((k) => k.rol === "Yönetici") ?? kullanicilar[0];
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const mevcut = await oturumZorunlu();
   return (
     <TalepListe
       talepler={talepler}

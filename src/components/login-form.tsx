@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
 
 import { cn } from "@/lib/utils"
@@ -12,7 +13,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { SearchSelect } from "@/components/ui/search-select"
+import { girisYap } from "@/lib/db/oturum-actions"
 
 type Hatalar = {
   veritabani?: string
@@ -27,17 +30,42 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"form"> & {
   veritabanlari: string[]
-  kullanicilar: string[]
+  kullanicilar: { ad: string; kullaniciAdi: string }[]
 }) {
+  const router = useRouter()
   const [veritabani, setVeritabani] = React.useState<string | null>(
     veritabanlari[0] ?? null,
   )
+  // Listede ad soyad görünür; giriş ise kullanıcı adıyla yapılır. Seçilen
+  // etiketi kullanıcı adına çevirmek için etiket→ad eşlemesi tutulur.
+  // Aynı ada sahip iki kişi olabilir; o durumda etikete kullanıcı adı eklenir
+  // ki iki satır birbirinden ayırt edilebilsin.
+  const secenekler = React.useMemo(() => {
+    const sayac = new Map<string, number>()
+    for (const k of kullanicilar)
+      sayac.set(k.ad, (sayac.get(k.ad) ?? 0) + 1)
+    return kullanicilar.map((k) => ({
+      etiket: (sayac.get(k.ad) ?? 0) > 1 ? `${k.ad} (${k.kullaniciAdi})` : k.ad,
+      kullaniciAdi: k.kullaniciAdi,
+    }))
+  }, [kullanicilar])
+
   const [kullanici, setKullanici] = React.useState<string | null>(null)
   const [hatalar, setHatalar] = React.useState<Hatalar>({})
   const [shakeNonce, setShakeNonce] = React.useState(0)
+  const [gonderiliyor, setGonderiliyor] = React.useState(false)
+  const [hatirla, setHatirla] = React.useState(false)
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function hataGoster(yeni: Hatalar) {
+    setHatalar(yeni)
+    setShakeNonce((n) => n + 1)
+    // --revert-hold sonrasında hata durumu nötrüne döner.
+    clearTimeout(revertTimer.current)
+    revertTimer.current = setTimeout(() => setHatalar({}), 3000)
+  }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
     const sifre = (form.elements.namedItem("sifre") as HTMLInputElement).value
@@ -46,17 +74,28 @@ export function LoginForm({
     if (!veritabani) yeni.veritabani = "Şirket seçin."
     if (!kullanici) yeni.kullanici = "Kullanıcı seçin."
     if (!sifre) yeni.sifre = "Şifre zorunludur."
-
-    setHatalar(yeni)
     if (Object.keys(yeni).length > 0) {
-      setShakeNonce((n) => n + 1)
-      // --revert-hold sonrasında hata durumu nötrüne döner.
-      clearTimeout(revertTimer.current)
-      revertTimer.current = setTimeout(() => setHatalar({}), 3000)
+      hataGoster(yeni)
       return
     }
 
-    // TODO: gerçek kimlik doğrulama (seçilen veritabanına bağlanma)
+    setGonderiliyor(true)
+    const secili = secenekler.find((x) => x.etiket === kullanici)
+    if (!secili) {
+      hataGoster({ kullanici: "Kullanıcı seçin." })
+      setGonderiliyor(false)
+      return
+    }
+    const res = await girisYap(secili.kullaniciAdi, sifre, hatirla)
+    setGonderiliyor(false)
+    if (!res.ok) {
+      // Hangi alanın yanlış olduğu söylenmez; ikisi de işaretlenir.
+      hataGoster({ sifre: res.error ?? "Giriş yapılamadı." })
+      return
+    }
+    // Oturum çerezi yazıldı; sunucu bileşenleri tazelensin diye refresh.
+    router.replace("/")
+    router.refresh()
   }
 
   return (
@@ -107,7 +146,7 @@ export function LoginForm({
           <FieldLabel htmlFor="kullanici">Kullanıcı</FieldLabel>
           <ErrorShakeField error={hatalar.kullanici} shakeNonce={shakeNonce}>
             <SearchSelect
-              items={kullanicilar}
+              items={secenekler.map((x) => x.etiket)}
               value={kullanici}
               onValueChange={setKullanici}
               placeholder="Kullanıcı seçin"
@@ -119,19 +158,34 @@ export function LoginForm({
         <Field>
           <FieldLabel htmlFor="password">Şifre</FieldLabel>
           <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
-            <Input id="password" name="sifre" type="password" className="h-10" />
+            <Input
+              id="password"
+              name="sifre"
+              type="password"
+              autoComplete="current-password"
+              className="h-10"
+            />
           </ErrorShakeField>
         </Field>
-        <Field>
-          <Button type="submit" className="h-10">
-            Giriş Yap
-          </Button>
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox
+              checked={hatirla}
+              onCheckedChange={(v) => setHatirla(v === true)}
+            />
+            <span className="text-muted-foreground">Beni hatırla</span>
+          </label>
           <a
             href="#"
-            className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
           >
             Şifrenizi mi unuttunuz?
           </a>
+        </div>
+        <Field>
+          <Button type="submit" className="h-10" disabled={gonderiliyor}>
+            {gonderiliyor ? "Giriş yapılıyor..." : "Giriş Yap"}
+          </Button>
         </Field>
       </FieldGroup>
     </form>

@@ -5,6 +5,7 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 // Sahne canlı veri gösterir — her istekte taze okunur.
 export const dynamic = "force-dynamic";
@@ -16,11 +17,9 @@ export default async function FabrikaRoute() {
     getListeKolonAyari("uretim-hatti"),
     getKullanicilar(),
   ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcutKullaniciId =
-    kullanicilar.find((k) => k.rol === "Yönetici")?.id ??
-    kullanicilar[0]?.id ??
-    "";
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const oturum = await oturumZorunlu();
+  const mevcutKullaniciId = oturum.id;
   return (
     <div className="h-full min-h-0">
       <FabrikaPanel

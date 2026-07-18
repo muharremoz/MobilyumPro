@@ -5,10 +5,10 @@ import {
   getDepolar,
   getSonAlisFiyatlari,
   getKurlar,
-  getKullanicilar,
   getSatinAlmaSartlari,
   getBekleyenSiparisler,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 /**
  * "kalem" parametresi (üretim planından gelir): "malzemeId:miktar,..."
@@ -60,7 +60,6 @@ export default async function YeniAlisRoute({
     depolar,
     sonFiyatlar,
     kurlar,
-    kullanicilar,
     sartlar,
     bekleyenSiparisler,
   ] = await Promise.all([
@@ -69,13 +68,11 @@ export default async function YeniAlisRoute({
     getDepolar(),
     getSonAlisFiyatlari(),
     getKurlar(),
-    getKullanicilar(),
     getSatinAlmaSartlari(),
     siparisFirma ? getBekleyenSiparisler() : Promise.resolve([]),
   ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcut =
-    kullanicilar.find((k) => k.rol === "Yönetici") ?? kullanicilar[0];
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const mevcut = await oturumZorunlu();
   // Tedarikçi seçenekleri — cari kartlardan (Tedarikçi / Her İkisi).
   const tedarikciler = cariler
     .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")

@@ -5,9 +5,9 @@ import {
   getMalzemeler,
   getDepolar,
   getMusteriler,
-  getKullanicilar,
   getTalepler,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export default async function UretimPlanRoute() {
   const [
@@ -16,7 +16,6 @@ export default async function UretimPlanRoute() {
     malzemeler,
     depolar,
     musteriler,
-    kullanicilar,
     talepler,
   ] = await Promise.all([
     getModeller(),
@@ -24,12 +23,10 @@ export default async function UretimPlanRoute() {
     getMalzemeler(),
     getDepolar(),
     getMusteriler(),
-    getKullanicilar(),
     getTalepler(),
   ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcut =
-    kullanicilar.find((k) => k.rol === "Yönetici") ?? kullanicilar[0];
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const mevcut = await oturumZorunlu();
 
   return (
     <ProductionPlan

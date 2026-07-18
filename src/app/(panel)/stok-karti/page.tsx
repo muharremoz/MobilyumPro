@@ -4,6 +4,7 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
+import { oturumZorunlu } from "@/lib/oturum";
 
 export default async function StokKartiRoute() {
   const [stoklar, kolonAyari, kullanicilar] = await Promise.all([
@@ -11,11 +12,9 @@ export default async function StokKartiRoute() {
     getListeKolonAyari("stok-kartlari"),
     getKullanicilar(),
   ]);
-  // TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı kullanılacak.
-  const mevcutKullaniciId =
-    kullanicilar.find((k) => k.rol === "Yönetici")?.id ??
-    kullanicilar[0]?.id ??
-    "";
+  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
+  const oturum = await oturumZorunlu();
+  const mevcutKullaniciId = oturum.id;
   return (
     <StokKartListe
       // Malzeme listesi: Mamül (modeller) hariç — modeller "Model" sayfasında.
