@@ -208,6 +208,8 @@ export async function emriIlerlet(
   emirId: string,
   /** Opsiyonel adım notu — tamamlanan (ya da başlatılan) adıma yazılır. */
   aciklama?: string,
+  /** Rota dışı hedef istasyon (slug). Boşsa sıradaki adıma geçilir. */
+  hedefIstasyon?: string,
 ): Promise<{
   ok: boolean;
   error?: string;
@@ -241,9 +243,23 @@ export async function emriIlerlet(
         return { ok: false, error: dusum.error, eksikler: dusum.eksikler };
       eksikler = dusum.eksikler;
 
-      const ilkBekleyen = adimlar.find((a) => a.durum === "Bekliyor");
+      // Hedef verildiyse o adımdan başla; öncesindeki adımlar atlanır.
+      const hedefAdim = hedefIstasyon
+        ? adimlar.find((a) => a.istasyon === hedefIstasyon)
+        : undefined;
+      const ilkBekleyen =
+        hedefAdim ?? adimlar.find((a) => a.durum === "Bekliyor");
       if (ilkBekleyen) {
         await db.$transaction(async (tx) => {
+          if (hedefAdim)
+            await tx.uretimEmriAdim.updateMany({
+              where: {
+                emirId,
+                sira: { lt: hedefAdim.sira },
+                durum: "Bekliyor",
+              },
+              data: { durum: "Atlandı" },
+            });
           await tx.uretimEmriAdim.update({
             where: { id: ilkBekleyen.id },
             data: {
@@ -278,11 +294,35 @@ export async function emriIlerlet(
             ...(aciklama?.trim() ? { not: aciklama.trim() } : {}),
           },
         });
-        const sonraki = adimlar.find((a) => a.sira === isleniyor.sira + 1);
+        // Hedef seçildiyse oraya geç; yoksa sıradaki adım.
+        const hedefAdim = hedefIstasyon
+          ? adimlar.find((a) => a.istasyon === hedefIstasyon)
+          : undefined;
+        const sonraki =
+          hedefAdim ?? adimlar.find((a) => a.sira === isleniyor.sira + 1);
         if (sonraki) {
+          if (hedefAdim) {
+            if (hedefAdim.sira > isleniyor.sira) {
+              // İleri atlama: aradaki bekleyen adımlar "Atlandı".
+              await tx.uretimEmriAdim.updateMany({
+                where: {
+                  emirId,
+                  sira: { gt: isleniyor.sira, lt: hedefAdim.sira },
+                  durum: "Bekliyor",
+                },
+                data: { durum: "Atlandı" },
+              });
+            } else {
+              // Geri dönüş (yeniden işleme): hedeften sonrası yeniden bekler.
+              await tx.uretimEmriAdim.updateMany({
+                where: { emirId, sira: { gt: hedefAdim.sira } },
+                data: { durum: "Bekliyor", baslangic: null, bitis: null },
+              });
+            }
+          }
           await tx.uretimEmriAdim.update({
             where: { id: sonraki.id },
-            data: { durum: "İşleniyor", baslangic: simdi },
+            data: { durum: "İşleniyor", baslangic: simdi, bitis: null },
           });
           await tx.uretimEmri.update({
             where: { id: emirId },

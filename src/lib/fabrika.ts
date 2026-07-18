@@ -50,7 +50,12 @@ export const FABRIKA = { g: 38, d: 26 };
 
 export const ISTASYON_MAP = new Map(ISTASYONLAR.map((i) => [i.slug, i]));
 
-export type AdimDurum = "Bekliyor" | "İşleniyor" | "Tamamlandı";
+// "Atlandı": rota dışı geçişte atlanan adım (iş yapılmadı, malzeme düşmedi).
+export type AdimDurum =
+  | "Bekliyor"
+  | "İşleniyor"
+  | "Tamamlandı"
+  | "Atlandı";
 
 export type EmirAdimi = {
   istasyon: IstasyonSlug;
