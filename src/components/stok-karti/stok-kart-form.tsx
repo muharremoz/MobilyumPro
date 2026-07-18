@@ -98,6 +98,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -2138,21 +2143,24 @@ function SatinAlmaBirimi({
               Farklı birimle alınıyorsa (levha → m²)
             </span>
             {/* Fiyat birimi kavramı sezgisel değil; örnekle anlatılmazsa
-                yanlış seçilip maliyet kat kat şişebilir. */}
-            <TooltipProvider delay={200}>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label="Satın alma birimi nasıl çalışır"
-                      className="text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <Info className="size-3.5" />
-                    </button>
-                  }
-                />
-                <TooltipContent className="max-w-sm">
+                yanlış seçilip maliyet kat kat şişebilir.
+                Tooltip değil HoverCard: içerik çok satırlı ve biçimli —
+                tooltip kısa tek cümlelik ipuçları için. */}
+            <HoverCard>
+              <HoverCardTrigger
+                delay={0}
+                closeDelay={0}
+                render={
+                  <button
+                    type="button"
+                    aria-label="Satın alma birimi nasıl çalışır"
+                    className="cursor-help text-muted-foreground transition-colors hover:text-foreground"
+                  />
+                }
+              >
+                <Info className="size-3.5" />
+              </HoverCardTrigger>
+              <HoverCardContent align="end" className="w-96">
                   <div className="flex flex-col gap-1.5 text-xs">
                     <p>
                       Levhayı <b>adetle</b> alıp <b>m²</b> ile stokluyorsan
@@ -2179,9 +2187,8 @@ function SatinAlmaBirimi({
                       maliyeti onu m² ile çarpar.
                     </p>
                   </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+              </HoverCardContent>
+            </HoverCard>
           </span>
         }
       />
