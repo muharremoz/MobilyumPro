@@ -161,7 +161,12 @@ function Metrik({
       <div className="text-[10px] font-semibold tracking-wide text-muted-foreground/70 uppercase">
         {etiket}
       </div>
-      <div className={cn("mt-0.5 truncate text-sm font-medium tabular-nums", className)}>
+      <div
+        className={cn(
+          "mt-0.5 truncate text-sm font-medium tabular-nums",
+          className,
+        )}
+      >
         {deger}
       </div>
     </div>
@@ -300,7 +305,9 @@ function ModelAnaliz({
                   <TableCell className="text-right font-medium tabular-nums">
                     {h.bakiye}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{h.depo}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {h.depo}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {h.aciklama}
                   </TableCell>
@@ -542,6 +549,34 @@ export function ModelForm({
       ? ((satisFiyati - toplamMaliyet) / satisFiyati) * 100
       : null;
 
+  // Reçete sekmesi özet bandı — parça seçimi varsa ona daralır.
+  const bandParcalar = dokumSecim.size
+    ? seciliParcalar.filter((p) => dokumSecim.has(p.parcaId))
+    : seciliParcalar;
+  const bandMaliyet = dokumGoster.reduce((t, m) => t + m.tutar, 0);
+  const bandAdet = bandParcalar.reduce((t, p) => t + (p.miktar || 0), 0);
+  const bandEksik = dokumGoster.filter(
+    (d) => d.brutMiktar > d.malzeme.stok,
+  ).length;
+  // Fire payının maliyete etkisi (brüt − net) × birim fiyat.
+  const bandFire = dokumGoster.reduce(
+    (t, d) => t + (d.brutMiktar - d.netMiktar) * d.malzeme.birimFiyat,
+    0,
+  );
+  // Parça sayısı az; satır maliyetleri gibi render içinde hesaplanır.
+  let enMaliyetliParca: { ad: string; tutar: number } | null = null;
+  for (const sp of bandParcalar) {
+    const pr = parcalar.find((x) => x.id === sp.parcaId);
+    if (!pr) continue;
+    const tutar = modelIhtiyacDokumu(
+      [{ parcaId: pr.id, miktar: sp.miktar || 0 }],
+      parcalar,
+      malzemeler,
+    ).reduce((t, m) => t + m.tutar, 0);
+    if (!enMaliyetliParca || tutar > enMaliyetliParca.tutar)
+      enMaliyetliParca = { ad: pr.ad, tutar };
+  }
+
   const SEKMELER: { key: Tab; etiket: string; sayac?: number }[] = [
     { key: "genel", etiket: "Genel" },
     {
@@ -653,7 +688,10 @@ export function ModelForm({
           {(satisFiyati > 0 || toplamMaliyet > 0 || marj !== null) && (
             <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
               {satisFiyati > 0 && (
-                <Metrik etiket="Satış Fiyatı" deger={`₺${sayi(satisFiyati, 0)}`} />
+                <Metrik
+                  etiket="Satış Fiyatı"
+                  deger={`₺${sayi(satisFiyati, 0)}`}
+                />
               )}
               {toplamMaliyet > 0 && (
                 <Metrik
@@ -925,261 +963,339 @@ export function ModelForm({
 
         {/* ── PARÇALAR & MALZEME İHTİYACI ─────────────────────────── */}
         {tab === "recete" && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            {/* Sol: Parça listesi */}
-            <Kart
-              baslik="Parçalar"
-              ikon={Layers}
-              sag={
-                <span className="text-xs text-muted-foreground">
-                  {seciliParcalar.length} parça
-                </span>
-              }
-            >
-            {urunParcalar.length > 0 && (
-              <div className="overflow-hidden rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="w-8" />
-                      <TableHead>Parça</TableHead>
-                      <TableHead className="w-24 text-right">Adet</TableHead>
-                      <TableHead className="w-28 text-right">Maliyet</TableHead>
-                      <TableHead className="w-10" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {urunParcalar.map((s, i) => {
-                      const secili = parcalar.find((x) => x.id === s.parcaId);
-                      const digerIds = new Set(
-                        urunParcalar
-                          .filter((_, j) => j !== i)
-                          .map((x) => x.parcaId)
-                          .filter(Boolean),
-                      );
-                      const items = parcalar
-                        .filter(
-                          (p) => p.durum === "Aktif" && !digerIds.has(p.id),
-                        )
-                        .map((p) => p.ad);
-                      const satirMaliyet = secili
-                        ? modelIhtiyacDokumu(
-                            [{ parcaId: secili.id, miktar: s.miktar || 0 }],
-                            parcalar,
-                            malzemeler,
-                          ).reduce((t, m) => t + m.tutar, 0)
-                        : 0;
-                      return (
-                        <TableRow
-                          key={i}
-                          data-state={
-                            dokumSecim.has(s.parcaId) ? "selected" : undefined
-                          }
-                          onClick={() =>
-                            s.parcaId &&
-                            dokumSecimToggle(
-                              s.parcaId,
-                              !dokumSecim.has(s.parcaId),
-                            )
-                          }
-                          className={cn(
-                            s.parcaId && "cursor-pointer",
-                            // Seçim varken işaretli olmayanlar soluklaşır.
-                            dokumSecim.size > 0 &&
-                              !dokumSecim.has(s.parcaId) &&
-                              "opacity-40 transition-opacity",
-                          )}
-                        >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              disabled={!s.parcaId}
-                              checked={dokumSecim.has(s.parcaId)}
-                              onCheckedChange={(v) =>
-                                dokumSecimToggle(s.parcaId, v === true)
-                              }
-                              aria-label="Malzeme dökümünde göster"
-                            />
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <SearchSelect
-                              items={items}
-                              value={secili?.ad ?? null}
-                              onValueChange={(v) => satirParcaSec(i, v)}
-                              placeholder="Parça seç"
-                            />
-                          </TableCell>
-                          <TableCell
-                            className="text-right"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Input
-                              type="number"
-                              value={s.miktar}
-                              onChange={(e) => parcaMiktar(i, e.target.value)}
-                              className="h-8 w-20 text-right tabular-nums"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                            {satirMaliyet > 0
-                              ? `₺${sayi(satirMaliyet, 0)}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => parcaSil(i)}
-                              aria-label="Sil"
-                              className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
-                            >
-                              <Trash className="size-3.5" />
-                            </button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+          <div className="flex flex-col gap-4">
+            {/* Yatay özet bandı — seçim yapılınca ona göre daralır */}
+            {seciliParcalar.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-md border bg-card px-4 py-2.5">
+                <div>
+                  <p className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                    {dokumSecim.size > 0 ? "Seçili Maliyet" : "Birim Maliyet"}
+                    {dokumSecim.size > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-100 text-[9px] text-amber-800"
+                      >
+                        {dokumSecim.size}/{seciliParcalar.length} parça
+                      </Badge>
+                    )}
+                  </p>
+                  <span className="text-lg font-semibold tracking-tight tabular-nums">
+                    ₺{sayi(bandMaliyet, 0)}
+                  </span>
+                </div>
+                <div className="h-9 w-px bg-border" />
+                <Metrik
+                  etiket="Parça"
+                  deger={`${bandParcalar.length} çeşit · ${sayi(bandAdet, 0)} adet`}
+                />
+                <div className="h-9 w-px bg-border" />
+                <Metrik
+                  etiket="Malzeme"
+                  deger={`${dokumGoster.length} çeşit`}
+                />
+                {bandFire > 0.5 && (
+                  <>
+                    <div className="h-9 w-px bg-border" />
+                    <Metrik
+                      etiket="Fire Etkisi"
+                      deger={`₺${sayi(bandFire, 0)}`}
+                      className="text-amber-700"
+                    />
+                  </>
+                )}
+                <div className="h-9 w-px bg-border" />
+                <Metrik
+                  etiket="Eksik Malzeme"
+                  deger={bandEksik > 0 ? `${bandEksik} kalem` : "Yok"}
+                  className={
+                    bandEksik > 0 ? "text-rose-600" : "text-emerald-600"
+                  }
+                />
+                {enMaliyetliParca && bandParcalar.length > 1 && (
+                  <>
+                    <div className="h-9 w-px bg-border" />
+                    <Metrik
+                      etiket="En Maliyetli Parça"
+                      deger={`${enMaliyetliParca.ad} · ₺${sayi(enMaliyetliParca.tutar, 0)}${
+                        bandMaliyet > 0
+                          ? ` (%${sayi((enMaliyetliParca.tutar / bandMaliyet) * 100, 0)})`
+                          : ""
+                      }`}
+                    />
+                  </>
+                )}
               </div>
             )}
-            <button
-              type="button"
-              onClick={satirEkle}
-              disabled={
-                urunParcalar.filter((p) => p.parcaId).length >=
-                parcalar.filter((p) => p.durum === "Aktif").length
-              }
-              className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> Parça ekle
-            </button>
-            {parcalar.length === 0 && (
-              <p className="text-center text-xs text-muted-foreground">
-                Henüz parça tanımlı değil —{" "}
-                <Link
-                  href="/stok-yonetimi?bolum=parcalar"
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  Parçalar
-                </Link>{" "}
-                sayfasından ekleyebilirsin.
-              </p>
-            )}
-            </Kart>
 
-            {/* Sağ: Malzeme ihtiyacı dökümü — işaretli parçalara odaklanır */}
-            <Kart
-              baslik="Malzeme İhtiyacı"
-              ikon={Boxes}
-              sag={
-                dokumSecim.size > 0 ? (
-                  <span className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {dokumSecim.size} parça seçili
-                    </Badge>
-                    <button
-                      type="button"
-                      onClick={() => setDokumSecim(new Set())}
-                      className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                    >
-                      Tümünü göster
-                    </button>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+              {/* Sol: Parça listesi */}
+              <Kart
+                baslik="Parçalar"
+                ikon={Layers}
+                sag={
+                  <span className="text-xs text-muted-foreground">
+                    {seciliParcalar.length} parça
                   </span>
-                ) : dokum.length > 0 ? (
-                  eksikSayisi > 0 ? (
-                    <Badge
-                      variant="secondary"
-                      className="bg-rose-100 text-[10px] text-rose-800"
+                }
+              >
+                {urunParcalar.length > 0 && (
+                  <div className="overflow-hidden rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                          <TableHead className="w-8" />
+                          <TableHead>Parça</TableHead>
+                          <TableHead className="w-24 text-right">
+                            Adet
+                          </TableHead>
+                          <TableHead className="w-28 text-right">
+                            Maliyet
+                          </TableHead>
+                          <TableHead className="w-10" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {urunParcalar.map((s, i) => {
+                          const secili = parcalar.find(
+                            (x) => x.id === s.parcaId,
+                          );
+                          const digerIds = new Set(
+                            urunParcalar
+                              .filter((_, j) => j !== i)
+                              .map((x) => x.parcaId)
+                              .filter(Boolean),
+                          );
+                          const items = parcalar
+                            .filter(
+                              (p) => p.durum === "Aktif" && !digerIds.has(p.id),
+                            )
+                            .map((p) => p.ad);
+                          const satirMaliyet = secili
+                            ? modelIhtiyacDokumu(
+                                [{ parcaId: secili.id, miktar: s.miktar || 0 }],
+                                parcalar,
+                                malzemeler,
+                              ).reduce((t, m) => t + m.tutar, 0)
+                            : 0;
+                          return (
+                            <TableRow
+                              key={i}
+                              data-state={
+                                dokumSecim.has(s.parcaId)
+                                  ? "selected"
+                                  : undefined
+                              }
+                              onClick={() =>
+                                s.parcaId &&
+                                dokumSecimToggle(
+                                  s.parcaId,
+                                  !dokumSecim.has(s.parcaId),
+                                )
+                              }
+                              className={cn(
+                                s.parcaId && "cursor-pointer",
+                                // Seçim varken işaretli olmayanlar soluklaşır.
+                                dokumSecim.size > 0 &&
+                                  !dokumSecim.has(s.parcaId) &&
+                                  "opacity-40 transition-opacity",
+                              )}
+                            >
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  disabled={!s.parcaId}
+                                  checked={dokumSecim.has(s.parcaId)}
+                                  onCheckedChange={(v) =>
+                                    dokumSecimToggle(s.parcaId, v === true)
+                                  }
+                                  aria-label="Malzeme dökümünde göster"
+                                />
+                              </TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <SearchSelect
+                                  items={items}
+                                  value={secili?.ad ?? null}
+                                  onValueChange={(v) => satirParcaSec(i, v)}
+                                  placeholder="Parça seç"
+                                />
+                              </TableCell>
+                              <TableCell
+                                className="text-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Input
+                                  type="number"
+                                  value={s.miktar}
+                                  onChange={(e) =>
+                                    parcaMiktar(i, e.target.value)
+                                  }
+                                  className="h-8 w-20 text-right tabular-nums"
+                                />
+                              </TableCell>
+                              <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                                {satirMaliyet > 0
+                                  ? `₺${sayi(satirMaliyet, 0)}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => parcaSil(i)}
+                                  aria-label="Sil"
+                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
+                                >
+                                  <Trash className="size-3.5" />
+                                </button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={satirEkle}
+                  disabled={
+                    urunParcalar.filter((p) => p.parcaId).length >=
+                    parcalar.filter((p) => p.durum === "Aktif").length
+                  }
+                  className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="size-3.5" /> Parça ekle
+                </button>
+                {parcalar.length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Henüz parça tanımlı değil —{" "}
+                    <Link
+                      href="/stok-yonetimi?bolum=parcalar"
+                      className="underline underline-offset-2 hover:text-foreground"
                     >
-                      {eksikSayisi} yetersiz
-                    </Badge>
+                      Parçalar
+                    </Link>{" "}
+                    sayfasından ekleyebilirsin.
+                  </p>
+                )}
+              </Kart>
+
+              {/* Sağ: Malzeme ihtiyacı dökümü — işaretli parçalara odaklanır */}
+              <Kart
+                baslik="Malzeme İhtiyacı"
+                ikon={Boxes}
+                sag={
+                  dokumSecim.size > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {dokumSecim.size} parça seçili
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => setDokumSecim(new Set())}
+                        className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      >
+                        Tümünü göster
+                      </button>
+                    </span>
+                  ) : dokum.length > 0 ? (
+                    eksikSayisi > 0 ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-rose-100 text-[10px] text-rose-800"
+                      >
+                        {eksikSayisi} yetersiz
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-emerald-700">
+                        Stok yeterli
+                      </span>
+                    )
                   ) : (
-                    <span className="text-xs text-emerald-700">
-                      Stok yeterli
+                    <span className="text-xs text-muted-foreground">
+                      fire dahil
                     </span>
                   )
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    fire dahil
-                  </span>
-                )
-              }
-            >
-              {dokumGoster.length === 0 && (
-                <p className="py-8 text-center text-xs text-muted-foreground">
-                  Soldan parça ekleyince malzeme ihtiyacı (1 model için, fire
-                  dahil) burada listelenir. Parça satırlarındaki kutularla
-                  dökümü seçili parçalara daraltabilirsin.
-                </p>
-              )}
-              {dokumGoster.length > 0 && (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead>Malzeme</TableHead>
-                      <TableHead>İstasyon</TableHead>
-                      <TableHead className="text-right">Net</TableHead>
-                      <TableHead className="text-right">Fire Dahil</TableHead>
-                      <TableHead className="text-right">Eldeki</TableHead>
-                      <TableHead className="text-right">Tutar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dokumGoster.map((d) => {
-                      const yetersiz = d.brutMiktar > d.malzeme.stok;
-                      return (
-                        <TableRow key={d.malzeme.id}>
-                          <TableCell className="font-medium">
-                            {d.malzeme.ad}
-                          </TableCell>
-                          <TableCell>
-                            <span className="flex flex-wrap gap-1">
-                              {d.istasyonlar.map((slug) => {
-                                const ist = ISTASYON_MAP.get(slug as never);
-                                return (
-                                  <span
-                                    key={slug}
-                                    className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                  >
-                                    <span
-                                      className="size-1.5 rounded-full"
-                                      style={{
-                                        backgroundColor: ist?.renk ?? "#a3a3a3",
-                                      }}
-                                    />
-                                    {ist?.ad ?? slug}
-                                  </span>
-                                );
-                              })}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
-                            {sayi(d.netMiktar)} {d.malzeme.birim}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {sayi(d.brutMiktar)} {d.malzeme.birim}
-                          </TableCell>
-                          <TableCell
-                            className={
-                              "text-right tabular-nums " +
-                              (yetersiz
-                                ? "font-medium text-rose-600"
-                                : "text-muted-foreground")
-                            }
-                          >
-                            {sayi(d.malzeme.stok)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            ₺{sayi(d.tutar, 0)}
-                          </TableCell>
+                }
+              >
+                {dokumGoster.length === 0 && (
+                  <p className="py-8 text-center text-xs text-muted-foreground">
+                    Soldan parça ekleyince malzeme ihtiyacı (1 model için, fire
+                    dahil) burada listelenir. Parça satırlarındaki kutularla
+                    dökümü seçili parçalara daraltabilirsin.
+                  </p>
+                )}
+                {dokumGoster.length > 0 && (
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                          <TableHead>Malzeme</TableHead>
+                          <TableHead>İstasyon</TableHead>
+                          <TableHead className="text-right">Net</TableHead>
+                          <TableHead className="text-right">
+                            Fire Dahil
+                          </TableHead>
+                          <TableHead className="text-right">Eldeki</TableHead>
+                          <TableHead className="text-right">Tutar</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              )}
-            </Kart>
+                      </TableHeader>
+                      <TableBody>
+                        {dokumGoster.map((d) => {
+                          const yetersiz = d.brutMiktar > d.malzeme.stok;
+                          return (
+                            <TableRow key={d.malzeme.id}>
+                              <TableCell className="font-medium">
+                                {d.malzeme.ad}
+                              </TableCell>
+                              <TableCell>
+                                <span className="flex flex-wrap gap-1">
+                                  {d.istasyonlar.map((slug) => {
+                                    const ist = ISTASYON_MAP.get(slug as never);
+                                    return (
+                                      <span
+                                        key={slug}
+                                        className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                      >
+                                        <span
+                                          className="size-1.5 rounded-full"
+                                          style={{
+                                            backgroundColor:
+                                              ist?.renk ?? "#a3a3a3",
+                                          }}
+                                        />
+                                        {ist?.ad ?? slug}
+                                      </span>
+                                    );
+                                  })}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {sayi(d.netMiktar)} {d.malzeme.birim}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {sayi(d.brutMiktar)} {d.malzeme.birim}
+                              </TableCell>
+                              <TableCell
+                                className={
+                                  "text-right tabular-nums " +
+                                  (yetersiz
+                                    ? "font-medium text-rose-600"
+                                    : "text-muted-foreground")
+                                }
+                              >
+                                {sayi(d.malzeme.stok)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                ₺{sayi(d.tutar, 0)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </Kart>
+            </div>
           </div>
         )}
 
