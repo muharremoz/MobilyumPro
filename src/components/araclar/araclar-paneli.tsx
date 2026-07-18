@@ -20,9 +20,9 @@ import { WrenchIcon } from "@/components/ui/icons/wrench";
  * gidilseydi formdaki veri kaybolurdu.
  */
 
-type Sekme = "birim" | "termin" | "kdv" | "iskonto";
+export type AracSekme = "birim" | "termin" | "kdv" | "iskonto";
 
-const SEKMELER: { key: Sekme; etiket: string }[] = [
+export const ARAC_SEKMELERI: { key: AracSekme; etiket: string }[] = [
   { key: "birim", etiket: "Birim" },
   { key: "termin", etiket: "Termin" },
   { key: "kdv", etiket: "KDV" },
@@ -46,11 +46,15 @@ const yaz = (n: number, hane = 2) =>
 export function AraclarPaneli({
   acik,
   onAcikDegis,
+  sekme,
+  onSekmeDegis,
 }: {
   acik: boolean;
   onAcikDegis: (v: boolean) => void;
+  /** Kontrollü sekme — pano kısayolu doğrudan bir araca açabilsin diye. */
+  sekme: AracSekme;
+  onSekmeDegis: (s: AracSekme) => void;
 }) {
-  const [sekme, setSekme] = React.useState<Sekme>("birim");
 
   return (
     <FormSheet
@@ -64,11 +68,11 @@ export function AraclarPaneli({
       contentClassName="flex flex-col gap-4"
     >
       <div className="relative -mb-px flex flex-wrap gap-1 border-b">
-        {SEKMELER.map((s) => (
+        {ARAC_SEKMELERI.map((s) => (
           <SekmeButonu
             key={s.key}
             aktif={sekme === s.key}
-            onClick={() => setSekme(s.key)}
+            onClick={() => onSekmeDegis(s.key)}
             layoutId="araclarTabCizgi"
           >
             {s.etiket}

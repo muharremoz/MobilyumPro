@@ -10,24 +10,27 @@ import {
   CalendarDays,
   ClipboardCheck,
   Factory,
+  FileText,
   Hammer,
   History,
   Layers,
   PackageSearch,
+  Percent,
   Plus,
   Receipt,
+  Ruler,
   Repeat,
   RotateCcw,
   ShoppingCart,
   TrendingUp,
   Wallet,
+  Wrench,
   X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SearchSelect } from "@/components/ui/search-select";
 import {
   ChartContainer,
   ChartTooltip,
@@ -36,6 +39,8 @@ import {
 } from "@/components/ui/chart";
 import { BaslikDokusu } from "@/components/ui/baslik-dokusu";
 import { SatirMenu, type SatirAksiyon } from "@/components/ui/satir-menu";
+import { useAraclar } from "@/components/araclar/araclar-baglam";
+import type { AracSekme } from "@/components/araclar/araclar-paneli";
 import { panoKisayolKaydet } from "@/lib/db/actions";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
@@ -93,8 +98,11 @@ const ALIS_GRAFIK: ChartConfig = {
 type HizliIslem = {
   etiket: string;
   alt: string;
-  href: string;
   ikon: React.ComponentType<{ className?: string }>;
+  /** Sayfaya giden kısayol. */
+  href?: string;
+  /** Araç paneli kısayolu — sayfadan ayrılmadan ilgili sekmeyi açar. */
+  arac?: AracSekme;
   /** Bekleyen iş sayısı — 0/undefined ise rozet çizilmez. */
   rozet?: (v: PanoVerisi) => number;
 };
@@ -188,6 +196,31 @@ const ISLEM: Record<string, HizliIslem> = {
     href: "/cari",
     ikon: Wallet,
   },
+  // Araçlar — sayfaya gitmez, araç panelini ilgili sekmede açar.
+  aracBirim: {
+    etiket: "Birim Çevirici",
+    alt: "Levha ölçüsü → m²",
+    arac: "birim",
+    ikon: Ruler,
+  },
+  aracTermin: {
+    etiket: "Termin Hesabı",
+    alt: "İş günü → teslim tarihi",
+    arac: "termin",
+    ikon: CalendarDays,
+  },
+  aracKdv: {
+    etiket: "KDV Hesabı",
+    alt: "Dahil ↔ hariç",
+    arac: "kdv",
+    ikon: Percent,
+  },
+  aracIskonto: {
+    etiket: "İskonto Hesabı",
+    alt: "Kademeli indirim",
+    arac: "iskonto",
+    ikon: BadgePercent,
+  },
 };
 
 const DEPARTMAN_ISLEM: Record<string, string[]> = {
@@ -204,24 +237,22 @@ export function GenelBakis({
   kisayollar,
   kullaniciAd,
   departman,
-  departmanlar,
   istasyon,
-  yonetici,
 }: {
   veri: PanoVerisi;
-  /** Kisayol tercihi kullanici bazinda saklanir; yoksa duzenleme kapali. */
+  /** Kısayol tercihi kullanıcı bazında saklanır; yoksa düzenleme kapalı. */
   kullaniciId?: string;
   /** Departman -> kayıtlı kısayollar; kaydı olmayan departman varsayılana düşer. */
   kisayollar: Record<string, string[]>;
   kullaniciAd: string;
-  /** Giriş yapan kullanıcının departmanı (oturum gelene kadar prop). */
+  /** Giriş yapan kullanıcının departmanı (oturumdan gelir). */
   departman?: string;
-  departmanlar: string[];
   /** Üretim personelinin istasyonu — "istasyonumdaki iş" için. */
   istasyon?: string;
-  yonetici: boolean;
 }) {
-  const [secili, setSecili] = React.useState(departman ?? "Yönetim");
+  // Departman oturumdan gelir; seçiciyle değiştirilmez. Departmanı tanımsız
+  // kullanıcılar yönetim özetini görür (VARSAYILAN_KART).
+  const secili = departman ?? "Yönetim";
   const kartlar = DEPARTMAN_KART[secili] ?? VARSAYILAN_KART;
 
   return (
@@ -236,18 +267,6 @@ export function GenelBakis({
             {istasyon && secili === "Üretim" ? ` · ${istasyon}` : ""} panosu
           </p>
         </div>
-        {yonetici && (
-          <label className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Departman</span>
-            <SearchSelect
-              items={departmanlar}
-              value={secili}
-              onValueChange={(v) => v && setSecili(v)}
-              placeholder="Departman"
-              className="w-44"
-            />
-          </label>
-        )}
       </div>
 
       <HizliIslemler
@@ -289,6 +308,7 @@ function HizliIslemler({
   kayitli?: string[];
 }) {
   const router = useRouter();
+  const { aracAc } = useAraclar();
   const varsayilan = React.useMemo(
     () => DEPARTMAN_ISLEM[departman] ?? VARSAYILAN_ISLEM,
     [departman],
@@ -335,29 +355,55 @@ function HizliIslemler({
 
   const kullanilmayan = Object.keys(ISLEM).filter((k) => !liste.includes(k));
 
+  // Havuz ikiye ayrılır: sayfaya giden kısayollar ve araç paneli kısayolları.
+  // Menüde de ayrı başlıklar altında durur — biri gezinme, diğeri hesap.
+  const bosSayfalar = kullanilmayan.filter((k) => !ISLEM[k].arac);
+  const bosAraclar = kullanilmayan.filter((k) => ISLEM[k].arac);
+
+  function gruplar(sec: (anahtar: string) => void): SatirAksiyon[] {
+    return [
+      {
+        etiket: "Sayfalar",
+        ikon: FileText,
+        gizli: bosSayfalar.length === 0,
+        altClassName: "w-56",
+        altAksiyonlar: bosSayfalar.map((k) => ({
+          etiket: ISLEM[k].etiket,
+          ikon: ISLEM[k].ikon,
+          onSecim: () => sec(k),
+        })),
+      },
+      {
+        etiket: "Araçlar",
+        ikon: Wrench,
+        gizli: bosAraclar.length === 0,
+        altClassName: "w-56",
+        altAksiyonlar: bosAraclar.map((k) => ({
+          etiket: ISLEM[k].etiket,
+          ikon: ISLEM[k].ikon,
+          onSecim: () => sec(k),
+        })),
+      },
+    ];
+  }
+
   function menuAksiyonlari(i: number): SatirAksiyon[] {
     return [
       {
         etiket: "Bununla değiştir",
         ikon: Repeat,
         gizli: !duzenlenebilir || kullanilmayan.length === 0,
-        altAksiyonlar: kullanilmayan.map((yeniK) => ({
-          etiket: ISLEM[yeniK].etiket,
-          ikon: ISLEM[yeniK].ikon,
-          onSecim: () => kaydet(liste.map((x, idx) => (idx === i ? yeniK : x))),
-        })),
-        altClassName: "w-56",
+        altClassName: "w-44",
+        altAksiyonlar: gruplar((k) =>
+          kaydet(liste.map((x, idx) => (idx === i ? k : x))),
+        ),
       },
       {
         etiket: "Kısayol ekle",
         ikon: Plus,
         gizli: !duzenlenebilir || kullanilmayan.length === 0,
-        altAksiyonlar: kullanilmayan.map((yeniK) => ({
-          etiket: ISLEM[yeniK].etiket,
-          ikon: ISLEM[yeniK].ikon,
-          onSecim: () => kaydet([...liste, yeniK]),
-        })),
-        altClassName: "w-56",
+        altClassName: "w-44",
+        altAksiyonlar: gruplar((k) => kaydet([...liste, k])),
       },
       {
         etiket: "Varsayılana dön",
@@ -414,7 +460,8 @@ function HizliIslemler({
               }}
               onClick={() => {
                 if (suruklendi.current) return;
-                router.push(islem.href);
+                if (islem.arac) aracAc(islem.arac);
+                else if (islem.href) router.push(islem.href);
               }}
               className={cn(
                 "group flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5",

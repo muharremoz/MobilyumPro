@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, Bell, Wrench } from "lucide-react";
@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AraclarPaneli } from "@/components/araclar/araclar-paneli";
+import { useAraclar } from "@/components/araclar/araclar-baglam";
 import {
   sections,
   bottomSections,
@@ -241,7 +241,7 @@ function AppHeaderInner() {
   const pathname = usePathname();
   const search = useSearchParams();
   const { crumbs, Icon, meta } = getCrumbs(pathname, search);
-  const [araclarAcik, setAraclarAcik] = useState(false);
+  const { aracAc } = useAraclar();
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[#f2f2f2] bg-[#fafafa] px-4 md:px-6">
@@ -294,7 +294,7 @@ function AppHeaderInner() {
                 variant="ghost"
                 size="icon"
                 aria-label="Araçlar"
-                onClick={() => setAraclarAcik(true)}
+                onClick={() => aracAc()}
                 className="[&_svg]:size-4.5"
               >
                 <Wrench />
@@ -312,8 +312,6 @@ function AppHeaderInner() {
           <Bell />
         </Button>
       </div>
-
-      <AraclarPaneli acik={araclarAcik} onAcikDegis={setAraclarAcik} />
     </header>
   );
 }
