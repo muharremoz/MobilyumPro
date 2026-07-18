@@ -1285,6 +1285,8 @@ export type KullaniciKayit = {
   email?: string;
   telefon?: string;
   departman?: string;
+  /** Üretim departmanındaki kullanıcının çalıştığı istasyon. */
+  istasyon?: string;
   rol: string;
   durum: "Aktif" | "Pasif";
   /** Geçmiş tarihe işlem girebilme yetkisi. */
@@ -1315,11 +1317,14 @@ export async function kullaniciKaydet(
   k: KullaniciKayit,
 ): Promise<{ ok: boolean; id?: string; kullaniciAdi?: string; error?: string }> {
   try {
+    const departman = k.departman?.trim() || null;
     const ortak = {
       adSoyad: k.adSoyad.trim(),
       email: k.email?.trim() || null,
       telefon: k.telefon?.trim() || null,
-      departman: k.departman?.trim() || null,
+      departman,
+      // İstasyon yalnızca Üretim departmanında anlamlı; değilse temizlenir.
+      istasyon: departman === "Üretim" ? k.istasyon?.trim() || null : null,
       rol: k.rol,
       durum: k.durum,
       eskiTarihliIslem: k.eskiTarihliIslem ?? false,

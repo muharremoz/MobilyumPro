@@ -33,6 +33,8 @@ type SahneProps = {
   istasyonlar: Istasyon[];
   seciliIstasyon: IstasyonSlug | null;
   seciliEmirId: string | null;
+  /** Seçili emir — rotası sahnede akış olarak çizilir. */
+  akisEmri?: FabrikaEmri | null;
   onIstasyonSec: (slug: IstasyonSlug | null) => void;
   onEmirSec: (id: string | null) => void;
 };
@@ -656,11 +658,132 @@ function Raf({ x, z, uzunluk }: { x: number; z: number; uzunluk: number }) {
 }
 
 // ── Ana sahne ────────────────────────────────────────────────────────────
+/** İki istasyon arası akış oku — tamamlanan bacak dolu, sıradaki akar. */
+function AkisBacagi({
+  bas,
+  bit,
+  renk,
+  aktif,
+  faz,
+}: {
+  bas: [number, number];
+  bit: [number, number];
+  renk: string;
+  /** Akan (canlı) bacak mı — tamamlanan bacaklar sabit çizilir. */
+  aktif: boolean;
+  faz: number;
+}) {
+  const nokta = React.useRef<Group>(null);
+  const dx = bit[0] - bas[0];
+  const dz = bit[1] - bas[1];
+  const uzunluk = Math.hypot(dx, dz);
+  const aci = Math.atan2(dz, dx);
+  const orta: [number, number] = [bas[0] + dx / 2, bas[1] + dz / 2];
+
+  useFrame(({ clock }) => {
+    if (!nokta.current || !aktif) return;
+    const t = ((clock.elapsedTime * 0.6 + faz) % 1);
+    nokta.current.position.x = bas[0] + dx * t;
+    nokta.current.position.z = bas[1] + dz * t;
+  });
+
+  return (
+    <group>
+      {/* Bacak çizgisi — zeminin hemen üstünde */}
+      <mesh position={[orta[0], 0.3, orta[1]]} rotation={[0, -aci, 0]}>
+        <boxGeometry args={[uzunluk, 0.04, aktif ? 0.28 : 0.16]} />
+        <meshStandardMaterial
+          color={renk}
+          transparent
+          opacity={aktif ? 0.95 : 0.45}
+        />
+      </mesh>
+      {/* Akan nokta (yalnız canlı bacakta) */}
+      {aktif && (
+        <group ref={nokta} position={[bas[0], 0.42, bas[1]]}>
+          <mesh castShadow>
+            <sphereGeometry args={[0.22, 16, 16]} />
+            <meshStandardMaterial
+              color={renk}
+              emissive={renk}
+              emissiveIntensity={0.5}
+            />
+          </mesh>
+        </group>
+      )}
+    </group>
+  );
+}
+
+/** Seçili emrin rota akışı: istasyondan istasyona bacaklar. */
+function EmirAkisi({
+  emir,
+  istasyonlar,
+}: {
+  emir: FabrikaEmri;
+  istasyonlar: Istasyon[];
+}) {
+  const map = new Map(istasyonlar.map((i) => [i.slug, i]));
+  // Rota adımlarının merkez noktaları (atlanan adımlar da çizilir, soluk).
+  const noktalar = emir.adimlar
+    .map((a) => {
+      const ist = map.get(a.istasyon);
+      if (!ist) return null;
+      const { cx, cz } = merkez(ist.konum);
+      return { adim: a, ist, nokta: [cx, cz] as [number, number] };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  return (
+    <group>
+      {noktalar.slice(0, -1).map((n, i) => {
+        const sonraki = noktalar[i + 1];
+        // Bacak "canlı": bu adım bitmiş ve sonraki işleniyorsa akış oradadır.
+        const aktif =
+          n.adim.durum === "Tamamlandı" &&
+          sonraki.adim.durum === "İşleniyor";
+        const gecildi =
+          n.adim.durum === "Tamamlandı" || n.adim.durum === "Atlandı";
+        if (!gecildi && !aktif) return null;
+        return (
+          <AkisBacagi
+            key={n.adim.sira}
+            bas={n.nokta}
+            bit={sonraki.nokta}
+            renk={sonraki.ist.renk}
+            aktif={aktif}
+            faz={i * 0.25}
+          />
+        );
+      })}
+      {/* Bulunduğu istasyonda halka */}
+      {noktalar
+        .filter((n) => n.adim.durum === "İşleniyor")
+        .map((n) => (
+          <mesh
+            key={`h-${n.adim.sira}`}
+            position={[n.nokta[0], 0.28, n.nokta[1]]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[1.5, 1.9, 32]} />
+            <meshStandardMaterial
+              color={n.ist.renk}
+              transparent
+              opacity={0.8}
+              side={2}
+            />
+          </mesh>
+        ))}
+    </group>
+  );
+}
+
 export default function FabrikaSahne({
   emirler,
   istasyonlar,
   seciliIstasyon,
   seciliEmirId,
+  akisEmri,
   onIstasyonSec,
   onEmirSec,
 }: SahneProps) {
@@ -1030,6 +1153,9 @@ export default function FabrikaSahne({
           }}
         />
       ))}
+
+      {/* Seçili emrin rota akışı (soldan seçilince) */}
+      {akisEmri && <EmirAkisi emir={akisEmri} istasyonlar={istasyonlar} />}
 
       {/* Koridorda tur atan forklift */}
       <Forklift />

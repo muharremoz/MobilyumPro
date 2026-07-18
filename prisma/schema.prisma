@@ -418,6 +418,8 @@ model Kullanici {
   email            String?
   telefon          String?
   departman        String?
+  // Üretim departmanındaki kullanıcının çalıştığı istasyon (fabrika slug'ı).
+  istasyon         String?
   // scrypt: "salt:hash" (hex) — düz şifre asla saklanmaz.
   sifreHash        String   @map("sifre_hash")
   rol              String   @default("Kullanıcı")

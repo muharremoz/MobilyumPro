@@ -67,12 +67,28 @@ export type EmirAdimi = {
   not?: string;
 };
 
+/** Emrin ürettiği modelin alt parçası (yalnız refTip="model" emirlerde). */
+export type EmirParcasi = {
+  parcaId: string;
+  ad: string;
+  /** Bir model için gereken adet (emir adediyle çarpılmamış). */
+  miktar: number;
+  gorsel?: string;
+};
+
 export type FabrikaEmri = {
   id: string;
+  /** "model" (mamül kartı) | "parca" (tek parça üretimi) */
+  refTip: "model" | "parca";
+  modelId: string;
   modelAd: string;
   adet: number;
   oncelik?: string;
   durum: string; // emir durumu (Planlandı/Üretimde/Tamamlandı/İptal)
+  /** Üretilen ürünün görseli (stok/parça dokümanlarından). */
+  gorsel?: string;
+  /** Model üretiminde alt parçalar (parça üretiminde boş). */
+  parcalar?: EmirParcasi[];
   adimlar: EmirAdimi[];
 };
 

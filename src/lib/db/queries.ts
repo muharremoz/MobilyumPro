@@ -394,6 +394,21 @@ export async function getReceteVersiyonlari(): Promise<
 }
 
 /** Fabrika sahnesi: İptal dışındaki emirler + istasyon adımları. */
+/** [{ <alan>, url, tip }] listesini id → doküman listesi olarak gruplar. */
+function gruplaDokuman<T extends { url: string; tip: string }>(
+  rows: T[],
+  alan: keyof T,
+): Map<string, { url: string; tip: string }[]> {
+  const m = new Map<string, { url: string; tip: string }[]>();
+  for (const r of rows) {
+    const id = String(r[alan]);
+    const arr = m.get(id) ?? [];
+    arr.push({ url: r.url, tip: r.tip });
+    m.set(id, arr);
+  }
+  return m;
+}
+
 export async function getFabrikaEmirleri(): Promise<
   import("../fabrika").FabrikaEmri[]
 > {
@@ -402,12 +417,69 @@ export async function getFabrikaEmirleri(): Promise<
     include: { adimlar: { orderBy: { sira: "asc" } } },
     orderBy: { id: "asc" },
   });
+
+  // Görsel + alt parça bilgisi: sol paneldeki ürün kartı için.
+  const modelIds = rows.filter((e) => e.refTip === "model").map((e) => e.modelId);
+  const parcaIds = rows.filter((e) => e.refTip === "parca").map((e) => e.modelId);
+  const [modelParcalar, stokDokumanlar, parcaKayitlari, parcaDokumanlari] =
+    await Promise.all([
+      modelIds.length
+        ? db.modelParca.findMany({
+            where: { modelId: { in: modelIds } },
+            include: { parca: { select: { id: true, ad: true } } },
+          })
+        : [],
+      db.stokDokuman.findMany({ select: { stokId: true, url: true, tip: true } }),
+      parcaIds.length
+        ? db.parca.findMany({
+            where: { id: { in: parcaIds } },
+            select: { id: true },
+          })
+        : [],
+      db.parcaDokuman.findMany({
+        select: { parcaId: true, url: true, tip: true },
+      }),
+    ]);
+
+  const stokGorsel = new Map<string, string>();
+  for (const [id, docs] of gruplaDokuman(stokDokumanlar, "stokId"))
+    stokGorsel.set(id, tumGorseller(docs)[0] ?? "");
+  const parcaGorsel = new Map<string, string>();
+  for (const [id, docs] of gruplaDokuman(parcaDokumanlari, "parcaId"))
+    parcaGorsel.set(id, tumGorseller(docs)[0] ?? "");
+
+  const parcalarByModel = new Map<
+    string,
+    import("../fabrika").EmirParcasi[]
+  >();
+  for (const mp of modelParcalar) {
+    const arr = parcalarByModel.get(mp.modelId) ?? [];
+    arr.push({
+      parcaId: mp.parcaId,
+      ad: mp.parca.ad,
+      miktar: Number(mp.miktar),
+      gorsel: parcaGorsel.get(mp.parcaId) || undefined,
+    });
+    parcalarByModel.set(mp.modelId, arr);
+  }
+  const parcaVar = new Set(parcaKayitlari.map((p) => p.id));
+
   return rows.map((e) => ({
     id: e.id,
+    refTip: (e.refTip === "parca" ? "parca" : "model") as "model" | "parca",
+    modelId: e.modelId,
     modelAd: e.modelAd,
     adet: e.adet,
     oncelik: e.oncelik ?? undefined,
     durum: e.durum,
+    gorsel:
+      (e.refTip === "parca"
+        ? parcaVar.has(e.modelId)
+          ? parcaGorsel.get(e.modelId)
+          : undefined
+        : stokGorsel.get(e.modelId)) || undefined,
+    parcalar:
+      e.refTip === "model" ? parcalarByModel.get(e.modelId) : undefined,
     adimlar: e.adimlar.map((a) => ({
       istasyon: a.istasyon as import("../fabrika").IstasyonSlug,
       sira: a.sira,
@@ -603,6 +675,8 @@ export type KullaniciGorunum = {
   email?: string;
   telefon?: string;
   departman?: string;
+  /** Üretim departmanındaki kullanıcının çalıştığı istasyon. */
+  istasyon?: string;
   rol: string;
   durum: Durum;
   /** Geçmiş tarihe işlem girebilir mi? */
@@ -619,6 +693,7 @@ export async function getKullanicilar(): Promise<KullaniciGorunum[]> {
     email: k.email ?? undefined,
     telefon: k.telefon ?? undefined,
     departman: k.departman ?? undefined,
+    istasyon: k.istasyon ?? undefined,
     rol: k.rol,
     durum: k.durum as Durum,
     eskiTarihliIslem: k.eskiTarihliIslem,

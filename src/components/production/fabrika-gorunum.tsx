@@ -3,8 +3,17 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Boxes, RefreshCw } from "lucide-react";
+import {
+  ArrowRight,
+  Boxes,
+  ChevronRight,
+  ImageIcon,
+  Layers,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
+
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +35,138 @@ const FabrikaSahne = dynamic(() => import("./fabrika-sahne"), {
     </div>
   ),
 });
+
+/** Ürün görseli kutusu — yoksa nötr yer tutucu. */
+function UrunGorsel({
+  src,
+  ad,
+  boyut = 40,
+}: {
+  src?: string;
+  ad: string;
+  boyut?: number;
+}) {
+  if (!src)
+    return (
+      <span
+        className="flex shrink-0 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground"
+        style={{ width: boyut, height: boyut }}
+      >
+        <ImageIcon className="size-4" />
+      </span>
+    );
+  return (
+    <Image
+      src={src}
+      alt={ad}
+      width={boyut}
+      height={boyut}
+      unoptimized
+      className="shrink-0 rounded-md border object-cover"
+      style={{ width: boyut, height: boyut }}
+    />
+  );
+}
+
+/** Sol panel satırı: üretimdeki emir — görsel, ilerleme ve alt parçalar. */
+function UretimSatiri({
+  e,
+  istasyonMap,
+  secili,
+  onSec,
+}: {
+  e: FabrikaEmri;
+  istasyonMap: Map<IstasyonSlug, Istasyon>;
+  secili: boolean;
+  onSec: () => void;
+}) {
+  const [acik, setAcik] = React.useState(false);
+  const aktifSlug = aktifIstasyon(e);
+  const aktifIst = aktifSlug ? istasyonMap.get(aktifSlug) : undefined;
+  const tamam = e.adimlar.filter((a) => a.durum === "Tamamlandı").length;
+  const oran = e.adimlar.length ? tamam / e.adimlar.length : 0;
+  const parcalar = e.parcalar ?? [];
+
+  return (
+    <div
+      className={cn(
+        "rounded-md border transition-colors",
+        secili ? "border-primary/40 bg-primary/5" : "bg-card hover:bg-[#fafafa]",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSec}
+        className="flex w-full cursor-pointer items-center gap-2.5 p-2 text-left"
+      >
+        <UrunGorsel src={e.gorsel} ad={e.modelAd} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-1.5">
+            <span className="truncate text-sm font-medium">{e.modelAd}</span>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              ×{e.adet}
+            </span>
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5">
+            {aktifIst && (
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: aktifIst.renk }}
+              />
+            )}
+            <span className="truncate text-xs text-muted-foreground">
+              {aktifIst?.ad ?? e.durum}
+            </span>
+            <span className="ml-auto shrink-0 text-[11px] text-muted-foreground tabular-nums">
+              {tamam}/{e.adimlar.length}
+            </span>
+          </span>
+          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-muted">
+            <span
+              className="block h-full rounded-full bg-primary/70"
+              style={{ width: `${Math.round(oran * 100)}%` }}
+            />
+          </span>
+        </span>
+      </button>
+
+      {/* Model üretiminde alt parçalar — tıklayınca altında listelenir */}
+      {parcalar.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setAcik((a) => !a)}
+            className="flex w-full cursor-pointer items-center gap-1 border-t px-2 py-1.5 text-left text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight
+              className={cn(
+                "size-3.5 transition-transform",
+                acik && "rotate-90",
+              )}
+            />
+            <Layers className="size-3" />
+            {parcalar.length} parça
+          </button>
+          {acik && (
+            <div className="flex flex-col gap-1 border-t bg-muted/20 p-2">
+              {parcalar.map((p) => (
+                <div key={p.parcaId} className="flex items-center gap-2">
+                  <UrunGorsel src={p.gorsel} ad={p.ad} boyut={26} />
+                  <span className="min-w-0 flex-1 truncate text-xs">
+                    {p.ad}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                    {(p.miktar * e.adet).toLocaleString("tr-TR")} ad
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function EmirKarti({
 e,
@@ -186,13 +327,59 @@ export function FabrikaGorunum({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 xl:flex-row">
-      {/* Sahne */}
+      {/* SOL: üretimdekiler */}
+      <div className="flex w-full shrink-0 flex-col gap-2 xl:w-72">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Layers className="size-4 text-muted-foreground" />
+            Üretimde
+            <span className="text-xs font-normal text-muted-foreground tabular-nums">
+              {aktifler.length}
+            </span>
+          </h2>
+          {seciliEmirId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setSeciliEmirId(null)}
+            >
+              Seçimi bırak
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5 overflow-y-auto xl:max-h-[calc(100dvh-12rem)]">
+          {aktifler.length === 0 ? (
+            <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Üretimde emir yok.
+            </p>
+          ) : (
+            aktifler.map((e) => (
+              <UretimSatiri
+                key={e.id}
+                e={e}
+                istasyonMap={ISTASYON_MAP}
+                secili={seciliEmirId === e.id}
+                onSec={() => {
+                  const yeni = seciliEmirId === e.id ? null : e.id;
+                  setSeciliEmirId(yeni);
+                  // Emir seçilince sahne o emrin akışını gösterir.
+                  if (yeni) setSeciliIstasyon(null);
+                }}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ORTA: sahne */}
       <div className="relative min-h-[420px] min-w-0 flex-1 overflow-hidden rounded-md border bg-[#fafafa]">
         <FabrikaSahne
           emirler={aktifler}
           istasyonlar={istasyonlar}
           seciliIstasyon={seciliIstasyon}
           seciliEmirId={seciliEmirId}
+          akisEmri={seciliEmir}
           onIstasyonSec={setSeciliIstasyon}
           onEmirSec={setSeciliEmirId}
         />
@@ -220,7 +407,7 @@ export function FabrikaGorunum({
         </div>
       </div>
 
-      {/* Sağ panel */}
+      {/* SAĞ: seçilen istasyon / emir */}
       <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold">

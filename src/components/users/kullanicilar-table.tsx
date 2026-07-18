@@ -40,6 +40,7 @@ import { UsersRoundIcon } from "@/components/ui/icons/users-round";
 import { SendIcon } from "@/components/ui/icons/send";
 import { PhoneIcon } from "@/components/ui/icons/phone";
 import { FolderTreeIcon } from "@/components/ui/icons/folder-tree";
+import { HammerIcon } from "@/components/ui/icons/hammer";
 import { ShieldCheckIcon } from "@/components/ui/icons/shield-check";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -104,6 +105,7 @@ export function KullanicilarTable({
   kullanicilar,
   roller: rollerProp,
   departmanlar: departmanlarProp,
+  istasyonlar = [],
   kolonAyari,
   kisiSecenekleri = [],
   mevcutKullaniciId = "",
@@ -112,6 +114,8 @@ export function KullanicilarTable({
   kullanicilar: KullaniciGorunum[];
   roller: string[];
   departmanlar: string[];
+  /** Üretim departmanı için istasyon seçenekleri. */
+  istasyonlar?: string[];
   /** Kolon ayarları (liste_ayar "kullanicilar"). */
   kolonAyari?: ListeKolonAyariDegeri;
   /** Kolon-ayar sheet'indeki kullanıcı seçenekleri (liste verisiyle karışmasın). */
@@ -295,6 +299,10 @@ export function KullanicilarTable({
       email: kayit.email?.trim() || undefined,
       telefon: kayit.telefon?.trim() || undefined,
       departman: kayit.departman?.trim() || undefined,
+      istasyon:
+        kayit.departman?.trim() === "Üretim"
+          ? kayit.istasyon?.trim() || undefined
+          : undefined,
       rol: kayit.rol,
       durum: kayit.durum,
       eskiTarihliIslem: kayit.eskiTarihliIslem ?? false,
@@ -324,6 +332,7 @@ export function KullanicilarTable({
       email: k.email,
       telefon: k.telefon,
       departman: k.departman,
+      istasyon: k.istasyon,
       rol: k.rol,
       durum: yeniDurum,
     });
@@ -563,7 +572,11 @@ export function KullanicilarTable({
                   {kolon.temelGorunur("departman") && (
                     <TableCell>
                       {k.departman ? (
-                        <Badge variant="secondary">{k.departman}</Badge>
+                        <Badge variant="secondary">
+                          {k.departman === "Üretim" && k.istasyon
+                            ? `${k.departman} · ${k.istasyon}`
+                            : k.departman}
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
@@ -621,6 +634,7 @@ export function KullanicilarTable({
         item={duzenlenen}
         departmanlar={departmanlar}
         onDepartmanEkle={departmanEkle}
+        istasyonlar={istasyonlar}
         roller={roller}
         onRolEkle={rolEkle}
         onSave={kaydet}
@@ -656,6 +670,7 @@ function KullaniciSheet({
   item,
   departmanlar,
   onDepartmanEkle,
+  istasyonlar,
   roller,
   onRolEkle,
   onSave,
@@ -665,6 +680,7 @@ function KullaniciSheet({
   item: KullaniciGorunum | null;
   departmanlar: string[];
   onDepartmanEkle: (d: string) => void;
+  istasyonlar: string[];
   roller: string[];
   onRolEkle: (r: string) => void;
   onSave: (k: KullaniciKayit) => Promise<boolean>;
@@ -674,6 +690,7 @@ function KullaniciSheet({
     email: "",
     telefon: "",
     departman: "",
+    istasyon: "",
     rol: "Kullanıcı" as string,
     sifre: "",
     durum: "Aktif" as "Aktif" | "Pasif",
@@ -705,6 +722,7 @@ function KullaniciSheet({
         email: item.email ?? "",
         telefon: item.telefon ?? "",
         departman: item.departman ?? "",
+        istasyon: item.istasyon ?? "",
         rol: item.rol,
         sifre: "",
         durum: item.durum,
@@ -716,6 +734,7 @@ function KullaniciSheet({
         email: "",
         telefon: "",
         departman: "",
+        istasyon: "",
         rol: "Kullanıcı",
         sifre: "",
         durum: "Aktif",
@@ -732,7 +751,11 @@ function KullaniciSheet({
       setForm((f) => ({ ...f, rol: ad })); // eklenen otomatik seçilir
     } else {
       onDepartmanEkle(ad);
-      setForm((f) => ({ ...f, departman: ad }));
+      setForm((f) => ({
+        ...f,
+        departman: ad,
+        istasyon: ad === "Üretim" ? f.istasyon : "",
+      }));
     }
     setYeniAd("");
     setYeniMod(null);
@@ -765,6 +788,8 @@ function KullaniciSheet({
       email: form.email.trim() || undefined,
       telefon: form.telefon.trim() || undefined,
       departman: form.departman || undefined,
+      istasyon:
+        form.departman === "Üretim" ? form.istasyon || undefined : undefined,
       rol: form.rol,
       durum: form.durum,
       eskiTarihliIslem: form.eskiTarihliIslem,
@@ -838,7 +863,12 @@ function KullaniciSheet({
               items={departmanlar}
               value={form.departman || null}
               onValueChange={(v) =>
-                setForm((f) => ({ ...f, departman: v ?? "" }))
+                setForm((f) => ({
+                  ...f,
+                  departman: v ?? "",
+                  // Üretim dışına çıkınca istasyon alanı gizlenir, değeri kalmasın.
+                  istasyon: v === "Üretim" ? f.istasyon : "",
+                }))
               }
               placeholder="Departman"
               addLabel="Yeni ekle"
@@ -849,6 +879,18 @@ function KullaniciSheet({
             />
           </AnimatedField>
         </div>
+        {form.departman === "Üretim" && (
+          <AnimatedField label="İstasyon" icon={HammerIcon}>
+            <SearchSelect
+              items={istasyonlar}
+              value={form.istasyon || null}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, istasyon: v ?? "" }))
+              }
+              placeholder="İstasyon"
+            />
+          </AnimatedField>
+        )}
         <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
           <div className="relative">
             <IconInput

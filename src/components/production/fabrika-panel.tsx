@@ -29,6 +29,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SekmeButonu } from "@/components/ui/sekme-butonu";
+import {
+  useKolonAyarlari,
+  KolonAyarButonu,
+  KolonAyarSheet,
+  type KolonTanim,
+  type ListeKolonAyariDegeri,
+} from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import { useOnay } from "@/components/ui/confirm-dialog";
@@ -54,13 +61,45 @@ const DURUM_RENK: Record<string, string> = {
 type Sekme = "hat" | "3d";
 type SortKey = "id" | "model" | "adet" | "istasyon" | "durum";
 
+/** Proje standardı kolon tanımları (kolon-ayarlari modülü). */
+const TEMEL_KOLONLAR: KolonTanim[] = [
+  { key: "id", label: "Emir No", aciklama: "Üretim emrinin numarası." },
+  {
+    key: "model",
+    label: "Model / Parça",
+    aciklama: "Üretilen modelin veya parçanın adı.",
+    kilitli: true,
+  },
+  { key: "adet", label: "Adet", aciklama: "Emirdeki üretim adedi." },
+  { key: "oncelik", label: "Öncelik", aciklama: "Emrin öncelik derecesi." },
+  {
+    key: "istasyon",
+    label: "İstasyon",
+    aciklama: "Emrin şu an bulunduğu istasyon.",
+  },
+  {
+    key: "ilerleme",
+    label: "İlerleme",
+    aciklama: "Tamamlanan adımların rota üzerindeki durumu.",
+  },
+  { key: "durum", label: "Durum", aciklama: "Emrin genel durumu." },
+];
+
+const EK_KOLONLAR: KolonTanim[] = [];
+
 /** Fabrika sayfası: Üretim Hattı listesi + Fabrika 3D sekmesi. */
 export function FabrikaPanel({
   emirler,
   istasyonlar,
+  kolonAyari,
+  kullanicilar = [],
+  mevcutKullaniciId = "",
 }: {
   emirler: FabrikaEmri[];
   istasyonlar: Istasyon[];
+  kolonAyari?: ListeKolonAyariDegeri;
+  kullanicilar?: { id: string; ad: string }[];
+  mevcutKullaniciId?: string;
 }) {
   const router = useRouter();
   const { onayla, uyar, onayDialog } = useOnay();
@@ -76,6 +115,16 @@ export function FabrikaPanel({
   const [not, setNot] = React.useState("");
   // Rota dışı hedef istasyon (boş = sıradaki adım).
   const [hedef, setHedef] = React.useState<string | null>(null);
+
+  // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
+  const kolon = useKolonAyarlari({
+    listeId: "uretim-hatti",
+    yol: "/uretim/fabrika",
+    temel: TEMEL_KOLONLAR,
+    ek: EK_KOLONLAR,
+    ayar: kolonAyari,
+    mevcutKullaniciId,
+  });
 
   const istasyonMap = React.useMemo(
     () => new Map(istasyonlar.map((i) => [i.slug, i])),
@@ -218,56 +267,70 @@ export function FabrikaPanel({
         )}
       >
         <div className="overflow-hidden rounded-md border bg-card">
-          <ListHeader title="Üretim Hattı" />
+          <ListHeader title="Üretim Hattı">
+            <KolonAyarButonu kolon={kolon} />
+          </ListHeader>
           <Table>
             <TableHeader>
               <TableRow>
-                <SiralaFiltreBaslik
-                  sira={sira("id")}
-                  onSirala={sirala("id")}
-                  filtre={{ tip: "metin", deger: metin, onDeger: setMetin }}
-                >
-                  Emir No
-                </SiralaFiltreBaslik>
-                <SiralaFiltreBaslik
-                  sira={sira("model")}
-                  onSirala={sirala("model")}
-                >
-                  Model / Parça
-                </SiralaFiltreBaslik>
-                <SiralaFiltreBaslik
-                  className="text-right"
-                  sira={sira("adet")}
-                  onSirala={sirala("adet")}
-                >
-                  Adet
-                </SiralaFiltreBaslik>
-                <TableHead>Öncelik</TableHead>
-                <SiralaFiltreBaslik
-                  sira={sira("istasyon")}
-                  onSirala={sirala("istasyon")}
-                  filtre={{
-                    tip: "liste",
-                    secenekler: istasyonAdlari,
-                    deger: istasyonF,
-                    onDeger: setIstasyonF,
-                  }}
-                >
-                  İstasyon
-                </SiralaFiltreBaslik>
-                <TableHead className="w-44">İlerleme</TableHead>
-                <SiralaFiltreBaslik
-                  sira={sira("durum")}
-                  onSirala={sirala("durum")}
-                  filtre={{
-                    tip: "liste",
-                    secenekler: durumlar,
-                    deger: durumF,
-                    onDeger: setDurumF,
-                  }}
-                >
-                  Durum
-                </SiralaFiltreBaslik>
+                {kolon.temelGorunur("id") && (
+                  <SiralaFiltreBaslik
+                    sira={sira("id")}
+                    onSirala={sirala("id")}
+                    filtre={{ tip: "metin", deger: metin, onDeger: setMetin }}
+                  >
+                    Emir No
+                  </SiralaFiltreBaslik>
+                )}
+                {kolon.temelGorunur("model") && (
+                  <SiralaFiltreBaslik
+                    sira={sira("model")}
+                    onSirala={sirala("model")}
+                  >
+                    Model / Parça
+                  </SiralaFiltreBaslik>
+                )}
+                {kolon.temelGorunur("adet") && (
+                  <SiralaFiltreBaslik
+                    className="text-right"
+                    sira={sira("adet")}
+                    onSirala={sirala("adet")}
+                  >
+                    Adet
+                  </SiralaFiltreBaslik>
+                )}
+                {kolon.temelGorunur("oncelik") && <TableHead>Öncelik</TableHead>}
+                {kolon.temelGorunur("istasyon") && (
+                  <SiralaFiltreBaslik
+                    sira={sira("istasyon")}
+                    onSirala={sirala("istasyon")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: istasyonAdlari,
+                      deger: istasyonF,
+                      onDeger: setIstasyonF,
+                    }}
+                  >
+                    İstasyon
+                  </SiralaFiltreBaslik>
+                )}
+                {kolon.temelGorunur("ilerleme") && (
+                  <TableHead className="w-44">İlerleme</TableHead>
+                )}
+                {kolon.temelGorunur("durum") && (
+                  <SiralaFiltreBaslik
+                    sira={sira("durum")}
+                    onSirala={sirala("durum")}
+                    filtre={{
+                      tip: "liste",
+                      secenekler: durumlar,
+                      deger: durumF,
+                      onDeger: setDurumF,
+                    }}
+                  >
+                    Durum
+                  </SiralaFiltreBaslik>
+                )}
                 <TableHead className="w-28" />
               </TableRow>
             </TableHeader>
@@ -275,7 +338,7 @@ export function FabrikaPanel({
               {filtreli.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={kolon.gorunurTemelSayisi + 1}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Üretim emri yok. Üretim Planlama&apos;dan emir
@@ -335,85 +398,99 @@ export function FabrikaPanel({
                       ]}
                     >
                       <TableRow>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {e.id}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">
-                          {e.modelAd}
-                        </TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">
-                          {e.adet}
-                        </TableCell>
-                        <TableCell>
-                          {e.oncelik ? (
+                        {kolon.temelGorunur("id") && (
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {e.id}
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("model") && (
+                          <TableCell className="text-sm font-medium">
+                            {e.modelAd}
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("adet") && (
+                          <TableCell className="text-right text-sm tabular-nums">
+                            {e.adet}
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("oncelik") && (
+                          <TableCell>
+                            {e.oncelik ? (
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  e.oncelik === "Acil"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : e.oncelik === "Yüksek"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-muted text-muted-foreground"
+                                }
+                              >
+                                {e.oncelik}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("istasyon") && (
+                          <TableCell className="text-sm">
+                            {bitti || !aktif ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                <span
+                                  className="size-2 shrink-0 rounded-full"
+                                  style={{ backgroundColor: aktif.renk }}
+                                />
+                                {aktif.ad}
+                                {!isleniyor && (
+                                  <span className="text-xs text-muted-foreground">
+                                    (sırada)
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("ilerleme") && (
+                          <TableCell>
+                            <span className="flex items-center gap-2">
+                              <span className="flex gap-0.5">
+                                {e.adimlar.map((a) => (
+                                  <span
+                                    key={a.sira}
+                                    title={istasyonMap.get(a.istasyon)?.ad}
+                                    className={cn(
+                                      "h-1.5 w-3.5 rounded-full",
+                                      a.durum === "Tamamlandı"
+                                        ? "bg-emerald-500"
+                                        : a.durum === "İşleniyor"
+                                          ? "bg-amber-500"
+                                          : "bg-muted",
+                                    )}
+                                  />
+                                ))}
+                              </span>
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {tamam}/{e.adimlar.length}
+                              </span>
+                            </span>
+                          </TableCell>
+                        )}
+                        {kolon.temelGorunur("durum") && (
+                          <TableCell>
                             <Badge
                               variant="secondary"
                               className={
-                                e.oncelik === "Acil"
-                                  ? "bg-rose-100 text-rose-800"
-                                  : e.oncelik === "Yüksek"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-muted text-muted-foreground"
+                                DURUM_RENK[e.durum] ??
+                                "bg-muted text-muted-foreground"
                               }
                             >
-                              {e.oncelik}
+                              {e.durum}
                             </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {bitti || !aktif ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span className="flex items-center gap-1.5">
-                              <span
-                                className="size-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: aktif.renk }}
-                              />
-                              {aktif.ad}
-                              {!isleniyor && (
-                                <span className="text-xs text-muted-foreground">
-                                  (sırada)
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-2">
-                            <span className="flex gap-0.5">
-                              {e.adimlar.map((a) => (
-                                <span
-                                  key={a.sira}
-                                  title={istasyonMap.get(a.istasyon)?.ad}
-                                  className={cn(
-                                    "h-1.5 w-3.5 rounded-full",
-                                    a.durum === "Tamamlandı"
-                                      ? "bg-emerald-500"
-                                      : a.durum === "İşleniyor"
-                                        ? "bg-amber-500"
-                                        : "bg-muted",
-                                  )}
-                                />
-                              ))}
-                            </span>
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              {tamam}/{e.adimlar.length}
-                            </span>
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={
-                              DURUM_RENK[e.durum] ??
-                              "bg-muted text-muted-foreground"
-                            }
-                          >
-                            {e.durum}
-                          </Badge>
-                        </TableCell>
+                          </TableCell>
+                        )}
                         <TableCell>
                           {ilerletilebilir && (
                             <Button
@@ -487,6 +564,8 @@ export function FabrikaPanel({
           <UretimGecmisi emir={gecmisEmir} istasyonMap={istasyonMap} />
         )}
       </FormSheet>
+
+      <KolonAyarSheet kolon={kolon} kullanicilar={kullanicilar} />
 
       {onayDialog}
     </div>
