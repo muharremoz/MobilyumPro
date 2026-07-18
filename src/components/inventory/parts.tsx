@@ -103,7 +103,7 @@ export function Parts({
   );
   const [secili, setSecili] = React.useState<Set<string>>(new Set());
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -210,7 +210,10 @@ export function Parts({
       toast.success(`${ids.length} parça silindi`);
     } else {
       setListe((l) => [...kaldirilan, ...l]);
-      toast.error(res.error ?? "Silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Silinemedi.",
+      });
     }
   }
   async function kopyala(p: Parca) {

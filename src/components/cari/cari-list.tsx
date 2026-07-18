@@ -78,7 +78,7 @@ export function CariList({
   yonetici?: boolean;
 }) {
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(cariler);
   // Kolon filtreleri (başlık popover'larından)
   const [kodFiltre, setKodFiltre] = React.useState("");
@@ -207,7 +207,10 @@ export function CariList({
       toast.success(`${ids.length} cari hesap silindi`);
     } else {
       setListe(onceki);
-      toast.error(res.error ?? "Silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Silinemedi.",
+      });
     }
   }
 

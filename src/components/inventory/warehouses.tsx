@@ -60,7 +60,7 @@ export function Warehouses({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(depolar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({
@@ -77,7 +77,6 @@ export function Warehouses({
   );
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [duzenlenen, setDuzenlenen] = React.useState<Depo | null>(null);
-
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -167,7 +166,10 @@ export function Warehouses({
     const sonuc = await depoSil([id]);
     if (!sonuc.ok) {
       setListe(onceki);
-      toast.error(sonuc.error ?? "Depo silinemedi");
+      await uyar({
+        title: "Silinemedi",
+        description: sonuc.error ?? "Depo silinemedi",
+      });
       return;
     }
     toast.success("Depo silindi");

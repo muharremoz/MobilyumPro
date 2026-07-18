@@ -143,7 +143,7 @@ function GrupSatiri({
 }
 
 export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(gruplar);
   // Sütunlu (Finder) gezinme yolu — seçili grup id'leri (kök → derin).
   const [yolIds, setYolIds] = React.useState<string[]>([]);
@@ -226,7 +226,10 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
     const res = await grupSil(g.id);
     if (!res.ok) {
       setListe(onceki);
-      toast.error(res.error ?? "Grup silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Grup silinemedi.",
+      });
       return;
     }
     toast.success("Grup silindi");

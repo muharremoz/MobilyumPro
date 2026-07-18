@@ -226,7 +226,7 @@ export function ProductsTable({
   const [uretimHedef, setUretimHedef] = React.useState<Model | null>(null);
   const [etiketHedef, setEtiketHedef] = React.useState<Model | null>(null);
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
 
   // Filtre + sıralama
   const filtreli = React.useMemo(() => {
@@ -322,7 +322,10 @@ export function ProductsTable({
       toast.success(`${ids.length} model silindi`);
     } else {
       setListe((l) => [...kaldirilan, ...l]);
-      toast.error(res.error ?? "Silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Silinemedi.",
+      });
     }
   }
 

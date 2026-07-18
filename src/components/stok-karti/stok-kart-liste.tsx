@@ -136,7 +136,7 @@ export function StokKartListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(stoklar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
@@ -250,7 +250,10 @@ export function StokKartListe({
     const res = await stokSil(s.id);
     if (!res.ok) {
       setListe(onceki);
-      toast.error(res.error ?? "Stok kartı silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Stok kartı silinemedi.",
+      });
       return;
     }
     toast.success("Stok kartı silindi");

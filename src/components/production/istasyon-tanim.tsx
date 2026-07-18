@@ -41,7 +41,7 @@ export function IstasyonTanim({
 }: {
   istasyonlar?: Istasyon[];
 }) {
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(istasyonlar);
   const [acik, setAcik] = React.useState(false);
   const [form, setForm] = React.useState<Form>(BOS);
@@ -74,7 +74,10 @@ export function IstasyonTanim({
     const res = await istasyonSil(i.slug);
     if (!res.ok) {
       setListe(onceki);
-      toast.error(res.error ?? "İstasyon silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "İstasyon silinemedi.",
+      });
       return;
     }
     toast.success("İstasyon silindi");

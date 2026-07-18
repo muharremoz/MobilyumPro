@@ -111,7 +111,7 @@ export function ReceteListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
   // Kolon filtreleri (başlık popover'larından)
   const [adFiltre, setAdFiltre] = React.useState("");
@@ -268,7 +268,10 @@ export function ReceteListe({
       return;
     const res = await parcaSil([p.id]);
     if (!res.ok) {
-      toast.error(res.error ?? "Silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Silinemedi.",
+      });
       return;
     }
     setListe((l) => l.filter((x) => x.id !== p.id));

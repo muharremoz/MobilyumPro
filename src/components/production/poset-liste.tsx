@@ -57,7 +57,7 @@ export function PosetListe({
   yonetici?: boolean;
 }) {
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(posetler);
   // Kolon filtreleri (başlık popover'larından)
   const [kodFiltre, setKodFiltre] = React.useState("");
@@ -71,7 +71,6 @@ export function PosetListe({
   const [sort, setSort] = React.useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "kod", dir: "asc" },
   );
-
 
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -133,7 +132,10 @@ export function PosetListe({
     const res = await posetSil([id]);
     if (!res.ok) {
       setListe(onceki);
-      toast.error(res.error ?? "Poşet silinemedi");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Poşet silinemedi",
+      });
       return;
     }
     toast.success("Poşet silindi");

@@ -148,7 +148,7 @@ export function DefinitionsPage({
   /** Düz tanımlar (DB'den, tip → kayıtlar). */
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
 } = {}) {
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   // Türetilmiş veri önce memo'lanır: usePropAynasi kimlik (===) karşılaştırır,
   // her render'da yeniden hesaplanan nesne verilirse sonsuz döngü olur.
   const tanimVerisi = React.useMemo(
@@ -336,7 +336,10 @@ export function DefinitionsPage({
     const res = await tanimSil(ids);
     if (!res.ok) {
       setData(onceki);
-      toast.error(res.error ?? "Tanım silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Tanım silinemedi.",
+      });
       return;
     }
     toast.success(`${ids.length} kayıt silindi`);

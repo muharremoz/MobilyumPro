@@ -118,7 +118,7 @@ export function KullanicilarTable({
   mevcutKullaniciId?: string;
   yonetici?: boolean;
 }) {
-  const { onayla, onayDialog } = useOnay();
+  const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
     Record<MetinKolon, string>
@@ -263,7 +263,10 @@ export function KullanicilarTable({
       toast.success(`${ids.length} kullanıcı silindi`);
     } else {
       setListe((l) => [...kaldirilan, ...l]);
-      toast.error(res.error ?? "Silinemedi.");
+      await uyar({
+        title: "Silinemedi",
+        description: res.error ?? "Silinemedi.",
+      });
     }
   }
 

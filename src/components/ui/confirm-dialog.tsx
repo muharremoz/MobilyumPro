@@ -3,7 +3,10 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
-import type { AnimatedIcon, AnimatedIconHandle } from "@/components/ui/icon-input";
+import type {
+  AnimatedIcon,
+  AnimatedIconHandle,
+} from "@/components/ui/icon-input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +26,8 @@ export type OnaySecenek = {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Bilgilendirme modu: tek buton, iptal yok (uyar() bunu kullanır). */
+  tekButon?: boolean;
 };
 
 /**
@@ -44,6 +49,28 @@ export function useOnay() {
     });
   }, []);
 
+  /**
+   * Bilgilendirme modalı — engel/uyarı mesajları için (toast yerine).
+   * Kullanıcı okuyup kapatır; seçim istemez.
+   */
+  const uyar = React.useCallback(
+    (opts: Omit<OnaySecenek, "tekButon" | "destructive">) => {
+      return new Promise<boolean>((resolve) => {
+        cevapRef.current = resolve;
+        setDurum({
+          open: true,
+          opts: {
+            ...opts,
+            tekButon: true,
+            destructive: false,
+            confirmLabel: opts.confirmLabel ?? "Anladım",
+          },
+        });
+      });
+    },
+    [],
+  );
+
   const bitir = React.useCallback((sonuc: boolean) => {
     cevapRef.current?.(sonuc);
     cevapRef.current = null;
@@ -62,11 +89,12 @@ export function useOnay() {
       confirmLabel={durum.opts.confirmLabel ?? "Sil"}
       cancelLabel={durum.opts.cancelLabel ?? "İptal"}
       destructive={durum.opts.destructive ?? true}
+      tekButon={durum.opts.tekButon}
       onConfirm={() => bitir(true)}
     />
   );
 
-  return { onayla, onayDialog };
+  return { onayla, uyar, onayDialog };
 }
 
 /**
@@ -82,6 +110,7 @@ export function ConfirmDialog({
   confirmLabel = "Onayla",
   cancelLabel = "İptal",
   destructive = false,
+  tekButon = false,
   onConfirm,
 }: {
   open: boolean;
@@ -92,6 +121,8 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Tek buton (bilgilendirme) — İptal gizlenir. */
+  tekButon?: boolean;
   onConfirm?: () => void;
 }) {
   const iconRef = React.useRef<AnimatedIconHandle>(null);
@@ -119,7 +150,7 @@ export function ConfirmDialog({
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          {!tekButon && <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>}
           <AlertDialogAction
             variant={destructive ? "destructive" : "default"}
             onClick={onConfirm}
