@@ -49,6 +49,19 @@ interface HexagonPatternProps extends React.SVGProps<SVGSVGElement> {
 
 type HexPoint = readonly [number, number]
 
+/**
+ * PROJE NOTU (upstream'den sapma): koordinatlar yuvarlanıyor.
+ *
+ * ECMAScript, Math.cos/Math.sin için son bit hassasiyetini şarta bağlamaz;
+ * Node ile tarayıcı ~1e-16 farklı sonuç verebiliyor. Ham değerler `points`
+ * string'ine girince SSR ile istemci render'ı tutmuyor ve React hydration
+ * uyuşmazlığı bildiriyor. 4 hane, ekranda görünmeyecek kadar ince ama iki
+ * tarafın aynı string'i üretmesine yetiyor.
+ *
+ * Bu bileşen shadcn ile yeniden eklenirse (--overwrite) bu düzeltme kaybolur.
+ */
+const yuvarla = (v: number) => Math.round(v * 1e4) / 1e4
+
 function hexVertexList(
   cx: number,
   cy: number,
@@ -58,7 +71,10 @@ function hexVertexList(
   const startAngle = direction === "horizontal" ? 0 : 30
   return Array.from({ length: 6 }, (_, i) => {
     const angle = ((startAngle + i * 60) * Math.PI) / 180
-    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)] as const
+    return [
+      yuvarla(cx + r * Math.cos(angle)),
+      yuvarla(cy + r * Math.sin(angle)),
+    ] as const
   })
 }
 

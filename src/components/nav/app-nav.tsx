@@ -126,7 +126,8 @@ function RailButton({
       className={cn(
         "group/rail flex h-9 w-full shrink-0 cursor-pointer items-center rounded-md text-sm font-medium text-[#4d4d4d] transition-colors hover:bg-[#f2f2f2] hover:text-[#171717]",
         daralt ? "justify-center" : "gap-2 px-2",
-        (active || open) && "bg-[#ebebeb] text-[#171717] hover:bg-[#ebebeb]",
+        (active || open) &&
+          "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary",
       )}
     >
       <RailIcon ref={ref} size={16} className="shrink-0" />
@@ -253,7 +254,8 @@ function PanelItem({
           }}
           className={cn(
             "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-[#4d4d4d] transition-colors hover:bg-[#f2f2f2] hover:text-[#171717]",
-            active && "bg-[#ebebeb] text-[#171717] hover:bg-[#ebebeb]",
+            active &&
+              "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary",
             yakinda && "text-muted-foreground/60",
           )}
         >
@@ -371,11 +373,16 @@ function AppNavInner() {
             daralt ? "justify-center" : "gap-2 px-2",
           )}
         >
-          <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card">
+          {/* Marka işareti — altıgen. Gerçek logo hazır olunca görsel buraya
+              aynı clip-path ile oturur. */}
+          <span
+            className="flex size-7 shrink-0 items-center justify-center overflow-hidden bg-primary text-primary-foreground [clip-path:polygon(25%_2%,75%_2%,100%_50%,75%_98%,25%_98%,0%_50%)]"
+            aria-hidden="true"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.jpg"
-              alt="MobilyumPro"
+              alt=""
               className="size-full object-cover"
             />
           </span>
