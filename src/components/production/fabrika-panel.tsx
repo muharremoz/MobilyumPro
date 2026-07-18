@@ -194,7 +194,12 @@ export function FabrikaPanel({
           res.error ?? "Emir ilerletilemedi.",
           ...(res.eksikler?.map(
             (x) =>
-              `${x.ad}: gereken ${x.gereken.toFixed(1)} ${x.birim}, eldeki ${x.eldeki.toFixed(1)}`,
+              `${x.ad}: gereken ${x.gereken.toFixed(1)} ${x.birim}, eldeki ${x.eldeki.toFixed(1)}` +
+              // Fiziksel stok yetiyorsa sebep rezervdir; yazılmazsa kullanıcı
+              // "stok var, neden olmuyor" diye kalır.
+              (x.baskaEmirRezervi > 0
+                ? `, ${x.baskaEmirRezervi.toFixed(1)} rezerve`
+                : ""),
           ) ?? []),
         ].join(" · "),
       });

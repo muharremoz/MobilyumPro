@@ -220,6 +220,11 @@ export type EksikMalzeme = {
   birim: string;
   gereken: number;
   eldeki: number;
+  /**
+   * Bu malzemeden BAŞKA açık emirler için ayrılmış miktar.
+   * Fiziksel stok yettiği halde eksik çıkıyorsa sebebi budur.
+   */
+  baskaEmirRezervi: number;
 };
 
 type DusumSonuc = {
@@ -239,9 +244,13 @@ async function dusumYaz(
   if (net.length === 0) return { ok: true, eksikler: [] };
 
   // Parametreler stok bakiyesinden bağımsız; transaction dışında okunabilir.
-  const [negatifIzin, depo] = await Promise.all([
+  // Rezerv de burada: BOM patlatması pahalı, transaction içinde yapılsaydı
+  // kilitler gereksiz uzun tutulurdu. Rezerv türetilmiş bir sayı, anlık
+  // tazeliği kritik değil; fiziksel stok kontrolü transaction içinde kalıyor.
+  const [negatifIzin, depo, rezerv] = await Promise.all([
     parametreDegeri("negatif_stok").then(acikMi),
     parametreDegeri("varsayilan_depo"),
+    rezervDetayi(),
   ]);
 
   const bugun = new Date(new Date().toISOString().slice(0, 10));
@@ -259,22 +268,46 @@ async function dusumYaz(
     for (const k of net) {
       const m = malzemeMap.get(k.malzemeId);
       if (!m) continue;
-      if (Number(m.stokMiktar) < k.miktar) {
+      // Bu emrin KENDİ rezervi düşülür; yoksa emir kendi ihtiyacı yüzünden
+      // kendini engellerdi.
+      const ic = rezerv.detay.get(k.malzemeId);
+      let baskaEmirRezervi = 0;
+      if (ic) {
+        // Sırası olmayan emir (ör. kapanmış) en sona atılır; yalnızca
+        // KENDİNDEN ÖNCEKİ emirler engeller — bkz. RezervDetay.sira.
+        const benimSira = rezerv.sira.get(emir.id) ?? Number.MAX_SAFE_INTEGER;
+        for (const [eId, miktar] of ic) {
+          if (eId === emir.id) continue;
+          const oSira = rezerv.sira.get(eId) ?? Number.MAX_SAFE_INTEGER;
+          if (oSira < benimSira) baskaEmirRezervi += miktar;
+        }
+      }
+      const eldeki = Number(m.stokMiktar);
+      // Kullanılabilir = fiziksel stok − başka emirlere ayrılmış miktar.
+      // Önceden yalnız fiziksel stoka bakılıyordu; rezerv salt gösterimlikti
+      // ve bir emir başka emrin malzemesini sessizce tüketebiliyordu.
+      if (eldeki - baskaEmirRezervi < k.miktar) {
         eksikler.push({
           malzemeId: k.malzemeId,
           ad: m.ad,
           birim: m.stokBirimi,
           gereken: k.miktar,
-          eldeki: Number(m.stokMiktar),
+          eldeki,
+          baskaEmirRezervi,
         });
       }
     }
     if (eksikler.length > 0 && !negatifIzin) {
       // Hiçbir şey yazılmadı; transaction boş kapanır.
+      const rezervdenMi = eksikler.some(
+        (e) => e.eldeki >= e.gereken && e.baskaEmirRezervi > 0,
+      );
       sonuc = {
         ok: false,
         eksikler,
-        error: "Stok yetersiz — Negatif Stok parametresi kapalı.",
+        error: rezervdenMi
+          ? "Stok yetersiz — bir kısmı başka üretim emirleri için rezerve."
+          : "Stok yetersiz — Negatif Stok parametresi kapalı.",
       };
       return;
     }
@@ -562,10 +595,30 @@ export type StokOzeti = {
   kullanilabilir: number;
 };
 
-/** Açık emirlerin (Planlandı + Üretimde) henüz düşülmemiş ihtiyacı. */
-export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
-  const [malzemeler, emirler, hareketler] = await Promise.all([
-    db.stok.findMany({ where: { grup: { in: ["Hammadde", "Yarı Mamül"] } } }),
+export type RezervDetay = {
+  /** malzemeId → (emirId → kalan rezerv) */
+  detay: Map<string, Map<string, number>>;
+  /**
+   * emirId → sıra. Küçük olan önce gelir (oluşturma tarihi, eşitlikte id).
+   *
+   * Sıra ŞART: rezerv koşulsuz uygulansaydı kilitlenme olurdu — 10 stok
+   * varken 8'er ihtiyaçlı iki emirde her biri diğerinin rezervi yüzünden
+   * engellenir, hiçbiri ilerleyemezdi. Bir emir yalnız KENDİNDEN ÖNCEKİ
+   * emirlerin rezervi tarafından engellenir; böylece en eski emir daima
+   * ilerleyebilir ve sıra doğal olarak çözülür.
+   */
+  sira: Map<string, number>;
+};
+
+/**
+ * Açık emirlerin henüz düşülmemiş ihtiyacı — EMİR KIRILIMLI.
+ *
+ * Kırılım gerekli çünkü bir emri düşerken "başkalarının rezervi"
+ * hesaplanmalı; toplam rezerv kullanılsaydı emir kendi rezervi yüzünden
+ * kendini engellerdi.
+ */
+export async function rezervDetayi(): Promise<RezervDetay> {
+  const [emirler, hareketler] = await Promise.all([
     db.uretimEmri.findMany({
       where: { durum: { in: ["Planlandı", "Üretimde"] } },
     }),
@@ -580,7 +633,6 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
     dusulen.set(k, (dusulen.get(k) ?? 0) + Number(h.miktar));
   }
 
-  const rezerve = new Map<string, number>();
   const satirlar = await parcaSatirlariniYukle();
   const rota = await rotaSluglari();
   const ilkSlug = rota[0];
@@ -592,10 +644,19 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
     bomByModel.set(b.modelId, arr);
   }
 
+  // Sıra: önce oluşturma tarihi, eşitlikte id — deterministik olmalı, yoksa
+  // aynı anda iki emir birbirini "önceki" sayıp yine kilitlenebilirdi.
+  const sirali = [...emirler].sort((a, b) => {
+    const f = a.olusturma.getTime() - b.olusturma.getTime();
+    return f !== 0 ? f : a.id.localeCompare(b.id);
+  });
+  const sira = new Map<string, number>();
+  sirali.forEach((e, i) => sira.set(e.id, i));
+
+  const detay = new Map<string, Map<string, number>>();
   for (const e of emirler) {
     const topla = new Map<string, Map<IstasyonSlug, number>>();
     if (e.refTip === "parca") {
-      // Parça emri: reçetesi doğrudan patlatılır.
       parcayiPatlat(e.modelId, e.adet, satirlar, topla, new Set(), ilkSlug);
     }
     for (const mp of bomByModel.get(e.modelId) ?? []) {
@@ -612,9 +673,27 @@ export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
       let toplam = 0;
       for (const [, m] of ic) toplam += m;
       const kalan = toplam - (dusulen.get(`${e.id}:${malzemeId}`) ?? 0);
-      if (kalan > 0.0005)
-        rezerve.set(malzemeId, (rezerve.get(malzemeId) ?? 0) + kalan);
+      if (kalan > 0.0005) {
+        const ic2 = detay.get(malzemeId) ?? new Map<string, number>();
+        ic2.set(e.id, (ic2.get(e.id) ?? 0) + kalan);
+        detay.set(malzemeId, ic2);
+      }
     }
+  }
+  return { detay, sira };
+}
+
+/** Açık emirlerin (Planlandı + Üretimde) henüz düşülmemiş ihtiyacı. */
+export async function stokOzetleri(): Promise<Map<string, StokOzeti>> {
+  const [malzemeler, detay] = await Promise.all([
+    db.stok.findMany({ where: { grup: { in: ["Hammadde", "Yarı Mamül"] } } }),
+    rezervDetayi(),
+  ]);
+  const rezerve = new Map<string, number>();
+  for (const [malzemeId, ic] of detay.detay) {
+    let t = 0;
+    for (const [, m] of ic) t += m;
+    rezerve.set(malzemeId, t);
   }
 
   const sonuc = new Map<string, StokOzeti>();

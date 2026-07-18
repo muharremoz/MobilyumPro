@@ -316,7 +316,12 @@ export function FabrikaGorunum({
         description: res.eksikler
           ?.map(
             (e) =>
-              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}`,
+              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}` +
+              // Fiziksel stok yetiyorsa sebep rezervdir; yazılmazsa kullanıcı
+              // "stok var, neden olmuyor" diye kalır.
+              (e.baskaEmirRezervi > 0
+                ? `, ${e.baskaEmirRezervi.toFixed(1)} rezerve`
+                : ""),
           )
           .join(" · "),
       });
@@ -327,7 +332,12 @@ export function FabrikaGorunum({
         description: res.eksikler
           .map(
             (e) =>
-              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}`,
+              `${e.ad}: gereken ${e.gereken.toFixed(1)} ${e.birim}, eldeki ${e.eldeki.toFixed(1)}` +
+              // Fiziksel stok yetiyorsa sebep rezervdir; yazılmazsa kullanıcı
+              // "stok var, neden olmuyor" diye kalır.
+              (e.baskaEmirRezervi > 0
+                ? `, ${e.baskaEmirRezervi.toFixed(1)} rezerve`
+                : ""),
           )
           .join(" · "),
       });
