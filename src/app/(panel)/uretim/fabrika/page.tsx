@@ -1,4 +1,4 @@
-import { FabrikaGorunum } from "@/components/production/fabrika-gorunum";
+import { FabrikaPanel } from "@/components/production/fabrika-panel";
 import { getFabrikaEmirleri, getIstasyonlar } from "@/lib/db/queries";
 
 // Sahne canlı veri gösterir — her istekte taze okunur.
@@ -11,7 +11,7 @@ export default async function FabrikaRoute() {
   ]);
   return (
     <div className="h-full min-h-0">
-      <FabrikaGorunum emirler={emirler} istasyonlar={istasyonlar} />
+      <FabrikaPanel emirler={emirler} istasyonlar={istasyonlar} />
     </div>
   );
 }
