@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { HexagonPattern } from "@/components/ui/hexagon-pattern";
 
 /**
@@ -49,12 +50,23 @@ const DOLU_PETEKLER: Array<[number, number]> = [
   [94, 0],
 ];
 
-export function BaslikDokusu() {
+export function BaslikDokusu({
+  renkSinifi = "fill-primary/8 stroke-primary/12",
+}: {
+  /**
+   * Doku rengi. Varsayılan primary; özet kartları gibi anlamı renkle taşıyan
+   * yerlerde (kritik/tükenen) şeridin tonuna uydurulur.
+   */
+  renkSinifi?: string;
+} = {}) {
   return (
     <HexagonPattern
       radius={12}
       hexagons={DOLU_PETEKLER}
-      className="z-0 fill-primary/8 stroke-primary/12 [mask-image:linear-gradient(to_left,transparent_0px,black_24px,transparent_min(97%,calc(100%_-_150px)))]"
+      className={cn(
+        "z-0 [mask-image:linear-gradient(to_left,transparent_0px,black_24px,transparent_min(97%,calc(100%_-_150px)))]",
+        renkSinifi,
+      )}
     />
   );
 }

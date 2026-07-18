@@ -14,12 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { SearchSelect } from "@/components/ui/search-select";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { OzetKart } from "@/components/ui/ozet-kart";
 import {
   Table,
   TableBody,
@@ -196,27 +191,31 @@ export function StockTracker({
         <>
           {/* Özet kartları */}
           <div className="grid gap-3 sm:grid-cols-4">
-            <MetricCard
-              label="Mevcut Stok"
-              value={`${mevcutStok} ${birim}`}
-              icon={<Boxes className="size-4" />}
+            <OzetKart
+              ikon={Boxes}
+              etiket="Mevcut Stok"
+              deger={`${mevcutStok} ${birim}`}
+              // Negatif stok bir tutarsızlık işaretidir; sessizce geçmesin.
+              ton={mevcutStok < 0 ? "rose" : "primary"}
             />
-            <MetricCard
-              label="Toplam Giriş"
-              value={`${ozet.giris} ${birim}`}
-              tone="emerald"
-              icon={<TrendingUp className="size-4 text-emerald-600" />}
+            <OzetKart
+              ikon={TrendingUp}
+              etiket="Toplam Giriş"
+              deger={`${ozet.giris} ${birim}`}
+              ton="emerald"
             />
-            <MetricCard
-              label="Toplam Çıkış"
-              value={`${ozet.cikis} ${birim}`}
-              tone="rose"
-              icon={<TrendingDown className="size-4 text-rose-600" />}
+            <OzetKart
+              ikon={TrendingDown}
+              etiket="Toplam Çıkış"
+              deger={`${ozet.cikis} ${birim}`}
+              ton="rose"
             />
-            <MetricCard
-              label="Son Hareket"
-              value={ozet.sonHareket ? formatTarih(ozet.sonHareket) : "—"}
-              icon={<Calendar className="size-4" />}
+            <OzetKart
+              ikon={Calendar}
+              etiket="Son Hareket"
+              deger={ozet.sonHareket ? formatTarih(ozet.sonHareket) : "—"}
+              // Tarih sayı değil; büyük punto kart içinde taşmasın.
+              className="[&_.tabular-nums]:text-lg"
             />
           </div>
 
@@ -306,36 +305,3 @@ export function StockTracker({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  tone?: "emerald" | "rose";
-}) {
-  return (
-    <Card size="sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1.5">
-        <CardTitle className="text-xs font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-        <span className="text-muted-foreground">{icon}</span>
-      </CardHeader>
-      <CardContent>
-        <div
-          className={cn(
-            "text-xl font-semibold tabular-nums",
-            tone === "emerald" && "text-emerald-600",
-            tone === "rose" && "text-rose-600",
-          )}
-        >
-          {value}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

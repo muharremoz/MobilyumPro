@@ -10,9 +10,9 @@ import {
   History,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ListHeader } from "@/components/ui/list-header";
+import { OzetKart } from "@/components/ui/ozet-kart";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/kolon-ayarlari";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -134,22 +133,25 @@ export function StockStatus({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard
-          icon={<Boxes className="size-4" />}
-          label="Toplam Stok"
-          value={toplamAdet}
+        <OzetKart
+          ikon={Boxes}
+          etiket="Toplam Stok"
+          deger={toplamAdet.toLocaleString("tr-TR")}
+          alt={`${urunler.length} kalem`}
         />
-        <MetricCard
-          icon={<AlertTriangle className="size-4 text-amber-600" />}
-          label="Kritik Stok"
-          value={kritik}
-          tone="amber"
+        <OzetKart
+          ikon={AlertTriangle}
+          etiket="Kritik Stok"
+          deger={kritik}
+          ton={kritik > 0 ? "amber" : "primary"}
+          alt="5 adet ve altı"
         />
-        <MetricCard
-          icon={<AlertOctagon className="size-4 text-rose-600" />}
-          label="Tükenen"
-          value={tukenen}
-          tone="rose"
+        <OzetKart
+          ikon={AlertOctagon}
+          etiket="Tükenen"
+          deger={tukenen}
+          ton={tukenen > 0 ? "rose" : "primary"}
+          alt="stoğu sıfır"
         />
       </div>
 
@@ -301,36 +303,3 @@ export function StockStatus({
   );
 }
 
-function MetricCard({
-  icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  tone?: "amber" | "rose";
-}) {
-  return (
-    <Card size="sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-1.5">
-        <CardTitle className="text-xs font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-        <span className="text-muted-foreground">{icon}</span>
-      </CardHeader>
-      <CardContent>
-        <div
-          className={cn(
-            "text-2xl font-semibold tabular-nums",
-            tone === "amber" && "text-amber-600",
-            tone === "rose" && "text-rose-600",
-          )}
-        >
-          {value}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
