@@ -339,7 +339,9 @@ export function ProductionPlan({
     const t = deger.replace(/[^\d]/g, "");
     setSecimler((arr) =>
       arr.map((s) =>
-        s.id === id ? { ...s, adet: t === "" ? "" : String(Math.max(1, Number(t))) } : s,
+        s.id === id
+          ? { ...s, adet: t === "" ? "" : String(Math.max(1, Number(t))) }
+          : s,
       ),
     );
   }
@@ -428,6 +430,14 @@ export function ProductionPlan({
         ? aktifDepolar.find((d) => d.id === depoId)?.ad
         : undefined;
     if (depoAd) p.set("depo", depoAd);
+    // Üretim bağlamı: talep hangi üretim için açıldı (müşteri/termin/öncelik).
+    const musteriAd =
+      neden === "siparis"
+        ? musteriler.find((m) => m.id === musteriId)?.ad
+        : undefined;
+    if (musteriAd) p.set("musteri", musteriAd);
+    if (termin) p.set("termin", termin);
+    if (oncelik) p.set("oncelik", oncelik);
     router.push(`/satin-alma/yeni?${p.toString()}`);
   }
 
@@ -466,7 +476,7 @@ export function ProductionPlan({
           neden === "siparis"
             ? musteriler.find((m) => m.id === musteriId)?.ad
             : undefined,
-        hedefDepo: neden === "stok" ? depoId ?? undefined : undefined,
+        hedefDepo: neden === "stok" ? (depoId ?? undefined) : undefined,
       }));
       const res = await uretimEmriOlustur(payload);
       if (!res.ok) {
@@ -589,7 +599,10 @@ export function ProductionPlan({
           </TableCell>
           <TableCell>
             {durum === "eksik" ? (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+              <Badge
+                variant="secondary"
+                className="bg-amber-100 text-amber-800"
+              >
                 Eksik var
               </Badge>
             ) : durum === "yeterli" ? (
@@ -742,7 +755,9 @@ export function ProductionPlan({
             <SearchSelect
               items={ONCELIKLER}
               value={oncelik}
-              onValueChange={(v) => setOncelik((v as UretimOncelik) ?? "Normal")}
+              onValueChange={(v) =>
+                setOncelik((v as UretimOncelik) ?? "Normal")
+              }
               placeholder="Öncelik"
               searchPlaceholder="Ara..."
             />
@@ -840,8 +855,7 @@ export function ProductionPlan({
                         </div>
                       </TableCell>
                     </TableRow>
-                    {!kapali &&
-                      blok.satirlar.map((s) => satirRender(s, true))}
+                    {!kapali && blok.satirlar.map((s) => satirRender(s, true))}
                   </React.Fragment>
                 );
               })
@@ -1084,7 +1098,13 @@ export function ProductionPlan({
   );
 }
 
-function Alan({ label, children }: { label: string; children: React.ReactNode }) {
+function Alan({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="grid gap-1.5">
       <label className="text-xs font-medium text-muted-foreground">
@@ -1167,7 +1187,9 @@ function MalzemeTablosu({
                   yetersiz && "font-medium text-rose-600",
                 )}
               >
-                {m.toplamMiktar.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}{" "}
+                {m.toplamMiktar.toLocaleString("tr-TR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
                 {m.malzeme.birim}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">

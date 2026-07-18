@@ -105,9 +105,7 @@ function ilkSatirlar(
   const sfMap = new Map(
     sonFiyatlar.map((s) => [`${s.malzemeId}:${s.cariId}`, s.fiyat]),
   );
-  const sartMap = new Map(
-    sartlar.map((s) => [`${s.stokId}:${s.cariId}`, s]),
-  );
+  const sartMap = new Map(sartlar.map((s) => [`${s.stokId}:${s.cariId}`, s]));
   const rows: Satir[] = [];
   for (const k of kalemler) {
     const m = mMap.get(k.malzemeId);
@@ -165,6 +163,7 @@ export function AlisForm({
   talepId,
   mod = "alis",
   talepModeller,
+  talepUretim,
   baslangicDepo,
   baslangicFirma,
   mevcutKullaniciId,
@@ -181,6 +180,12 @@ export function AlisForm({
   mod?: "alis" | "talep";
   /** Talep modunda: talebin hangi modeller için açıldığı (üretim planından). */
   talepModeller?: string;
+  /** Talebi doğuran üretim planının bağlamı (müşteri/termin/öncelik). */
+  talepUretim?: {
+    musteri?: string;
+    termin?: string;
+    oncelik?: string;
+  };
   /** Başlangıçta seçili depo (üretim planındaki hedef depo). */
   baslangicDepo?: string;
   /** Alış modunda başlangıç tedarikçisi (cari karttan "Yeni Alış"). */
@@ -228,7 +233,13 @@ export function AlisForm({
   const perFirma = talepModu;
   const firmaZorunlu = !talepModu;
   const [satirlar, setSatirlar] = React.useState<Satir[]>(() =>
-    ilkSatirlar(baslangicKalemler, malzemeler, tedarikciler, sonFiyatlar, sartlar),
+    ilkSatirlar(
+      baslangicKalemler,
+      malzemeler,
+      tedarikciler,
+      sonFiyatlar,
+      sartlar,
+    ),
   );
   // Alış modunda fiş firması — cari karttan gelen firma ya da ön dolu satırların ilki.
   const [fisFirmaId, setFisFirmaId] = React.useState<string>(() => {
@@ -322,8 +333,11 @@ export function AlisForm({
   // Döviz bazında toplamlar (TL + her yabancı döviz ayrı satır).
   const dovizToplamlari = React.useMemo(() => {
     const m = new Map<Doviz, number>();
-    for (const s of gecerli) m.set(s.doviz, (m.get(s.doviz) ?? 0) + satirTutari(s));
-    return [...m.entries()].sort(([a], [b]) => (a === "TL" ? -1 : b === "TL" ? 1 : 0));
+    for (const s of gecerli)
+      m.set(s.doviz, (m.get(s.doviz) ?? 0) + satirTutari(s));
+    return [...m.entries()].sort(([a], [b]) =>
+      a === "TL" ? -1 : b === "TL" ? 1 : 0,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satirlar]);
   // Genel toplam ₺ — herhangi bir dövizin kuru yoksa null (gösterilemez).
@@ -333,16 +347,17 @@ export function AlisForm({
     return tl === null ? null : t + tl;
   }, 0);
   const dovizVar = dovizToplamlari.some(([d]) => d !== "TL");
-  const kurEksik = dovizToplamlari.some(
-    ([d]) => d !== "TL" && !kurMap.has(d),
-  );
+  const kurEksik = dovizToplamlari.some(([d]) => d !== "TL" && !kurMap.has(d));
   // Tedarikçi bazında özet (₺ karşılığıyla; kuru olmayan döviz ham eklenir).
   const firmaOzeti = React.useMemo(() => {
     const m = new Map<string, number>();
     for (const s of gecerli) {
       if (!s.cariId) continue;
       const tutar = satirTutari(s);
-      m.set(s.cariId, (m.get(s.cariId) ?? 0) + (tlKarsiligi(tutar, s.doviz) ?? tutar));
+      m.set(
+        s.cariId,
+        (m.get(s.cariId) ?? 0) + (tlKarsiligi(tutar, s.doviz) ?? tutar),
+      );
     }
     return [...m.entries()].map(([id, tutar]) => ({
       ad: cariMap.get(id)?.ad ?? id,
@@ -361,8 +376,7 @@ export function AlisForm({
         : "";
     // Fiyat önceliği: anlaşma şartı > son alış > kart fiyatı.
     const sart = varsayilan ? sartMap.get(`${m.id}:${varsayilan}`) : undefined;
-    const fiyat =
-      sart?.fiyat ?? firmaSonFiyat(m.id, varsayilan, m.birimFiyat);
+    const fiyat = sart?.fiyat ?? firmaSonFiyat(m.id, varsayilan, m.birimFiyat);
     setSatirlar((s) => [
       ...s,
       {
@@ -410,7 +424,9 @@ export function AlisForm({
       prev.map((s) => {
         const m = malzemeMap.get(s.malzemeId);
         const genel = m?.birimFiyat ?? s.sonFiyat;
-        const sart = cariId ? sartMap.get(`${s.malzemeId}:${cariId}`) : undefined;
+        const sart = cariId
+          ? sartMap.get(`${s.malzemeId}:${cariId}`)
+          : undefined;
         const fiyat = sart?.fiyat ?? firmaSonFiyat(s.malzemeId, cariId, genel);
         return {
           ...s,
@@ -430,9 +446,7 @@ export function AlisForm({
       const s = n[i];
       const m = malzemeMap.get(s.malzemeId);
       const genel = m?.birimFiyat ?? s.sonFiyat;
-      const sart = cariId
-        ? sartMap.get(`${s.malzemeId}:${cariId}`)
-        : undefined;
+      const sart = cariId ? sartMap.get(`${s.malzemeId}:${cariId}`) : undefined;
       const fiyat = sart?.fiyat ?? firmaSonFiyat(s.malzemeId, cariId, genel);
       n[i] = {
         ...s,
@@ -502,6 +516,9 @@ export function AlisForm({
           modeller: talepModeller,
           aciklama: aciklama.trim() || undefined,
           depo: depo || undefined,
+          uretimMusteri: talepUretim?.musteri,
+          uretimTermin: talepUretim?.termin,
+          uretimOncelik: talepUretim?.oncelik,
           kullaniciId: mevcutKullaniciId || undefined,
         },
       );
@@ -672,12 +689,14 @@ export function AlisForm({
               </p>
             ) : (
               <>
-                <div className={cn(
+                <div
+                  className={cn(
                     "grid items-center gap-2 border-b bg-muted/20 px-3 py-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase",
                     perFirma
                       ? "grid-cols-[1fr_170px_120px_96px_100px_110px_36px]"
                       : "grid-cols-[1fr_120px_96px_100px_110px_36px]",
-                  )}>
+                  )}
+                >
                   <span>Malzeme</span>
                   {perFirma && <span>Firma</span>}
                   <span>Miktar</span>
@@ -828,44 +847,44 @@ export function AlisForm({
                           {alisliMalzemeler.has(s.malzemeId) &&
                             s.sonFiyat > 0.005 &&
                             Math.abs(fark) > 0.005 && (
-                            <TooltipProvider delay={0}>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <span
-                                    className={cn(
-                                      "absolute top-1/2 right-1.5 -translate-y-1/2 cursor-help",
-                                      fark > 0
-                                        ? "text-rose-500"
-                                        : "text-emerald-600",
+                              <TooltipProvider delay={0}>
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <span
+                                        className={cn(
+                                          "absolute top-1/2 right-1.5 -translate-y-1/2 cursor-help",
+                                          fark > 0
+                                            ? "text-rose-500"
+                                            : "text-emerald-600",
+                                        )}
+                                      />
+                                    }
+                                  >
+                                    {fark > 0 ? (
+                                      <TrendingUp className="size-3.5" />
+                                    ) : (
+                                      <TrendingDown className="size-3.5" />
                                     )}
-                                  />
-                                }
-                              >
-                                {fark > 0 ? (
-                                  <TrendingUp className="size-3.5" />
-                                ) : (
-                                  <TrendingDown className="size-3.5" />
-                                )}
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                Son alışa göre{" "}
-                                {s.sonFiyat > 0 && (
-                                  <span className="font-semibold tabular-nums">
-                                    %
-                                    {Math.abs(
-                                      (fark / s.sonFiyat) * 100,
-                                    ).toLocaleString("tr-TR", {
-                                      maximumFractionDigits: 1,
-                                    })}{" "}
-                                  </span>
-                                )}
-                                {fark > 0 ? "pahalı" : "ucuz"} (
-                                {paraFmt(Math.abs(fark), s.doviz)} fark)
-                              </TooltipContent>
-                            </Tooltip>
-                            </TooltipProvider>
-                          )}
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    Son alışa göre{" "}
+                                    {s.sonFiyat > 0 && (
+                                      <span className="font-semibold tabular-nums">
+                                        %
+                                        {Math.abs(
+                                          (fark / s.sonFiyat) * 100,
+                                        ).toLocaleString("tr-TR", {
+                                          maximumFractionDigits: 1,
+                                        })}{" "}
+                                      </span>
+                                    )}
+                                    {fark > 0 ? "pahalı" : "ucuz"} (
+                                    {paraFmt(Math.abs(fark), s.doviz)} fark)
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                         </div>
                         <SearchSelect
                           items={["TL", "USD", "EUR"]}
@@ -884,7 +903,9 @@ export function AlisForm({
                               const tl = tlKarsiligi(satirTutari(s), s.doviz);
                               return (
                                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                                  {tl !== null ? `≈ ${formatTL(tl)}` : "kur yok"}
+                                  {tl !== null
+                                    ? `≈ ${formatTL(tl)}`
+                                    : "kur yok"}
                                 </span>
                               );
                             })()}
@@ -1021,31 +1042,31 @@ export function AlisForm({
                 olarak talebe yazılır.
               </p>
             ) : (
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setFiyatGuncelle((v) => !v)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setFiyatGuncelle((v) => !v);
-                }
-              }}
-              className="flex cursor-pointer items-start justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-            >
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">
-                  Birim fiyatları güncelle
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setFiyatGuncelle((v) => !v)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setFiyatGuncelle((v) => !v);
+                  }
+                }}
+                className="flex cursor-pointer items-start justify-between gap-3 rounded-md border border-input px-3 py-2.5 transition-colors outline-none hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+              >
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">
+                    Birim fiyatları güncelle
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Satır fiyatı malzemenin birim fiyatına yazılır (son alış).
+                  </span>
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  Satır fiyatı malzemenin birim fiyatına yazılır (son alış).
-                </span>
-              </span>
-              <Switch
-                checked={fiyatGuncelle}
-                className="pointer-events-none mt-0.5 shrink-0 data-checked:bg-emerald-600"
-              />
-            </div>
+                <Switch
+                  checked={fiyatGuncelle}
+                  className="pointer-events-none mt-0.5 shrink-0 data-checked:bg-emerald-600"
+                />
+              </div>
             )}
             <div className="mt-3">
               <Textarea
@@ -1147,7 +1168,12 @@ function DagitMetrik({
           {metin}
         </div>
       ) : (
-        <div className={cn("mt-0.5 truncate text-lg font-semibold tabular-nums", renk)}>
+        <div
+          className={cn(
+            "mt-0.5 truncate text-lg font-semibold tabular-nums",
+            renk,
+          )}
+        >
           {deger}
           {birim && (
             <span className="ml-1 text-xs font-normal text-muted-foreground">
@@ -1215,7 +1241,11 @@ function DagitModal({
   function ekle() {
     setRows((arr) => [
       ...arr,
-      { cariAd: null, miktar: String(Math.max(0, kalan)), fiyat: satir.birimFiyat },
+      {
+        cariAd: null,
+        miktar: String(Math.max(0, kalan)),
+        fiyat: satir.birimFiyat,
+      },
     ]);
   }
   function sil(i: number) {
@@ -1267,7 +1297,11 @@ function DagitModal({
             />
             {tam ? (
               // Tamamlandı — sayı yerine durum metni.
-              <DagitMetrik etiket="Kalan" metin="Tamamı dağıtıldı" tone="emerald" />
+              <DagitMetrik
+                etiket="Kalan"
+                metin="Tamamı dağıtıldı"
+                tone="emerald"
+              />
             ) : (
               <DagitMetrik
                 etiket={asim ? "Aşım" : "Kalan"}
@@ -1284,11 +1318,7 @@ function DagitModal({
             <div
               className={cn(
                 "h-full rounded-full transition-all",
-                tam
-                  ? "bg-emerald-500"
-                  : asim
-                    ? "bg-rose-500"
-                    : "bg-amber-500",
+                tam ? "bg-emerald-500" : asim ? "bg-rose-500" : "bg-amber-500",
               )}
               style={{ width: `${oran * 100}%` }}
             />
@@ -1319,7 +1349,9 @@ function DagitModal({
             >
               <SearchSelect
                 items={tedarikciler
-                  .filter((t) => t.ad === r.cariAd || !seciliAdlar.includes(t.ad))
+                  .filter(
+                    (t) => t.ad === r.cariAd || !seciliAdlar.includes(t.ad),
+                  )
                   .map((t) => t.ad)}
                 value={r.cariAd}
                 onValueChange={(v) => guncelle(i, { cariAd: v })}
@@ -1343,7 +1375,9 @@ function DagitModal({
                 inputMode="decimal"
                 placeholder="0,00"
                 value={r.fiyat}
-                onChange={(e) => guncelle(i, { fiyat: paraMaskele(e.target.value) })}
+                onChange={(e) =>
+                  guncelle(i, { fiyat: paraMaskele(e.target.value) })
+                }
                 className="h-8 text-right tabular-nums"
               />
               <Button

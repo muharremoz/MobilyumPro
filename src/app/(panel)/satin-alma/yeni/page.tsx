@@ -14,9 +14,7 @@ import {
  * "kalem" parametresi (üretim planından gelir): "malzemeId:miktar,..."
  * biçiminde; satın alma satırlarını önceden doldurmak için ayrıştırılır.
  */
-function kalemAyristir(
-  raw?: string,
-): { malzemeId: string; miktar: number }[] {
+function kalemAyristir(raw?: string): { malzemeId: string; miktar: number }[] {
   if (!raw) return [];
   return raw
     .split(",")
@@ -36,14 +34,26 @@ export default async function YeniAlisRoute({
     mod?: string;
     modeller?: string;
     depo?: string;
+    musteri?: string;
+    termin?: string;
+    oncelik?: string;
     /** Bir tedarikçiden bekleyen tüm siparişleri faturaya doldur. */
     siparisFirma?: string;
     /** Cari karttan "Yeni Alış" — fişin tedarikçisini önceden seçer. */
     firma?: string;
   }>;
 }) {
-  const { kalem, mod, modeller, depo, siparisFirma, firma } =
-    await searchParams;
+  const {
+    kalem,
+    mod,
+    modeller,
+    depo,
+    musteri,
+    termin,
+    oncelik,
+    siparisFirma,
+    firma,
+  } = await searchParams;
   const [
     cariler,
     malzemeler,
@@ -104,6 +114,7 @@ export default async function YeniAlisRoute({
       kurlar={kurlar}
       mod={mod === "talep" ? "talep" : "alis"}
       talepModeller={modeller}
+      talepUretim={{ musteri, termin, oncelik }}
       baslangicDepo={depo}
       baslangicFirma={siparisFirma ?? firma}
       mevcutKullaniciId={mevcut?.id ?? ""}

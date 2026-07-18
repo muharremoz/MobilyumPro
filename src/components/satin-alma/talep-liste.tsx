@@ -843,6 +843,36 @@ export function TalepListe({
                   <span className="text-foreground">{detay.depo}</span>
                 </span>
               )}
+              {/* Talebi doğuran üretim: kim için, ne zamana, hangi öncelikte */}
+              {detay.uretimMusteri && (
+                <span>
+                  Müşteri:{" "}
+                  <span className="text-foreground">{detay.uretimMusteri}</span>
+                </span>
+              )}
+              {detay.uretimTermin && (
+                <span>
+                  Termin:{" "}
+                  <span className="text-foreground">
+                    {formatTarih(detay.uretimTermin)}
+                  </span>
+                </span>
+              )}
+              {detay.uretimOncelik && detay.uretimOncelik !== "Normal" && (
+                <span>
+                  Öncelik:{" "}
+                  <span
+                    className={cn(
+                      "font-medium",
+                      detay.uretimOncelik === "Acil"
+                        ? "text-rose-600"
+                        : "text-amber-700",
+                    )}
+                  >
+                    {detay.uretimOncelik}
+                  </span>
+                </span>
+              )}
               {detay.alisId && (
                 <button
                   type="button"

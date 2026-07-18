@@ -2265,6 +2265,10 @@ export async function talepOlustur(
     aciklama?: string;
     /** Mal kabulde önerilecek varsayılan depo (örn. plandaki hedef depo). */
     depo?: string;
+    /** Talebi doğuran üretimin bağlamı (sipariş üretiminde müşteri). */
+    uretimMusteri?: string;
+    uretimTermin?: string;
+    uretimOncelik?: string;
     /** Oluşturan (audit) — TODO: oturum gelince sunucudan çözülecek. */
     kullaniciId?: string;
   },
@@ -2326,6 +2330,9 @@ export async function talepOlustur(
         modeller: opts?.modeller ?? null,
         aciklama: opts?.aciklama ?? null,
         depo: opts?.depo ?? null,
+        uretimMusteri: opts?.uretimMusteri ?? null,
+        uretimTermin: opts?.uretimTermin ? tarihDate(opts.uretimTermin) : null,
+        uretimOncelik: opts?.uretimOncelik ?? null,
         olusturanAd: k?.adSoyad ?? null,
         satirlar: {
           create: [...grup.values()].map((g) => ({

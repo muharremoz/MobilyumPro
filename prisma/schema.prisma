@@ -622,6 +622,11 @@ model SatinAlmaTalep {
 
   // Mal kabulde önerilecek varsayılan depo (üretim planındaki hedef depo).
   depo           String?
+  // Talebi doğuran üretim planının bağlamı (hangi üretim için?).
+  // Sipariş üretimiyse müşteri; stok üretiminde boş kalır.
+  uretimMusteri  String?   @map("uretim_musteri")
+  uretimTermin   DateTime? @map("uretim_termin") @db.Date
+  uretimOncelik  String?   @map("uretim_oncelik")
   // Audit izi — TODO: oturum altyapısı gelince gerçek kimlikten.
   olusturanAd    String?   @map("olusturan_ad")
   onaylayanAd    String?   @map("onaylayan_ad")

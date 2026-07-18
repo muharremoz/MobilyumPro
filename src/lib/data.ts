@@ -602,6 +602,10 @@ export type SatinAlmaTalep = {
   alisId?: string;
   /** Mal kabulde önerilecek varsayılan depo. */
   depo?: string;
+  /** Talebi doğuran üretimin bağlamı (sipariş üretiminde müşteri). */
+  uretimMusteri?: string;
+  uretimTermin?: string;
+  uretimOncelik?: string;
   // Audit izi
   olusturanAd?: string;
   onaylayanAd?: string;
