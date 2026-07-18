@@ -41,6 +41,7 @@ import { formatTL, type Malzeme, type Model, type Parca } from "@/lib/data";
 import { parcaSil, receteKopyala,
   silinebilirMi,
 } from "@/lib/db/actions";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const KATEGORILER = [
   "Karyola",
@@ -101,7 +102,6 @@ export function ReceteListe({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   parcalar: Parca[];
   malzemeler: Malzeme[];
@@ -110,8 +110,10 @@ export function ReceteListe({
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("uretim-takibi");
   const router = useRouter();
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
@@ -312,13 +314,15 @@ export function ReceteListe({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Reçeteler" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/parcalar/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Reçete
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/parcalar/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Reçete
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -413,6 +417,7 @@ export function ReceteListe({
                 aksiyonlar={[
                   {
                     etiket: "Düzenle",
+                    gizli: !yetki.isUpdate,
                     ikon: Pencil,
                     onSecim: () => router.push(`/parcalar/${p.id}`),
                   },
@@ -426,6 +431,7 @@ export function ReceteListe({
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     onSecim: () => sil(p),

@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 export type Tanim = {
   id: string;
@@ -131,7 +132,6 @@ export function DefinitionsPage({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
   gruplar = [],
   tanimlar,
 }: {
@@ -144,12 +144,14 @@ export function DefinitionsPage({
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
   /** Stok grup ağacı (DB'den). */
   gruplar?: StokGrup[];
   /** Düz tanımlar (DB'den, tip → kayıtlar). */
   tanimlar?: Record<TanimTip, TanimKalemi[]>;
 } = {}) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("tanimlamalar");
   const { onayla, uyar, onayDialog } = useOnay();
   // Türetilmiş veri önce memo'lanır: usePropAynasi kimlik (===) karşılaştırır,
   // her render'da yeniden hesaplanan nesne verilirse sonsuz döngü olur.
@@ -510,6 +512,7 @@ export function DefinitionsPage({
                   aksiyonlar={[
                     {
                       etiket: "Düzenle",
+                      gizli: !yetki.isUpdate,
                       ikon: Pencil,
                       onSecim: () => {
                         setDuzenlenen(x);
@@ -518,6 +521,7 @@ export function DefinitionsPage({
                     },
                     {
                       etiket: "Sil",
+                      gizli: !yetki.isDelete,
                       ikon: Trash2,
                       tehlike: true,
                       ayracOnce: true,

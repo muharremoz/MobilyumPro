@@ -37,6 +37,7 @@ import { cariSil,
   silinebilirMi,
 } from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi", "Banka"];
 const TIP_RENK: Record<CariTip, string> = {
@@ -70,15 +71,16 @@ export function CariList({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   cariler: Cari[];
   /** Kolon ayarları (liste_ayar "cariler"). */
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("cari");
   const router = useRouter();
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(cariler);
@@ -274,13 +276,15 @@ export function CariList({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Cari Hesaplar" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/cari/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Cari
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/cari/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Cari
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -391,11 +395,13 @@ export function CariList({
                 aksiyonlar={[
                   {
                     etiket: "Düzenle",
+                    gizli: !yetki.isUpdate,
                     ikon: Pencil,
                     onSecim: () => router.push(`/cari/${c.id}`),
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     ayracOnce: true,

@@ -29,6 +29,7 @@ import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Poset } from "@/lib/data";
 import { posetSil } from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 type SortKey =
   | "kod"
@@ -74,7 +75,6 @@ export function PosetListe({
   mevcutKullaniciId = "",
   modeller = [],
   parcalar = [],
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   posetler: Poset[];
   /** Kolon ayarları (liste_ayar "posetler"). */
@@ -85,8 +85,10 @@ export function PosetListe({
   modeller?: AdKaydi[];
   /** "Ait olduğu ürün" ve "Paket" kolonlarında parça adı için. */
   parcalar?: AdKaydi[];
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("uretim-takibi");
   const router = useRouter();
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(posetler);
@@ -230,13 +232,15 @@ export function PosetListe({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Malzeme Poşetleri">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/uretim/poset/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Malzeme Poşeti
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/uretim/poset/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Malzeme Poşeti
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -338,11 +342,13 @@ export function PosetListe({
                 aksiyonlar={[
                   {
                     etiket: "Düzenle",
+                    gizli: !yetki.isUpdate,
                     ikon: Pencil,
                     onSecim: () => router.push(`/uretim/poset/${p.id}`),
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     ayracOnce: true,

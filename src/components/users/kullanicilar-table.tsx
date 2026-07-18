@@ -72,6 +72,7 @@ import {
   type KullaniciKayit,
   silinebilirMi,
 } from "@/lib/db/actions";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const ROL_RENK: Record<string, string> = {
   Yönetici: "bg-violet-100 text-violet-800",
@@ -109,7 +110,6 @@ export function KullanicilarTable({
   kolonAyari,
   kisiSecenekleri = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   kullanicilar: KullaniciGorunum[];
   roller: string[];
@@ -121,8 +121,10 @@ export function KullanicilarTable({
   /** Kolon-ayar sheet'indeki kullanıcı seçenekleri (liste verisiyle karışmasın). */
   kisiSecenekleri?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("kullanicilar");
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = React.useState<KullaniciGorunum[]>(kullanicilar);
   const [metinFiltre, setMetinFiltre] = React.useState<
@@ -396,15 +398,17 @@ export function KullanicilarTable({
           >
             Yetkilendirmeler
           </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
-            <Plus className="size-4" /> Yeni Kullanıcı
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setDuzenlenen(null);
+                setSheetOpen(true);
+              }}
+            >
+              <Plus className="size-4" /> Yeni Kullanıcı
+            </Button>
+          )}
         </ListHeader>
 
         <Table>
@@ -507,6 +511,7 @@ export function KullanicilarTable({
                 aksiyonlar={[
                   {
                     etiket: "Düzenle",
+                    gizli: !yetki.isUpdate,
                     ikon: Pencil,
                     onSecim: () => {
                       setDuzenlenen(k);
@@ -537,6 +542,7 @@ export function KullanicilarTable({
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     onSecim: () => sil([k.id]),

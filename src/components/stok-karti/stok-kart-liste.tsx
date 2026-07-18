@@ -45,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, type StokKarti, type StokGrubu } from "@/lib/data";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const GRUPLAR: StokGrubu[] = ["Hammadde", "Yarı Mamül", "Mamül", "Hizmet"];
 const GRUP_RENK: Record<StokGrubu, string> = {
@@ -128,15 +129,16 @@ export function StokKartListe({
   kolonAyari,
   kullanicilar = BOS_KULLANICILAR,
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   stoklar: StokKarti[];
   /** Kolon ayarları (liste_ayar "stok-kartlari"). */
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("stok");
   const router = useRouter();
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(stoklar);
@@ -340,13 +342,15 @@ export function StokKartListe({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Malzeme" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/stok-karti/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Malzeme
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/stok-karti/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Malzeme
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -541,6 +545,7 @@ export function StokKartListe({
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     ayracOnce: true,

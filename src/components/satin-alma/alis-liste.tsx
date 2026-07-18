@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, formatTarih, type Alis } from "@/lib/data";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 type SortKey = "id" | "tarih" | "cariAd" | "depo" | "kalem" | "toplam";
 
@@ -60,15 +61,16 @@ export function AlisListe({
   kolonAyari,
   kullanicilar = BOS_KULLANICILAR,
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   alislar: Alis[];
   /** Kolon ayarları (liste_ayar "alislar"). */
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("satin-alma");
   const router = useRouter();
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", cariAd: "" });
@@ -139,13 +141,15 @@ export function AlisListe({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Satın Almalar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/satin-alma/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Alış
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/satin-alma/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Alış
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>

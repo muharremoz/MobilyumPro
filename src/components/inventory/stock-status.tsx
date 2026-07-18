@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Model } from "@/lib/data";
+import { useYonetici } from "@/components/yetki/yetki-baglam";
 
 function durum(stok: number) {
   if (stok === 0)
@@ -61,14 +62,14 @@ export function StockStatus({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   urunler: Model[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
   const router = useRouter();
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });

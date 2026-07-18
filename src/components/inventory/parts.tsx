@@ -46,6 +46,7 @@ import { flattenParca } from "@/lib/bom";
 import { parcaKaydet, parcaSil,
   silinebilirMi,
 } from "@/lib/db/actions";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const KATEGORILER: ParcaKategori[] = [
   "Karyola",
@@ -85,15 +86,16 @@ export function Parts({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   parcalar: Parca[];
   malzemeler: Malzeme[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("stok");
   const [liste, setListe] = React.useState<Parca[]>(parcalar);
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", ad: "" });
@@ -292,9 +294,11 @@ export function Parts({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Parçalar" filtreler={cip.sonuc()}>
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button size="sm" onClick={() => router.push("/parcalar/yeni")}>
-            <Plus className="size-4" /> Yeni Parça
-          </Button>
+          {yetki.isAdd && (
+            <Button size="sm" onClick={() => router.push("/parcalar/yeni")}>
+              <Plus className="size-4" /> Yeni Parça
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -429,6 +433,7 @@ export function Parts({
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     ayracOnce: true,

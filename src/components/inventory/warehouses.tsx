@@ -35,6 +35,7 @@ import { depoKaydet, depoSil,
   silinebilirMi,
 } from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 type SortKey = "id" | "ad" | "sehir" | "kapasite" | "doluluk" | "durum";
 
@@ -54,14 +55,15 @@ export function Warehouses({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   depolar: Depo[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("stok");
   const { onayla, uyar, onayDialog } = useOnay();
   const [liste, setListe] = usePropAynasi(depolar);
   // Kolon filtreleri (başlık popover'larından)
@@ -193,15 +195,17 @@ export function Warehouses({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Depolar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            onClick={() => {
-              setDuzenlenen(null);
-              setSheetOpen(true);
-            }}
-          >
-            <Plus className="size-4" /> Yeni Depo
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setDuzenlenen(null);
+                setSheetOpen(true);
+              }}
+            >
+              <Plus className="size-4" /> Yeni Depo
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -302,6 +306,7 @@ export function Warehouses({
                   aksiyonlar={[
                     {
                       etiket: "Düzenle",
+                      gizli: !yetki.isUpdate,
                       ikon: Pencil,
                       onSecim: () => {
                         setDuzenlenen(d);
@@ -310,6 +315,7 @@ export function Warehouses({
                     },
                     {
                       etiket: "Sil",
+                      gizli: !yetki.isDelete,
                       ikon: Trash2,
                       tehlike: true,
                       ayracOnce: true,

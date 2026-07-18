@@ -63,6 +63,7 @@ import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
 import { UretimeGonderDialog } from "./uretime-gonder-dialog";
 import { EtiketDialog } from "./etiket-dialog";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -181,7 +182,6 @@ export function ProductsTable({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   urunler: Model[];
   initialKategori?: string;
@@ -195,8 +195,10 @@ export function ProductsTable({
   kullanicilar?: { id: string; ad: string }[];
   /** Görünürlük hesabında "ben" (TODO: oturumdan gelecek). */
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("uretim-plan");
   const [liste, setListe] = React.useState<Model[]>(urunler);
   // Sütun ayarları — proje standardı (ui/kolon-ayarlari).
   const kolon = useKolonAyarlari({
@@ -505,13 +507,15 @@ export function ProductsTable({
           >
             <Download className="size-4" /> Dışa Aktar
           </Button>
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/urunler/yeni" />}
-          >
-            <Plus className="size-4" /> Yeni Model
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/urunler/yeni" />}
+            >
+              <Plus className="size-4" /> Yeni Model
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>
@@ -726,6 +730,7 @@ export function ProductsTable({
                   },
                   {
                     etiket: "Sil",
+                    gizli: !yetki.isDelete,
                     ikon: Trash2,
                     tehlike: true,
                     ayracOnce: true,

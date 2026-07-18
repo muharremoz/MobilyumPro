@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 import {
   useKolonAyarlari,
   KolonAyarButonu,
@@ -67,13 +68,14 @@ export function StockCount({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 } = {}) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("stok");
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({ id: "", sorumlu: "" });
   const [depoF, setDepoF] = React.useState("Tümü");
@@ -134,12 +136,14 @@ export function StockCount({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Sayımlar">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            onClick={() => toast.success("Yeni sayım planlandı (demo)")}
-          >
-            <Plus className="size-4" /> Yeni Sayım
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              onClick={() => toast.success("Yeni sayım planlandı (demo)")}
+            >
+              <Plus className="size-4" /> Yeni Sayım
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>

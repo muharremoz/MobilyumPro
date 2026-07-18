@@ -34,6 +34,7 @@ import {
   type Model,
   type Malzeme,
 } from "@/lib/data";
+import { useYonetici } from "@/components/yetki/yetki-baglam";
 
 const TUR_RENK: Record<StokHareketTuru, string> = {
   Giriş: "bg-emerald-100 text-emerald-800",
@@ -75,7 +76,6 @@ export function StockMovements({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   hareketler: StokHareket[];
   urunler: Model[];
@@ -83,8 +83,9 @@ export function StockMovements({
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
   const router = useRouter();
   // Kolon filtreleri (başlık popover'larından)
   const [metinFiltre, setMetinFiltre] = React.useState({

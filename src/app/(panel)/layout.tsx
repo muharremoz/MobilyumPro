@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/nav/app-nav";
 import { AppHeader } from "@/components/nav/app-header";
 import { AraclarSaglayici } from "@/components/araclar/araclar-baglam";
+import { YetkiSaglayici } from "@/components/yetki/yetki-baglam";
 import { getOturum } from "@/lib/oturum";
 import { kullaniciYetkileri } from "@/lib/yetki-sunucu";
 
@@ -27,6 +28,7 @@ export default async function PanelLayout({
     .map(([modul]) => modul);
 
   return (
+    <YetkiSaglayici moduller={yetkiler} yonetici={oturum.yonetici}>
     <AraclarSaglayici>
     <div className="relative flex h-svh overflow-hidden bg-background">
       <AppNav izinliModuller={izinliModuller} />
@@ -38,5 +40,6 @@ export default async function PanelLayout({
       </main>
     </div>
     </AraclarSaglayici>
+    </YetkiSaglayici>
   );
 }

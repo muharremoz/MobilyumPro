@@ -42,6 +42,7 @@ import {
   type UretimDurum,
   type UretimOncelik,
 } from "@/lib/data";
+import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
 
 const DURUMLAR: UretimDurum[] = [
   "Planlandı",
@@ -117,14 +118,15 @@ export function ProductionOrders({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   emirler: UretimEmri[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
+  const yetki = useYetki("uretim-takibi");
   const router = useRouter();
   // Context menu aksiyonları
   const [ilerleyen, setIlerleyen] = React.useState<string | null>(null);
@@ -244,13 +246,15 @@ export function ProductionOrders({
       <div className="overflow-hidden rounded-md border bg-card">
         <ListHeader title="Üretim Emirleri">
           {yonetici && <KolonAyarButonu kolon={kolon} />}
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/uretim/plan" />}
-          >
-            <Plus className="size-4" /> Yeni Üretim Emri
-          </Button>
+          {yetki.isAdd && (
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/uretim/plan" />}
+            >
+              <Plus className="size-4" /> Yeni Üretim Emri
+            </Button>
+          )}
         </ListHeader>
         <Table>
           <TableHeader>

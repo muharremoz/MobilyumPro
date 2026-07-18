@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, formatTarih, type Siparis, type SiparisDurum } from "@/lib/data";
+import { useYonetici } from "@/components/yetki/yetki-baglam";
 
 const durumlar: SiparisDurum[] = [
   "Beklemede",
@@ -52,14 +53,14 @@ export function SiparislerTable({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
-  yonetici = true, // TODO: oturum altyapısı gelince gerçek rolden gelecek
 }: {
   siparisler: Siparis[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
-  yonetici?: boolean;
 }) {
+  // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
+  const yonetici = useYonetici();
   // Kolon filtreleri (başlık popover'larından)
   const [noFiltre, setNoFiltre] = React.useState("");
   const [musteriFiltre, setMusteriFiltre] = React.useState("");
