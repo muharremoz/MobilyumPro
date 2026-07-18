@@ -2202,6 +2202,8 @@ function SatinAlmaBirimi({
               setForm((f) => ({ ...f, alisBirimi: v ?? "" }))
             }
             placeholder={`Yok (${stokBirimi} ile alınıyor)`}
+            // Alan opsiyonel; seçim kaldırılamazsa "dönüşüm yok"a dönülemezdi.
+            temizlenebilir
           />
         </div>
         {farkliBirim && (

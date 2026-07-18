@@ -30,6 +30,11 @@ export interface SearchSelectProps {
   emptyText?: string;
   className?: string;
   /**
+   * Seçimi kaldırma (×) düğmesi. Opsiyonel alanlarda ŞART: yoksa kullanıcı
+   * bir kez seçtikten sonra "boş"a geri dönemez.
+   */
+  temizlenebilir?: boolean;
+  /**
    * Açılan listeye sınıf. Liste genişliğini en uzun öğe belirler; dar bir
    * kapsayıcıda (sheet vb.) taşmasın diye buradan sınırlandırılır.
    */
@@ -55,6 +60,7 @@ export function SearchSelect({
   placeholder = "Seçin",
   emptyText = "Sonuç bulunamadı",
   className,
+  temizlenebilir,
   listeClassName,
   addLabel,
   onAdd,
@@ -93,6 +99,7 @@ export function SearchSelect({
       <div ref={anchorRef}>
         <ComboboxInput
           placeholder={placeholder}
+          showClear={temizlenebilir}
           className={cn("w-full", className)}
           onClick={() => setAcik(true)}
         />
