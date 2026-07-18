@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -73,29 +74,36 @@ export function KomutPaleti({
       title="Komut Paleti"
       description="Sayfa ara ve git"
     >
-      <CommandInput placeholder="Sayfa ara…" />
-      <CommandList>
-        <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
-        {gruplar.map((g) => (
-          <CommandGroup key={g.bolum} heading={g.bolum}>
-            {g.ogeler.map((o) => {
-              const Ikon = o.icon;
-              return (
-                <CommandItem
-                  // Aynı etiket farklı bölümlerde geçebilir; değer bölümle
-                  // birlikte kuruluyor ki cmdk sonuçları karıştırmasın.
-                  key={`${g.bolum}-${o.href}-${o.label}`}
-                  value={`${o.label} ${g.bolum}`}
-                  onSelect={() => git(o.href)}
-                >
-                  <Ikon size={16} className="shrink-0" />
-                  <span>{o.label}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        ))}
-      </CommandList>
+      {/*
+        Bu sürümdeki CommandDialog çocukları doğrudan DialogContent'e koyar,
+        Command sarmalayıcısını kendisi eklemez. Olmazsa cmdk store'u
+        bulunamaz ve CommandInput "reading 'subscribe'" ile patlar.
+      */}
+      <Command>
+        <CommandInput placeholder="Sayfa ara…" />
+        <CommandList>
+          <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+          {gruplar.map((g) => (
+            <CommandGroup key={g.bolum} heading={g.bolum}>
+              {g.ogeler.map((o) => {
+                const Ikon = o.icon;
+                return (
+                  <CommandItem
+                    // Aynı etiket farklı bölümlerde geçebilir; değer bölümle
+                    // birlikte kuruluyor ki cmdk sonuçları karıştırmasın.
+                    key={`${g.bolum}-${o.href}-${o.label}`}
+                    value={`${o.label} ${g.bolum}`}
+                    onSelect={() => git(o.href)}
+                  >
+                    <Ikon size={16} className="shrink-0" />
+                    <span>{o.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          ))}
+        </CommandList>
+      </Command>
     </CommandDialog>
   );
 }
