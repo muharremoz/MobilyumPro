@@ -2,6 +2,7 @@ import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BaslikDokusu } from "@/components/ui/baslik-dokusu";
 
 /**
  * PROJE STANDARDI — Form bölümü kart başlığı.
@@ -31,16 +32,19 @@ export function KartBaslik({
   return (
     <div
       className={cn(
-        // Primary'nin açık tonu — form bölümü başlık şeridi
-        "flex items-center justify-between gap-2 border-b bg-primary/10 px-4 py-2.5",
+        // Primary'nin açık tonu + altıgen doku — form bölümü başlık şeridi
+        "relative flex items-center justify-between gap-2 overflow-hidden border-b bg-primary/10 px-4 py-2.5",
         className,
       )}
     >
-      <span className="flex items-center gap-2 text-sm font-medium text-primary">
+      {/* Başlık şeridi dokusu — proje standardı (bkz. baslik-dokusu.tsx) */}
+      <BaslikDokusu />
+
+      <span className="relative z-10 flex items-center gap-2 text-sm font-medium text-primary">
         <Ikon className="size-4 text-primary" />
         {baslik}
       </span>
-      {sag}
+      {sag && <span className="relative z-10">{sag}</span>}
     </div>
   );
 }
