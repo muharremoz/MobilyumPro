@@ -22,9 +22,16 @@ export type BirimBilgisi = {
   alisFiyatBirimi?: "alis" | "stok";
 };
 
-/** Dönüşüm tanımlı ve anlamlı mı (çarpan yoksa/0 ise yok sayılır). */
+/**
+ * Dönüşüm tanımlı ve ANLAMLI mı.
+ *
+ * Çarpan yoksa/0 ise yok sayılır. Alış birimi stok birimiyle AYNIYSA da yok
+ * sayılır: "1 m² = ? m²" sorusunun tek anlamlı cevabı 1'dir, çarpan alanına
+ * başka bir sayı girilmiş olsa bile onu uygulamak bakiyeyi bozardı.
+ */
 export function donusumVar(b: BirimBilgisi): boolean {
-  return !!b.alisBirimi && !!b.alisCarpani && b.alisCarpani > 0;
+  if (!b.alisBirimi || b.alisBirimi === b.stokBirimi) return false;
+  return !!b.alisCarpani && b.alisCarpani > 0;
 }
 
 /** Alış fişinde gösterilecek birim. */

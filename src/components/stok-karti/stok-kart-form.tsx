@@ -376,12 +376,19 @@ function formToKart(form: Form): Omit<StokKarti, "miktar"> {
     stokBirimi: form.stokBirimi.trim() || "adet",
     // Çarpan yoksa alış birimi de yazılmaz: yarım tanım sessiz yanlış
     // dönüşümden iyidir (bkz. lib/birim.ts donusumVar).
-    alisBirimi: form.alisCarpani.trim()
-      ? form.alisBirimi.trim() || undefined
-      : undefined,
-    alisCarpani: form.alisBirimi.trim()
-      ? Number(form.alisCarpani.replace(",", ".")) || undefined
-      : undefined,
+    // Alış birimi stok birimiyle aynıysa veya çarpan yoksa hiç yazılmaz:
+    // yarım/anlamsız tanım sessiz yanlış dönüşümden iyidir.
+    alisBirimi:
+      form.alisBirimi.trim() &&
+      form.alisBirimi.trim() !== (form.stokBirimi.trim() || "adet") &&
+      form.alisCarpani.trim()
+        ? form.alisBirimi.trim()
+        : undefined,
+    alisCarpani:
+      form.alisBirimi.trim() &&
+      form.alisBirimi.trim() !== (form.stokBirimi.trim() || "adet")
+        ? Number(form.alisCarpani.replace(",", ".")) || undefined
+        : undefined,
     alisFiyatBirimi: (form.alisFiyatBirimi === "stok" ? "stok" : "alis") as
       | "alis"
       | "stok",
@@ -2110,8 +2117,11 @@ function SatinAlmaBirimi({
   birimler: string[];
 }) {
   const stokBirimi = form.stokBirimi.trim() || "adet";
+  const alisBirimi = form.alisBirimi.trim();
   const carpan = Number(form.alisCarpani.replace(",", "."));
-  const aktif = !!form.alisBirimi.trim() && carpan > 0;
+  // Aynı birim seçilirse dönüşüm yoktur; "1 m² = ? m²" sormak anlamsız.
+  const farkliBirim = !!alisBirimi && alisBirimi !== stokBirimi;
+  const aktif = farkliBirim && carpan > 0;
 
   return (
     <div className="border-t">
@@ -2136,6 +2146,7 @@ function SatinAlmaBirimi({
             placeholder={`Yok (${stokBirimi} ile alınıyor)`}
           />
         </div>
+        {farkliBirim && (
         <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
           <span className="text-sm text-muted-foreground">Çevrim</span>
           <div className="flex items-center gap-2">
@@ -2154,6 +2165,8 @@ function SatinAlmaBirimi({
             </span>
           </div>
         </div>
+        )}
+        {farkliBirim && (
         <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
           <span className="text-sm text-muted-foreground">Fiyat Birimi</span>
           <SearchSelect
@@ -2171,13 +2184,16 @@ function SatinAlmaBirimi({
             }
           />
         </div>
+        )}
         <p className="text-xs text-muted-foreground">
-          {aktif
+          {alisBirimi && !farkliBirim
+            ? `Alış birimi stok birimiyle aynı — çevrim gerekmiyor.`
+            : aktif
             ? `Alış fişine ${form.alisBirimi} girilir, stoğa ${stokBirimi} olarak işlenir. ` +
               (form.alisFiyatBirimi === "stok"
                 ? `Fiyat ${stokBirimi} başına girilir.`
                 : `Fiyat ${form.alisBirimi} başına girilir, ${stokBirimi} maliyeti çarpandan hesaplanır.`)
-            : `Tanımlanmadı — alış fişinde miktar ve fiyat doğrudan ${stokBirimi} ile girilir.`}
+              : `Tanımlanmadı — alış fişinde miktar ve fiyat doğrudan ${stokBirimi} ile girilir.`}
         </p>
       </div>
     </div>
