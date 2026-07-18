@@ -460,16 +460,30 @@
     {
       "id": "USR-1001",
       "kullaniciAdi": "muharrem.oz",
-      "adSoyad": "Muharrem ÖZ",
+      "adSoyad": "Muharrem Öz",
       "email": "muharrem.oz@mobilyum.pro",
       "telefon": "0553 603 5703",
       "departman": "Yönetim",
       "istasyon": null,
-      "sifreHash": "2931269eb1af3f2abef63d7f3eff3570:a83906b37713677fd2879379712b12ce992bb2581eac176730693340889c3ff09c1cefd3c47605c4b284b5c80f214f17e0222f60066740eba451d2c3c58c99c7",
+      "sifreHash": "38dc0e89449fd8075112666f305b535b:f11a95b38bcf0d543de6bf1273d05e6332ed6b228def040d56de3a039bfd3b32102c18e78def690ad0812f1ca63acf3d94cbc148fa841a2109aaf8be536db830",
       "rol": "Yönetici",
       "durum": "Aktif",
       "eskiTarihliIslem": true,
       "olusturma": "2026-07-02T00:00:00.000Z"
+    },
+    {
+      "id": "USR-1002",
+      "kullaniciAdi": "mehmet.oz",
+      "adSoyad": "Mehmet Öz",
+      "email": "mehmet.oz@mobilyum.com",
+      "telefon": "05536035703",
+      "departman": "Satın Alma",
+      "istasyon": null,
+      "sifreHash": "c7fd8b54777298e8df42a9e8ef17fe96:73211ae077c91f6551133fc90582f31f6aa5ed42c5d8c971ee955fd7e65bca71b1e01370106c9d6d833a9f594d21bd116112c7eed2ed1be74c85151ae37bc574",
+      "rol": "Yönetici",
+      "durum": "Aktif",
+      "eskiTarihliIslem": true,
+      "olusturma": "2026-07-18T00:00:00.000Z"
     }
   ],
   "kullaniciYetki": [
@@ -477,10 +491,10 @@
       "id": 1,
       "kullaniciId": "USR-1001",
       "modul": "stok",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
     },
     {
       "id": 2,
@@ -495,10 +509,10 @@
       "id": 3,
       "kullaniciId": "USR-1001",
       "modul": "siparis",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
     },
     {
       "id": 4,
@@ -513,28 +527,145 @@
       "id": 5,
       "kullaniciId": "USR-1001",
       "modul": "uretim-plan",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
     },
     {
       "id": 6,
       "kullaniciId": "USR-1001",
       "modul": "tanimlamalar",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
     },
     {
       "id": 7,
       "kullaniciId": "USR-1001",
       "modul": "uretim-takibi",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 8,
+      "kullaniciId": "USR-1002",
+      "modul": "genel-bakis",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 9,
+      "kullaniciId": "USR-1002",
+      "modul": "stok",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 10,
+      "kullaniciId": "USR-1002",
+      "modul": "tanimlamalar",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 11,
+      "kullaniciId": "USR-1002",
+      "modul": "siparis",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 12,
+      "kullaniciId": "USR-1002",
+      "modul": "uretim-plan",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 13,
+      "kullaniciId": "USR-1002",
+      "modul": "uretim-takibi",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 14,
+      "kullaniciId": "USR-1002",
+      "modul": "cari",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 15,
+      "kullaniciId": "USR-1002",
+      "modul": "kullanicilar",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 16,
+      "kullaniciId": "USR-1002",
+      "modul": "ayarlar",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 17,
+      "kullaniciId": "USR-1001",
+      "modul": "genel-bakis",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 18,
+      "kullaniciId": "USR-1001",
+      "modul": "cari",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 19,
+      "kullaniciId": "USR-1001",
+      "modul": "kullanicilar",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
+    },
+    {
+      "id": 20,
+      "kullaniciId": "USR-1001",
+      "modul": "ayarlar",
+      "isList": true,
+      "isAdd": true,
+      "isUpdate": true,
+      "isDelete": true
     }
   ],
   "yetkiSeti": [],
@@ -544,13 +675,29 @@
       "id": 1,
       "listeId": "stok-kartlari",
       "kolonlarJson": "{\"kolonlar\":[],\"kullanicilar\":[\"USR-1001\"],\"gizliTemel\":[\"satisFiyat1\"]}"
+    },
+    {
+      "id": 4,
+      "listeId": "pano-kisayol:USR-1001:Yönetim",
+      "kolonlarJson": "{\"kisayollar\":[\"uretimTakip\",\"talepler\",\"stokDurum\",\"cari\"]}"
+    },
+    {
+      "id": 5,
+      "listeId": "pano-kisayol:USR-1001:Satın Alma",
+      "kolonlarJson": "{\"kisayollar\":[\"uretimTakip\",\"hareketler\",\"siparisler\",\"sartlar\",\"talepler\",\"alis\",\"bekleyenSiparis\",\"recete\"]}"
     }
   ],
   "sistemParametre": [
     {
-      "id": 1,
+      "id": 3,
       "anahtar": "uretimde_hemen_dus",
       "deger": "false",
+      "aciklama": null
+    },
+    {
+      "id": 4,
+      "anahtar": "firma_adi",
+      "deger": "Enmobi Mobilya",
       "aciklama": null
     }
   ],
@@ -1374,45 +1521,45 @@
       "kod": "CHF",
       "ad": "İSVİÇRE FRANGI",
       "birim": 1,
-      "forexAlis": "57.5941",
-      "forexSatis": "57.9639",
-      "banknoteAlis": "57.5077",
-      "banknoteSatis": "58.0508",
-      "tarih": "14.07.2026",
-      "guncelleme": "2026-07-15T08:25:39.328Z"
+      "forexAlis": "58.06",
+      "forexSatis": "58.4328",
+      "banknoteAlis": "57.9729",
+      "banknoteSatis": "58.5204",
+      "tarih": "17.07.2026",
+      "guncelleme": "2026-07-18T19:30:23.907Z"
     },
     {
       "kod": "EUR",
       "ad": "EURO",
       "birim": 1,
-      "forexAlis": "53.4792",
-      "forexSatis": "53.5755",
-      "banknoteAlis": "53.4418",
-      "banknoteSatis": "53.6559",
-      "tarih": "14.07.2026",
-      "guncelleme": "2026-07-15T08:25:39.320Z"
+      "forexAlis": "53.7467",
+      "forexSatis": "53.8435",
+      "banknoteAlis": "53.709",
+      "banknoteSatis": "53.9243",
+      "tarih": "17.07.2026",
+      "guncelleme": "2026-07-18T19:30:23.898Z"
     },
     {
       "kod": "GBP",
       "ad": "İNGİLİZ STERLİNİ",
       "birim": 1,
-      "forexAlis": "62.6363",
-      "forexSatis": "62.9628",
-      "banknoteAlis": "62.5924",
-      "banknoteSatis": "63.0573",
-      "tarih": "14.07.2026",
-      "guncelleme": "2026-07-15T08:25:39.324Z"
+      "forexAlis": "63.0802",
+      "forexSatis": "63.409",
+      "banknoteAlis": "63.036",
+      "banknoteSatis": "63.5041",
+      "tarih": "17.07.2026",
+      "guncelleme": "2026-07-18T19:30:23.903Z"
     },
     {
       "kod": "USD",
       "ad": "ABD DOLARI",
       "birim": 1,
-      "forexAlis": "46.9253",
-      "forexSatis": "47.0098",
-      "banknoteAlis": "46.8924",
-      "banknoteSatis": "47.0803",
-      "tarih": "14.07.2026",
-      "guncelleme": "2026-07-15T08:25:39.291Z"
+      "forexAlis": "46.9858",
+      "forexSatis": "47.0705",
+      "banknoteAlis": "46.9529",
+      "banknoteSatis": "47.1411",
+      "tarih": "17.07.2026",
+      "guncelleme": "2026-07-18T19:30:23.890Z"
     }
   ],
   "istasyon": [
