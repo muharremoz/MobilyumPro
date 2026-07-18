@@ -278,6 +278,43 @@ export type ListeKolonAyari = {
   gizliTemel: string[];
 };
 
+/**
+ * Panodaki hızlı işlem kısayolları — kullanıcı VE departman bazında.
+ *
+ * liste_ayar generic bir anahtar/JSON deposu; listeId unique olduğu için
+ * ayrımı anahtara gömüyoruz (şema değişikliği gerekmesin diye):
+ *   pano-kisayol:<kullaniciId>:<departman>
+ *
+ * Departman da anahtarda çünkü pano departmana göre değişiyor ve yönetici
+ * seçiciyle başka departmanların panosunu görebiliyor; tek anahtar olsaydı
+ * satın almacı düzeni üretim panosunda da çıkardı.
+ *
+ * Dönen sözlükte kaydı olmayan departman bulunmaz → varsayılan kullanılır.
+ */
+export async function getPanoKisayollari(
+  kullaniciId: string,
+): Promise<Record<string, string[]>> {
+  const onEk = `pano-kisayol:${kullaniciId}:`;
+  const rows = await db.listeAyar.findMany({
+    where: { listeId: { startsWith: onEk } },
+  });
+  const sonuc: Record<string, string[]> = {};
+  for (const row of rows) {
+    const departman = row.listeId.slice(onEk.length);
+    if (!departman) continue;
+    try {
+      const v = JSON.parse(row.kolonlarJson);
+      const dizi = Array.isArray(v) ? v : v?.kisayollar;
+      if (!Array.isArray(dizi)) continue;
+      const temiz = dizi.filter((x): x is string => typeof x === "string");
+      if (temiz.length) sonuc[departman] = temiz;
+    } catch {
+      // Bozuk kayıt yok sayılır; varsayılan gösterilir.
+    }
+  }
+  return sonuc;
+}
+
 export async function getListeKolonAyari(
   listeId: string,
 ): Promise<ListeKolonAyari> {
@@ -729,6 +766,8 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
   const bugun = new Date();
   bugun.setHours(0, 0, 0, 0);
   const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
+  // Grafik için 6 aylık pencere: bu ay dahil, 5 ay geriye.
+  const pencereBasi = new Date(bugun.getFullYear(), bugun.getMonth() - 5, 1);
 
   const [
     istasyonlar,
@@ -767,7 +806,7 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
     }),
     db.stokHareket.findMany({ orderBy: { id: "desc" }, take: 8 }),
     db.alis.findMany({
-      where: { tarih: { gte: ayBasi } },
+      where: { tarih: { gte: pencereBasi } },
       include: { satirlar: true },
     }),
   ]);
@@ -896,8 +935,36 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
     birim: h.birim,
   }));
 
+  // ── Aylık alış (grafik) ──────────────────────────────────────────────
+  const AY_KISA = [
+    "Oca", "Şub", "Mar", "Nis", "May", "Haz",
+    "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
+  ];
+  const alisTutari = (a: (typeof alisRows)[number]) =>
+    a.satirlar.reduce((t, s) => t + Number(s.miktar) * Number(s.birimFiyat), 0);
+
+  // Harcaması olmayan ay da eksik değil sıfır görünmeli — pencere önce kurulur.
+  const aylikAlis = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(bugun.getFullYear(), bugun.getMonth() - 5 + i, 1);
+    return {
+      ay: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      etiket: AY_KISA[d.getMonth()],
+      tutar: 0,
+    };
+  });
+  const ayIndeks = new Map(aylikAlis.map((a, i) => [a.ay, i]));
+  for (const a of alisRows) {
+    const d = new Date(a.tarih);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const i = ayIndeks.get(k);
+    if (i != null) aylikAlis[i].tutar += alisTutari(a);
+  }
+
   // ── Özet ─────────────────────────────────────────────────────────────
-  const aylikAlisTutar = alisRows.reduce(
+  // Özetteki "bu ay" rakamı yalnız içinde bulunulan ayı sayar — pencere 6 aylık.
+  const aylikAlisTutar = alisRows
+    .filter((a) => new Date(a.tarih) >= ayBasi)
+    .reduce(
     (top, a) =>
       top +
       a.satirlar.reduce(
@@ -916,6 +983,7 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
     kritikStok,
     malKabulBekleyen: bekleyenSiparis.length,
     sonHareketler,
+    aylikAlis,
     ozet: {
       acikEmir: emirler.length,
       uretimdeEmir: emirler.filter((e) => e.durum === "Üretimde").length,

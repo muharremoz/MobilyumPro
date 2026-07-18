@@ -140,6 +140,8 @@ export type PanoVerisi = {
     miktar: number;
     birim: string;
   }[];
+  /** Son 6 ayın satın alma harcaması — eskiden yeniye sıralı. */
+  aylikAlis: { ay: string; etiket: string; tutar: number }[];
   /** Yönetim özeti */
   ozet: {
     acikEmir: number;

@@ -1073,6 +1073,30 @@ export async function parametreSifirla(
 
 /** Liste kolon ayarını kaydeder: seçili ek kolonlar + gören kullanıcılar.
  *  TODO: oturum altyapısı gelince yalnızca Yönetici rolüne izin ver. */
+/**
+ * Pano kısayollarını kullanıcı + departman bazında kaydeder.
+ * Anahtar biçimi ve gerekçesi için bkz. getPanoKisayollari.
+ */
+export async function panoKisayolKaydet(
+  kullaniciId: string,
+  departman: string,
+  kisayollar: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const listeId = `pano-kisayol:${kullaniciId}:${departman}`;
+    const kolonlarJson = JSON.stringify({ kisayollar });
+    await db.listeAyar.upsert({
+      where: { listeId },
+      create: { listeId, kolonlarJson },
+      update: { kolonlarJson },
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error("panoKisayolKaydet:", e);
+    return { ok: false, error: "Kısayollar kaydedilemedi." };
+  }
+}
+
 export async function listeKolonKaydet(
   listeId: string,
   ayar: { kolonlar: string[]; kullanicilar: string[]; gizliTemel: string[] },

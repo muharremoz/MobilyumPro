@@ -5,18 +5,41 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
+  BadgePercent,
   Boxes,
+  CalendarDays,
   ClipboardCheck,
   Factory,
+  Hammer,
+  History,
+  Layers,
   PackageSearch,
+  Plus,
+  Receipt,
+  Repeat,
+  RotateCcw,
   ShoppingCart,
   TrendingUp,
+  Wallet,
+  X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/search-select";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { BaslikDokusu } from "@/components/ui/baslik-dokusu";
+import { SatirMenu, type SatirAksiyon } from "@/components/ui/satir-menu";
+import { panoKisayolKaydet } from "@/lib/db/actions";
+import { toast } from "sonner";
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+
 import { formatTL, formatTarih, type PanoVerisi } from "@/lib/data";
 
 /**
@@ -35,14 +58,16 @@ type KartAd =
   | "siparisTakip"
   | "kritikStok"
   | "sonHareketler"
+  | "alisTrendi"
   | "yonetimOzet";
 
 const DEPARTMAN_KART: Record<string, KartAd[]> = {
   Üretim: ["istasyonKuyrugu", "emirlerim", "kritikStok"],
-  "Satın Alma": ["onayBekleyen", "siparisTakip", "kritikStok"],
+  "Satın Alma": ["onayBekleyen", "siparisTakip", "alisTrendi", "kritikStok"],
   Depo: ["kritikStok", "siparisTakip", "sonHareketler"],
   Yönetim: [
     "yonetimOzet",
+    "alisTrendi",
     "istasyonKuyrugu",
     "onayBekleyen",
     "siparisTakip",
@@ -52,8 +77,131 @@ const DEPARTMAN_KART: Record<string, KartAd[]> = {
 // Modülü olmayan departmanlar (Muhasebe, Sevkiyat) yönetim özetini görür.
 const VARSAYILAN_KART: KartAd[] = ["yonetimOzet", "kritikStok"];
 
+/** Grafik serisi — renk temanın primary'sinden gelir. */
+const ALIS_GRAFIK: ChartConfig = {
+  tutar: { label: "Alış", color: "var(--primary)" },
+};
+
+
+/**
+ * Hızlı işlemler — departmanın en sık gittiği sayfalar, tek tıkla.
+ *
+ * Rozet, işin BEKLEYEN yükünü gösterir (panodaki canlı veriden); sıfırsa
+ * hiç basılmaz, böylece rozet görmek "iş var" demek olur. Rotalar
+ * nav-config'tekilerle aynı; yeni sayfa eklenince buraya da yazılmalı.
+ */
+type HizliIslem = {
+  etiket: string;
+  alt: string;
+  href: string;
+  ikon: React.ComponentType<{ className?: string }>;
+  /** Bekleyen iş sayısı — 0/undefined ise rozet çizilmez. */
+  rozet?: (v: PanoVerisi) => number;
+};
+
+const ISLEM: Record<string, HizliIslem> = {
+  uretimTakip: {
+    etiket: "Üretim Takibi",
+    alt: "Emirleri ilerlet",
+    href: "/uretim/emirler",
+    ikon: Hammer,
+    rozet: (v) => v.ozet.uretimdeEmir,
+  },
+  fabrika: {
+    etiket: "Fabrika",
+    alt: "3D hat görünümü",
+    href: "/uretim/fabrika",
+    ikon: Factory,
+  },
+  uretimPlan: {
+    etiket: "Üretim Planı",
+    alt: "Emir oluştur",
+    href: "/uretim/plan",
+    ikon: CalendarDays,
+  },
+  recete: {
+    etiket: "Reçete",
+    alt: "Ağaç ve maliyet",
+    href: "/uretim/recete",
+    ikon: Layers,
+  },
+  talepler: {
+    etiket: "Satın Alma Talepleri",
+    alt: "Onayla ve dağıt",
+    href: "/satin-alma/talepler",
+    ikon: ClipboardCheck,
+    rozet: (v) => v.onayBekleyenTalep.length,
+  },
+  bekleyenSiparis: {
+    etiket: "Bekleyen Siparişler",
+    alt: "Tedarik takibi",
+    href: "/satin-alma/siparisler",
+    ikon: PackageSearch,
+    rozet: (v) => v.bekleyenSiparis.length,
+  },
+  alis: {
+    etiket: "Alış Fişi",
+    alt: "Mal kabul girişi",
+    href: "/satin-alma",
+    ikon: Receipt,
+  },
+  sartlar: {
+    etiket: "Satın Alma Şartları",
+    alt: "Firma anlaşmaları",
+    href: "/satin-alma/sartlar",
+    ikon: BadgePercent,
+  },
+  stokDurum: {
+    etiket: "Stok Durumu",
+    alt: "Miktar ve kritik",
+    href: "/stok-yonetimi?bolum=durum",
+    ikon: Boxes,
+    rozet: (v) => v.ozet.kritikStokAdet,
+  },
+  sayim: {
+    etiket: "Sayım",
+    alt: "Fiili stok girişi",
+    href: "/stok-yonetimi?bolum=sayim",
+    ikon: ClipboardCheck,
+  },
+  hareketler: {
+    etiket: "Stok Hareketleri",
+    alt: "Giriş/çıkış defteri",
+    href: "/stok-yonetimi?bolum=hareketler",
+    ikon: History,
+  },
+  malzeme: {
+    etiket: "Malzeme Kartları",
+    alt: "Kart ve fiyat",
+    href: "/stok-karti",
+    ikon: Boxes,
+  },
+  siparisler: {
+    etiket: "Siparişler",
+    alt: "Müşteri siparişleri",
+    href: "/siparisler",
+    ikon: ShoppingCart,
+  },
+  cari: {
+    etiket: "Cari Hesaplar",
+    alt: "Bakiye ve hareket",
+    href: "/cari",
+    ikon: Wallet,
+  },
+};
+
+const DEPARTMAN_ISLEM: Record<string, string[]> = {
+  Üretim: ["uretimTakip", "fabrika", "uretimPlan", "recete"],
+  "Satın Alma": ["talepler", "bekleyenSiparis", "alis", "sartlar"],
+  Depo: ["stokDurum", "sayim", "hareketler", "malzeme"],
+  Yönetim: ["uretimTakip", "talepler", "stokDurum", "cari"],
+};
+const VARSAYILAN_ISLEM = ["stokDurum", "siparisler", "cari"];
+
 export function GenelBakis({
   veri,
+  kullaniciId,
+  kisayollar,
   kullaniciAd,
   departman,
   departmanlar,
@@ -61,6 +209,10 @@ export function GenelBakis({
   yonetici,
 }: {
   veri: PanoVerisi;
+  /** Kisayol tercihi kullanici bazinda saklanir; yoksa duzenleme kapali. */
+  kullaniciId?: string;
+  /** Departman -> kayıtlı kısayollar; kaydı olmayan departman varsayılana düşer. */
+  kisayollar: Record<string, string[]>;
   kullaniciAd: string;
   /** Giriş yapan kullanıcının departmanı (oturum gelene kadar prop). */
   departman?: string;
@@ -98,6 +250,13 @@ export function GenelBakis({
         )}
       </div>
 
+      <HizliIslemler
+        departman={secili}
+        veri={veri}
+        kullaniciId={kullaniciId}
+        kayitli={kisayollar[secili]}
+      />
+
       <div className="grid gap-4 xl:grid-cols-2">
         {kartlar.map((k) => (
           <Kart key={k} ad={k} veri={veri} istasyon={istasyon} />
@@ -106,6 +265,189 @@ export function GenelBakis({
     </div>
   );
 }
+
+
+/**
+ * Hızlı işlem şeridi — kartların üstünde, departmana göre değişir.
+ *
+ * Kullanıcı düzeni değiştirebilir: sağ tıkla kısayol değiştir/ekle/kaldır,
+ * sürükle-bırak ile sırala. Tercih kullanıcı bazında kaydedilir; hiç kaydı
+ * yoksa departman varsayılanı gösterilir (`kayitli === null`).
+ *
+ * Sürükle-bırak yerli HTML5 DnD ile: motion'ın Reorder'ı tek eksende çalışır,
+ * bu şerit ise sarmalayan bir grid (mobilde 1, sm'de 2, xl'de 4 sütun).
+ */
+function HizliIslemler({
+  departman,
+  veri,
+  kullaniciId,
+  kayitli,
+}: {
+  departman: string;
+  veri: PanoVerisi;
+  kullaniciId?: string;
+  kayitli?: string[];
+}) {
+  const router = useRouter();
+  const varsayilan = React.useMemo(
+    () => DEPARTMAN_ISLEM[departman] ?? VARSAYILAN_ISLEM,
+    [departman],
+  );
+  // Kayıtlıysa onu kullan; tanımı kalkmış anahtarlar sessizce elenir.
+  const cozul = React.useCallback(
+    () => (kayitli ?? varsayilan).filter((k) => k in ISLEM),
+    [kayitli, varsayilan],
+  );
+  const [liste, setListe] = React.useState<string[]>(cozul);
+  // Yönetici departman değiştirince o departmanın kendi düzenine geç.
+  const oncekiDepartman = React.useRef(departman);
+  React.useEffect(() => {
+    if (oncekiDepartman.current === departman) return;
+    oncekiDepartman.current = departman;
+    setListe(cozul());
+  }, [departman, cozul]);
+
+  const [suruklenen, setSuruklenen] = React.useState<number | null>(null);
+  const [hedef, setHedef] = React.useState<number | null>(null);
+  // Sürükleme bittikten sonra gelen click'i yut (aksi halde sayfaya gider).
+  const suruklendi = React.useRef(false);
+
+  const duzenlenebilir = !!kullaniciId;
+
+  async function kaydet(yeni: string[]) {
+    const onceki = liste;
+    setListe(yeni);
+    if (!kullaniciId) return;
+    const res = await panoKisayolKaydet(kullaniciId, departman, yeni);
+    if (!res.ok) {
+      setListe(onceki);
+      toast.error(res.error ?? "Kısayollar kaydedilemedi.");
+    }
+  }
+
+  function tasi(from: number, to: number) {
+    if (from === to) return;
+    const yeni = [...liste];
+    const [x] = yeni.splice(from, 1);
+    yeni.splice(to, 0, x);
+    kaydet(yeni);
+  }
+
+  const kullanilmayan = Object.keys(ISLEM).filter((k) => !liste.includes(k));
+
+  function menuAksiyonlari(i: number): SatirAksiyon[] {
+    return [
+      {
+        etiket: "Bununla değiştir",
+        ikon: Repeat,
+        gizli: !duzenlenebilir || kullanilmayan.length === 0,
+        altAksiyonlar: kullanilmayan.map((yeniK) => ({
+          etiket: ISLEM[yeniK].etiket,
+          ikon: ISLEM[yeniK].ikon,
+          onSecim: () => kaydet(liste.map((x, idx) => (idx === i ? yeniK : x))),
+        })),
+        altClassName: "w-56",
+      },
+      {
+        etiket: "Kısayol ekle",
+        ikon: Plus,
+        gizli: !duzenlenebilir || kullanilmayan.length === 0,
+        altAksiyonlar: kullanilmayan.map((yeniK) => ({
+          etiket: ISLEM[yeniK].etiket,
+          ikon: ISLEM[yeniK].ikon,
+          onSecim: () => kaydet([...liste, yeniK]),
+        })),
+        altClassName: "w-56",
+      },
+      {
+        etiket: "Varsayılana dön",
+        ikon: RotateCcw,
+        gizli: !duzenlenebilir,
+        ayracOnce: true,
+        onSecim: () => kaydet(varsayilan.filter((x) => x in ISLEM)),
+      },
+      {
+        etiket: "Kaldır",
+        ikon: X,
+        // Son kısayol da kaldırılırsa şerit tamamen kaybolur ve geri getirme
+        // yolu kalmaz — en az biri durmalı.
+        gizli: !duzenlenebilir || liste.length <= 1,
+        tehlike: true,
+        ayracOnce: true,
+        onSecim: () => kaydet(liste.filter((_, idx) => idx !== i)),
+      },
+    ];
+  }
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {liste.map((k, i) => {
+        const islem = ISLEM[k];
+        if (!islem) return null;
+        const Ikon = islem.ikon;
+        const sayi = islem.rozet?.(veri) ?? 0;
+        return (
+          <SatirMenu key={k} aksiyonlar={menuAksiyonlari(i)}>
+            <button
+              type="button"
+              draggable={duzenlenebilir}
+              onDragStart={() => {
+                setSuruklenen(i);
+                suruklendi.current = true;
+              }}
+              onDragEnd={() => {
+                setSuruklenen(null);
+                setHedef(null);
+                // click, dragend'den sonra gelir; bir tur sonra serbest bırak.
+                setTimeout(() => (suruklendi.current = false), 0);
+              }}
+              onDragOver={(e) => {
+                if (suruklenen === null) return;
+                e.preventDefault();
+                setHedef(i);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (suruklenen !== null) tasi(suruklenen, i);
+                setSuruklenen(null);
+                setHedef(null);
+              }}
+              onClick={() => {
+                if (suruklendi.current) return;
+                router.push(islem.href);
+              }}
+              className={cn(
+                "group flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5",
+                suruklenen === i && "opacity-40",
+                hedef === i && suruklenen !== i && "border-primary bg-primary/5",
+              )}
+            >
+              <Ikon className="size-5 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">
+                  {islem.etiket}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {islem.alt}
+                </span>
+              </span>
+              {sayi > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 bg-primary/10 tabular-nums text-primary"
+                >
+                  {sayi}
+                </Badge>
+              )}
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+            </button>
+          </SatirMenu>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function Kart({
   ad,
@@ -131,6 +473,8 @@ function Kart({
       return <KritikStok veri={veri} />;
     case "sonHareketler":
       return <SonHareketler veri={veri} />;
+    case "alisTrendi":
+      return <AlisTrendi veri={veri} />;
   }
 }
 
@@ -158,13 +502,14 @@ function Kutu({
         genis && "xl:col-span-2",
       )}
     >
-      {/* Başlık şeridi liste kartlarıyla aynı (ListHeader standardı). */}
-      <div className="flex items-center justify-between gap-3 rounded-t-md border-b bg-primary/10 px-3 py-1.5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+      {/* Başlık şeridi liste kartlarıyla aynı (ListHeader standardı) — doku dahil. */}
+      <div className="relative flex items-center justify-between gap-3 overflow-hidden rounded-t-md border-b bg-primary/10 px-3 py-1.5">
+        <BaslikDokusu />
+        <h2 className="relative z-10 flex items-center gap-2 text-sm font-semibold text-primary">
           <Ikon className="size-4" />
           {baslik}
         </h2>
-        {sag}
+        {sag && <span className="relative z-10">{sag}</span>}
       </div>
       {bos ? (
         <p className="p-6 text-center text-sm text-muted-foreground">{bos}</p>
@@ -200,6 +545,71 @@ function Metrik({
         {deger}
       </div>
     </div>
+  );
+}
+
+
+/** Aylık satın alma harcaması — panodaki tek zaman serisi, o yüzden grafik. */
+function AlisTrendi({ veri }: { veri: PanoVerisi }) {
+  const seri = veri.aylikAlis;
+  const toplam = seri.reduce((t, a) => t + a.tutar, 0);
+  const oncekiler = seri.slice(0, -1);
+  const buAy = seri[seri.length - 1]?.tutar ?? 0;
+  // Kıyas ortalaması: bu ay hariç: ay daha bitmediği için kendisiyle şişmesin.
+  const ortalama = oncekiler.length
+    ? oncekiler.reduce((t, a) => t + a.tutar, 0) / oncekiler.length
+    : 0;
+  const fark = ortalama > 0 ? ((buAy - ortalama) / ortalama) * 100 : 0;
+
+  return (
+    <Kutu
+      baslik="Alış Harcaması"
+      ikon={TrendingUp}
+      bos={toplam === 0 ? "Son 6 ayda alış kaydı yok." : undefined}
+      sag={
+        <span className="text-xs text-muted-foreground">Son 6 ay</span>
+      }
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xl font-semibold tabular-nums">
+            {formatTL(buAy)}
+          </span>
+          <span className="text-xs text-muted-foreground">bu ay</span>
+          {ortalama > 0 && (
+            <span
+              className={cn(
+                "ml-auto text-xs tabular-nums",
+                fark > 0 ? "text-rose-600" : "text-emerald-600",
+              )}
+            >
+              {fark > 0 ? "+" : ""}
+              {fark.toFixed(0)}% · önceki 5 ay ort.
+            </span>
+          )}
+        </div>
+
+        <ChartContainer config={ALIS_GRAFIK} className="h-40 w-full">
+          <BarChart data={seri} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis
+              dataKey="etiket"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(deger) => formatTL(Number(deger))}
+                />
+              }
+            />
+            <Bar dataKey="tutar" fill="var(--color-tutar)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ChartContainer>
+      </div>
+    </Kutu>
   );
 }
 
