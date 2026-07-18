@@ -13,7 +13,7 @@ import {
   getIstasyonlar,
   getMakineler,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function StokYonetimiPage({
   searchParams,
@@ -21,6 +21,18 @@ export default async function StokYonetimiPage({
   searchParams: Promise<{ bolum?: string }>;
 }) {
   const { bolum = "durum" } = await searchParams;
+  // Bu sayfa iki modüle hizmet ediyor: tanım bölümleri "tanimlamalar",
+  // gerisi "stok". Tek modülle korunsaydı biri diğerinin yetkisini gerektirirdi.
+  const TANIM_BOLUMLERI = [
+    "gruplar",
+    "markalar",
+    "koleksiyonlar",
+    "renkler",
+    "kumaslar",
+    "birimler",
+    "istasyonlar",
+  ];
+  const modul = TANIM_BOLUMLERI.includes(bolum) ? "tanimlamalar" : "stok";
   const [
     urunler,
     malzemeler,
@@ -64,8 +76,8 @@ export default async function StokYonetimiPage({
   const tedarikciler = cariler
     .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")
     .map((c) => c.ad);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
+  // Kimlik + modül liste yetkisi; yetkisizse panoya döner.
+  const oturum = await sayfaYetkisi(modul);
   const mevcutKullaniciId = oturum.id;
   return (
     <InventoryPage

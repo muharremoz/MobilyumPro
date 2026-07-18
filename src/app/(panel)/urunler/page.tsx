@@ -4,21 +4,21 @@ import {
   getListeKolonAyari,
   getModeller,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function UrunlerPage({
   searchParams,
 }: {
   searchParams: Promise<{ kategori?: string }>;
 }) {
+  // "uretim-plan" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("uretim-plan");
   const { kategori = "Tümü" } = await searchParams;
   const [urunler, kolonAyari, kullanicilar] = await Promise.all([
     getModeller(),
     getListeKolonAyari("urunler"),
     getKullanicilar(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <ProductsTable

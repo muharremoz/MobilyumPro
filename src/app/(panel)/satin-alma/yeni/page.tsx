@@ -8,7 +8,7 @@ import {
   getSatinAlmaSartlari,
   getBekleyenSiparisler,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 /**
  * "kalem" parametresi (üretim planından gelir): "malzemeId:miktar,..."
@@ -71,8 +71,8 @@ export default async function YeniAlisRoute({
     getSatinAlmaSartlari(),
     siparisFirma ? getBekleyenSiparisler() : Promise.resolve([]),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const mevcut = await oturumZorunlu();
+  // Kimlik + "satin-alma" modülü liste yetkisi; yetkisizse panoya döner.
+  const mevcut = await sayfaYetkisi("satin-alma");
   // Tedarikçi seçenekleri — cari kartlardan (Tedarikçi / Her İkisi).
   const tedarikciler = cariler
     .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")

@@ -36,6 +36,8 @@ export type AnimatedIcon = React.ForwardRefExoticComponent<
 export type SubItem = {
   label: string;
   href: string;
+  /** Yetki modülü (lib/yetki MODULLER id'si); verilmezse bölümünki geçerli. */
+  modul?: string;
   icon: AnimatedIcon;
   /** Bu öğenin hemen üstünde gösterilecek küçük grup başlığı (opsiyonel). */
   groupHeader?: string;
@@ -44,6 +46,8 @@ export type SubItem = {
 export type Section = {
   id: string;
   label: string;
+  /** Yetki modülü; alt öğeler kendi `modul`'ünü verebilir. */
+  modul?: string;
   RailIcon: AnimatedIcon;
   /** Doğrudan gidilen bölüm (panel açmaz). */
   href?: string;
@@ -60,12 +64,14 @@ export const sections: Section[] = [
   {
     id: "genel-bakis",
     label: "Genel Bakış",
+    modul: "genel-bakis",
     RailIcon: I(LayoutPanelTopIcon),
     href: "/",
   },
   {
     id: "stok",
     label: "Stok Yönetimi",
+    modul: "stok",
     RailIcon: I(BoxesIcon),
     items: [
       { groupHeader: "Stok", label: "Stok Durumu", href: "/stok-yonetimi?bolum=durum", icon: I(BoxesIcon) },
@@ -78,12 +84,13 @@ export const sections: Section[] = [
   {
     id: "uretim",
     label: "Üretim Yönetimi",
+    modul: "uretim-takibi",
     RailIcon: I(HammerIcon),
     items: [
-      { groupHeader: "Kartlar", label: "Malzeme", href: "/stok-karti", icon: I(BoxesIcon) },
-      { label: "Parça", href: "/stok-yonetimi?bolum=parcalar", icon: I(CpuIcon) },
-      { label: "Model", href: "/urunler", icon: I(RockingChairIcon) },
-      { groupHeader: "Üretim", label: "Üretim Planı", href: "/uretim/plan", icon: I(CalendarDaysIcon) },
+      { groupHeader: "Kartlar", label: "Malzeme", href: "/stok-karti", modul: "stok", icon: I(BoxesIcon) },
+      { label: "Parça", href: "/stok-yonetimi?bolum=parcalar", modul: "stok", icon: I(CpuIcon) },
+      { label: "Model", href: "/urunler", modul: "uretim-plan", icon: I(RockingChairIcon) },
+      { groupHeader: "Üretim", label: "Üretim Planı", href: "/uretim/plan", modul: "uretim-plan", icon: I(CalendarDaysIcon) },
       { label: "Üretim Takibi", href: "/uretim/emirler", icon: I(HammerIcon) },
       { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
       { label: "Reçete", href: "/uretim/recete", icon: I(LayersIcon) },
@@ -93,9 +100,10 @@ export const sections: Section[] = [
   {
     id: "tanimlamalar",
     label: "Tanımlamalar",
+    modul: "tanimlamalar",
     RailIcon: I(SlidersHorizontalIcon),
     items: [
-      { groupHeader: "Üretim", label: "İstasyonlar", href: "/stok-yonetimi?bolum=istasyonlar", icon: I(BlocksIcon) },
+      { groupHeader: "Üretim", label: "İstasyonlar", href: "/stok-yonetimi?bolum=istasyonlar", modul: "tanimlamalar", icon: I(BlocksIcon) },
       { groupHeader: "Model", label: "Gruplar", href: "/stok-yonetimi?bolum=gruplar", icon: I(FolderTreeIcon) },
       { label: "Markalar", href: "/stok-yonetimi?bolum=markalar", icon: I(BadgePercentIcon) },
       { label: "Koleksiyonlar", href: "/stok-yonetimi?bolum=koleksiyonlar", icon: I(FrameIcon) },
@@ -107,6 +115,7 @@ export const sections: Section[] = [
   {
     id: "siparis",
     label: "Sipariş Yönetimi",
+    modul: "siparis",
     RailIcon: I(CartIcon),
     items: [
       { label: "Siparişler", href: "/siparisler", icon: I(CartIcon) },
@@ -116,13 +125,14 @@ export const sections: Section[] = [
   {
     id: "cari",
     label: "Cari Yönetimi",
+    modul: "cari",
     RailIcon: I(WalletIcon),
     items: [
       { label: "Cari Hesaplar", href: "/cari", icon: I(WalletIcon) },
-      { label: "Satın Alma Talepleri", href: "/satin-alma/talepler", icon: I(ClipboardCheckIcon) },
-      { label: "Bekleyen Siparişler", href: "/satin-alma/siparisler", icon: I(HistoryIcon) },
-      { label: "Satın Alma Şartları", href: "/satin-alma/sartlar", icon: I(BadgePercentIcon) },
-      { label: "Satın Alma", href: "/satin-alma", icon: I(ReceiptIcon) },
+      { label: "Satın Alma Talepleri", href: "/satin-alma/talepler", modul: "satin-alma", icon: I(ClipboardCheckIcon) },
+      { label: "Bekleyen Siparişler", href: "/satin-alma/siparisler", modul: "satin-alma", icon: I(HistoryIcon) },
+      { label: "Satın Alma Şartları", href: "/satin-alma/sartlar", modul: "satin-alma", icon: I(BadgePercentIcon) },
+      { label: "Satın Alma", href: "/satin-alma", modul: "satin-alma", icon: I(ReceiptIcon) },
     ],
   },
 ];
@@ -131,13 +141,14 @@ export const bottomSections: Section[] = [
   {
     id: "ayarlar",
     label: "Ayarlar",
+    modul: "ayarlar",
     RailIcon: I(SettingsIcon),
     items: [
       { label: "Genel", href: "/ayarlar", icon: I(SettingsIcon) },
       { label: "Sistem Parametreleri", href: "/ayarlar/parametreler", icon: I(SlidersHorizontalIcon) },
       { label: "Döviz Kurları", href: "/ayarlar/kurlar", icon: I(BadgePercentIcon) },
       { label: "Bağlantı Bilgileri", href: "/ayarlar/baglanti", icon: I(CpuIcon) },
-      { label: "Kullanıcılar & Roller", href: "/kullanicilar", icon: I(ShieldCheckIcon) },
+      { label: "Kullanıcılar & Roller", href: "/kullanicilar", modul: "kullanicilar", icon: I(ShieldCheckIcon) },
     ],
   },
 ];

@@ -7,7 +7,7 @@ import {
   getMusteriler,
   getTalepler,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function UretimPlanRoute() {
   const [
@@ -25,8 +25,8 @@ export default async function UretimPlanRoute() {
     getMusteriler(),
     getTalepler(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const mevcut = await oturumZorunlu();
+  // Kimlik + "uretim-plan" modülü liste yetkisi; yetkisizse panoya döner.
+  const mevcut = await sayfaYetkisi("uretim-plan");
 
   return (
     <ProductionPlan

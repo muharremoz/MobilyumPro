@@ -268,7 +268,7 @@ function PanelItem({
   );
 }
 
-function AppNavInner() {
+function AppNavInner({ izinliModuller }: { izinliModuller: string[] }) {
   const router = useRouter();
   const { bolumAktif, ogeAktif } = useAktif();
   const [openId, setOpenId] = React.useState<string | null>(null);
@@ -330,6 +330,30 @@ function AppNavInner() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
+
+  /**
+   * Yetkiye göre süzme: bölümün kendi modülü VEYA alt öğelerinden biri
+   * izinliyse bölüm görünür; alt öğeler de tek tek süzülür. Öğede `modul`
+   * yoksa bölümünki geçerli.
+   */
+  const izinli = React.useCallback(
+    (m?: string) => !m || izinliModuller.includes(m),
+    [izinliModuller],
+  );
+  const suz = React.useCallback(
+    (liste: Section[]) =>
+      liste
+        .map((b) => {
+          const ogeler = b.items?.filter((it) => izinli(it.modul ?? b.modul));
+          return { ...b, items: ogeler };
+        })
+        .filter((b) =>
+          b.items?.length ? true : izinli(b.modul),
+        ),
+    [izinli],
+  );
+  const gorunurSections = React.useMemo(() => suz(sections), [suz]);
+  const gorunurBottom = React.useMemo(() => suz(bottomSections), [suz]);
 
   function handleSelect(s: Section) {
     if (s.items?.length) {
@@ -459,7 +483,7 @@ function AppNavInner() {
             </>
           ) : (
             <div key={donus} className="flex flex-col gap-px">
-              {sections.map((s, i) => (
+              {gorunurSections.map((s, i) => (
                 <div
                   key={s.id}
                   className={cn(
@@ -484,7 +508,7 @@ function AppNavInner() {
         {/* Alt bölümler + kullanıcı */}
         <div className="flex flex-col gap-px">
           <Separator className="my-1 bg-[#ebebeb]" />
-          {bottomSections.map((s) => (
+          {gorunurBottom.map((s) => (
             <RailButton
               key={s.id}
               section={s}
@@ -504,10 +528,10 @@ function AppNavInner() {
   );
 }
 
-export function AppNav() {
+export function AppNav({ izinliModuller }: { izinliModuller: string[] }) {
   return (
     <React.Suspense fallback={null}>
-      <AppNavInner />
+      <AppNavInner izinliModuller={izinliModuller} />
     </React.Suspense>
   );
 }

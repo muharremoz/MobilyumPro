@@ -345,7 +345,7 @@ export function TalepListe({
     )
       return;
     setMesgul(t.id);
-    const res = await talepOnayla(t.id, mevcutKullanici.id);
+    const res = await talepOnayla(t.id);
     setMesgul(null);
     if (!res.ok) {
       toast.error(res.error ?? "Talep onaylanamadı.");
@@ -358,7 +358,7 @@ export function TalepListe({
   async function reddetAksiyon() {
     if (!redTalep) return;
     setMesgul(redTalep.id);
-    const res = await talepReddet(redTalep.id, mevcutKullanici.id, redNeden);
+    const res = await talepReddet(redTalep.id, redNeden);
     setMesgul(null);
     if (!res.ok) {
       toast.error(res.error ?? "Talep reddedilemedi.");
@@ -372,7 +372,7 @@ export function TalepListe({
 
   async function baslatAksiyon(t: SatinAlmaTalep) {
     setMesgul(t.id);
-    const res = await talepBaslat(t.id, mevcutKullanici.id);
+    const res = await talepBaslat(t.id);
     setMesgul(null);
     if (!res.ok) {
       toast.error(res.error ?? "Talep başlatılamadı.");

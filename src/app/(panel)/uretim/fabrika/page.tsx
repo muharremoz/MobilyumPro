@@ -5,20 +5,20 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 // Sahne canlı veri gösterir — her istekte taze okunur.
 export const dynamic = "force-dynamic";
 
 export default async function FabrikaRoute() {
+  // "uretim-takibi" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("uretim-takibi");
   const [emirler, istasyonlar, kolonAyari, kullanicilar] = await Promise.all([
     getFabrikaEmirleri(),
     getIstasyonlar(),
     getListeKolonAyari("uretim-hatti"),
     getKullanicilar(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <div className="h-full min-h-0">

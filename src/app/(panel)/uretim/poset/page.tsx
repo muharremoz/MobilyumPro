@@ -6,9 +6,11 @@ import {
   getModeller,
   getParcalar,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function PosetRoute() {
+  // "uretim-takibi" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("uretim-takibi");
   const [posetler, kolonAyari, kullanicilar, modeller, parcalar] =
     await Promise.all([
       getPosetler(),
@@ -17,8 +19,6 @@ export default async function PosetRoute() {
       getModeller(),
       getParcalar(),
     ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <PosetListe

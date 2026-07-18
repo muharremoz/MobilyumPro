@@ -6,9 +6,11 @@ import {
   getListeKolonAyari,
   getRoller,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function KullanicilarPage() {
+  // "kullanicilar" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("kullanicilar");
   const [kullanicilar, roller, departmanlar, istasyonlar, kolonAyari] =
     await Promise.all([
       getKullanicilar(),
@@ -17,8 +19,6 @@ export default async function KullanicilarPage() {
       getIstasyonlar(),
       getListeKolonAyari("kullanicilar"),
     ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <KullanicilarTable

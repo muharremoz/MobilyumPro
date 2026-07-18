@@ -4,16 +4,16 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function UretimEmirleriRoute() {
+  // "uretim-takibi" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("uretim-takibi");
   const [emirler, kolonAyari, kullanicilar] = await Promise.all([
     getUretimEmirleri(),
     getListeKolonAyari("uretim-emirleri"),
     getKullanicilar(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <ProductionOrders

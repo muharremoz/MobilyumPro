@@ -338,7 +338,7 @@ function HizliIslemler({
     const onceki = liste;
     setListe(yeni);
     if (!kullaniciId) return;
-    const res = await panoKisayolKaydet(kullaniciId, departman, yeni);
+    const res = await panoKisayolKaydet(departman, yeni);
     if (!res.ok) {
       setListe(onceki);
       toast.error(res.error ?? "Kısayollar kaydedilemedi.");

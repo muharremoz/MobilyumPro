@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
 import { db, tarihDate } from "./index";
+import { getOturum } from "@/lib/oturum";
+import { yetkiVarMi } from "@/lib/yetki-sunucu";
 import {
   stokSilinebilirMi,
   cariSilinebilirMi,
@@ -81,6 +83,26 @@ function bugun(): string {
 }
 
 /** Bir veya daha fazla üretim emrini DB'ye yazar; sonraki UE-#### kodlarını üretir. */
+
+/**
+ * Action'lar için yetki koruması.
+ *
+ * Hata FIRLATMAZ, sonuç döndürür: bu action'lar { ok, error } sözleşmesiyle
+ * çağrılıyor ve istemci hatayı toast ile gösteriyor; throw edilseydi
+ * kullanıcı ham "unhandled error" ekranı görürdü.
+ * İzin varsa null döner.
+ */
+async function yetkiKorumasi(
+  modul: string,
+  bayrak: "isList" | "isAdd" | "isUpdate" | "isDelete",
+): Promise<{ ok: false; error: string } | null> {
+  const o = await getOturum();
+  if (!o) return { ok: false, error: "Oturum bulunamadı. Tekrar giriş yapın." };
+  if (await yetkiVarMi(modul, bayrak, o)) return null;
+  return { ok: false, error: "Bu işlem için yetkiniz yok." };
+}
+
+
 export async function uretimEmriOlustur(
   yeniler: YeniUretimEmri[],
   /** Emirleri doğuran satın alma talebi — emir no talebe yazılır. */
@@ -1072,18 +1094,20 @@ export async function parametreSifirla(
 }
 
 /** Liste kolon ayarını kaydeder: seçili ek kolonlar + gören kullanıcılar.
- *  TODO: oturum altyapısı gelince yalnızca Yönetici rolüne izin ver. */
+ *  Ayar tüm kullanıcıları etkilediği için yönetim yetkisi ister. */
 /**
  * Pano kısayollarını kullanıcı + departman bazında kaydeder.
  * Anahtar biçimi ve gerekçesi için bkz. getPanoKisayollari.
  */
 export async function panoKisayolKaydet(
-  kullaniciId: string,
   departman: string,
   kisayollar: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const listeId = `pano-kisayol:${kullaniciId}:${departman}`;
+    // Kimlik oturumdan: aksi halde biri başkasının pano düzenini ezebilirdi.
+    const o = await getOturum();
+    if (!o) return { ok: false, error: "Oturum bulunamadı." };
+    const listeId = `pano-kisayol:${o.id}:${departman}`;
     const kolonlarJson = JSON.stringify({ kisayollar });
     await db.listeAyar.upsert({
       where: { listeId },
@@ -1140,6 +1164,9 @@ export async function kullaniciYetkiSet(
   modul: string,
   yetki: ModulYetki,
 ): Promise<{ ok: boolean; error?: string }> {
+  // Başkasının yetkisini değiştirmek yönetim işidir; kimlik oturumdan gelir.
+  const izin = await yetkiKorumasi("kullanicilar", "isUpdate");
+  if (izin) return izin;
   try {
     await db.kullaniciYetki.upsert({
       where: { kullaniciId_modul: { kullaniciId, modul } },
@@ -1226,6 +1253,9 @@ export async function yetkiSetiUygula(
   kullaniciId: string,
   setId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  // Başkasının yetkisini değiştirmek yönetim işidir; kimlik oturumdan gelir.
+  const izin = await yetkiKorumasi("kullanicilar", "isUpdate");
+  if (izin) return izin;
   try {
     const set = await db.yetkiSeti.findUnique({
       where: { id: setId },
@@ -1262,6 +1292,9 @@ export async function cariYetkiAyarla(
   goruntule: boolean,
   islemYap: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
+  // Başkasının yetkisini değiştirmek yönetim işidir; kimlik oturumdan gelir.
+  const izin = await yetkiKorumasi("kullanicilar", "isUpdate");
+  if (izin) return izin;
   try {
     if (goruntule && islemYap) {
       await db.kullaniciCariYetki.deleteMany({ where: { kullaniciId, cariId } });
@@ -1284,6 +1317,9 @@ export async function cariYetkiTopluAyarla(
   kullaniciId: string,
   ogeler: { cariId: string; goruntule: boolean; islemYap: boolean }[],
 ): Promise<{ ok: boolean; error?: string }> {
+  // Başkasının yetkisini değiştirmek yönetim işidir; kimlik oturumdan gelir.
+  const izin = await yetkiKorumasi("kullanicilar", "isUpdate");
+  if (izin) return izin;
   try {
     await db.$transaction(async (tx) => {
       for (const o of ogeler) {
@@ -2391,15 +2427,17 @@ const bugunStr = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Talep aksiyonları için rol/departman kontrolü.
- * TODO: oturum altyapısı gelince kimlik istemciden değil sunucudaki
- * oturumdan çözülecek; şimdilik sayfaların kullandığı stub kullanıcı id'si.
+ *
+ * Kimlik PARAMETRE OLARAK ALINMAZ, oturumdan çözülür: istemciden gelen
+ * kullanıcı id'si taklit edilebilirdi (biri başkasının id'siyle talep
+ * onaylayabiliyordu).
  */
 async function talepYetkiKontrol(
-  kullaniciId: string,
   gerek: "onay" | "baslat",
 ): Promise<{ ok: true; ad: string } | { ok: false; error: string }> {
-  const k = await db.kullanici.findUnique({ where: { id: kullaniciId } });
-  if (!k) return { ok: false, error: "Kullanıcı bulunamadı." };
+  const o = await getOturum();
+  if (!o) return { ok: false, error: "Oturum bulunamadı. Tekrar giriş yapın." };
+  const k = { rol: o.rol, departman: o.departman, adSoyad: o.adSoyad };
   if (gerek === "onay") {
     if (k.rol !== "Yönetici")
       return {
@@ -2461,8 +2499,10 @@ export async function talepOlustur(
       if (m) maxNo = Math.max(maxNo, Number(m[1]));
     }
     const id = `TAL-${maxNo + 1}`;
-    const k = opts?.kullaniciId
-      ? await db.kullanici.findUnique({ where: { id: opts.kullaniciId } })
+    // Audit izi oturumdan; istemcinin bildirdiği id'ye güvenilmez.
+    const oturumK = await getOturum();
+    const k = oturumK
+      ? await db.kullanici.findUnique({ where: { id: oturumK.id } })
       : null;
 
     // Talep hazırlığındaki dağıtım SİPARİŞ DEĞİLDİR — yalnız firma önerisidir.
@@ -2538,9 +2578,8 @@ export async function talepOlustur(
 /** Talebi onaylar — yalnız Yönetici; Beklemede → Onaylandı. */
 export async function talepOnayla(
   id: string,
-  kullaniciId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const yetki = await talepYetkiKontrol(kullaniciId, "onay");
+  const yetki = await talepYetkiKontrol("onay");
   if (!yetki.ok) return { ok: false, error: yetki.error };
   try {
     const t = await db.satinAlmaTalep.findUnique({ where: { id } });
@@ -2565,10 +2604,9 @@ export async function talepOnayla(
 /** Talebi reddeder — yalnız Yönetici; Beklemede → Reddedildi (+ neden). */
 export async function talepReddet(
   id: string,
-  kullaniciId: string,
   neden?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const yetki = await talepYetkiKontrol(kullaniciId, "onay");
+  const yetki = await talepYetkiKontrol("onay");
   if (!yetki.ok) return { ok: false, error: yetki.error };
   try {
     const t = await db.satinAlmaTalep.findUnique({ where: { id } });
@@ -2594,9 +2632,8 @@ export async function talepReddet(
 /** Tedarik sürecini başlatır — Satın Alma departmanı (veya Yönetici). */
 export async function talepBaslat(
   id: string,
-  kullaniciId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const yetki = await talepYetkiKontrol(kullaniciId, "baslat");
+  const yetki = await talepYetkiKontrol("baslat");
   if (!yetki.ok) return { ok: false, error: yetki.error };
   try {
     const t = await db.satinAlmaTalep.findUnique({ where: { id } });
@@ -2631,7 +2668,7 @@ export async function siparisOlustur(girdi: {
   notlar?: string;
   kullaniciId: string;
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const yetki = await talepYetkiKontrol(girdi.kullaniciId, "baslat");
+  const yetki = await talepYetkiKontrol("baslat");
   if (!yetki.ok) return { ok: false, error: yetki.error };
   if (!girdi.cariId) return { ok: false, error: "Tedarikçi seçin." };
   const net = girdi.kalemler.filter((k) => k.miktar > 0);

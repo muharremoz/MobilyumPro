@@ -4,16 +4,16 @@ import {
   getKullanicilar,
   getListeKolonAyari,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function CariPage() {
+  // "cari" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("cari");
   const [cariler, kolonAyari, kullanicilar] = await Promise.all([
     getCariler(),
     getListeKolonAyari("cariler"),
     getKullanicilar(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <CariList

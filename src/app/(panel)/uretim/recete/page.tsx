@@ -6,9 +6,11 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function ReceteRoute() {
+  // "uretim-takibi" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("uretim-takibi");
   const [parcalar, malzemeler, modeller, kolonAyari, kullanicilar] =
     await Promise.all([
       getParcalar(),
@@ -17,8 +19,6 @@ export default async function ReceteRoute() {
       getListeKolonAyari("receteler"),
       getKullanicilar(),
     ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <ReceteListe

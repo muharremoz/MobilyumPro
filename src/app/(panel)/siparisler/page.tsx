@@ -4,16 +4,16 @@ import {
   getListeKolonAyari,
   getKullanicilar,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function SiparislerPage() {
+  // "siparis" modülü liste yetkisi — sorgulardan ÖNCE, yetkisize veri çekilmesin.
+  const oturum = await sayfaYetkisi("siparis");
   const [siparisler, kolonAyari, kullanicilar] = await Promise.all([
     getSiparisler(),
     getListeKolonAyari("siparisler"),
     getKullanicilar(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const oturum = await oturumZorunlu();
   const mevcutKullaniciId = oturum.id;
   return (
     <SiparislerTable

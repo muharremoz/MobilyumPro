@@ -3,7 +3,7 @@ import {
   getTalepler,
   getCariler,
 } from "@/lib/db/queries";
-import { oturumZorunlu } from "@/lib/oturum";
+import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,8 @@ export default async function TaleplerRoute() {
     getTalepler(),
     getCariler(),
   ]);
-  // Kimlik oturumdan gelir; layout guard'ı zaten girişi zorunlu kılıyor.
-  const mevcut = await oturumZorunlu();
+  // Kimlik + "satin-alma" modülü liste yetkisi; yetkisizse panoya döner.
+  const mevcut = await sayfaYetkisi("satin-alma");
   return (
     <TalepListe
       talepler={talepler}
