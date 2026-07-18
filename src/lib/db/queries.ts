@@ -718,6 +718,214 @@ export async function getAtolyeGorunumu(
   };
 }
 
+/**
+ * Genel Bakış panosunun tek sorgusu — departmana göre farklı kartlar aynı
+ * veriden beslenir (departman başına ayrı sorgu/sayfa yok).
+ */
+export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
+  const bugun = new Date();
+  bugun.setHours(0, 0, 0, 0);
+  const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
+
+  const [
+    istasyonlar,
+    emirRows,
+    talepRows,
+    siparisRows,
+    stokRows,
+    hareketRows,
+    alisRows,
+  ] = await Promise.all([
+    getIstasyonlar(),
+    db.uretimEmri.findMany({
+      where: { durum: { notIn: ["İptal", "Tamamlandı"] } },
+      include: { adimlar: { orderBy: { sira: "asc" } } },
+      orderBy: { id: "desc" },
+    }),
+    db.satinAlmaTalep.findMany({
+      include: { satirlar: true },
+      orderBy: { id: "desc" },
+    }),
+    db.satinAlmaTalepSiparis.findMany({
+      where: { satir: { talep: { durum: "Tedarik Sürecinde" } } },
+      include: {
+        satir: { select: { malzemeAd: true, birim: true, malzemeId: true } },
+      },
+    }),
+    db.stok.findMany({
+      where: { grup: { in: ["Hammadde", "Yarı Mamül"] }, durum: "Aktif" },
+      select: {
+        id: true,
+        ad: true,
+        stokMiktar: true,
+        stokBirimi: true,
+        minStok: true,
+      },
+    }),
+    db.stokHareket.findMany({ orderBy: { id: "desc" }, take: 8 }),
+    db.alis.findMany({
+      where: { tarih: { gte: ayBasi } },
+      include: { satirlar: true },
+    }),
+  ]);
+
+  const istAd = new Map(istasyonlar.map((i) => [i.slug, i]));
+
+  // ── Üretim ───────────────────────────────────────────────────────────
+  const emirler = emirRows.map((e) => {
+    const isleniyor = e.adimlar.find((a) => a.durum === "İşleniyor");
+    const bekleyen = e.adimlar.find((a) => a.durum === "Bekliyor");
+    const slug = isleniyor?.istasyon ?? bekleyen?.istasyon;
+    return {
+      id: e.id,
+      urunAd: e.modelAd,
+      adet: e.adet,
+      durum: e.durum,
+      oncelik: e.oncelik ?? undefined,
+      termin: e.termin ? tarihStr(e.termin) : undefined,
+      istasyon: slug,
+      istasyonAd: slug ? istAd.get(slug)?.ad : undefined,
+      tamamAdim: e.adimlar.filter((a) => a.durum === "Tamamlandı").length,
+      toplamAdim: e.adimlar.length,
+    };
+  });
+  const istasyonKuyrugu = istasyonlar.map((i) => ({
+    slug: i.slug,
+    ad: i.ad,
+    renk: i.renk,
+    adet: emirler.filter((e) => e.istasyon === i.slug).length,
+  }));
+
+  // ── Satın alma ───────────────────────────────────────────────────────
+  const fiyatlar = await stokFiyatMap();
+  const onayBekleyenTalep = talepRows
+    .filter((t) => t.durum === "Beklemede")
+    .map((t) => ({
+      id: t.id,
+      tarih: tarihStr(t.tarih),
+      kalem: t.satirlar.length,
+      tutar: t.satirlar.reduce(
+        (top, s) =>
+          top +
+          Number(s.miktar) *
+            (s.tahminiFiyat != null
+              ? Number(s.tahminiFiyat)
+              : (fiyatlar.get(s.malzemeId)?.fiyat ?? 0)),
+        0,
+      ),
+    }));
+  // Tedarik sürecinde olup henüz hiç sipariş verilmemiş kalem sayısı.
+  const siparisMiktarlari = new Map<number, number>();
+  for (const o of siparisRows)
+    siparisMiktarlari.set(
+      o.satirId,
+      (siparisMiktarlari.get(o.satirId) ?? 0) + Number(o.miktar),
+    );
+  const siparissizKalem = talepRows
+    .filter((t) => t.durum === "Tedarik Sürecinde")
+    .flatMap((t) => t.satirlar)
+    .filter(
+      (s) => Number(s.miktar) - (siparisMiktarlari.get(s.id) ?? 0) > 0.0005,
+    ).length;
+
+  const sartRows = await db.stokUretici.findMany({
+    select: { stokId: true, cariId: true, tedarikGun: true },
+  });
+  const tedarikGun = new Map(
+    sartRows
+      .filter((r) => r.tedarikGun != null)
+      .map((r) => [`${r.stokId}::${r.cariId}`, r.tedarikGun as number]),
+  );
+  const bekleyenSiparis = siparisRows
+    .map((o) => {
+      const kalan = Number(o.miktar) - Number(o.tedarikEdilen);
+      const gun = tedarikGun.get(`${o.satir.malzemeId}::${o.cariId}`);
+      let tahminiTeslim: string | undefined;
+      let gecikti = false;
+      if (gun != null) {
+        const t = new Date(o.tarih);
+        t.setDate(t.getDate() + gun);
+        tahminiTeslim = tarihStr(t);
+        gecikti = t.getTime() < bugun.getTime();
+      }
+      return {
+        id: String(o.id),
+        malzemeAd: o.satir.malzemeAd,
+        cariAd: o.cariAd,
+        kalan,
+        birim: o.satir.birim,
+        tahminiTeslim,
+        gecikti,
+      };
+    })
+    .filter((o) => o.kalan > 0.0005)
+    .sort((a, b) => Number(b.gecikti) - Number(a.gecikti));
+
+  // ── Depo ─────────────────────────────────────────────────────────────
+  const kritikStok = stokRows
+    .map((m) => ({
+      id: m.id,
+      ad: m.ad,
+      stok: Number(m.stokMiktar),
+      birim: m.stokBirimi,
+      minStok: m.minStok != null ? Number(m.minStok) : undefined,
+    }))
+    // Min stok tanımlıysa onun altı; değilse sıfır/negatif olanlar kritiktir.
+    .filter((m) => (m.minStok != null ? m.stok <= m.minStok : m.stok <= 0))
+    .sort((a, b) => a.stok - b.stok)
+    .slice(0, 12);
+
+  // Hareket kartın adını taşımaz; ref_id'den çözülür.
+  const hareketAdlari = new Map(
+    (
+      await db.stok.findMany({
+        where: { id: { in: hareketRows.map((h) => h.refId) } },
+        select: { id: true, ad: true },
+      })
+    ).map((s) => [s.id, s.ad]),
+  );
+  const sonHareketler = hareketRows.map((h) => ({
+    id: h.id,
+    tarih: tarihStr(h.tarih),
+    tur: h.tur,
+    ad: hareketAdlari.get(h.refId) ?? h.refId,
+    miktar: Number(h.miktar),
+    birim: h.birim,
+  }));
+
+  // ── Özet ─────────────────────────────────────────────────────────────
+  const aylikAlisTutar = alisRows.reduce(
+    (top, a) =>
+      top +
+      a.satirlar.reduce(
+        (t, s) => t + Number(s.miktar) * Number(s.birimFiyat),
+        0,
+      ),
+    0,
+  );
+
+  return {
+    emirler,
+    istasyonKuyrugu,
+    onayBekleyenTalep,
+    siparissizKalem,
+    bekleyenSiparis,
+    kritikStok,
+    malKabulBekleyen: bekleyenSiparis.length,
+    sonHareketler,
+    ozet: {
+      acikEmir: emirler.length,
+      uretimdeEmir: emirler.filter((e) => e.durum === "Üretimde").length,
+      acikTalep: talepRows.filter(
+        (t) => t.durum !== "Tamamlandı" && t.durum !== "Reddedildi",
+      ).length,
+      kritikStokAdet: kritikStok.length,
+      aylikAlisTutar,
+      gecikenSiparis: bekleyenSiparis.filter((o) => o.gecikti).length,
+    },
+  };
+}
+
 /** İstasyona bağlı makineler (refakat kağıdı işlem sırası için). */
 export async function getMakineler(): Promise<import("../data").Makine[]> {
   const rows = await db.makine.findMany({

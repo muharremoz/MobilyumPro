@@ -92,6 +92,65 @@ export type ParcaIslem = {
   aciklama?: string;
 };
 
+/** Genel Bakış panosunun departman bağımsız veri seti. Kartlar bundan beslenir. */
+export type PanoVerisi = {
+  /** Üretim */
+  emirler: {
+    id: string;
+    urunAd: string;
+    adet: number;
+    durum: string;
+    oncelik?: string;
+    termin?: string;
+    /** Şu an işlenen istasyon (slug) — yoksa sıradaki bekleyen. */
+    istasyon?: string;
+    istasyonAd?: string;
+    /** Tamamlanan adım / toplam adım. */
+    tamamAdim: number;
+    toplamAdim: number;
+  }[];
+  /** İstasyon slug → o istasyonda bekleyen/işlenen emir sayısı. */
+  istasyonKuyrugu: { slug: string; ad: string; renk: string; adet: number }[];
+  /** Satın alma */
+  onayBekleyenTalep: { id: string; tarih: string; kalem: number; tutar: number }[];
+  siparissizKalem: number;
+  bekleyenSiparis: {
+    id: string;
+    malzemeAd: string;
+    cariAd: string;
+    kalan: number;
+    birim: string;
+    tahminiTeslim?: string;
+    gecikti: boolean;
+  }[];
+  /** Depo */
+  kritikStok: {
+    id: string;
+    ad: string;
+    stok: number;
+    birim: string;
+    minStok?: number;
+  }[];
+  malKabulBekleyen: number;
+  sonHareketler: {
+    id: string;
+    tarih: string;
+    tur: string;
+    ad: string;
+    miktar: number;
+    birim: string;
+  }[];
+  /** Yönetim özeti */
+  ozet: {
+    acikEmir: number;
+    uretimdeEmir: number;
+    acikTalep: number;
+    kritikStokAdet: number;
+    aylikAlisTutar: number;
+    gecikenSiparis: number;
+  };
+};
+
 /** QR ile açılan atölye görünümü (login'siz; tezgahta telefonla okutulur). */
 export type AtolyeGorunumu = {
   parcaId: string;
