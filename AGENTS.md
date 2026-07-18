@@ -18,6 +18,26 @@ iki makinede aynı veri olsun diyedir. Yerelde kaydetmediğin bir şey varsa ön
 `db:yedek` al. Tablo listesi `scripts/db-tablolar.mjs`'de; yeni tablo eklenince
 oraya da yazılmalı (IDENTITY id'li tablolar ayrıca `IDENTITY_TABLOLAR`'a).
 
+## Silme kuralı: işlem görmüş kayıt silinmez
+
+Silme action'ı **doğrudan `delete` çağırmaz** — önce `src/lib/db/silme-kontrol.ts`
+içindeki ilgili `*SilinebilirMi()` fonksiyonu çalışır:
+
+```ts
+const on = await silmeOnKontrol(ids, stokSilinebilirMi); // toplu
+if (!on.ok) return { ok: false, error: on.error };
+```
+
+FK'ya güvenmek YETMEZ: stok hareketi (`ref_id`), üretim emri (`model_id`) ve
+ad ile bağlanan tanımlar (cins/marka/renk/birim/depo) FK'sızdır — bunlar
+sessizce silinirdi. Engel listesi kullanıcıya sebebiyle döner
+("… 6 reçete satırı kaydında kullanılıyor").
+
+Kural: kaydın **kendi alt kayıtları** (doküman, banka, yetkili, poşet satırı)
+engel değildir, cascade ile gider. Engel, kaydın **başka bir iş kaydında**
+kullanılmasıdır. Toplu silmede biri engelliyse hiçbiri silinmez (yarım silme yok).
+Yeni bir tablo/silme eklenince kontrol de bu dosyaya yazılmalı.
+
 ## Liste satırı sağ tık menüsü
 
 Her liste satırında sağ tık menüsü olur. Elle `ContextMenu` kurma —

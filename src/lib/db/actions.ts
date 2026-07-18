@@ -4,6 +4,17 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
 import { db, tarihDate } from "./index";
+import {
+  stokSilinebilirMi,
+  cariSilinebilirMi,
+  parcaSilinebilirMi,
+  depoSilinebilirMi,
+  tanimSilinebilirMi,
+  grupSilinebilirMi,
+  istasyonSilinebilirMi,
+  kullaniciSilinebilirMi,
+  type SilmeSonucu,
+} from "./silme-kontrol";
 import { ean13, kodBarkod } from "@/lib/barkod";
 import { sifreHashle } from "./sifre";
 import { type IstasyonSlug } from "../fabrika";
@@ -342,16 +353,38 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
+
+/**
+ * Toplu silmede ön kontrol: her kayıt için kullanım denetimi çalıştırır.
+ * Engellenen varsa HİÇBİRİ silinmez ve sebep döner — yarım silme olmaz.
+ */
+async function silmeOnKontrol(
+  ids: string[],
+  kontrol: (id: string) => Promise<SilmeSonucu>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sonuclar = await Promise.all(ids.map((id) => kontrol(id)));
+  const engelli = sonuclar.filter((r) => !r.silinebilir);
+  if (engelli.length === 0) return { ok: true };
+  if (engelli.length === 1)
+    return { ok: false, error: engelli[0].mesaj ?? "Kayıt silinemez." };
+  return {
+    ok: false,
+    error: `${engelli.length} kayıt silinemez — işlem görmüş. Örn: ${engelli[0].mesaj ?? ""}`,
+  };
+}
+
 export async function malzemeSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, stokSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.stok.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Reçetede kullanılan malzeme silinemez." };
+    return { ok: false, error: "Malzeme silinemedi." };
   }
 }
 
@@ -405,6 +438,8 @@ export async function modelSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, stokSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.stok.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/urunler");
@@ -412,7 +447,7 @@ export async function modelSil(
     revalidatePath("/");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Üretim emri olan model silinemez." };
+    return { ok: false, error: "Model silinemedi." };
   }
 }
 
@@ -728,16 +763,15 @@ export async function parcaSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, parcaSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.parca.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
     revalidatePath("/uretim/recete");
     return { ok: true };
   } catch {
-    return {
-      ok: false,
-      error: "Başka reçetede/modelde kullanılan parça silinemez.",
-    };
+    return { ok: false, error: "Parça silinemedi." };
   }
 }
 
@@ -775,6 +809,8 @@ export async function depoSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, depoSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.depo.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
@@ -1205,6 +1241,8 @@ export async function kullaniciSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, kullaniciSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.kullanici.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/kullanicilar");
@@ -1295,8 +1333,10 @@ export async function cariSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (ids.length === 0) return { ok: false };
+  const on = await silmeOnKontrol(ids, cariSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
-    // cari_islem cascade ile silinir.
+    // Alt kayıtlar (banka/şube/yetkili/CRM/doküman) cascade ile silinir.
     await db.cari.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/cari");
     return { ok: true };
@@ -1402,10 +1442,10 @@ export async function grupKaydet(g: {
 export async function grupSil(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const kontrol = await grupSilinebilirMi(id);
+  if (!kontrol.silinebilir)
+    return { ok: false, error: kontrol.mesaj ?? "Grup silinemez." };
   try {
-    const altSayisi = await db.grup.count({ where: { ustId: id } });
-    if (altSayisi > 0)
-      return { ok: false, error: "Önce alt grupları silin." };
     await db.grup.delete({ where: { id } });
     revalidatePath("/stok-yonetimi");
     return { ok: true };
@@ -1496,6 +1536,9 @@ export async function istasyonSiraKaydet(
 export async function istasyonSil(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const kontrol = await istasyonSilinebilirMi(id);
+  if (!kontrol.silinebilir)
+    return { ok: false, error: kontrol.mesaj ?? "İstasyon silinemez." };
   try {
     await db.istasyon.delete({ where: { id } });
     revalidatePath("/stok-yonetimi");
@@ -1605,6 +1648,8 @@ export async function tanimKaydet(
 export async function tanimSil(
   ids: string[],
 ): Promise<{ ok: boolean; error?: string }> {
+  const on = await silmeOnKontrol(ids, tanimSilinebilirMi);
+  if (!on.ok) return { ok: false, error: on.error };
   try {
     await db.tanim.deleteMany({ where: { id: { in: ids } } });
     revalidatePath("/stok-yonetimi");
@@ -2576,12 +2621,10 @@ export async function stokKaydet(
 export async function stokSil(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  const kontrol = await stokSilinebilirMi(id);
+  if (!kontrol.silinebilir)
+    return { ok: false, error: kontrol.mesaj ?? "Kart silinemez." };
   try {
-    const stok = await db.stok.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-    if (!stok) return { ok: false, error: "Kart bulunamadı." };
     await db.stok.delete({ where: { id } });
     revalidatePath("/stok-karti");
     revalidatePath("/stok-yonetimi");
@@ -2589,10 +2632,7 @@ export async function stokSil(
     return { ok: true };
   } catch (e) {
     console.error("stokSil:", e);
-    return {
-      ok: false,
-      error: "Kart silinemedi — reçetede veya üretimde kullanılıyor olabilir.",
-    };
+    return { ok: false, error: "Kart silinemedi." };
   }
 }
 
