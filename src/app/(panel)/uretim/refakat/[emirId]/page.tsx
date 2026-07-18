@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { RefakatKagitlari } from "@/components/production/refakat-kagidi";
@@ -11,7 +12,14 @@ export default async function RefakatRoute({
   params: Promise<{ emirId: string }>;
 }) {
   const { emirId } = await params;
-  const kagitlar = await getRefakatKagitlari(emirId);
+  // QR mutlak URL taşımalı ki telefon açabilsin — istekten host çözülür.
+  const h = await headers();
+  const host = h.get("host") ?? "";
+  const protokol = h.get("x-forwarded-proto") ?? "http";
+  const kagitlar = await getRefakatKagitlari(
+    emirId,
+    host ? `${protokol}://${host}` : undefined,
+  );
   if (kagitlar.length === 0 && !emirId.startsWith("UE-")) notFound();
   return <RefakatKagitlari kagitlar={kagitlar} emirId={emirId} />;
 }

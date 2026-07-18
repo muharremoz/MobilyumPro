@@ -1,6 +1,8 @@
 import "server-only";
 
 import { db, tarihStr } from "./index";
+import QRCode from "qrcode";
+
 import { kodBarkod } from "../barkod";
 import { ISTASYONLAR, type Istasyon } from "../fabrika";
 import type {
@@ -517,6 +519,8 @@ export async function getFabrikaEmirleri(): Promise<
  */
 export async function getRefakatKagitlari(
   emirId: string,
+  /** QR'ın işaret edeceği mutlak taban URL (örn. http://192.168.1.10:1616). */
+  tabanUrl?: string,
 ): Promise<import("../data").RefakatKagidi[]> {
   const emir = await db.uretimEmri.findUnique({ where: { id: emirId } });
   if (!emir) return [];
@@ -573,7 +577,8 @@ export async function getRefakatKagitlari(
   const pvcMi = (ad: string) => /PVC|BANT/i.test(ad);
   const sayi = (v: unknown) => (v == null ? undefined : Number(v));
 
-  return bom.map((b, i) => {
+  return Promise.all(
+    bom.map(async (b, i) => {
     const p = parcaMap.get(b.parcaId);
     const receteSatirlari = (p?.recete ?? []).filter((r) => r.stok);
     const pvcler = receteSatirlari
@@ -620,8 +625,97 @@ export async function getRefakatKagitlari(
       urunGorsel:
         stokGorsel.get(ustModel?.id ?? emir.modelId) || undefined,
       parcaGorsel: parcaGorsel.get(b.parcaId) || undefined,
+      // QR: atölye görünümü (/q/<parcaId>.<emirId>) — login gerektirmez.
+      qrSvg: await QRCode.toString(
+        `${tabanUrl ?? ""}/q/${b.parcaId}.${emir.id}`,
+        { type: "svg", margin: 0, width: 112 },
+      ),
     };
+    }),
+  );
+}
+
+/**
+ * QR ile açılan atölye görünümü: bir parçanın (ve bağlı olduğu modelin)
+ * görselleri, dokümanları, ölçüleri ve işlem sırası. Login gerektirmez —
+ * tezgahtaki personel telefonla okutup teknik resme bakar.
+ */
+export async function getAtolyeGorunumu(
+  parcaId: string,
+  emirId?: string,
+): Promise<import("../data").AtolyeGorunumu | null> {
+  const parca = await db.parca.findUnique({
+    where: { id: parcaId },
+    include: {
+      islemler: { orderBy: { sira: "asc" } },
+      dokumanlar: true,
+      recete: { include: { stok: { select: { ad: true } } } },
+    },
   });
+  if (!parca) return null;
+
+  const [istasyonlar, makineler, bag, emir] = await Promise.all([
+    getIstasyonlar(),
+    getMakineler(),
+    db.modelParca.findFirst({
+      where: { parcaId },
+      include: { stok: { select: { id: true, ad: true } } },
+    }),
+    emirId ? db.uretimEmri.findUnique({ where: { id: emirId } }) : null,
+  ]);
+  const istAd = new Map(istasyonlar.map((i) => [i.slug, i.ad]));
+  const makineAd = new Map(makineler.map((m) => [m.id, m.ad]));
+
+  // Modelin dokümanları (stok kartı) — parçanınkilerle birlikte gösterilir.
+  const modelDok = bag?.stok
+    ? await db.stokDokuman.findMany({ where: { stokId: bag.stok.id } })
+    : [];
+
+  const sayi = (v: unknown) => (v == null ? undefined : Number(v));
+  return {
+    parcaId: parca.id,
+    parcaAd: parca.ad,
+    modelId: bag?.stok?.id,
+    modelAd: bag?.stok?.ad,
+    emirId: emir?.id,
+    emirAdet: emir?.adet,
+    emirDurum: emir?.durum,
+    olculer: {
+      kabaUzunluk: sayi(parca.kabaUzunluk),
+      kabaGenislik: sayi(parca.kabaGenislik),
+      netUzunluk: sayi(parca.netUzunluk),
+      netGenislik: sayi(parca.netGenislik),
+      bitmisUzunluk: sayi(parca.bitmisUzunluk),
+      bitmisGenislik: sayi(parca.bitmisGenislik),
+      kalinlik: sayi(parca.kalinlik),
+    },
+    malzemeler: parca.recete
+      .filter((r) => r.stok)
+      .map((r) => ({
+        ad: r.stok!.ad,
+        miktar: Number(r.miktar),
+      })),
+    islemler: parca.islemler.map((i) => ({
+      sira: i.sira,
+      istasyonAd: istAd.get(i.istasyon) ?? i.istasyon,
+      makineAd: i.makineId ? makineAd.get(i.makineId) : undefined,
+      operasyon: i.operasyon,
+    })),
+    dokumanlar: [
+      ...parca.dokumanlar.map((d) => ({
+        ad: d.ad,
+        url: d.url,
+        tip: d.tip,
+        kaynak: "Parça" as const,
+      })),
+      ...modelDok.map((d) => ({
+        ad: d.ad,
+        url: d.url,
+        tip: d.tip,
+        kaynak: "Model" as const,
+      })),
+    ],
+  };
 }
 
 /** İstasyona bağlı makineler (refakat kağıdı işlem sırası için). */

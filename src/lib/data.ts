@@ -92,6 +92,31 @@ export type ParcaIslem = {
   aciklama?: string;
 };
 
+/** QR ile açılan atölye görünümü (login'siz; tezgahta telefonla okutulur). */
+export type AtolyeGorunumu = {
+  parcaId: string;
+  parcaAd: string;
+  modelId?: string;
+  modelAd?: string;
+  emirId?: string;
+  emirAdet?: number;
+  emirDurum?: string;
+  olculer?: ParcaOlculeri;
+  malzemeler: { ad: string; miktar: number }[];
+  islemler: {
+    sira: number;
+    istasyonAd: string;
+    makineAd?: string;
+    operasyon: string;
+  }[];
+  dokumanlar: {
+    ad: string;
+    url: string;
+    tip: string;
+    kaynak: "Parça" | "Model";
+  }[];
+};
+
 /** Bir parça için basılan refakat kağıdı (parça ürünle birlikte gezer). */
 export type RefakatKagidi = {
   /** İş emri (UE-####). */
@@ -127,6 +152,8 @@ export type RefakatKagidi = {
   }[];
   urunGorsel?: string;
   parcaGorsel?: string;
+  /** Atölye görünümüne (login'siz doküman sayfası) giden QR — inline SVG. */
+  qrSvg?: string;
 };
 
 /** İstasyona bağlı tezgah (SAWTECH EBATLAMA, EDGETECH 1 …). */

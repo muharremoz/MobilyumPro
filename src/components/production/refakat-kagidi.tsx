@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { ArrowLeft, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -253,34 +252,31 @@ function Kagit({ k }: { k: RefakatKagidi }) {
         </tbody>
       </table>
 
-      {/* ── Resim kutuları ── */}
-      <div className="grid grid-cols-3 text-[9px]">
-        {[
-          { baslik: "ÜRÜN RESMİ", src: k.urunGorsel },
-          { baslik: "PARÇA RESMİ", src: k.parcaGorsel },
-          { baslik: "KANAL DETAYI", src: undefined },
-        ].map((kutu, i) => (
-          <div
-            key={kutu.baslik}
-            className={
-              i < 2 ? "border-r border-black px-1 py-0.5" : "px-1 py-0.5"
-            }
-          >
-            {kutu.baslik}
-            <div className="mt-0.5 flex h-24 items-center justify-center">
-              {kutu.src && (
-                <Image
-                  src={kutu.src}
-                  alt={kutu.baslik}
-                  width={120}
-                  height={90}
-                  unoptimized
-                  className="max-h-24 w-auto object-contain"
-                />
-              )}
-            </div>
-          </div>
-        ))}
+      {/* ── Alt: QR (teknik resim/doküman) + notlar ── */}
+      <div className="flex text-[9px]">
+        <div className="flex w-44 shrink-0 flex-col items-center border-r border-black px-2 py-2">
+          {k.qrSvg ? (
+            <span
+              className="size-28"
+              // QR sunucuda üretilir (qrcode paketi) — SVG olarak basılır.
+              dangerouslySetInnerHTML={{ __html: k.qrSvg }}
+            />
+          ) : (
+            <span className="flex size-28 items-center justify-center border border-black">
+              QR
+            </span>
+          )}
+          <span className="mt-1 text-center text-[9px] leading-tight font-semibold">
+            TEKNİK RESİM & DOKÜMANLAR
+          </span>
+          <span className="text-center text-[8px] leading-tight">
+            Telefonla okutun
+          </span>
+        </div>
+        <div className="flex-1 px-2 py-1">
+          NOTLAR
+          <div className="mt-1 h-24 border-b border-dotted border-black/50" />
+        </div>
       </div>
     </div>
   );
