@@ -69,9 +69,7 @@ function Palet({
     // İstasyon değişince kayarak taşın.
     g.position.x = MathUtils.damp(g.position.x, hedef[0], 2.2, delta);
     g.position.z = MathUtils.damp(g.position.z, hedef[2], 2.2, delta);
-    const bob = isleniyor
-      ? Math.sin(clock.elapsedTime * 2.2) * 0.08 + 0.1
-      : 0;
+    const bob = isleniyor ? Math.sin(clock.elapsedTime * 2.2) * 0.08 + 0.1 : 0;
     g.position.y = hedef[1] + bob;
   });
 
@@ -327,7 +325,6 @@ function Forklift() {
 // Modeller: public/modeller/fabrika/*.glb (Factory Kit 3.0, CC0/Public Domain).
 const KIT = (ad: string) => `/modeller/fabrika/${ad}.glb`;
 const KIT_PARCALAR = [
-  "conveyor-long",
   "box-large",
   "box-small",
   "box-wide",
@@ -341,7 +338,6 @@ KIT_PARCALAR.forEach((ad) => useGLTF.preload(KIT(ad)));
 // tek materyalli olduğundan parça başına düz renk boyanır (işçi modelindeki
 // boya tekniğinin aynısı; sahnenin flat renk diliyle uyumlu).
 const KIT_RENK: Record<(typeof KIT_PARCALAR)[number], string> = {
-  "conveyor-long": "#57534e",
   "box-large": "#c8a165",
   "box-small": "#c8a165",
   "box-wide": "#c8a165",
@@ -368,7 +364,14 @@ function KitParca(props: KitParcaProps) {
   );
 }
 
-function KitParcaModel({ ad, x, z, y = 0.22, donus = 0, olcek = 1 }: KitParcaProps) {
+function KitParcaModel({
+  ad,
+  x,
+  z,
+  y = 0.22,
+  donus = 0,
+  olcek = 1,
+}: KitParcaProps) {
   const { scene } = useGLTF(KIT(ad));
   const model = React.useMemo(() => {
     const klon = scene.clone(true);
@@ -402,49 +405,15 @@ function KitParcaModel({ ad, x, z, y = 0.22, donus = 0, olcek = 1 }: KitParcaPro
   );
 }
 
-// Konveyör hattı — kit segmentlerinden dizilir, üzerinde kutu kayar.
-function KonveyorHatti({
+function CalismaMasasi({
   x,
   z,
-  uzunluk,
-  olcek = 1.4,
+  renk = "#a8a29e",
 }: {
   x: number;
   z: number;
-  uzunluk: number;
-  olcek?: number;
+  renk?: string;
 }) {
-  const segUz = 2 * olcek; // conveyor-long: 2 birim genişlik
-  const adet = Math.max(1, Math.round(uzunluk / segUz));
-  const hatUz = adet * segUz;
-  const kutu = React.useRef<Group>(null);
-  useFrame(({ clock }) => {
-    if (!kutu.current) return;
-    const t = (clock.elapsedTime * 0.55) % 1;
-    kutu.current.position.x = x - hatUz / 2 + 0.7 + t * (hatUz - 1.4);
-  });
-  return (
-    <>
-      {Array.from({ length: adet }, (_, i) => (
-        <KitParca
-          key={i}
-          ad="conveyor-long"
-          x={x - hatUz / 2 + segUz / 2 + i * segUz}
-          z={z}
-          olcek={olcek}
-        />
-      ))}
-      {/* Bant üzerinde ilerleyen koli */}
-      <group ref={kutu} position={[x, 0.22 + 0.4 * olcek, z]}>
-        <React.Suspense fallback={null}>
-          <KitParcaModel ad="box-small" x={0} z={0} y={0} olcek={1.2} />
-        </React.Suspense>
-      </group>
-    </>
-  );
-}
-
-function CalismaMasasi({ x, z, renk = "#a8a29e" }: { x: number; z: number; renk?: string }) {
   return (
     <group position={[x, 0, z]}>
       <mesh castShadow position={[0, 0.5, 0]}>
@@ -466,6 +435,111 @@ function CalismaMasasi({ x, z, renk = "#a8a29e" }: { x: number; z: number; renk?
         <boxGeometry args={[0.6, 0.22, 0.5]} />
         <meshStandardMaterial color="#d6b98c" />
       </mesh>
+    </group>
+  );
+}
+
+/** Köprü tezgah — alt gövde + istasyon renginde üst kiriş (sade makine formu). */
+function KopruTezgah({
+  x,
+  z,
+  renk,
+  genis = 3,
+  donus = 0,
+}: {
+  x: number;
+  z: number;
+  renk: string;
+  genis?: number;
+  donus?: number;
+}) {
+  return (
+    <group position={[x, 0.22, z]} rotation={[0, donus, 0]}>
+      <mesh castShadow position={[0, 0.35, 0]}>
+        <boxGeometry args={[genis, 0.7, 1.4]} />
+        <meshStandardMaterial color="#e7e5e4" />
+      </mesh>
+      {[-genis / 2 + 0.25, genis / 2 - 0.25].map((dx) => (
+        <mesh key={dx} castShadow position={[dx, 1.05, 0]}>
+          <boxGeometry args={[0.18, 0.7, 0.9]} />
+          <meshStandardMaterial color="#57534e" />
+        </mesh>
+      ))}
+      <mesh castShadow position={[0, 1.45, 0]}>
+        <boxGeometry args={[genis, 0.22, 0.9]} />
+        <meshStandardMaterial color={renk} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Yatay plaka istifi — üst üste suntalam paneller. */
+function PlakaIstifi({
+  x,
+  z,
+  donus = 0,
+}: {
+  x: number;
+  z: number;
+  donus?: number;
+}) {
+  return (
+    <group position={[x, 0.22, z]} rotation={[0, donus, 0]}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <mesh key={i} castShadow position={[0, 0.06 + i * 0.09, 0]}>
+          <boxGeometry args={[2.6, 0.07, 1.6]} />
+          <meshStandardMaterial color={i % 2 ? "#c8a165" : "#d6b98c"} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Kenar bandı rulo standı. */
+function RuloStandi({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x, 0.22, z]}>
+      <mesh castShadow position={[0, 0.55, 0]}>
+        <boxGeometry args={[0.16, 1.1, 0.16]} />
+        <meshStandardMaterial color="#78716c" />
+      </mesh>
+      {[0.35, 0.7, 1.0].map((y, i) => (
+        <mesh
+          key={y}
+          castShadow
+          position={[0, y, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.22, 0.22, 0.12, 20]} />
+          <meshStandardMaterial color={["#f97316", "#c8a165", "#404040"][i]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Ahşap palet — koli istiflerinin altı / boş bekleyen. */
+function AhsapPalet({
+  x,
+  z,
+  donus = 0,
+}: {
+  x: number;
+  z: number;
+  donus?: number;
+}) {
+  return (
+    <group position={[x, 0.22, z]} rotation={[0, donus, 0]}>
+      <mesh castShadow position={[0, 0.1, 0]}>
+        <boxGeometry args={[1.7, 0.05, 1.5]} />
+        <meshStandardMaterial color="#b08968" />
+      </mesh>
+      {[-0.6, 0, 0.6].map((dz) => (
+        <mesh key={dz} castShadow position={[0, 0.04, dz]}>
+          <boxGeometry args={[1.7, 0.08, 0.16]} />
+          <meshStandardMaterial color="#8d6e4f" />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -524,6 +598,11 @@ function IstasyonAlani({
       <mesh position={[cx, 0.02, cz]}>
         <boxGeometry args={[konum.g + 0.3, 0.06, konum.d + 0.3]} />
         <meshStandardMaterial color={kenar} />
+      </mesh>
+      {/* Arka kenarda bölüm kimlik şeridi (istasyon rengi) */}
+      <mesh position={[cx, 0.235, konum.z + 0.3]}>
+        <boxGeometry args={[konum.g - 0.6, 0.05, 0.4]} />
+        <meshStandardMaterial color={istasyon.renk} />
       </mesh>
       <Html
         center
@@ -701,9 +780,27 @@ export default function FabrikaSahne({
         <Raf x={depoM.cx} z={DEPO.konum.z + 2.2} uzunluk={DEPO.konum.g - 2.5} />
         <Raf x={depoM.cx} z={DEPO.konum.z + 5.4} uzunluk={DEPO.konum.g - 2.5} />
         {/* Raf önünde bekleyen koliler */}
-        <KitParca ad="box-large" x={depoM.cx - 3} z={DEPO.konum.z + 3.8} olcek={1.4} />
-        <KitParca ad="box-small" x={depoM.cx - 1.8} z={DEPO.konum.z + 3.9} donus={0.5} olcek={1.4} />
-        <Isci merkezX={depoM.cx} merkezZ={DEPO.konum.z + 3.8} rx={2.6} rz={1} hiz={0.4} yelek="#737373" />
+        <KitParca
+          ad="box-large"
+          x={depoM.cx - 3}
+          z={DEPO.konum.z + 3.8}
+          olcek={1.4}
+        />
+        <KitParca
+          ad="box-small"
+          x={depoM.cx - 1.8}
+          z={DEPO.konum.z + 3.9}
+          donus={0.5}
+          olcek={1.4}
+        />
+        <Isci
+          merkezX={depoM.cx}
+          merkezZ={DEPO.konum.z + 3.8}
+          rx={2.6}
+          rz={1}
+          hiz={0.4}
+          yelek="#737373"
+        />
       </group>
 
       {/* İstasyonlar + bölüme özel dekor */}
@@ -730,47 +827,189 @@ export default function FabrikaSahne({
           >
             {ist.slug === "kesim" && (
               <>
-                <Isci merkezX={cx + 1.5} merkezZ={konum.z + konum.d - 1.6} rx={2.2} rz={1.1} hiz={0.55} faz={1} yelek="#3b82f6" />
+                {/* Ebatlama tezgahı + işlenecek plaka istifi */}
+                <KopruTezgah
+                  x={cx + 1}
+                  z={konum.z + 1.9}
+                  renk={ist.renk}
+                  genis={3.6}
+                />
+                <PlakaIstifi
+                  x={konum.x + 2}
+                  z={konum.z + konum.d - 1.7}
+                  donus={0.15}
+                />
+                <Isci
+                  merkezX={cx + 1.5}
+                  merkezZ={konum.z + konum.d - 1.6}
+                  rx={2.2}
+                  rz={1.1}
+                  hiz={0.55}
+                  faz={1}
+                  yelek="#3b82f6"
+                />
               </>
             )}
             {ist.slug === "bantlama" && (
               <>
-                {/* Kenar bantlama hattı */}
-                <KonveyorHatti x={cx} z={konum.z + konum.d - 1.3} uzunluk={konum.g - 2.5} />
+                {/* Kenar bantlama tezgahı + bant ruloları */}
+                <KopruTezgah
+                  x={cx}
+                  z={konum.z + 1.9}
+                  renk={ist.renk}
+                  genis={5}
+                />
+                <RuloStandi x={konum.x + 1.3} z={konum.z + konum.d - 1.4} />
+                <Isci
+                  merkezX={cx + 1.5}
+                  merkezZ={konum.z + konum.d - 1.5}
+                  rx={2.2}
+                  rz={0.8}
+                  hiz={0.5}
+                  faz={2.4}
+                  yelek="#8b5cf6"
+                />
               </>
             )}
             {ist.slug === "delik" && (
               <>
-                <Isci merkezX={cx} merkezZ={konum.z + konum.d - 2.6} rx={2.8} rz={0.9} hiz={0.45} faz={3} yelek="#06b6d4" />
+                {/* İki delik tezgahı */}
+                <KopruTezgah
+                  x={konum.x + 2.6}
+                  z={konum.z + 2.2}
+                  renk={ist.renk}
+                  genis={2.6}
+                />
+                <KopruTezgah
+                  x={konum.x + konum.g - 2.6}
+                  z={konum.z + 2.2}
+                  renk={ist.renk}
+                  genis={2.6}
+                />
+                <Isci
+                  merkezX={cx}
+                  merkezZ={konum.z + konum.d - 2.6}
+                  rx={2.8}
+                  rz={0.9}
+                  hiz={0.45}
+                  faz={3}
+                  yelek="#06b6d4"
+                />
               </>
             )}
             {ist.slug === "montaj" && (
               <>
                 <CalismaMasasi x={konum.x + 2.2} z={konum.z + konum.d - 1.3} />
-                <CalismaMasasi x={konum.x + konum.g - 2.2} z={konum.z + konum.d - 1.3} />
-                <Isci merkezX={cx} merkezZ={konum.z + konum.d - 1.9} rx={2.4} rz={0.7} hiz={0.6} faz={2} yelek="#f97316" />
+                <CalismaMasasi
+                  x={konum.x + konum.g - 2.2}
+                  z={konum.z + konum.d - 1.3}
+                />
+                {/* Yarı monte gövde */}
+                <KitParca ad="box-wide" x={cx} z={konum.z + 1.3} olcek={1.3} />
+                <Isci
+                  merkezX={cx}
+                  merkezZ={konum.z + konum.d - 1.9}
+                  rx={2.4}
+                  rz={0.7}
+                  hiz={0.6}
+                  faz={2}
+                  yelek="#f97316"
+                />
               </>
             )}
             {ist.slug === "paketleme" && (
               <>
-                {/* Paket hattı + hazır koliler */}
-                <KonveyorHatti x={cx} z={konum.z + konum.d - 1.2} uzunluk={konum.g - 2.5} />
-                <KitParca ad="box-large" x={konum.x + 1.4} z={konum.z + 1.5} olcek={1.4} />
-                <KitParca ad="box-wide" x={konum.x + 1.4} z={konum.z + 1.5} y={0.22 + 0.55 * 1.4} olcek={1.4} />
-                <Isci merkezX={cx} merkezZ={konum.z + 1.6} rx={2.2} rz={0.6} hiz={0.5} faz={4.5} yelek="#f59e0b" />
+                {/* Paket masası + paletli hazır koliler */}
+                <CalismaMasasi
+                  x={cx + 1.5}
+                  z={konum.z + konum.d - 1.2}
+                  renk="#d6d3d1"
+                />
+                <AhsapPalet x={konum.x + 1.4} z={konum.z + 1.5} />
+                <KitParca
+                  ad="box-large"
+                  x={konum.x + 1.4}
+                  z={konum.z + 1.5}
+                  y={0.36}
+                  olcek={1.4}
+                />
+                <KitParca
+                  ad="box-wide"
+                  x={konum.x + 1.4}
+                  z={konum.z + 1.5}
+                  y={0.36 + 0.55 * 1.4}
+                  olcek={1.4}
+                />
+                <Isci
+                  merkezX={cx}
+                  merkezZ={konum.z + 1.6}
+                  rx={2.2}
+                  rz={0.6}
+                  hiz={0.5}
+                  faz={4.5}
+                  yelek="#f59e0b"
+                />
               </>
             )}
             {ist.slug === "sevkiyat" && (
               <>
                 {/* Sevke hazır koli istifleri + saha işaretleri */}
-                <KitParca ad="box-large" x={cx - 2.2} z={konum.z + konum.d - 2} olcek={1.5} />
-                <KitParca ad="box-long" x={cx - 2.2} z={konum.z + konum.d - 2} y={0.22 + 0.55 * 1.5} olcek={1.5} />
-                <KitParca ad="box-wide" x={cx - 0.6} z={konum.z + konum.d - 1.8} donus={0.4} olcek={1.5} />
-                <KitParca ad="box-small" x={cx + 1} z={konum.z + konum.d - 2.1} olcek={1.5} />
-                <KitParca ad="warning-orange" x={konum.x + 1} z={konum.z + 1.2} olcek={1.3} />
-                <KitParca ad="cone" x={cx + 2.4} z={konum.z + konum.d - 1.2} olcek={1.4} />
-                <KitParca ad="cone" x={cx + 3.1} z={konum.z + konum.d - 2} olcek={1.4} />
-                <Isci merkezX={cx} merkezZ={konum.z + 4} rx={1.6} rz={2.6} hiz={0.45} faz={0.7} yelek="#10b981" />
+                <AhsapPalet x={cx - 2.2} z={konum.z + konum.d - 2} />
+                <AhsapPalet x={cx + 2.6} z={konum.z + 2} donus={0.3} />
+                <KitParca
+                  ad="box-large"
+                  x={cx - 2.2}
+                  z={konum.z + konum.d - 2}
+                  y={0.36}
+                  olcek={1.5}
+                />
+                <KitParca
+                  ad="box-long"
+                  x={cx - 2.2}
+                  z={konum.z + konum.d - 2}
+                  y={0.36 + 0.55 * 1.5}
+                  olcek={1.5}
+                />
+                <KitParca
+                  ad="box-wide"
+                  x={cx - 0.6}
+                  z={konum.z + konum.d - 1.8}
+                  donus={0.4}
+                  olcek={1.5}
+                />
+                <KitParca
+                  ad="box-small"
+                  x={cx + 1}
+                  z={konum.z + konum.d - 2.1}
+                  olcek={1.5}
+                />
+                <KitParca
+                  ad="warning-orange"
+                  x={konum.x + 1}
+                  z={konum.z + 1.2}
+                  olcek={1.3}
+                />
+                <KitParca
+                  ad="cone"
+                  x={cx + 2.4}
+                  z={konum.z + konum.d - 1.2}
+                  olcek={1.4}
+                />
+                <KitParca
+                  ad="cone"
+                  x={cx + 3.1}
+                  z={konum.z + konum.d - 2}
+                  olcek={1.4}
+                />
+                <Isci
+                  merkezX={cx}
+                  merkezZ={konum.z + 4}
+                  rx={1.6}
+                  rz={2.6}
+                  hiz={0.45}
+                  faz={0.7}
+                  yelek="#10b981"
+                />
               </>
             )}
           </IstasyonAlani>
