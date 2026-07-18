@@ -307,7 +307,7 @@ function Emirlerim({
             key={e.id}
             type="button"
             onClick={() => router.push("/uretim/emirler")}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
+            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-primary/10"
           >
             <span className="font-mono text-xs text-muted-foreground">
               {e.id}
@@ -364,7 +364,7 @@ function OnayBekleyen({ veri }: { veri: PanoVerisi }) {
             key={t.id}
             type="button"
             onClick={() => router.push("/satin-alma/talepler")}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
+            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-primary/10"
           >
             <span className="font-mono text-xs text-muted-foreground">
               {t.id}
@@ -461,7 +461,7 @@ function KritikStok({ veri }: { veri: PanoVerisi }) {
             key={m.id}
             type="button"
             onClick={() => router.push(`/stok-karti/${m.id}`)}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left hover:bg-muted/50"
+            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-primary/10"
           >
             <span className="min-w-0 flex-1 truncate text-sm">{m.ad}</span>
             {m.minStok != null && (
