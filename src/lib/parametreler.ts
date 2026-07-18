@@ -30,6 +30,15 @@ export const PARAMETRELER: ParametreTanim[] = [
     varsayilan: "MobilyumPro Mobilya",
   },
   {
+    anahtar: "qr_taban_url",
+    etiket: "QR Taban Adresi",
+    aciklama:
+      "Refakat kağıdındaki QR'ın işaret ettiği adres (örn. http://192.168.1.16:1616). Boş bırakılırsa sunucunun yerel ağ adresi otomatik bulunur.",
+    grup: "Genel",
+    tip: "metin",
+    varsayilan: "",
+  },
+  {
     anahtar: "para_birimi",
     etiket: "Para Birimi",
     aciklama: "Fiyat ve tutarların gösterileceği varsayılan para birimi.",
