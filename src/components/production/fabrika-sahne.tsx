@@ -336,9 +336,9 @@ const KIT_PARCALAR = [
 ] as const;
 KIT_PARCALAR.forEach((ad) => useGLTF.preload(KIT(ad)));
 
-// Kitin renk dokusu (Textures/colormap.png) pakete dahil değil — modeller
-// tek materyalli olduğundan parça başına düz renk boyanır (işçi modelindeki
-// boya tekniğinin aynısı; sahnenin flat renk diliyle uyumlu).
+// Kit modelleri renklerini harici bir palet dokusundan (Textures/colormap.png)
+// okuyordu; dosya pakette olmadığı için GLB'lerden doku referansı temizlendi.
+// Renk parça başına düz boyanır (işçi modelindeki tekniğin aynısı).
 const KIT_RENK: Record<(typeof KIT_PARCALAR)[number], string> = {
   "box-large": "#c8a165",
   "box-small": "#c8a165",
