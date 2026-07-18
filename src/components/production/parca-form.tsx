@@ -1282,7 +1282,12 @@ export function ParcaForm({
                     aciklama="Her malzemenin en güncel alış fiyatına göre toplam."
                     fark={toplamSonAlis - bandToplam}
                     yuzde={yuzdeFark(toplamSonAlis)}
-                    kapsam={`${sonAlisKapsam}/${bandMalzemeler.length} malzemenin alış geçmişi var${sonAlisKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`}
+                    veriAdet={sonAlisKapsam}
+                    kapsam={
+                      sonAlisKapsam === 0
+                        ? "Hiçbir malzemenin alış geçmişi yok — alış girildikçe burada gerçek maliyet görünür."
+                        : `${sonAlisKapsam}/${bandMalzemeler.length} malzemenin alış geçmişi var${sonAlisKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`
+                    }
                   />
                   <div className="h-9 w-px bg-border" />
                   <MaliyetBazi
@@ -1292,7 +1297,12 @@ export function ParcaForm({
                     aciklama="Satın alma şartlarındaki en yüksek anlaşma fiyatına göre — en pahalı senaryo."
                     fark={toplamMaxSart - bandToplam}
                     yuzde={yuzdeFark(toplamMaxSart)}
-                    kapsam={`${maxSartKapsam}/${bandMalzemeler.length} malzemede şart tanımlı${maxSartKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`}
+                    veriAdet={maxSartKapsam}
+                    kapsam={
+                      maxSartKapsam === 0
+                        ? "Hiçbir malzemede satın alma şartı tanımlı değil — şart eklenince en pahalı senaryo burada hesaplanır."
+                        : `${maxSartKapsam}/${bandMalzemeler.length} malzemede şart tanımlı${maxSartKapsam < bandMalzemeler.length ? " (kalanı kart fiyatından)" : ""}`
+                    }
                   />
                 </div>
               </div>
@@ -2117,6 +2127,7 @@ function MaliyetBazi({
   fark,
   yuzde,
   renk,
+  veriAdet,
 }: {
   etiket: string;
   tutar: number;
@@ -2125,8 +2136,13 @@ function MaliyetBazi({
   fark?: number;
   yuzde?: number;
   renk?: "rose";
+  /** Bu bazı besleyen kayıt sayısı; 0 ise tutar gösterilmez (yanıltmasın). */
+  veriAdet?: number;
 }) {
-  const farkVar = fark !== undefined && Math.abs(fark) > 0.5;
+  // Hiç şart/alış yoksa gösterilecek rakam kart fiyatının kopyasıdır —
+  // "Max Şart ₺18.215" gibi görünüp yanıltır. Bu durumda "—" yazılır.
+  const veriYok = veriAdet === 0;
+  const farkVar = !veriYok && fark !== undefined && Math.abs(fark) > 0.5;
   return (
     <HoverCard>
       <HoverCardTrigger
@@ -2140,10 +2156,12 @@ function MaliyetBazi({
             <span
               className={cn(
                 "text-lg font-semibold tracking-tight tabular-nums",
-                renk === "rose" && "text-rose-700",
+                veriYok
+                  ? "text-muted-foreground"
+                  : renk === "rose" && "text-rose-700",
               )}
             >
-              {formatTL(tutar)}
+              {veriYok ? "—" : formatTL(tutar)}
             </span>
           </div>
         }
