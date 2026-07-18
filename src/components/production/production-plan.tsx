@@ -996,8 +996,10 @@ export function ProductionPlan({
                   <label
                     key={r.parcaId}
                     className={cn(
-                      "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50",
-                      r.secili && "bg-muted/60",
+                      "flex cursor-pointer items-center gap-2.5 rounded-md border border-transparent px-2 py-1.5 transition-colors hover:bg-muted/50",
+                      // Seçili satır primary tonunda belirginleşir.
+                      r.secili &&
+                        "border-primary/30 bg-primary/10 hover:bg-primary/15",
                     )}
                   >
                     <Checkbox
