@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TarihSecici } from "@/components/ui/tarih-secici";
 import { FormSheet } from "@/components/ui/form-sheet";
 import {
   SheetClose,
@@ -168,11 +169,10 @@ export function YeniIslemSheet({
               <label className="text-xs font-medium text-muted-foreground">
                 Tarih
               </label>
-              <Input
-                type="date"
-                value={tarih}
-                onChange={(e) => setTarih(e.target.value)}
-                className="h-9"
+              <TarihSecici
+                deger={tarih}
+                onChange={setTarih}
+                temizlenebilir={false}
               />
             </div>
             <div className="grid gap-1.5">

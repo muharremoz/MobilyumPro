@@ -16,6 +16,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IconInput } from "@/components/ui/icon-input";
+import { AnimatedField } from "@/components/ui/animated-field";
+import { TarihSecici } from "@/components/ui/tarih-secici";
+import { CalendarDaysIcon } from "@/components/ui/icons/calendar-days";
 import { uretimEmriOlustur } from "@/lib/db/actions";
 import type { UretimOncelik } from "@/lib/data";
 
@@ -119,12 +122,13 @@ export function UretimeGonderDialog({
           </div>
         </div>
 
-        <IconInput
-          label="Termin (opsiyonel)"
-          type="date"
-          value={termin}
-          onChange={(e) => setTermin(e.target.value)}
-        />
+        <AnimatedField label="Termin (opsiyonel)" icon={CalendarDaysIcon}>
+          <TarihSecici
+            deger={termin}
+            onChange={setTermin}
+            placeholder="Termin seç"
+          />
+        </AnimatedField>
 
         <DialogFooter className="gap-2 sm:justify-between">
           <DialogClose render={<Button variant="outline">İptal</Button>} />

@@ -41,6 +41,7 @@ import { KartBaslik } from "@/components/ui/kart-baslik";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { YeniIslemSheet } from "@/components/cari/yeni-islem-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
+import { TarihSecici } from "@/components/ui/tarih-secici";
 import { SearchSelect } from "@/components/ui/search-select";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import {
@@ -2661,13 +2662,13 @@ function CrmSheet({
     >
       <div className="grid gap-2.5">
         <div className="grid grid-cols-2 gap-2.5">
-          <IconInput
-            label="Tarih"
-            icon={ScanTextIcon}
-            type="date"
-            value={form.tarih}
-            onChange={(e) => setForm((f) => ({ ...f, tarih: e.target.value }))}
-          />
+          <AnimatedField label="Tarih" icon={CalendarDaysIcon}>
+            <TarihSecici
+              deger={form.tarih}
+              onChange={(iso) => setForm((f) => ({ ...f, tarih: iso }))}
+              temizlenebilir={false}
+            />
+          </AnimatedField>
           <AnimatedField label="Personel" icon={UsersIcon}>
             <SearchSelect
               items={kullanicilar}
@@ -3061,13 +3062,13 @@ function DokumanSheet({
           />
         </AnimatedField>
         {tip === "Fiyat Listesi" && (
-          <IconInput
-            label="Yürürlük Tarihi"
-            icon={CalendarDaysIcon}
-            type="date"
-            value={gecerlilik}
-            onChange={(e) => setGecerlilik(e.target.value)}
-          />
+          <AnimatedField label="Yürürlük Tarihi" icon={CalendarDaysIcon}>
+            <TarihSecici
+              deger={gecerlilik}
+              onChange={setGecerlilik}
+              placeholder="Tarih seç"
+            />
+          </AnimatedField>
         )}
         {yukleniyor && (
           <p className="text-xs text-muted-foreground">Yükleniyor…</p>

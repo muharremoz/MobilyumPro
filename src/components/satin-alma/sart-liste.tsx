@@ -24,6 +24,7 @@ import { ListHeader } from "@/components/ui/list-header";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { FormSheet } from "@/components/ui/form-sheet";
 import { AnimatedField } from "@/components/ui/animated-field";
+import { TarihSecici } from "@/components/ui/tarih-secici";
 import { IconInput } from "@/components/ui/icon-input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ErrorShakeField } from "@/components/ui/error-shake";
@@ -628,15 +629,13 @@ export function SartListe({
             setForm((f) => ({ ...f, ureticiKodu: e.target.value }))
           }
         />
-        <IconInput
-          label="Fiyat Tarihi"
-          icon={CalendarDaysIcon}
-          type="date"
-          value={form.fiyatTarihi}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, fiyatTarihi: e.target.value }))
-          }
-        />
+        <AnimatedField label="Fiyat Tarihi" icon={CalendarDaysIcon}>
+          <TarihSecici
+            deger={form.fiyatTarihi}
+            onChange={(iso) => setForm((f) => ({ ...f, fiyatTarihi: iso }))}
+            placeholder="Kayıt tarihi kullanılır"
+          />
+        </AnimatedField>
         <p className="-mt-2 text-xs text-muted-foreground">
           Fiyatın hangi tarihli listeden alındığı. Boş bırakılırsa kayıt tarihi
           kullanılır; güncelliği bu tarihe göre ölçülür.
@@ -938,15 +937,13 @@ export function CariSartlarTab({
             setForm((f) => ({ ...f, ureticiKodu: e.target.value }))
           }
         />
-        <IconInput
-          label="Fiyat Tarihi"
-          icon={CalendarDaysIcon}
-          type="date"
-          value={form.fiyatTarihi}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, fiyatTarihi: e.target.value }))
-          }
-        />
+        <AnimatedField label="Fiyat Tarihi" icon={CalendarDaysIcon}>
+          <TarihSecici
+            deger={form.fiyatTarihi}
+            onChange={(iso) => setForm((f) => ({ ...f, fiyatTarihi: iso }))}
+            placeholder="Kayıt tarihi kullanılır"
+          />
+        </AnimatedField>
         <p className="-mt-2 text-xs text-muted-foreground">
           Fiyatın hangi tarihli listeden alındığı. Boş bırakılırsa kayıt tarihi
           kullanılır; güncelliği bu tarihe göre ölçülür.

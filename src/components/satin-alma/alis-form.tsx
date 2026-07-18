@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TarihSecici } from "@/components/ui/tarih-secici";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -627,10 +628,10 @@ export function AlisForm({
                 </Alan>
               )}
               <Alan label="Tarih">
-                <Input
-                  type="date"
-                  value={tarih}
-                  onChange={(e) => setTarih(e.target.value)}
+                <TarihSecici
+                  deger={tarih}
+                  onChange={setTarih}
+                  temizlenebilir={false}
                 />
               </Alan>
               <Alan label="Depo">

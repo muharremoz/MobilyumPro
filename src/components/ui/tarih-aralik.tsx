@@ -13,21 +13,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+// Tek tarih seçiciyle aynı ISO/etiket kuralları — kopyalanmaz, oradan gelir.
+import {
+  isoToDate,
+  dateToIso,
+  tarihEtiketi as etiket,
+} from "@/components/ui/tarih-secici";
 
-// ISO (YYYY-MM-DD) ↔ yerel Date — saat dilimi kaymasız.
-function isoToDate(iso: string): Date | undefined {
-  if (!iso) return undefined;
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-function dateToIso(d?: Date): string {
-  if (!d) return "";
-  const ay = String(d.getMonth() + 1).padStart(2, "0");
-  const gun = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${ay}-${gun}`;
-}
-const etiket = (d: Date) =>
-  d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
 
 /**
  * Tarih aralığı seçici — shadcn Calendar (range) + Popover.
