@@ -14,6 +14,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { SearchSelect } from "@/components/ui/search-select";
 import { ListHeader } from "@/components/ui/list-header";
+import { LineNav } from "@/components/line-nav";
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +27,61 @@ import {
   type ParametreTanim,
 } from "@/lib/parametreler";
 import { parametreDegerKaydet, parametreSifirla } from "@/lib/db/actions";
+
+
+/** Grup adından kararlı bir bölüm id'si — Türkçe karakterler sadeleştirilir. */
+const grupId = (grup: string) =>
+  "param-" +
+  grup
+    .toLocaleLowerCase("tr")
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+/**
+ * Kaydırdıkça hangi grubun hizada olduğunu bulur (scrollspy).
+ *
+ * rootMargin üstten -%10 / alttan -%70: "aktif" sayılan bant ekranın üst
+ * şeridi olur, yoksa aşağıdaki gruplar da kesişip işaretçi zıplar.
+ *
+ * State hep GRUP ADI tutar (id değil) — ikisi karışırsa eşleştirme sessizce
+ * geri düşüşe kalır.
+ */
+function useAktifGrup(gruplar: string[]) {
+  const [aktif, setAktif] = React.useState<string | undefined>();
+  // gruplar her render'da yeni dizi (filter sonucu); bağımlılığı içeriğe bağla
+  // ki observer boş yere yeniden kurulmasın.
+  const anahtar = gruplar.join("|");
+
+  React.useEffect(() => {
+    const adlar = anahtar ? anahtar.split("|") : [];
+    if (!adlar.length) return;
+    const adById = new Map(adlar.map((g) => [grupId(g), g]));
+
+    const gozlemci = new IntersectionObserver(
+      (girisler) => {
+        const gorunur = girisler
+          .filter((g) => g.isIntersecting)
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
+          )[0];
+        const ad = gorunur && adById.get(gorunur.target.id);
+        if (ad) setAktif(ad);
+      },
+      { rootMargin: "-10% 0px -70% 0px", threshold: 0 },
+    );
+
+    for (const id of adById.keys()) {
+      const oge = document.getElementById(id);
+      if (oge) gozlemci.observe(oge);
+    }
+    return () => gozlemci.disconnect();
+  }, [anahtar]);
+
+  // Aktif grup aramayla listeden düşmüş olabilir → ilk gruba dön.
+  return aktif && gruplar.includes(aktif) ? aktif : gruplar[0];
+}
 
 /**
  * Sistem parametreleri — tanımlar kodda sabit (PARAMETRELER), kullanıcı
@@ -60,6 +116,8 @@ export function SistemParametreleri({
   const gorunurGruplar = PARAMETRE_GRUPLARI.filter((grup) =>
     PARAMETRELER.some((p) => p.grup === grup && eslesir(p)),
   );
+  // Menü yalnız aramadan geçen grupları gösterir; işaretçi de onlara göre.
+  const aktifGrup = useAktifGrup(gorunurGruplar);
 
   async function kaydet(anahtar: string, yeni: string) {
     if (yeni === kayitli.current[anahtar]) return;
@@ -109,7 +167,30 @@ export function SistemParametreleri({
 
   return (
     <TooltipProvider delay={200}>
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-5xl gap-6">
+        {/*
+          Bölüm menüsü — 22 parametre 5 gruba yayılıyor, sayfa uzun.
+          Sticky: kaydırma panel kabında olduğu için üstte asılı kalır.
+        */}
+        <aside className="sticky top-0 hidden h-fit shrink-0 pt-1 lg:block lg:w-48">
+          <LineNav
+            items={gorunurGruplar.map((g) => ({
+              title: g,
+              href: `#${grupId(g)}`,
+            }))}
+            activeHref={aktifGrup ? `#${grupId(aktifGrup)}` : undefined}
+            scrollActiveIntoView={false}
+            onItemClick={(oge, e) => {
+              // Hash gezinmesi iç kaydırma kabında güvenilir değil; elle kaydır.
+              e.preventDefault();
+              document
+                .getElementById(oge.href.slice(1))
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+        </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         {/* Arama */}
         <div className="relative">
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -122,7 +203,11 @@ export function SistemParametreleri({
         </div>
 
         {gorunurGruplar.map((grup) => (
-          <div key={grup} className="overflow-hidden rounded-md border bg-card">
+          <div
+            key={grup}
+            id={grupId(grup)}
+            className="overflow-hidden rounded-md border bg-card scroll-mt-2"
+          >
             <ListHeader title={grup} />
             <div className="divide-y">
               {PARAMETRELER.filter((p) => p.grup === grup && eslesir(p)).map(
@@ -148,6 +233,7 @@ export function SistemParametreleri({
             Aramayla eşleşen parametre yok.
           </div>
         )}
+      </div>
       </div>
     </TooltipProvider>
   );
