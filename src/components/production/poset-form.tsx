@@ -3,12 +3,20 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Boxes,
+  PackageCheck,
+  Plus,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
+import { KartBaslik } from "@/components/ui/kart-baslik";
 import {
   formatTL,
   type Poset,
@@ -352,11 +360,9 @@ export function PosetForm({
         {/* ── Sağ: özet kolonu ── */}
         <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
           {/* Ait olduğu ürün + konacağı paket (ikisi de opsiyonel) */}
-          <div className="rounded-md border bg-card p-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Ait Olduğu Ürün
-            </p>
-            <div className="mt-2 flex flex-col gap-2">
+          <div className="overflow-hidden rounded-md border bg-card">
+            <KartBaslik ikon={Boxes} baslik="Ait Olduğu Ürün" />
+            <div className="flex flex-col gap-2 p-4">
               <SearchSelect
                 items={[REF_TIP_ETIKET.model, REF_TIP_ETIKET.parca]}
                 value={refTip ? REF_TIP_ETIKET[refTip] : null}
@@ -375,17 +381,15 @@ export function PosetForm({
                   className="h-8"
                 />
               )}
+              <p className="text-xs text-muted-foreground">
+                Boş bırakılırsa genel amaçlı malzeme poşeti olur.
+              </p>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Boş bırakılırsa genel amaçlı malzeme poşeti olur.
-            </p>
+          </div>
 
-            <div className="my-3 h-px bg-border" />
-
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Konacağı Paket
-            </p>
-            <div className="mt-2">
+          <div className="overflow-hidden rounded-md border bg-card">
+            <KartBaslik ikon={PackageCheck} baslik="Konacağı Paket" />
+            <div className="flex flex-col gap-2 p-4">
               <SearchSelect
                 items={paketSecenekleri.map((p) => p.ad)}
                 value={paketAdi}
@@ -397,20 +401,19 @@ export function PosetForm({
                 placeholder="Parça seçin (opsiyonel)"
                 className="h-8"
               />
+              <p className="text-xs text-muted-foreground">
+                {refTip === "model" && refId
+                  ? "Seçili modelin parçalarıyla sınırlı."
+                  : "Poşetin içine konacağı parçanın paketi."}
+              </p>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {refTip === "model" && refId
-                ? "Seçili modelin parçalarıyla sınırlı."
-                : "Poşetin içine konacağı parçanın paketi."}
-            </p>
           </div>
 
           {/* Maliyet özeti */}
-          <div className="rounded-md border bg-card p-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Maliyet Özeti
-            </p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
+          <div className="overflow-hidden rounded-md border bg-card">
+            <KartBaslik ikon={Banknote} baslik="Maliyet Özeti" />
+            <div className="p-4">
+            <p className="text-2xl font-semibold tracking-tight tabular-nums">
               {formatTL(toplam)}
             </p>
             <div className="mt-3 flex flex-col gap-1.5 text-sm">
@@ -446,6 +449,7 @@ export function PosetForm({
                 </ul>
               </>
             )}
+            </div>
           </div>
         </div>
       </div>
