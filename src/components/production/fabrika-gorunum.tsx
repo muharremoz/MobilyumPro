@@ -25,6 +25,7 @@ import {
   type IstasyonSlug,
 } from "@/lib/fabrika";
 import { emriIlerlet } from "@/lib/db/actions";
+import { IlerletDialog } from "@/components/production/ilerlet-dialog";
 
 // three yalnızca tarayıcıda yüklenir.
 const FabrikaSahne = dynamic(() => import("./fabrika-sahne"), {
@@ -282,6 +283,10 @@ export function FabrikaGorunum({
     React.useState<IstasyonSlug | null>(null);
   const [seciliEmirId, setSeciliEmirId] = React.useState<string | null>(null);
   const [ilerleyen, setIlerleyen] = React.useState<string | null>(null);
+  // İlerletme onayı — liste sayfasıyla aynı dialog (açıklama + hedef istasyon).
+  const [ilerletId, setIlerletId] = React.useState<string | null>(null);
+  const [not, setNot] = React.useState("");
+  const [hedef, setHedef] = React.useState<string | null>(null);
 
   // Sahne verisi periyodik tazelenir (LAN için yeterli).
   React.useEffect(() => {
@@ -291,14 +296,21 @@ export function FabrikaGorunum({
 
   const aktifler = emirler.filter((e) => e.durum !== "Tamamlandı");
   const seciliEmir = aktifler.find((e) => e.id === seciliEmirId) ?? null;
+  const ilerletEmir = aktifler.find((e) => e.id === ilerletId) ?? null;
   const istasyonEmirleri = seciliIstasyon
     ? aktifler.filter((e) => aktifIstasyon(e) === seciliIstasyon)
     : [];
 
-  async function ilerlet(emirId: string) {
+  /** Dialogdan onaylanınca çalışır (açıklama + rota dışı hedef opsiyonel). */
+  async function ilerlet(
+    emirId: string,
+    aciklama?: string,
+    hedefIstasyon?: string,
+  ) {
     setIlerleyen(emirId);
-    const res = await emriIlerlet(emirId);
+    const res = await emriIlerlet(emirId, aciklama, hedefIstasyon);
     setIlerleyen(null);
+    setIlerletId(null);
     if (!res.ok) {
       toast.error(res.error ?? "İlerletilemedi.", {
         description: res.eksikler
@@ -442,7 +454,11 @@ export function FabrikaGorunum({
                 seciliEmirId={seciliEmirId}
                 onSec={setSeciliEmirId}
                 ilerleyen={ilerleyen}
-                onIlerlet={ilerlet}
+                onIlerlet={(id) => {
+                  setNot("");
+                  setHedef(null);
+                  setIlerletId(id);
+                }}
               />
             ))}
           </div>
@@ -454,7 +470,11 @@ export function FabrikaGorunum({
             seciliEmirId={seciliEmirId}
             onSec={setSeciliEmirId}
             ilerleyen={ilerleyen}
-            onIlerlet={ilerlet}
+            onIlerlet={(id) => {
+              setNot("");
+              setHedef(null);
+              setIlerletId(id);
+            }}
           />
         ) : (
           <div className="flex flex-col gap-1.5 overflow-y-auto">
@@ -487,6 +507,22 @@ export function FabrikaGorunum({
           </div>
         )}
       </div>
+
+      {/* İlerletme onayı — açıklama + hedef istasyon (liste ile aynı) */}
+      {ilerletEmir && (
+        <IlerletDialog
+          emir={ilerletEmir}
+          istasyonMap={ISTASYON_MAP}
+          not={not}
+          onNot={setNot}
+          hedef={hedef}
+          onHedef={setHedef}
+          istasyonlar={ISTASYONLAR}
+          mesgul={ilerleyen === ilerletEmir.id}
+          onKapat={() => setIlerletId(null)}
+          onOnay={() => ilerlet(ilerletEmir.id, not, hedef ?? undefined)}
+        />
+      )}
     </div>
   );
 }
