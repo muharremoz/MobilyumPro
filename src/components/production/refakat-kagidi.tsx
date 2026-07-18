@@ -102,8 +102,8 @@ function Kagit({ k }: { k: RefakatKagidi }) {
       </div>
       <div className="grid grid-cols-2 border-b border-black text-[10px]">
         <div className="border-r border-black px-1 py-0.5">
-          ÜRÜN <span className="font-mono">{k.urunId}</span>
-          <div className="text-xs font-bold">{k.urunAd}</div>
+          ÜRÜN <span className="font-mono">{k.urunId || "—"}</span>
+          <div className="text-xs font-bold">{k.urunAd || "—"}</div>
         </div>
         <div className="px-1 py-0.5">
           PARÇA <span className="font-mono">{k.parcaId}</span>

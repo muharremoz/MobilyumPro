@@ -537,6 +537,16 @@ export async function getRefakatKagitlari(
         ).map((mp) => ({ parcaId: mp.parcaId, miktar: Number(mp.miktar) }));
   if (bom.length === 0) return [];
 
+  // Parça emrinde "ürün" alanı: parçanın bağlı olduğu model (yoksa boş).
+  let ustModel: { id: string; ad: string } | null = null;
+  if (emir.refTip === "parca") {
+    const bag = await db.modelParca.findFirst({
+      where: { parcaId: emir.modelId },
+      include: { stok: { select: { id: true, ad: true } } },
+    });
+    if (bag?.stok) ustModel = { id: bag.stok.id, ad: bag.stok.ad };
+  }
+
   const parcalar = await db.parca.findMany({
     where: { id: { in: bom.map((b) => b.parcaId) } },
     include: {
@@ -581,8 +591,8 @@ export async function getRefakatKagitlari(
       musteri: emir.musteri ?? undefined,
       hedefDepo: emir.hedefDepo ?? undefined,
       barkod: kodBarkod(`${emir.id}${b.parcaId}`),
-      urunId: emir.modelId,
-      urunAd: emir.modelAd,
+      urunId: ustModel?.id ?? (emir.refTip === "parca" ? "" : emir.modelId),
+      urunAd: ustModel?.ad ?? (emir.refTip === "parca" ? "" : emir.modelAd),
       parcaId: b.parcaId,
       parcaAd: p?.ad ?? b.parcaId,
       sayfaNo: i + 1,
@@ -607,7 +617,8 @@ export async function getRefakatKagitlari(
         makineAd: x.makineId ? makineAd.get(x.makineId) : undefined,
         operasyon: x.operasyon,
       })),
-      urunGorsel: stokGorsel.get(emir.modelId) || undefined,
+      urunGorsel:
+        stokGorsel.get(ustModel?.id ?? emir.modelId) || undefined,
       parcaGorsel: parcaGorsel.get(b.parcaId) || undefined,
     };
   });
