@@ -2129,8 +2129,55 @@ function SatinAlmaBirimi({
         ikon={Tag}
         baslik="Satın Alma Birimi"
         sag={
-          <span className="text-xs text-muted-foreground">
-            Farklı birimle alınıyorsa (levha → m²)
+          <span className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">
+              Farklı birimle alınıyorsa (levha → m²)
+            </span>
+            {/* Fiyat birimi kavramı sezgisel değil; örnekle anlatılmazsa
+                yanlış seçilip maliyet kat kat şişebilir. */}
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label="Satın alma birimi nasıl çalışır"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <Info className="size-3.5" />
+                    </button>
+                  }
+                />
+                <TooltipContent className="max-w-sm">
+                  <div className="flex flex-col gap-1.5 text-xs">
+                    <p>
+                      Levhayı <b>adetle</b> alıp <b>m²</b> ile stokluyorsan
+                      burayı doldur. Alış fişine adet girersin, stoğa m²
+                      işlenir.
+                    </p>
+                    <p>
+                      <b>Fiyat Birimi</b>, fişe yazdığın rakamın hangi birime
+                      ait olduğudur — tedarikçiye göre değişir:
+                    </p>
+                    <p>
+                      • Tedarikçi “levhası 500 ₺” diyorsa{" "}
+                      <b>alış birimi başına</b> seç, 500 yaz. Sistem m²
+                      maliyetini 500 ÷ 5,88 = 85,03 ₺ olarak hesaplar.
+                    </p>
+                    <p>
+                      • “m²’si 85,03 ₺” diyorsa <b>stok birimi başına</b> seç,
+                      85,03 yaz. Olduğu gibi kullanılır.
+                    </p>
+                    <p className="text-muted-foreground">
+                      İki durumda da stoğa 58,8 m² girer ve fatura 5.000 ₺
+                      olur; değişen yalnızca senin yazdığın rakam. Maliyet
+                      kartta her zaman m² başına saklanır, çünkü reçete
+                      maliyeti onu m² ile çarpar.
+                    </p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </span>
         }
       />
