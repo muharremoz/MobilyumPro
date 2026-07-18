@@ -50,6 +50,7 @@ import {
   type Malzeme,
   type SatinAlmaSarti,
 } from "@/lib/data";
+import { donusumVar, girisBirimi, stokMiktarina } from "@/lib/birim";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { alisKaydet, depoKaydet, talepOlustur } from "@/lib/db/actions";
 
@@ -129,7 +130,11 @@ function ilkSatirlar(
       malzemeId: m.id,
       cariId: varsayilan,
       miktar: k.miktar > 0 ? k.miktar : 1,
-      birim: m.birim,
+      birim: girisBirimi({
+        stokBirimi: m.birim,
+        alisBirimi: m.alisBirimi,
+        alisCarpani: m.alisCarpani,
+      }),
       birimFiyat: paraMetni(fiyat),
       doviz: (!k.fiyat && sart?.doviz) || m.doviz || "TL",
       sonFiyat: fiyat,
@@ -384,7 +389,13 @@ export function AlisForm({
         malzemeId: m.id,
         cariId: varsayilan,
         miktar: 1,
-        birim: m.birim,
+        // Alış birimi tanımlıysa miktar onunla girilir; stoğa çevrimi
+        // sunucu yapar (bkz. lib/birim.ts).
+        birim: girisBirimi({
+          stokBirimi: m.birim,
+          alisBirimi: m.alisBirimi,
+          alisCarpani: m.alisCarpani,
+        }),
         birimFiyat: paraMetni(fiyat),
         doviz: sart?.doviz ?? m.doviz ?? "TL",
         sonFiyat: fiyat,
@@ -831,6 +842,28 @@ export function AlisForm({
                               {s.birim}
                             </span>
                           )}
+                          {/* Çevrim önizlemesi: kullanıcı stoğa ne gireceğini
+                              fişi kaydetmeden görsün. */}
+                          {(() => {
+                            const m = malzemeMap.get(s.malzemeId);
+                            if (!m) return null;
+                            const b = {
+                              stokBirimi: m.birim,
+                              alisBirimi: m.alisBirimi,
+                              alisCarpani: m.alisCarpani,
+                            };
+                            if (!donusumVar(b) || !s.miktar) return null;
+                            return (
+                              <span className="absolute top-full left-0 mt-0.5 text-[11px] whitespace-nowrap text-muted-foreground">
+                                ={" "}
+                                {stokMiktarina(b, s.miktar).toLocaleString(
+                                  "tr-TR",
+                                  { maximumFractionDigits: 3 },
+                                )}{" "}
+                                {m.birim}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <div className="relative">
                           <Input

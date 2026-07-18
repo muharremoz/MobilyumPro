@@ -258,6 +258,9 @@ type Form = {
   marka: string;
   model: string;
   stokBirimi: string;
+  alisBirimi: string;
+  alisCarpani: string;
+  alisFiyatBirimi: string;
   puan: string;
   yukseklik: string;
   genislik: string;
@@ -303,6 +306,9 @@ const bos: Form = {
   marka: "",
   model: "",
   stokBirimi: "adet",
+  alisBirimi: "",
+  alisCarpani: "",
+  alisFiyatBirimi: "alis",
   puan: "",
   yukseklik: "",
   genislik: "",
@@ -368,6 +374,17 @@ function formToKart(form: Form): Omit<StokKarti, "miktar"> {
     marka: t(form.marka),
     model: t(form.model),
     stokBirimi: form.stokBirimi.trim() || "adet",
+    // Çarpan yoksa alış birimi de yazılmaz: yarım tanım sessiz yanlış
+    // dönüşümden iyidir (bkz. lib/birim.ts donusumVar).
+    alisBirimi: form.alisCarpani.trim()
+      ? form.alisBirimi.trim() || undefined
+      : undefined,
+    alisCarpani: form.alisBirimi.trim()
+      ? Number(form.alisCarpani.replace(",", ".")) || undefined
+      : undefined,
+    alisFiyatBirimi: (form.alisFiyatBirimi === "stok" ? "stok" : "alis") as
+      | "alis"
+      | "stok",
     puan: num(form.puan),
     yukseklik: num(form.yukseklik),
     genislik: num(form.genislik),
@@ -471,6 +488,9 @@ export function StokKartForm({
         marka: kart.marka ?? "",
         model: kart.model ?? "",
         stokBirimi: kart.stokBirimi,
+        alisBirimi: kart.alisBirimi ?? "",
+        alisCarpani: kart.alisCarpani != null ? String(kart.alisCarpani) : "",
+        alisFiyatBirimi: kart.alisFiyatBirimi ?? "alis",
         puan: s(kart.puan),
         yukseklik: s(kart.yukseklik),
         genislik: s(kart.genislik),
@@ -641,7 +661,12 @@ export function StokKartForm({
               />
             )}
             {tab === "fiyat" && (
-              <FiyatTab form={form} setForm={setForm} set={set} />
+              <FiyatTab
+                form={form}
+                setForm={setForm}
+                set={set}
+                birimler={birimler}
+              />
             )}
             <div className="mt-4 flex justify-end gap-2">
               <Button
@@ -1971,10 +1996,12 @@ function FiyatTab({
   form,
   setForm,
   set,
+  birimler,
 }: {
   form: Form;
   setForm: React.Dispatch<React.SetStateAction<Form>>;
   set: (k: keyof Form) => (v: string) => void;
+  birimler: string[];
 }) {
   const satirlar: {
     etiket: string;
@@ -2050,6 +2077,108 @@ function FiyatTab({
             />
           </div>
         ))}
+      </div>
+      <SatinAlmaBirimi
+        form={form}
+        setForm={setForm}
+        set={set}
+        birimler={birimler}
+      />
+    </div>
+  );
+}
+
+/**
+ * Satın alma birimi + çevrim.
+ *
+ * Gerçek akış: levha ADETLE alınır, m² ile stoklanır. Burası tanımlanmazsa
+ * kullanıcının miktarı kafadan çevirip girmesi gerekir; 10 levha yerine 58,8
+ * yazmayı unutan biri stoğu sessizce eksik bırakır.
+ *
+ * Fiyatın hangi birimde girildiği de burada: tedarikçiye göre değişiyor ve
+ * yanlış tarafa yazılırsa maliyet kat kat şişer (bkz. lib/birim.ts).
+ */
+function SatinAlmaBirimi({
+  form,
+  setForm,
+  set,
+  birimler,
+}: {
+  form: Form;
+  setForm: React.Dispatch<React.SetStateAction<Form>>;
+  set: (k: keyof Form) => (v: string) => void;
+  birimler: string[];
+}) {
+  const stokBirimi = form.stokBirimi.trim() || "adet";
+  const carpan = Number(form.alisCarpani.replace(",", "."));
+  const aktif = !!form.alisBirimi.trim() && carpan > 0;
+
+  return (
+    <div className="border-t">
+      <KartBaslik
+        ikon={Tag}
+        baslik="Satın Alma Birimi"
+        sag={
+          <span className="text-xs text-muted-foreground">
+            Farklı birimle alınıyorsa (levha → m²)
+          </span>
+        }
+      />
+      <div className="grid gap-2.5 p-4">
+        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+          <span className="text-sm text-muted-foreground">Alış Birimi</span>
+          <SearchSelect
+            items={birimler}
+            value={form.alisBirimi || null}
+            onValueChange={(v) =>
+              setForm((f) => ({ ...f, alisBirimi: v ?? "" }))
+            }
+            placeholder={`Yok (${stokBirimi} ile alınıyor)`}
+          />
+        </div>
+        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+          <span className="text-sm text-muted-foreground">Çevrim</span>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-sm text-muted-foreground">
+              1 {form.alisBirimi || "—"} =
+            </span>
+            <Input
+              inputMode="decimal"
+              placeholder="0"
+              value={form.alisCarpani}
+              onChange={(e) => set("alisCarpani")(e.target.value)}
+              className="w-32 text-right tabular-nums"
+            />
+            <span className="shrink-0 text-sm text-muted-foreground">
+              {stokBirimi}
+            </span>
+          </div>
+        </div>
+        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+          <span className="text-sm text-muted-foreground">Fiyat Birimi</span>
+          <SearchSelect
+            items={[`Alış birimi başına`, `Stok birimi başına`]}
+            value={
+              form.alisFiyatBirimi === "stok"
+                ? "Stok birimi başına"
+                : "Alış birimi başına"
+            }
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                alisFiyatBirimi: v === "Stok birimi başına" ? "stok" : "alis",
+              }))
+            }
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {aktif
+            ? `Alış fişine ${form.alisBirimi} girilir, stoğa ${stokBirimi} olarak işlenir. ` +
+              (form.alisFiyatBirimi === "stok"
+                ? `Fiyat ${stokBirimi} başına girilir.`
+                : `Fiyat ${form.alisBirimi} başına girilir, ${stokBirimi} maliyeti çarpandan hesaplanır.`)
+            : `Tanımlanmadı — alış fişinde miktar ve fiyat doğrudan ${stokBirimi} ile girilir.`}
+        </p>
       </div>
     </div>
   );

@@ -206,6 +206,13 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
     id: m.id,
     ad: m.ad,
     grup: m.altGrup ?? m.grup ?? undefined,
+    alisBirimi: m.alisBirimi ?? undefined,
+    alisCarpani: m.alisCarpani != null ? Number(m.alisCarpani) : undefined,
+    alisFiyatBirimi: (m.alisFiyatBirimi ?? undefined) as
+      | "alis"
+      | "stok"
+      | undefined,
+
     birim: m.stokBirimi,
     stok: Number(m.stokMiktar),
     birimFiyat: Number(m.maliyetFiyati),
@@ -2119,6 +2126,12 @@ function mapStok(s: StokRow, miktar: number, gorseller?: string[]): StokKarti {
     marka: s.marka ?? undefined,
     model: s.model ?? undefined,
     stokBirimi: s.stokBirimi,
+    alisBirimi: s.alisBirimi ?? undefined,
+    alisCarpani: s.alisCarpani != null ? Number(s.alisCarpani) : undefined,
+    alisFiyatBirimi: (s.alisFiyatBirimi ?? undefined) as
+      | "alis"
+      | "stok"
+      | undefined,
     puan: num(s.puan),
     yukseklik: num(s.yukseklik),
     genislik: num(s.genislik),

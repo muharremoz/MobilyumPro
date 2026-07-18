@@ -6,6 +6,12 @@ import type { Prisma } from "@prisma/client";
 import { db, tarihDate } from "./index";
 import { getOturum } from "@/lib/oturum";
 import { sayacHazirla, sonrakiNo } from "./sayac";
+import {
+  donusumVar,
+  stokBirimFiyati,
+  stokMiktarina,
+  type BirimBilgisi,
+} from "../birim";
 
 /**
  * Mevcut en büyük SH numarası — sayaç ilk kez kurulurken kullanılır.
@@ -499,6 +505,9 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
     ad: m.ad,
     altGrup: m.grup ?? null,
     stokBirimi: m.birim,
+    alisBirimi: m.alisBirimi ?? null,
+    alisCarpani: m.alisCarpani ?? null,
+    alisFiyatBirimi: m.alisFiyatBirimi ?? null,
     maliyetFiyati: m.birimFiyat,
     ureticiCariId: m.tedarikci ?? null,
     durum: m.durum,
@@ -2301,12 +2310,45 @@ async function alisUygula(
   });
 
   // 2) Stok girişleri + hareketler (+ opsiyonel fiyat güncelleme)
+  // Kartların birim tanımları: alış birimi ≠ stok birimi olabilir
+  // (levha adetle alınır, m² ile stoklanır) — bkz. lib/birim.ts
+  const kartlar = await tx.stok.findMany({
+    where: { id: { in: satirlar.map((s) => s.malzemeId) } },
+    select: {
+      id: true,
+      stokBirimi: true,
+      alisBirimi: true,
+      alisCarpani: true,
+      alisFiyatBirimi: true,
+    },
+  });
+  const kartMap = new Map(kartlar.map((k) => [k.id, k]));
+
   for (const s of satirlar) {
+    const k = kartMap.get(s.malzemeId);
+    const bilgi: BirimBilgisi = {
+      stokBirimi: k?.stokBirimi ?? s.birim,
+      alisBirimi: k?.alisBirimi ?? undefined,
+      alisCarpani: k?.alisCarpani != null ? Number(k.alisCarpani) : undefined,
+      alisFiyatBirimi: (k?.alisFiyatBirimi ?? undefined) as
+        | "alis"
+        | "stok"
+        | undefined,
+    };
+    // Miktar STOK birimine çevrilir; bakiye ve reçeteler onunla çalışıyor.
+    const stokArtis = stokMiktarina(bilgi, s.miktar);
+    // Maliyet HER ZAMAN stok birimi başına saklanır: ₺/levha doğrudan
+    // yazılsaydı reçete maliyeti (₺/m² × m²) kat kat şişerdi.
+    const birimMaliyet = stokBirimFiyati(bilgi, s.birimFiyat);
+    const cevrimNotu = donusumVar(bilgi)
+      ? ` (${s.miktar} ${bilgi.alisBirimi} × ${bilgi.alisCarpani})`
+      : "";
+
     await tx.stok.update({
       where: { id: s.malzemeId },
       data: {
-        stokMiktar: { increment: s.miktar },
-        ...(fis.fiyatGuncelle ? { maliyetFiyati: s.birimFiyat } : {}),
+        stokMiktar: { increment: stokArtis },
+        ...(fis.fiyatGuncelle ? { maliyetFiyati: birimMaliyet } : {}),
       },
     });
     await tx.stokHareket.create({
@@ -2316,10 +2358,11 @@ async function alisUygula(
         tur: "Giriş",
         refTip: "malzeme",
         refId: s.malzemeId,
-        miktar: s.miktar,
-        birim: s.birim,
+        miktar: stokArtis,
+        // Hareket stok biriminde yazılır; satırın alış birimi açıklamada kalır.
+        birim: bilgi.stokBirimi,
         depo: fis.depo,
-        aciklama: `Satın alma ${alisId} — ${s.cariAd}`,
+        aciklama: `Satın alma ${alisId} — ${s.cariAd}${cevrimNotu}`,
       },
     });
   }
@@ -2945,6 +2988,9 @@ export async function stokKaydet(
       marka: s.marka ?? null,
       model: s.model ?? null,
       stokBirimi: s.stokBirimi,
+      alisBirimi: s.alisBirimi ?? null,
+      alisCarpani: s.alisCarpani ?? null,
+      alisFiyatBirimi: s.alisFiyatBirimi ?? null,
       puan: s.puan ?? null,
       yukseklik: s.yukseklik ?? null,
       genislik: s.genislik ?? null,

@@ -806,6 +806,14 @@ model Stok {
   marka          String?
   model          String?
   stokBirimi     String   @default("adet") @map("stok_birimi")
+  /// Satın alma birimi (ör. levha adetle alınır, m² ile stoklanır).
+  /// Boşsa dönüşüm yoktur; alış birimi = stok birimi.
+  alisBirimi     String?  @map("alis_birimi")
+  /// 1 alış birimi kaç stok birimi eder (ör. 1 adet levha = 5,88 m²).
+  alisCarpani    Decimal? @map("alis_carpani") @db.Decimal(14, 4)
+  /// Girilen birim fiyat hangi birime ait: "alis" (₺/levha) veya "stok" (₺/m²).
+  /// Tedarikçiye göre değişebildiği için kart başına tutulur.
+  alisFiyatBirimi String? @map("alis_fiyat_birimi")
   puan           Decimal? @db.Decimal(10, 2)
   yukseklik      Decimal? @db.Decimal(10, 2)
   genislik       Decimal? @db.Decimal(10, 2)

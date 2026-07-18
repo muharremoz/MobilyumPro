@@ -437,6 +437,12 @@ export type Malzeme = {
   /** Stok grubu adı (Tanımlamalar → Gruplar ağacından). */
   grup?: string;
   birim: string; // m, m², adet, kg, lt
+  /** Satın alma birimi (boşsa dönüşüm yok) — bkz. lib/birim.ts */
+  alisBirimi?: string;
+  /** 1 alış birimi kaç stok birimi eder. */
+  alisCarpani?: number;
+  /** Girilen birim fiyat hangi birime ait: "alis" | "stok". */
+  alisFiyatBirimi?: "alis" | "stok";
   stok: number;
   birimFiyat: Para;
   /** Birim fiyatın dövizi (maliyet dövizi). */
@@ -587,6 +593,12 @@ export type StokKarti = {
   marka?: string;
   model?: string;
   stokBirimi: string;
+  /** Satın alma birimi (boşsa dönüşüm yok) — bkz. lib/birim.ts */
+  alisBirimi?: string;
+  /** 1 alış birimi kaç stok birimi eder. */
+  alisCarpani?: number;
+  /** Girilen birim fiyat hangi birime ait: "alis" | "stok". */
+  alisFiyatBirimi?: "alis" | "stok";
   puan?: number;
   yukseklik?: number;
   genislik?: number;
