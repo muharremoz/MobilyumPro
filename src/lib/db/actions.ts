@@ -532,6 +532,183 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
 
 
 
+
+// ── Stok sayımı ─────────────────────────────────────────────────────────
+
+/**
+ * Sayım belgesi açar ve o andaki kayıtlı miktarları satırlara kopyalar.
+ *
+ * "sistem" miktarı belge açılırken dondurulur: fark, sayımın YAPILDIĞI andaki
+ * kayda göre hesaplanmalı. Tamamlarken canlı bakiyeden hesaplansaydı, sayım
+ * ile tamamlama arasında olan üretim düşümleri farkın içine karışırdı.
+ */
+export async function sayimOlustur(girdi: {
+  depo: string;
+  tarih: string;
+  aciklama?: string;
+  /** Boş bırakılırsa aktif tüm stok kartları alınır. */
+  gruplar?: string[];
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const izin = await yetkiKorumasi("stok", "isAdd");
+  if (izin) return izin;
+  try {
+    const o = await getOturum();
+    const kartlar = await db.stok.findMany({
+      where: {
+        durum: "Aktif",
+        ...(girdi.gruplar?.length ? { grup: { in: girdi.gruplar } } : {}),
+      },
+      select: { id: true, ad: true, stokBirimi: true, stokMiktar: true },
+      orderBy: { ad: "asc" },
+    });
+    if (kartlar.length === 0) {
+      return { ok: false, error: "Sayıma alınacak aktif stok kartı yok." };
+    }
+
+    const sonuncu = await db.sayim.findFirst({ orderBy: { id: "desc" } });
+    let no = 1000;
+    const m = sonuncu ? /^SYM-(\d+)$/.exec(sonuncu.id) : null;
+    if (m) no = Number(m[1]);
+    const id = `SYM-${no + 1}`;
+
+    await db.sayim.create({
+      data: {
+        id,
+        tarih: tarihDate(girdi.tarih),
+        depo: girdi.depo,
+        aciklama: girdi.aciklama?.trim() || null,
+        sorumlu: o?.adSoyad ?? null,
+        olusturma: new Date(new Date().toISOString().slice(0, 10)),
+        satirlar: {
+          create: kartlar.map((k) => ({
+            stokId: k.id,
+            stokAd: k.ad,
+            birim: k.stokBirimi,
+            sistem: k.stokMiktar,
+          })),
+        },
+      },
+    });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true, id };
+  } catch (e) {
+    console.error("sayimOlustur:", e);
+    return { ok: false, error: "Sayım oluşturulamadı." };
+  }
+}
+
+/** Bir satırın fiili sayımını kaydeder (null = sayılmadı işaretine döner). */
+export async function sayimSatirKaydet(
+  sayimId: string,
+  stokId: string,
+  sayilan: number | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const izin = await yetkiKorumasi("stok", "isUpdate");
+  if (izin) return izin;
+  try {
+    const belge = await db.sayim.findUnique({ where: { id: sayimId } });
+    if (!belge) return { ok: false, error: "Sayım bulunamadı." };
+    if (belge.durum !== "Taslak") {
+      return { ok: false, error: "Yalnızca taslak sayımda değişiklik yapılır." };
+    }
+    if (sayilan != null && (!Number.isFinite(sayilan) || sayilan < 0)) {
+      return { ok: false, error: "Sayılan miktar geçersiz." };
+    }
+    await db.sayimSatiri.update({
+      where: { sayimId_stokId: { sayimId, stokId } },
+      data: { sayilan },
+    });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("sayimSatirKaydet:", e);
+    return { ok: false, error: "Satır kaydedilemedi." };
+  }
+}
+
+/**
+ * Sayımı tamamlar: farkları stok düzeltmesi olarak deftere yazar.
+ *
+ * Düzeltme stokDuzeltmeYaz üzerinden gider — bakiye doğrudan güncellenmez,
+ * her fark için hareket oluşur ve iz kalır. O fonksiyon miktarı transaction
+ * içinde taze okuduğu için, sayımdan sonra olan hareketler de hesaba katılır:
+ * sayılan miktar hedeftir, aradaki değişim farka dönüşür.
+ */
+export async function sayimTamamla(
+  sayimId: string,
+): Promise<{ ok: boolean; duzeltilen?: number; error?: string }> {
+  const izin = await yetkiKorumasi("stok", "isUpdate");
+  if (izin) return izin;
+  try {
+    const belge = await db.sayim.findUnique({
+      where: { id: sayimId },
+      include: { satirlar: true },
+    });
+    if (!belge) return { ok: false, error: "Sayım bulunamadı." };
+    if (belge.durum !== "Taslak") {
+      return { ok: false, error: `Sayım zaten "${belge.durum}" durumunda.` };
+    }
+    const sayilanlar = belge.satirlar.filter((x) => x.sayilan != null);
+    if (sayilanlar.length === 0) {
+      return { ok: false, error: "Hiç satır sayılmamış." };
+    }
+
+    let duzeltilen = 0;
+    for (const satir of sayilanlar) {
+      const hedef = Number(satir.sayilan);
+      // Fark eşiği dusumYaz ile aynı: 0.0005 altı Decimal(14,3) gürültüsü.
+      if (Math.abs(hedef - Number(satir.sistem)) < 0.0005) continue;
+      const res = await stokDuzeltmeYaz(
+        satir.stokId,
+        hedef,
+        `Sayım ${belge.id}`,
+      );
+      // Bir kart düzeltilemezse (ör. negatif stok kapalı) sayım yarım kalmasın;
+      // hata döndürüp tamamlanmamış bırakmak, düzeltilenleri de geri almayı
+      // gerektirirdi. Sorunlu kart atlanır ve sayı raporlanır.
+      if (res.ok) duzeltilen += 1;
+    }
+
+    await db.sayim.update({
+      where: { id: sayimId },
+      data: {
+        durum: "Tamamlandı",
+        tamamlama: new Date(new Date().toISOString().slice(0, 10)),
+      },
+    });
+    revalidatePath("/stok-yonetimi");
+    revalidatePath("/stok-karti");
+    return { ok: true, duzeltilen };
+  } catch (e) {
+    console.error("sayimTamamla:", e);
+    return { ok: false, error: "Sayım tamamlanamadı." };
+  }
+}
+
+/** Taslak sayımı siler; tamamlanmış sayım silinmez (defter izi kalmalı). */
+export async function sayimSil(
+  sayimId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const izin = await yetkiKorumasi("stok", "isDelete");
+  if (izin) return izin;
+  try {
+    const belge = await db.sayim.findUnique({ where: { id: sayimId } });
+    if (!belge) return { ok: false, error: "Sayım bulunamadı." };
+    if (belge.durum === "Tamamlandı") {
+      return {
+        ok: false,
+        error: "Tamamlanmış sayım silinemez — düzeltmeleri deftere işlendi.",
+      };
+    }
+    await db.sayim.delete({ where: { id: sayimId } });
+    revalidatePath("/stok-yonetimi");
+    return { ok: true };
+  } catch (e) {
+    console.error("sayimSil:", e);
+    return { ok: false, error: "Sayım silinemedi." };
+  }
+}
+
 /** Engel detayının bir bölümü — modaldaki "kullanım yerleri" listesi. */
 export type SilmeDetay = { baslik: string; ogeler: string[] };
 

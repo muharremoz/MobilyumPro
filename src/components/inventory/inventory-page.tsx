@@ -17,6 +17,7 @@ import type {
   Model,
   Malzeme,
   Parca,
+  Sayim,
   Depo,
   StokHareket,
   StokGrup,
@@ -24,6 +25,9 @@ import type {
   TanimKalemi,
   Makine,
 } from "@/lib/data";
+
+/** Sayım kapsamı seçenekleri — stok tablosundaki grup değerleri. */
+const STOK_GRUPLARI = ["Hammadde", "Yarı Mamül", "Mamül"];
 
 const TANIM_TIPLERI: DefTab[] = [
   "gruplar",
@@ -40,6 +44,7 @@ export function InventoryPage({
   malzemeler,
   parcalar,
   depolar,
+  sayimlar = [],
   hareketler,
   kolonAyarlari,
   kullanicilar,
@@ -55,6 +60,7 @@ export function InventoryPage({
   malzemeler: Malzeme[];
   parcalar: Parca[];
   depolar: Depo[];
+  sayimlar?: Sayim[];
   hareketler: StokHareket[];
   /** listeId → kolon ayarı (liste_ayar); alt listeler kendi anahtarını okur. */
   kolonAyarlari?: Record<string, ListeKolonAyariDegeri>;
@@ -103,6 +109,9 @@ export function InventoryPage({
   if (bolum === "sayim")
     return (
       <StockCount
+        sayimlar={sayimlar}
+        depolar={depolar.map((d) => d.ad)}
+        gruplar={STOK_GRUPLARI}
         kolonAyari={kolonAyarlari?.["sayim"]}
         kullanicilar={kullanicilar}
         mevcutKullaniciId={mevcutKullaniciId}

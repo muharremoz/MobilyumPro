@@ -4,6 +4,7 @@ import {
   getMalzemeler,
   getParcalar,
   getDepolar,
+  getSayimlar,
   getStokHareketleri,
   getListeKolonAyari,
   getKullanicilar,
@@ -38,6 +39,7 @@ export default async function StokYonetimiPage({
     malzemeler,
     parcalar,
     depolar,
+    sayimlar,
     hareketler,
     tanimAyar,
     malzemeAyar,
@@ -57,6 +59,7 @@ export default async function StokYonetimiPage({
     getMalzemeler(),
     getParcalar(),
     getDepolar(),
+    getSayimlar(),
     getStokHareketleri(),
     getListeKolonAyari("tanimlamalar"),
     getListeKolonAyari("malzemeler"),
@@ -86,6 +89,7 @@ export default async function StokYonetimiPage({
       malzemeler={malzemeler}
       parcalar={parcalar}
       depolar={depolar}
+      sayimlar={sayimlar}
       hareketler={hareketler}
       kolonAyarlari={{
         tanimlamalar: tanimAyar,

@@ -1028,6 +1028,65 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
   };
 }
 
+
+/** Sayım listesi — satır özetleriyle. */
+export async function getSayimlar(): Promise<import("../data").Sayim[]> {
+  const rows = await db.sayim.findMany({
+    include: { satirlar: true },
+    orderBy: { id: "desc" },
+  });
+  return rows.map(sayimOzet);
+}
+
+function sayimOzet(r: {
+  id: string;
+  tarih: Date;
+  depo: string;
+  durum: string;
+  aciklama: string | null;
+  sorumlu: string | null;
+  tamamlama: Date | null;
+  satirlar: { sistem: unknown; sayilan: unknown }[];
+}): import("../data").Sayim {
+  const sayilanlar = r.satirlar.filter((x) => x.sayilan != null);
+  return {
+    id: r.id,
+    tarih: tarihStr(r.tarih),
+    depo: r.depo,
+    durum: r.durum as import("../data").SayimDurum,
+    aciklama: r.aciklama ?? undefined,
+    sorumlu: r.sorumlu ?? undefined,
+    tamamlama: r.tamamlama ? tarihStr(r.tamamlama) : undefined,
+    sayilanAdet: sayilanlar.length,
+    satirAdet: r.satirlar.length,
+    netFark: sayilanlar.reduce(
+      (t, x) => t + (Number(x.sayilan) - Number(x.sistem)),
+      0,
+    ),
+  };
+}
+
+export async function getSayimDetay(
+  id: string,
+): Promise<import("../data").SayimDetay | null> {
+  const r = await db.sayim.findUnique({
+    where: { id },
+    include: { satirlar: { orderBy: { stokAd: "asc" } } },
+  });
+  if (!r) return null;
+  return {
+    ...sayimOzet(r),
+    satirlar: r.satirlar.map((x) => ({
+      id: x.id,
+      stokId: x.stokId,
+      stokAd: x.stokAd,
+      birim: x.birim,
+      sistem: Number(x.sistem),
+      sayilan: x.sayilan != null ? Number(x.sayilan) : undefined,
+    })),
+  };
+}
+
 /** İstasyona bağlı makineler (refakat kağıdı işlem sırası için). */
 export async function getMakineler(): Promise<import("../data").Makine[]> {
   const rows = await db.makine.findMany({

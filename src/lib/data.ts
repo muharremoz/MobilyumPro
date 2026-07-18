@@ -153,6 +153,38 @@ export type PanoVerisi = {
   };
 };
 
+
+/** Stok sayımı — fiili sayım belgesi (fark tamamlanınca ledger'a yazılır). */
+export type SayimDurum = "Taslak" | "Tamamlandı" | "İptal";
+
+export type SayimSatiri = {
+  id: number;
+  stokId: string;
+  stokAd: string;
+  birim: string;
+  /** Sayım açılırken kayıtlı olan miktar. */
+  sistem: number;
+  /** Fiili sayım; undefined = henüz sayılmadı (0 ile aynı şey değil). */
+  sayilan?: number;
+};
+
+export type Sayim = {
+  id: string;
+  tarih: string;
+  depo: string;
+  durum: SayimDurum;
+  aciklama?: string;
+  sorumlu?: string;
+  tamamlama?: string;
+  /** Kaç satır sayıldı / toplam satır. */
+  sayilanAdet: number;
+  satirAdet: number;
+  /** Sayılan satırların net farkı (+ fazla, − eksik). */
+  netFark: number;
+};
+
+export type SayimDetay = Sayim & { satirlar: SayimSatiri[] };
+
 /** QR ile açılan atölye görünümü (login'siz; tezgahta telefonla okutulur). */
 export type AtolyeGorunumu = {
   parcaId: string;

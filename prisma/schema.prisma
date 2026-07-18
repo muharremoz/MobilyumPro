@@ -547,6 +547,45 @@ model PosetMalzeme {
 }
 
 // ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
+/// Stok sayımı — fiili sayım belgesi.
+/// Fark, tamamlandığında stok_hareket'e düzeltme olarak yazılır; bakiye
+/// doğrudan güncellenmez, defter tek kaynaktır.
+model Sayim {
+  id        String    @id
+  tarih     DateTime  @db.Date
+  depo      String
+  /// Taslak | Tamamlandı | İptal
+  durum     String    @default("Taslak")
+  aciklama  String?
+  /// Sayımı yapan kullanıcının adı (audit izi).
+  sorumlu   String?
+  olusturma DateTime  @db.Date
+  tamamlama DateTime? @db.Date
+
+  satirlar SayimSatiri[]
+
+  @@map("sayim")
+}
+
+model SayimSatiri {
+  id      Int      @id @default(autoincrement())
+  sayimId String   @map("sayim_id")
+  stokId  String   @map("stok_id")
+  /// Kart adı sayım anında kopyalanır; kart sonradan yeniden adlandırılsa da
+  /// belge o günkü haliyle okunabilsin.
+  stokAd  String   @map("stok_ad")
+  birim   String
+  /// Sayım açılırken kayıtlı olan miktar (fark bunun üstünden hesaplanır).
+  sistem  Decimal  @db.Decimal(14, 3)
+  /// Fiili sayım; null = henüz sayılmadı (0 ile karıştırılmamalı).
+  sayilan Decimal? @db.Decimal(14, 3)
+
+  sayim Sayim @relation(fields: [sayimId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([sayimId, stokId])
+  @@map("sayim_satiri")
+}
+
 /// Kod sayacı — SH-#### gibi seri numaraları çakışmasız üretir.
 /// Max tarayarak numara üretmek eşzamanlı yazarlarda aynı numarayı verip
 /// birincil anahtar ihlaline yol açıyordu; buradaki satır güncellemesi
