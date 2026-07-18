@@ -518,6 +518,14 @@ model Poset {
   ad         String
   aciklama   String?
   durum      String         @default("Aktif")
+
+  // Poşetin ait olduğu ürün: "model" (stok mamül kartı) | "parca".
+  // refId iki farklı tabloya işaret ettiği için FK bağlanmaz.
+  refTip     String?        @map("ref_tip")
+  refId      String?        @map("ref_id")
+  // Poşetin içine konacağı parça paketi/kolisi (parca.id).
+  paketParcaId String?      @map("paket_parca_id")
+
   malzemeler PosetMalzeme[]
 
   @@map("poset")

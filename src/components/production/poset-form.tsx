@@ -9,20 +9,38 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
-import { formatTL, type Poset, type PosetSatiri, type Malzeme } from "@/lib/data";
+import {
+  formatTL,
+  type Poset,
+  type PosetSatiri,
+  type Malzeme,
+  type Model,
+  type Parca,
+} from "@/lib/data";
 import { posetKaydet } from "@/lib/db/actions";
 
+/** "Ait olduğu ürün" tür seçenekleri — etiket ↔ veri değeri eşlemesi. */
+const REF_TIP_ETIKET = { model: "Model", parca: "Parça" } as const;
+type RefTip = keyof typeof REF_TIP_ETIKET;
+
 /**
- * Poşet oluşturma/düzenleme — reçete detay sayfasıyla (recete-detay) birebir
- * aynı yerleşim: üst şerit (geri + ad + durum + açıklama + Kaydet), solda
- * bileşen grid'i (#fafafa başlık + alt ekleme şeridi), sağda maliyet özeti.
+ * Malzeme Poşeti oluşturma/düzenleme — reçete detay sayfasıyla (recete-detay)
+ * birebir aynı yerleşim: üst şerit (geri + ad + durum + açıklama + Kaydet),
+ * solda bileşen grid'i (#fafafa başlık + alt ekleme şeridi), sağda özet kolonu
+ * (ait olduğu ürün / konacağı paket + maliyet özeti).
  */
 export function PosetForm({
   poset,
   malzemeler,
+  modeller = [],
+  parcalar = [],
 }: {
   poset: Poset | null;
   malzemeler: Malzeme[];
+  /** Mamül stok kartları — "ait olduğu ürün" model seçimi için. */
+  modeller?: Model[];
+  /** Parçalar — "ait olduğu ürün" parça seçimi ve paket seçimi için. */
+  parcalar?: Parca[];
 }) {
   const router = useRouter();
   const yeniMi = poset === null;
@@ -35,27 +53,121 @@ export function PosetForm({
   const [satirlar, setSatirlar] = React.useState<PosetSatiri[]>(
     poset?.malzemeler.map((m) => ({ ...m })) ?? [],
   );
+  // Ait olduğu ürün (opsiyonel — genel amaçlı poşet olabilir).
+  const [refTip, setRefTip] = React.useState<RefTip | null>(
+    poset?.refTip ?? null,
+  );
+  const [refId, setRefId] = React.useState<string>(poset?.refId ?? "");
+  // Poşetin konacağı parça paketi (opsiyonel).
+  const [paketParcaId, setPaketParcaId] = React.useState<string>(
+    poset?.paketParcaId ?? "",
+  );
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
   const malzemeMap = React.useMemo(
     () => new Map(malzemeler.map((m) => [m.id, m])),
     [malzemeler],
   );
+  const modelMap = React.useMemo(
+    () => new Map(modeller.map((m) => [m.id, m])),
+    [modeller],
+  );
+  const parcaMap = React.useMemo(
+    () => new Map(parcalar.map((p) => [p.id, p])),
+    [parcalar],
+  );
+
+  // ── Ait olduğu ürün / paket seçenekleri ───────────────────────────────
+  const aktifModeller = React.useMemo(
+    () => modeller.filter((m) => m.durum === "Aktif"),
+    [modeller],
+  );
+  const aktifParcalar = React.useMemo(
+    () => parcalar.filter((p) => p.durum === "Aktif"),
+    [parcalar],
+  );
+  /** Tür "model" ise mamül kartları, "parca" ise parçalar listelenir. */
+  const refSecenekleri = refTip === "model" ? aktifModeller : aktifParcalar;
+  const refAdi = refId
+    ? refTip === "model"
+      ? (modelMap.get(refId)?.ad ?? null)
+      : (parcaMap.get(refId)?.ad ?? null)
+    : null;
+
+  /**
+   * Paket seçenekleri: ait olduğu ürün bir MODEL ise o modelin BOM'undaki
+   * parçalarla sınırlanır; aksi halde tüm aktif parçalar listelenir.
+   */
+  const paketSecenekleri = React.useMemo(() => {
+    if (refTip === "model" && refId) {
+      const model = modelMap.get(refId);
+      if (model) {
+        const bom = (model.parcalar ?? [])
+          .map((ps) => parcaMap.get(ps.parcaId))
+          .filter((p): p is Parca => Boolean(p));
+        if (bom.length > 0) return bom;
+      }
+    }
+    return aktifParcalar;
+  }, [refTip, refId, modelMap, parcaMap, aktifParcalar]);
+  const paketAdi = paketParcaId
+    ? (parcaMap.get(paketParcaId)?.ad ?? null)
+    : null;
+
+  /** Tür değişince seçili kayıt (ve daraltılmış paket seçimi) temizlenir. */
+  function refTipSec(secim: string | null) {
+    const yeni =
+      secim === REF_TIP_ETIKET.model
+        ? "model"
+        : secim === REF_TIP_ETIKET.parca
+          ? "parca"
+          : null;
+    if (yeni === refTip) return;
+    setRefTip(yeni);
+    setRefId("");
+    setPaketParcaId("");
+  }
+
+  /** Model değişince, önceki modelin BOM'undan gelen paket seçimi düşer. */
+  function refSec(adSecim: string | null) {
+    const bulunan = refSecenekleri.find((x) => x.ad === adSecim);
+    setRefId(bulunan?.id ?? "");
+    if (refTip === "model") setPaketParcaId("");
+  }
 
   // ── Kirli takibi ──────────────────────────────────────────────────────
   const kirli = React.useMemo(() => {
-    if (yeniMi) return ad.trim() !== "" || satirlar.length > 0;
+    if (yeniMi)
+      return (
+        ad.trim() !== "" ||
+        satirlar.length > 0 ||
+        refTip !== null ||
+        paketParcaId !== ""
+      );
     if (!poset) return false;
     if (
       ad !== poset.ad ||
       aciklama !== (poset.aciklama ?? "") ||
-      durum !== poset.durum
+      durum !== poset.durum ||
+      refTip !== (poset.refTip ?? null) ||
+      refId !== (poset.refId ?? "") ||
+      paketParcaId !== (poset.paketParcaId ?? "")
     )
       return true;
     const key = (r: PosetSatiri[]) =>
       JSON.stringify(r.map((s) => [s.malzemeId, s.miktar]));
     return key(satirlar) !== key(poset.malzemeler);
-  }, [ad, aciklama, durum, satirlar, poset, yeniMi]);
+  }, [
+    ad,
+    aciklama,
+    durum,
+    satirlar,
+    refTip,
+    refId,
+    paketParcaId,
+    poset,
+    yeniMi,
+  ]);
 
   // ── Maliyet özeti ─────────────────────────────────────────────────────
   const gecerli = satirlar.filter((s) => s.malzemeId);
@@ -82,7 +194,7 @@ export function PosetForm({
 
   async function kaydet() {
     if (!ad.trim()) {
-      toast.error("Poşet adı gerekli");
+      toast.error("Malzeme poşeti adı gerekli");
       return;
     }
     setKaydediliyor(true);
@@ -91,6 +203,10 @@ export function PosetForm({
       ad: ad.trim(),
       aciklama: aciklama.trim() || undefined,
       durum,
+      // Tür seçili ama kayıt seçilmemişse bağ kurulmaz (ikisi birlikte gider).
+      refTip: refId ? (refTip ?? undefined) : undefined,
+      refId: refId || undefined,
+      paketParcaId: paketParcaId || undefined,
       malzemeler: gecerli,
     });
     setKaydediliyor(false);
@@ -98,7 +214,7 @@ export function PosetForm({
       toast.error(res.error ?? "Kaydedilemedi.");
       return;
     }
-    toast.success("Poşet kaydedildi");
+    toast.success("Malzeme poşeti kaydedildi");
     if (yeniMi) router.replace(`/uretim/poset/${res.id}`);
     else router.refresh();
   }
@@ -111,12 +227,14 @@ export function PosetForm({
           variant="ghost"
           size="icon-sm"
           nativeButton={false}
-          render={<Link href="/uretim/poset" aria-label="Poşetlere dön" />}
+          render={
+            <Link href="/uretim/poset" aria-label="Malzeme poşetlerine dön" />
+          }
         >
           <ArrowLeft className="size-4" />
         </Button>
         <Input
-          placeholder="Poşet adı"
+          placeholder="Malzeme poşeti adı"
           value={ad}
           onChange={(e) => setAd(e.target.value)}
           className="w-64 font-medium"
@@ -233,6 +351,60 @@ export function PosetForm({
 
         {/* ── Sağ: özet kolonu ── */}
         <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
+          {/* Ait olduğu ürün + konacağı paket (ikisi de opsiyonel) */}
+          <div className="rounded-md border bg-card p-4">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Ait Olduğu Ürün
+            </p>
+            <div className="mt-2 flex flex-col gap-2">
+              <SearchSelect
+                items={[REF_TIP_ETIKET.model, REF_TIP_ETIKET.parca]}
+                value={refTip ? REF_TIP_ETIKET[refTip] : null}
+                onValueChange={refTipSec}
+                placeholder="Tür (opsiyonel)"
+                className="h-8"
+              />
+              {refTip && (
+                <SearchSelect
+                  items={refSecenekleri.map((x) => x.ad)}
+                  value={refAdi}
+                  onValueChange={refSec}
+                  placeholder={
+                    refTip === "model" ? "Model seçin" : "Parça seçin"
+                  }
+                  className="h-8"
+                />
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Boş bırakılırsa genel amaçlı malzeme poşeti olur.
+            </p>
+
+            <div className="my-3 h-px bg-border" />
+
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Konacağı Paket
+            </p>
+            <div className="mt-2">
+              <SearchSelect
+                items={paketSecenekleri.map((p) => p.ad)}
+                value={paketAdi}
+                onValueChange={(adSecim) =>
+                  setPaketParcaId(
+                    paketSecenekleri.find((p) => p.ad === adSecim)?.id ?? "",
+                  )
+                }
+                placeholder="Parça seçin (opsiyonel)"
+                className="h-8"
+              />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {refTip === "model" && refId
+                ? "Seçili modelin parçalarıyla sınırlı."
+                : "Poşetin içine konacağı parçanın paketi."}
+            </p>
+          </div>
+
           {/* Maliyet özeti */}
           <div className="rounded-md border bg-card p-4">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">

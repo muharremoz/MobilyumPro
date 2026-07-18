@@ -488,6 +488,11 @@ export type Poset = {
   ad: string;
   aciklama?: string;
   durum: "Aktif" | "Pasif";
+  /** Poşetin ait olduğu ürün: mamül kartı ya da parça. */
+  refTip?: "model" | "parca";
+  refId?: string;
+  /** Poşetin içine konacağı parça paketi (parca.id). */
+  paketParcaId?: string;
   malzemeler: PosetSatiri[];
 };
 

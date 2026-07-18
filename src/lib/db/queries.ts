@@ -237,6 +237,9 @@ function mapPoset(p: PosetRow): import("../data").Poset {
     ad: p.ad,
     aciklama: p.aciklama ?? undefined,
     durum: p.durum as Durum,
+    refTip: (p.refTip ?? undefined) as "model" | "parca" | undefined,
+    refId: p.refId ?? undefined,
+    paketParcaId: p.paketParcaId ?? undefined,
     malzemeler: p.malzemeler.map((m) => ({
       malzemeId: m.malzemeId,
       miktar: Number(m.miktar),

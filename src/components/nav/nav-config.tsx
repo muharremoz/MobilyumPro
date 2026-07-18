@@ -87,7 +87,7 @@ export const sections: Section[] = [
       { label: "Üretim Takibi", href: "/uretim/emirler", icon: I(HammerIcon) },
       { label: "Fabrika", href: "/uretim/fabrika", icon: I(BlocksIcon) },
       { label: "Reçete", href: "/uretim/recete", icon: I(LayersIcon) },
-      { label: "Poşet", href: "/uretim/poset", icon: I(BoxesIcon) },
+      { label: "Malzeme Poşeti", href: "/uretim/poset", icon: I(BoxesIcon) },
     ],
   },
   {

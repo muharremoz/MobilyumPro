@@ -1,7 +1,18 @@
 import { PosetForm } from "@/components/production/poset-form";
-import { getMalzemeler } from "@/lib/db/queries";
+import { getMalzemeler, getModeller, getParcalar } from "@/lib/db/queries";
 
 export default async function YeniPosetRoute() {
-  const malzemeler = await getMalzemeler();
-  return <PosetForm poset={null} malzemeler={malzemeler} />;
+  const [malzemeler, modeller, parcalar] = await Promise.all([
+    getMalzemeler(),
+    getModeller(),
+    getParcalar(),
+  ]);
+  return (
+    <PosetForm
+      poset={null}
+      malzemeler={malzemeler}
+      modeller={modeller}
+      parcalar={parcalar}
+    />
+  );
 }

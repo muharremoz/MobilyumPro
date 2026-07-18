@@ -160,6 +160,19 @@ export async function stokSilinebilirMi(id: string): Promise<SilmeSonucu> {
           .then((r) => tekil(r.map((x) => x.poset.ad))),
     },
     {
+      etiket: "malzeme poşeti bağlantısı",
+      say: () =>
+        db.poset.count({ where: { refTip: "model", refId: id } }),
+      ornekler: () =>
+        db.poset
+          .findMany({
+            where: { refTip: "model", refId: id },
+            take: ORNEK_LIMIT,
+            select: { ad: true },
+          })
+          .then((r) => r.map((x) => x.ad)),
+    },
+    {
       etiket: "üretim emri",
       say: () => db.uretimEmri.count({ where: { modelId: id } }),
       ornekler: () =>
@@ -351,6 +364,26 @@ export async function parcaSilinebilirMi(id: string): Promise<SilmeSonucu> {
             select: { id: true, durum: true },
           })
           .then((r) => r.map((x) => `${x.id} (${x.durum})`)),
+    },
+    {
+      // Poşetin ait olduğu ürün ya da konacağı paket bu parça olabilir.
+      etiket: "malzeme poşeti bağlantısı",
+      say: () =>
+        db.poset.count({
+          where: {
+            OR: [{ paketParcaId: id }, { refTip: "parca", refId: id }],
+          },
+        }),
+      ornekler: () =>
+        db.poset
+          .findMany({
+            where: {
+              OR: [{ paketParcaId: id }, { refTip: "parca", refId: id }],
+            },
+            take: ORNEK_LIMIT,
+            select: { ad: true },
+          })
+          .then((r) => r.map((x) => x.ad)),
     },
   ]);
 }

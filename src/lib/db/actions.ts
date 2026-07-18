@@ -1004,6 +1004,9 @@ export async function posetKaydet(
         ad: p.ad,
         aciklama: p.aciklama ?? null,
         durum: p.durum,
+        refTip: p.refTip ?? null,
+        refId: p.refId ?? null,
+        paketParcaId: p.paketParcaId ?? null,
       };
       await tx.poset.upsert({
         where: { id: posetId },
@@ -1019,7 +1022,7 @@ export async function posetKaydet(
     revalidatePath("/uretim/poset");
     return { ok: true, id };
   } catch {
-    return { ok: false, id: "", error: "Poşet kaydedilemedi." };
+    return { ok: false, id: "", error: "Malzeme poşeti kaydedilemedi." };
   }
 }
 
@@ -1032,7 +1035,7 @@ export async function posetSil(
     revalidatePath("/uretim/poset");
     return { ok: true };
   } catch {
-    return { ok: false, error: "Poşet silinemedi." };
+    return { ok: false, error: "Malzeme poşeti silinemedi." };
   }
 }
 

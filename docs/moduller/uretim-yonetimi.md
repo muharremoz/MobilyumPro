@@ -17,7 +17,7 @@ emri ve fabrika istasyon akışına kadar üretim süreci.
 - Üretim Takibi (emirler) — `/uretim/emirler`
 - Fabrika — `/uretim/fabrika`
 - Reçete — `/uretim/recete`
-- Poşet — `/uretim/poset`
+- Malzeme Poşeti — `/uretim/poset`
 
 ## Ana kayıtlar / durumlar
 - **Model / Parça / Malzeme** — reçete (BOM) ile birbirine bağlı.
