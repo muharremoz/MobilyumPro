@@ -26,7 +26,9 @@ import { useOnay } from "@/components/ui/confirm-dialog";
 import { SatirMenu } from "@/components/ui/satir-menu";
 import { GrupAgaci } from "@/components/definitions/grup-agaci";
 import type { StokGrup, TanimTip, TanimKalemi } from "@/lib/data";
-import { tanimKaydet, tanimSil } from "@/lib/db/actions";
+import { tanimKaydet, tanimSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { SlidersHorizontalIcon } from "@/components/ui/icons/sliders-horizontal";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -312,6 +314,15 @@ export function DefinitionsPage({
   }
 
   async function sil(ids: string[]) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("tanim", ids);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Tanım silinemez.",
+      });
+      return;
+    }
     if (tab === "gruplar") return;
     const t = tab;
     const tekAd =

@@ -354,6 +354,44 @@ export async function malzemeKaydet(m: Malzeme): Promise<{ ok: boolean }> {
 }
 
 
+
+/** Silme kontrolünde kullanılan varlık türleri. */
+export type SilmeTipi =
+  | "stok"
+  | "cari"
+  | "parca"
+  | "depo"
+  | "tanim"
+  | "grup"
+  | "istasyon"
+  | "kullanici";
+
+const SILME_KONTROL: Record<SilmeTipi, (id: string) => Promise<SilmeSonucu>> = {
+  stok: stokSilinebilirMi,
+  cari: cariSilinebilirMi,
+  parca: parcaSilinebilirMi,
+  depo: depoSilinebilirMi,
+  tanim: tanimSilinebilirMi,
+  grup: grupSilinebilirMi,
+  istasyon: istasyonSilinebilirMi,
+  kullanici: kullaniciSilinebilirMi,
+};
+
+/**
+ * Silmeden ÖNCE çağrılır: kayıt(lar) silinebilir mi?
+ * Amaç, olmayacak bir işlem için kullanıcıya "emin misiniz?" sormamak —
+ * engel varsa onay sorulmadan sebep gösterilir. Silme action'ları bu
+ * kontrolü ayrıca kendi içinde de yapar (istemciye güvenilmez).
+ */
+export async function silinebilirMi(
+  tip: SilmeTipi,
+  ids: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (ids.length === 0) return { ok: true };
+  const on = await silmeOnKontrol(ids, SILME_KONTROL[tip]);
+  return on.ok ? { ok: true } : { ok: false, error: on.error };
+}
+
 /**
  * Toplu silmede ön kontrol: her kayıt için kullanım denetimi çalıştırır.
  * Engellenen varsa HİÇBİRİ silinmez ve sebep döner — yarım silme olmaz.

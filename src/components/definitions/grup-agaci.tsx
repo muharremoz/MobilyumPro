@@ -35,7 +35,9 @@ import {
 } from "@/components/ui/popover";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { StokGrup } from "@/lib/data";
-import { grupKaydet, grupSil, grupSiraKaydet } from "@/lib/db/actions";
+import { grupKaydet, grupSil, grupSiraKaydet,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 /**
@@ -206,6 +208,15 @@ export function GrupAgaci({ gruplar = [] }: { gruplar?: StokGrup[] }) {
   }
 
   async function sil(g: StokGrup) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("grup", [g.id]);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Grup silinemez.",
+      });
+      return;
+    }
     if ((altlar.get(g.id) ?? []).length > 0) {
       toast.error("Önce alt grupları silin.");
       return;

@@ -57,6 +57,7 @@ import {
   modelDurumGuncelle,
   modelKategoriGuncelle,
   modelFavoriGuncelle,
+  silinebilirMi,
 } from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
@@ -297,6 +298,15 @@ export function ProductsTable({
   }
 
   async function sil(ids: string[]) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("stok", ids);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Model silinemez.",
+      });
+      return;
+    }
     const tekAd =
       ids.length === 1 ? liste.find((u) => u.id === ids[0])?.ad : null;
     if (

@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/table";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Depo } from "@/lib/data";
-import { depoKaydet, depoSil } from "@/lib/db/actions";
+import { depoKaydet, depoSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 type SortKey = "id" | "ad" | "sehir" | "kapasite" | "doluluk" | "durum";
@@ -152,6 +154,15 @@ export function Warehouses({
   }
 
   async function sil(id: string) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("depo", [id]);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Depo silinemez.",
+      });
+      return;
+    }
     const ad = liste.find((x) => x.id === id)?.ad;
     if (
       !(await onayla({

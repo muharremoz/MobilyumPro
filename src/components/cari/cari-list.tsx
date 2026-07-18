@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/table";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Cari, type CariTip } from "@/lib/data";
-import { cariSil } from "@/lib/db/actions";
+import { cariSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi", "Banka"];
@@ -182,6 +184,15 @@ export function CariList({
     });
   }
   async function sil(ids: string[]) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("cari", ids);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Cari silinemez.",
+      });
+      return;
+    }
     const tekAd =
       ids.length === 1 ? liste.find((c) => c.id === ids[0])?.ad : null;
     if (

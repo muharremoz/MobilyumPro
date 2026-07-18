@@ -38,7 +38,9 @@ import {
 } from "@/components/ui/table";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Malzeme, type Model, type Parca } from "@/lib/data";
-import { parcaSil, receteKopyala } from "@/lib/db/actions";
+import { parcaSil, receteKopyala,
+  silinebilirMi,
+} from "@/lib/db/actions";
 
 const KATEGORILER = [
   "Karyola",
@@ -258,6 +260,15 @@ export function ReceteListe({
   );
 
   async function sil(p: Parca) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("parca", [p.id]);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Reçete silinemez.",
+      });
+      return;
+    }
     if (
       !(await onayla({
         title: `"${p.ad}" silinsin mi?`,

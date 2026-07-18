@@ -33,7 +33,9 @@ import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { GorselHucre } from "@/components/ui/liste-gorsel";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import { SatirMenu } from "@/components/ui/satir-menu";
-import { stokKaydet, stokSil } from "@/lib/db/actions";
+import { stokKaydet, stokSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import {
   Table,
   TableBody,
@@ -237,6 +239,15 @@ export function StokKartListe({
   );
 
   async function sil(s: StokKarti) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("stok", [s.id]);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Kart silinemez.",
+      });
+      return;
+    }
     if (
       !(await onayla({
         title: `"${s.ad}" silinsin mi?`,

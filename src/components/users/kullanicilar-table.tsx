@@ -69,6 +69,7 @@ import {
   rolEkle as rolEkleAction,
   departmanEkle as departmanEkleAction,
   type KullaniciKayit,
+  silinebilirMi,
 } from "@/lib/db/actions";
 
 const ROL_RENK: Record<string, string> = {
@@ -238,6 +239,15 @@ export function KullanicilarTable({
     });
   }
   async function sil(ids: string[]) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("kullanici", ids);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Kullanıcı silinemez.",
+      });
+      return;
+    }
     const tekAd =
       ids.length === 1 ? liste.find((k) => k.id === ids[0])?.adSoyad : null;
     if (

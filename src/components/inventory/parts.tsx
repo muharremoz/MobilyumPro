@@ -43,7 +43,9 @@ import {
 } from "@/components/ui/table";
 import { type Parca, type Malzeme, type ParcaKategori } from "@/lib/data";
 import { flattenParca } from "@/lib/bom";
-import { parcaKaydet, parcaSil } from "@/lib/db/actions";
+import { parcaKaydet, parcaSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 
 const KATEGORILER: ParcaKategori[] = [
   "Karyola",
@@ -185,6 +187,15 @@ export function Parts({
     });
   }
   async function sil(ids: string[]) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("parca", ids);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "Parça silinemez.",
+      });
+      return;
+    }
     const tekAd =
       ids.length === 1 ? liste.find((p) => p.id === ids[0])?.ad : null;
     if (

@@ -18,7 +18,9 @@ import {
 import { SatirMenu } from "@/components/ui/satir-menu";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import type { Istasyon } from "@/lib/fabrika";
-import { istasyonKaydet, istasyonSil } from "@/lib/db/actions";
+import { istasyonKaydet, istasyonSil,
+  silinebilirMi,
+} from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 
 type Form = {
@@ -62,6 +64,15 @@ export function IstasyonTanim({
   }
 
   async function sil(i: Istasyon) {
+    // Onaydan önce: silinemeyecek kayıt için "emin misiniz?" sorma.
+    const kontrol = await silinebilirMi("istasyon", [i.slug]);
+    if (!kontrol.ok) {
+      await uyar({
+        title: "Silinemedi",
+        description: kontrol.error ?? "İstasyon silinemez.",
+      });
+      return;
+    }
     if (
       !(await onayla({
         title: `"${i.ad}" silinsin mi?`,
