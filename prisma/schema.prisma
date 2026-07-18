@@ -547,6 +547,17 @@ model PosetMalzeme {
 }
 
 // ── Stok hareketi (giriş/çıkış/transfer; ürün veya malzeme) ─────────────
+/// Kod sayacı — SH-#### gibi seri numaraları çakışmasız üretir.
+/// Max tarayarak numara üretmek eşzamanlı yazarlarda aynı numarayı verip
+/// birincil anahtar ihlaline yol açıyordu; buradaki satır güncellemesi
+/// yazarları sıraya sokar (satır kilidi) ve tarama maliyetini de kaldırır.
+model Sayac {
+  ad    String @id
+  deger Int
+
+  @@map("sayac")
+}
+
 model StokHareket {
   id       String   @id
   tarih    DateTime @db.Date

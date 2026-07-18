@@ -5,6 +5,22 @@ import type { Prisma } from "@prisma/client";
 
 import { db, tarihDate } from "./index";
 import { getOturum } from "@/lib/oturum";
+import { sayacHazirla, sonrakiNo } from "./sayac";
+
+/**
+ * Mevcut en büyük SH numarası — sayaç ilk kez kurulurken kullanılır.
+ * SH serisi TEK kaynaktan (sayaç) gelmeli; stok motoru da aynı seriyi
+ * kullanıyor, iki ayrı üretici olsaydı numaralar er geç çakışırdı.
+ */
+async function enBuyukSH(): Promise<number> {
+  const rows = await db.stokHareket.findMany({ select: { id: true } });
+  let max = 1000;
+  for (const r of rows) {
+    const m = /^SH-(\d+)$/.exec(r.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max;
+}
 import { yetkiVarMi } from "@/lib/yetki-sunucu";
 import {
   stokSilinebilirMi,
@@ -2162,10 +2178,10 @@ async function alisUygula(
   },
   satirlar: YeniAlisSatiri[],
 ): Promise<{ alisId: string; cariIdler: string[] }> {
-  // Kod üretimleri (ALS-####, SH-####, CI-####)
-  const [alisler, hareketler, islemler] = await Promise.all([
+  // Kod üretimleri (ALS-####, CI-####). SH-#### artık sayaçtan geliyor,
+  // burada taranmıyor — iki ayrı üretici numaraları çakıştırırdı.
+  const [alisler, islemler] = await Promise.all([
     tx.alis.findMany({ select: { id: true } }),
-    tx.stokHareket.findMany({ select: { id: true } }),
     tx.cariIslem.findMany({ select: { id: true } }),
   ]);
   const maxNo = (rows: { id: string }[], onEk: string, taban: number) => {
@@ -2178,7 +2194,6 @@ async function alisUygula(
     return max;
   };
   const alisId = `ALS-${maxNo(alisler, "ALS", 1000) + 1}`;
-  let shNo = maxNo(hareketler, "SH", 3000);
   let ciNo = maxNo(islemler, "CI", 3000);
 
   const toplam = satirlar.reduce((t, s) => t + s.miktar * s.birimFiyat, 0);
@@ -2231,10 +2246,9 @@ async function alisUygula(
         ...(fis.fiyatGuncelle ? { maliyetFiyati: s.birimFiyat } : {}),
       },
     });
-    shNo += 1;
     await tx.stokHareket.create({
       data: {
-        id: `SH-${shNo}`,
+        id: `SH-${await sonrakiNo(tx, "SH")}`,
         tarih,
         tur: "Giriş",
         refTip: "malzeme",
@@ -2391,6 +2405,9 @@ export async function alisKaydet(
     return { ok: false, error: "Her satır için tedarikçi seçin." };
 
   try {
+    // Sayaç satırı transaction'dan ÖNCE: içeride kurulsaydı eşzamanlı
+    // yazarlar aynı satırı oluşturmaya çalışıp çakışırdı.
+    await sayacHazirla("SH", enBuyukSH);
     const { alisId, cariIdler } = await db.$transaction(async (tx) => {
       const sonuc = await alisUygula(tx, a, satirlar);
       // Tedarik sürecindeki taleplerle otomatik eşleşme (malzeme + firma).

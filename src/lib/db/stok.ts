@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "./index";
+import { sayacHazirla, sonrakiNo, type TxIstemci } from "./sayac";
 import { PARAMETRELER } from "../parametreler";
 import { type IstasyonSlug } from "../fabrika";
 
@@ -152,14 +153,65 @@ async function emirDusulenleri(emirId: string): Promise<Map<string, number>> {
 }
 
 // ── Hareket yazma yardımcıları ──────────────────────────────────────────
-async function sonrakiHareketNo(): Promise<number> {
+
+/** Mevcut en büyük SH numarası — sayaç ilk kez kurulurken kullanılır. */
+async function enBuyukHareketNo(): Promise<number> {
   const rows = await db.stokHareket.findMany({ select: { id: true } });
   let maxNo = 1000;
   for (const r of rows) {
     const m = /^SH-(\d+)$/.exec(r.id);
     if (m) maxNo = Math.max(maxNo, Number(m[1]));
   }
-  return maxNo + 1;
+  return maxNo;
+}
+
+/**
+ * Sıradaki SH-#### numarası — sayaç tablosundan, atomik.
+ *
+ * Önceden "tüm id'leri tara, max+1" ile üretiliyordu; eşzamanlı iki yazar aynı
+ * numarayı alıp ikincisi patlıyordu. Ölçtük: 5 paralel yazarda yeniden deneme
+ * bile yetmedi. Sayaç satır kilidi aldığı için artık çakışma mümkün değil.
+ */
+async function sonrakiHareketNo(tx: TxIstemci): Promise<number> {
+  return sonrakiNo(tx, "SH");
+}
+
+/** Hareket sayacını hazırlar — her hareket transaction'ından ÖNCE. */
+async function hareketSayaciHazirla(): Promise<void> {
+  await sayacHazirla("SH", enBuyukHareketNo);
+}
+
+/** Prisma benzersizlik ihlali (aynı SH-#### iki kez üretilmiş). */
+function benzersizlikIhlali(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    (e as { code?: string }).code === "P2002"
+  );
+}
+
+/**
+ * Hareket yazan transaction — benzersizlik ihlalinde baştan dener.
+ *
+ * Numaralar artık sayaçtan geldiği için çakışma beklenmiyor; bu yalnızca
+ * emniyet kemeri (ör. dışarıdan elle eklenmiş bir SH kaydı sayacın önüne
+ * geçmişse). Sayaç devreye girmeden önce 5 paralel yazarda 3 deneme yetmiyordu,
+ * o yüzden tek başına yeterli sayılmamalı.
+ */
+async function hareketTx<T>(
+  is: (tx: TxIstemci) => Promise<T>,
+  deneme = 3,
+): Promise<T> {
+  // Sayaç satırı transaction DIŞINDA garantilenir; içeride oluşturulsaydı
+  // eşzamanlı yazarlar aynı satırı kurmaya çalışıp çakışırdı.
+  await hareketSayaciHazirla();
+  for (let i = 0; ; i++) {
+    try {
+      return await db.$transaction(is);
+    } catch (e) {
+      if (i >= deneme - 1 || !benzersizlikIhlali(e)) throw e;
+    }
+  }
 }
 
 export type EksikMalzeme = {
@@ -186,47 +238,55 @@ async function dusumYaz(
   const net = kalemler.filter((k) => k.miktar > 0.0005);
   if (net.length === 0) return { ok: true, eksikler: [] };
 
-  const [malzemeler, negatifIzin, depo] = await Promise.all([
-    db.stok.findMany({
-      where: { id: { in: net.map((k) => k.malzemeId) } },
-    }),
+  // Parametreler stok bakiyesinden bağımsız; transaction dışında okunabilir.
+  const [negatifIzin, depo] = await Promise.all([
     parametreDegeri("negatif_stok").then(acikMi),
     parametreDegeri("varsayilan_depo"),
   ]);
-  const malzemeMap = new Map(malzemeler.map((m) => [m.id, m]));
-
-  const eksikler: EksikMalzeme[] = [];
-  for (const k of net) {
-    const m = malzemeMap.get(k.malzemeId);
-    if (!m) continue;
-    if (Number(m.stokMiktar) < k.miktar) {
-      eksikler.push({
-        malzemeId: k.malzemeId,
-        ad: m.ad,
-        birim: m.stokBirimi,
-        gereken: k.miktar,
-        eldeki: Number(m.stokMiktar),
-      });
-    }
-  }
-  if (eksikler.length > 0 && !negatifIzin) {
-    return {
-      ok: false,
-      eksikler,
-      error: "Stok yetersiz — Negatif Stok parametresi kapalı.",
-    };
-  }
 
   const bugun = new Date(new Date().toISOString().slice(0, 10));
-  let no = await sonrakiHareketNo();
+  let sonuc: DusumSonuc = { ok: true, eksikler: [] };
 
-  await db.$transaction(async (tx) => {
+  await hareketTx(async (tx) => {
+    // Yeterlilik kontrolü transaction İÇİNDE: dışarıda yapılsaydı araya giren
+    // başka bir düşüm, negatif stok kapalıyken bile bakiyeyi eksiye indirirdi.
+    const malzemeler = await tx.stok.findMany({
+      where: { id: { in: net.map((k) => k.malzemeId) } },
+    });
+    const malzemeMap = new Map(malzemeler.map((m) => [m.id, m]));
+
+    const eksikler: EksikMalzeme[] = [];
+    for (const k of net) {
+      const m = malzemeMap.get(k.malzemeId);
+      if (!m) continue;
+      if (Number(m.stokMiktar) < k.miktar) {
+        eksikler.push({
+          malzemeId: k.malzemeId,
+          ad: m.ad,
+          birim: m.stokBirimi,
+          gereken: k.miktar,
+          eldeki: Number(m.stokMiktar),
+        });
+      }
+    }
+    if (eksikler.length > 0 && !negatifIzin) {
+      // Hiçbir şey yazılmadı; transaction boş kapanır.
+      sonuc = {
+        ok: false,
+        eksikler,
+        error: "Stok yetersiz — Negatif Stok parametresi kapalı.",
+      };
+      return;
+    }
+
     for (const k of net) {
       const m = malzemeMap.get(k.malzemeId);
       if (!m) continue;
       await tx.stokHareket.create({
         data: {
-          id: `SH-${no++}`,
+          // Numara satır satır alınır: tek numara alıp yerel artırmak, aradaki
+          // numaraları başka bir yazarın almasıyla çakışırdı.
+          id: `SH-${await sonrakiHareketNo(tx)}`,
           tarih: bugun,
           tur: "Çıkış",
           refTip: "malzeme",
@@ -244,9 +304,10 @@ async function dusumYaz(
         data: { stokMiktar: { decrement: k.miktar } },
       });
     }
+    sonuc = { ok: true, eksikler };
   });
 
-  return { ok: true, eksikler };
+  return sonuc;
 }
 
 // ── Mod 1: üretime geçişte toplu düşüm ──────────────────────────────────
@@ -327,12 +388,11 @@ export async function mamulGirisi(emir: {
 
   const depo = await parametreDegeri("varsayilan_depo");
   const bugun = new Date(new Date().toISOString().slice(0, 10));
-  const no = await sonrakiHareketNo();
 
-  await db.$transaction(async (tx) => {
+  await hareketTx(async (tx) => {
     await tx.stokHareket.create({
       data: {
-        id: `SH-${no}`,
+        id: `SH-${await sonrakiHareketNo(tx)}`,
         tarih: bugun,
         tur: "Giriş",
         refTip: "model",
@@ -399,7 +459,7 @@ export async function stokDuzeltmeYaz(
   const refTip = kart.grup === "Mamül" ? "model" : "malzeme";
 
   let sonuc: StokDuzeltSonuc = { ok: true, yeniMiktar: Number(kart.stokMiktar) };
-  await db.$transaction(async (tx) => {
+  await hareketTx(async (tx) => {
     const taze = await tx.stok.findUniqueOrThrow({
       where: { id: stokId },
       select: { stokMiktar: true },
@@ -413,7 +473,7 @@ export async function stokDuzeltmeYaz(
     }
     await tx.stokHareket.create({
       data: {
-        id: `SH-${await sonrakiHareketNo()}`,
+        id: `SH-${await sonrakiHareketNo(tx)}`,
         tarih: bugun,
         tur: fark > 0 ? "Giriş" : "Çıkış",
         refTip,
