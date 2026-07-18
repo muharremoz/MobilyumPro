@@ -159,15 +159,12 @@ function Kutu({
       )}
     >
       {/* Başlık şeridi liste kartlarıyla aynı (ListHeader standardı). */}
-      <div className="flex items-center justify-between gap-3 rounded-t-md border-b bg-primary px-3 py-1.5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-primary-foreground">
+      <div className="flex items-center justify-between gap-3 rounded-t-md border-b bg-primary/10 px-3 py-1.5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
           <Ikon className="size-4" />
           {baslik}
         </h2>
-        {/* Koyu şeritte eylemler açık renk okunur. */}
-        <span className="flex items-center gap-2 [&_button]:text-primary-foreground [&_button:hover]:bg-primary-foreground/15">
-          {sag}
-        </span>
+        {sag}
       </div>
       {bos ? (
         <p className="p-6 text-center text-sm text-muted-foreground">{bos}</p>
