@@ -327,14 +327,7 @@ function Forklift() {
 // Modeller: public/modeller/fabrika/*.glb (Factory Kit 3.0, CC0/Public Domain).
 const KIT = (ad: string) => `/modeller/fabrika/${ad}.glb`;
 const KIT_PARCALAR = [
-  "machine-bed",
-  "machine",
-  "machine-fortified",
-  "machine-window",
-  "robot-arm-a",
-  "robot-arm-b",
   "conveyor-long",
-  "scanner-high",
   "box-large",
   "box-small",
   "box-wide",
@@ -348,14 +341,7 @@ KIT_PARCALAR.forEach((ad) => useGLTF.preload(KIT(ad)));
 // tek materyalli olduğundan parça başına düz renk boyanır (işçi modelindeki
 // boya tekniğinin aynısı; sahnenin flat renk diliyle uyumlu).
 const KIT_RENK: Record<(typeof KIT_PARCALAR)[number], string> = {
-  "machine-bed": "#f59e0b",
-  machine: "#f59e0b",
-  "machine-fortified": "#d97706",
-  "machine-window": "#eab308",
-  "robot-arm-a": "#f97316",
-  "robot-arm-b": "#f97316",
   "conveyor-long": "#57534e",
-  "scanner-high": "#3b82f6",
   "box-large": "#c8a165",
   "box-small": "#c8a165",
   "box-wide": "#c8a165",
@@ -744,23 +730,17 @@ export default function FabrikaSahne({
           >
             {ist.slug === "kesim" && (
               <>
-                {/* CNC ebatlama tezgahı + panel yükleme robot kolu */}
-                <KitParca ad="machine-bed" x={cx + 1.3} z={konum.z + konum.d - 2} olcek={1.4} />
-                <KitParca ad="robot-arm-a" x={cx - 2.2} z={konum.z + konum.d - 1.9} y={0.22 + 0.2 * 1.5} donus={Math.PI / 2} olcek={1.5} />
                 <Isci merkezX={cx + 1.5} merkezZ={konum.z + konum.d - 1.6} rx={2.2} rz={1.1} hiz={0.55} faz={1} yelek="#3b82f6" />
               </>
             )}
             {ist.slug === "bantlama" && (
               <>
-                {/* Kenar bantlama: bant hattı + hattın gerisinde makine */}
+                {/* Kenar bantlama hattı */}
                 <KonveyorHatti x={cx} z={konum.z + konum.d - 1.3} uzunluk={konum.g - 2.5} />
-                <KitParca ad="machine" x={cx} z={konum.z + konum.d - 2.9} olcek={1.3} />
               </>
             )}
             {ist.slug === "delik" && (
               <>
-                <KitParca ad="machine-fortified" x={konum.x + 2} z={konum.z + konum.d - 1.7} olcek={1.4} />
-                <KitParca ad="machine-window" x={konum.x + konum.g - 2} z={konum.z + konum.d - 1.7} olcek={1.4} />
                 <Isci merkezX={cx} merkezZ={konum.z + konum.d - 2.6} rx={2.8} rz={0.9} hiz={0.45} faz={3} yelek="#06b6d4" />
               </>
             )}
@@ -768,15 +748,13 @@ export default function FabrikaSahne({
               <>
                 <CalismaMasasi x={konum.x + 2.2} z={konum.z + konum.d - 1.3} />
                 <CalismaMasasi x={konum.x + konum.g - 2.2} z={konum.z + konum.d - 1.3} />
-                <KitParca ad="robot-arm-b" x={cx} z={konum.z + konum.d - 2.4} y={0.22 + 0.2 * 1.5} olcek={1.5} />
                 <Isci merkezX={cx} merkezZ={konum.z + konum.d - 1.9} rx={2.4} rz={0.7} hiz={0.6} faz={2} yelek="#f97316" />
               </>
             )}
             {ist.slug === "paketleme" && (
               <>
-                {/* Paket hattı + barkod/kontrol kapısı + hazır koliler */}
+                {/* Paket hattı + hazır koliler */}
                 <KonveyorHatti x={cx} z={konum.z + konum.d - 1.2} uzunluk={konum.g - 2.5} />
-                <KitParca ad="scanner-high" x={cx} z={konum.z + konum.d - 1.2} olcek={1.5} />
                 <KitParca ad="box-large" x={konum.x + 1.4} z={konum.z + 1.5} olcek={1.4} />
                 <KitParca ad="box-wide" x={konum.x + 1.4} z={konum.z + 1.5} y={0.22 + 0.55 * 1.4} olcek={1.4} />
                 <Isci merkezX={cx} merkezZ={konum.z + 1.6} rx={2.2} rz={0.6} hiz={0.5} faz={4.5} yelek="#f59e0b" />
