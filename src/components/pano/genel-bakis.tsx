@@ -158,9 +158,10 @@ function Kutu({
         genis && "xl:col-span-2",
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Ikon className="size-4 text-muted-foreground" />
+      {/* Başlık şeridi liste kartlarıyla aynı (ListHeader standardı). */}
+      <div className="flex items-center justify-between gap-3 border-b bg-primary/10 px-3 py-1.5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <Ikon className="size-4" />
           {baslik}
         </h2>
         {sag}
