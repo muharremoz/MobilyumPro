@@ -2048,7 +2048,10 @@ function FiyatTab({
   ];
 
   return (
-    <div className="rounded-md border bg-card lg:max-w-xl">
+    // İki kart yan yana: fiyatlar solda, satın alma birimi sağda. Alt alta
+    // dururken sayfa gereksiz uzuyordu ve ikisi tek kart sanılıyordu.
+    <div className="grid items-start gap-3 lg:max-w-4xl lg:grid-cols-2">
+      <div className="overflow-hidden rounded-md border bg-card">
       <KartBaslik
         ikon={Tag}
         baslik="Fiyatlar"
@@ -2084,6 +2087,7 @@ function FiyatTab({
             />
           </div>
         ))}
+      </div>
       </div>
       <SatinAlmaBirimi
         form={form}
@@ -2124,7 +2128,7 @@ function SatinAlmaBirimi({
   const aktif = farkliBirim && carpan > 0;
 
   return (
-    <div className="border-t">
+    <div className="overflow-hidden rounded-md border bg-card">
       <KartBaslik
         ikon={Tag}
         baslik="Satın Alma Birimi"
@@ -2182,7 +2186,7 @@ function SatinAlmaBirimi({
         }
       />
       <div className="grid gap-2.5 p-4">
-        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+        <div className="grid grid-cols-[7rem_1fr] items-center gap-3">
           <span className="text-sm text-muted-foreground">Alış Birimi</span>
           <SearchSelect
             items={birimler}
@@ -2194,7 +2198,7 @@ function SatinAlmaBirimi({
           />
         </div>
         {farkliBirim && (
-        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+        <div className="grid grid-cols-[7rem_1fr] items-center gap-3">
           <span className="text-sm text-muted-foreground">Çevrim</span>
           <div className="flex items-center gap-2">
             <span className="shrink-0 text-sm text-muted-foreground">
@@ -2214,7 +2218,7 @@ function SatinAlmaBirimi({
         </div>
         )}
         {farkliBirim && (
-        <div className="grid grid-cols-[8.5rem_1fr] items-center gap-3">
+        <div className="grid grid-cols-[7rem_1fr] items-center gap-3">
           <span className="text-sm text-muted-foreground">Fiyat Birimi</span>
           <SearchSelect
             items={[`Alış birimi başına`, `Stok birimi başına`]}
