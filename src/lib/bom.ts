@@ -46,7 +46,9 @@ export function flattenParca(
   ziyaret.add(parcaId);
 
   for (const satir of parca.recete) {
-    const carpan = satir.miktar * miktar;
+    // Brüt ihtiyaç: fire payı dahil — üretim düşümü (db/stok.ts) ile aynı
+    // hesap. Aksi halde plan "yeterli" der, emir fire kadar eksikte takılırdı.
+    const carpan = satir.miktar * (1 + (satir.fire ?? 0) / 100) * miktar;
     if (satir.bilesen.tip === "malzeme") {
       out.set(satir.bilesen.ref, (out.get(satir.bilesen.ref) ?? 0) + carpan);
     } else {
