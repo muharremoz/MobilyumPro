@@ -13,7 +13,7 @@ import { formatTarih, type RefakatKagidi } from "@/lib/data";
  * istasyonda işlenir. Örnek fabrika formuna göre düzenlendi:
  * künye + miktar + malzeme/PVC + ölçü tablosu + işlem sırası + resim kutuları.
  *
- * Baskı: her kağıt kendi A4 sayfasında (yazdir-sayfa). Panel çerçevesi
+ * Baskı: her kağıt kendi A3 sayfasında (yazdir-sayfa). Panel çerçevesi
  * çıktıya girmez (globals.css @media print).
  */
 
@@ -47,7 +47,7 @@ function Kagit({ k }: { k: RefakatKagidi }) {
   const semaG = o?.netGenislik ?? o?.bitmisGenislik;
 
   return (
-    <div className="yazdir-sayfa mx-auto w-full max-w-[210mm] border border-black bg-white p-3 text-black">
+    <div className="yazdir-sayfa mx-auto w-full max-w-[297mm] border border-black bg-white p-4 text-black">
       {/* ── Üst bant: logo · sayfa · barkod · basım ── */}
       <div className="flex items-center gap-3 border-b border-black pb-2">
         <span className="text-lg font-black tracking-tight">MobilyumPro</span>
@@ -166,7 +166,7 @@ function Kagit({ k }: { k: RefakatKagidi }) {
       </div>
 
       {/* ── Ölçü tablosu ── */}
-      <table className="w-full border-b border-black text-center text-[10px]">
+      <table className="w-full border-b border-black text-center text-[11px]">
         <thead>
           <tr className="border-b border-black">
             <th colSpan={2} className="border-r border-black font-semibold">
@@ -208,7 +208,7 @@ function Kagit({ k }: { k: RefakatKagidi }) {
       </table>
 
       {/* ── İşlem sırası ── */}
-      <table className="w-full border-b border-black text-[10px]">
+      <table className="w-full border-b border-black text-[11px]">
         <thead>
           <tr className="border-b border-black">
             <th className="w-6 border-r border-black" />
@@ -297,6 +297,9 @@ export function RefakatKagitlari({
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      {/* Refakat kağıdı A3 basılır (globals.css'teki A4 kuralını ezer). */}
+      <style>{"@media print{@page{size:A3 portrait;margin:10mm}}"}</style>
+
       {/* Araç çubuğu — çıktıda görünmez */}
       <div className="yazdir-gizle flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -311,7 +314,7 @@ export function RefakatKagitlari({
               </span>
             </h1>
             <p className="text-xs text-muted-foreground">
-              {kagitlar.length} parça · her parça ayrı sayfaya basılır
+              {kagitlar.length} parça · her parça ayrı A3 sayfaya basılır
             </p>
           </div>
         </div>
