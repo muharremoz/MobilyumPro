@@ -58,6 +58,8 @@ export type EmirAdimi = {
   durum: AdimDurum;
   baslangic?: string;
   bitis?: string;
+  /** İlerletirken girilen opsiyonel not. */
+  not?: string;
 };
 
 export type FabrikaEmri = {

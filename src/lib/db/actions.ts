@@ -182,7 +182,11 @@ export async function uretimEmriOlustur(
  *  - Paketleme adımı bitince mamul stoğa girer.
  * Negatif stok kapalıysa yetersizlik ilerlemeyi ENGELLER; açıksa uyarı döner.
  */
-export async function emriIlerlet(emirId: string): Promise<{
+export async function emriIlerlet(
+  emirId: string,
+  /** Opsiyonel adım notu — tamamlanan (ya da başlatılan) adıma yazılır. */
+  aciklama?: string,
+): Promise<{
   ok: boolean;
   error?: string;
   eksikler?: EksikMalzeme[];
@@ -220,7 +224,11 @@ export async function emriIlerlet(emirId: string): Promise<{
         await db.$transaction(async (tx) => {
           await tx.uretimEmriAdim.update({
             where: { id: ilkBekleyen.id },
-            data: { durum: "İşleniyor", baslangic: simdi },
+            data: {
+              durum: "İşleniyor",
+              baslangic: simdi,
+              not: aciklama?.trim() || null,
+            },
           });
           await tx.uretimEmri.update({
             where: { id: emirId },
@@ -241,7 +249,12 @@ export async function emriIlerlet(emirId: string): Promise<{
       await db.$transaction(async (tx) => {
         await tx.uretimEmriAdim.update({
           where: { id: isleniyor.id },
-          data: { durum: "Tamamlandı", bitis: simdi },
+          data: {
+            durum: "Tamamlandı",
+            bitis: simdi,
+            // Not girildiyse yaz; girilmediyse önceki notu koru.
+            ...(aciklama?.trim() ? { not: aciklama.trim() } : {}),
+          },
         });
         const sonraki = adimlar.find((a) => a.sira === isleniyor.sira + 1);
         if (sonraki) {

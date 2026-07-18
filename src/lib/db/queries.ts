@@ -414,6 +414,7 @@ export async function getFabrikaEmirleri(): Promise<
       durum: a.durum as import("../fabrika").AdimDurum,
       baslangic: a.baslangic?.toISOString(),
       bitis: a.bitis?.toISOString(),
+      not: a.not ?? undefined,
     })),
   }));
 }

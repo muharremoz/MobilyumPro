@@ -10,6 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListHeader } from "@/components/ui/list-header";
 import { FormSheet } from "@/components/ui/form-sheet";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SekmeButonu } from "@/components/ui/sekme-butonu";
 import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import { SatirMenu } from "@/components/ui/satir-menu";
@@ -53,6 +62,9 @@ export function FabrikaPanel({
   // Üretim geçmişi sheet'i — emir id (içerik props'tan türetilir ki
   // ilerletme sonrası tazelenen veriyle güncellensin).
   const [gecmisId, setGecmisId] = React.useState<string | null>(null);
+  // İlerletme onayı: not opsiyonel, boş bırakılabilir.
+  const [ilerletId, setIlerletId] = React.useState<string | null>(null);
+  const [not, setNot] = React.useState("");
 
   const istasyonMap = React.useMemo(
     () => new Map(istasyonlar.map((i) => [i.slug, i])),
@@ -104,10 +116,11 @@ export function FabrikaPanel({
   const sirala = (k: SortKey) => (dir: "asc" | "desc") =>
     setSort({ key: k, dir });
 
-  async function ilerlet(e: FabrikaEmri) {
+  async function ilerlet(e: FabrikaEmri, aciklama?: string) {
     setIlerleyen(e.id);
-    const res = await emriIlerlet(e.id);
+    const res = await emriIlerlet(e.id, aciklama);
     setIlerleyen(null);
+    setIlerletId(null);
     if (!res.ok) {
       await uyar({
         title: "İlerletilemedi",
@@ -155,6 +168,7 @@ export function FabrikaPanel({
   }
 
   const gecmisEmir = emirler.find((e) => e.id === gecmisId) ?? null;
+  const ilerletEmir = emirler.find((e) => e.id === ilerletId) ?? null;
   const istasyonAdlari = istasyonlar.map((i) => i.ad);
   const durumlar = ["Planlandı", "Üretimde", "Tamamlandı", "İptal"];
 
@@ -276,7 +290,10 @@ export function FabrikaPanel({
                           ikon: isleniyor ? ChevronsRight : Play,
                           gizli: !ilerletilebilir,
                           pasif: ilerleyen === e.id,
-                          onSecim: () => ilerlet(e),
+                          onSecim: () => {
+                            setNot("");
+                            setIlerletId(e.id);
+                          },
                         },
                         {
                           etiket: "Üretim Geçmişi",
@@ -387,7 +404,10 @@ export function FabrikaPanel({
                               size="sm"
                               variant="outline"
                               disabled={ilerleyen === e.id}
-                              onClick={() => ilerlet(e)}
+                              onClick={() => {
+                                setNot("");
+                                setIlerletId(e.id);
+                              }}
                             >
                               {isleniyor ? (
                                 <ChevronsRight className="size-3.5" />
@@ -418,6 +438,19 @@ export function FabrikaPanel({
         >
           <FabrikaGorunum emirler={emirler} istasyonlar={istasyonlar} />
         </div>
+      )}
+
+      {/* ── İlerletme onayı (opsiyonel not) ── */}
+      {ilerletEmir && (
+        <IlerletDialog
+          emir={ilerletEmir}
+          istasyonMap={istasyonMap}
+          not={not}
+          onNot={setNot}
+          mesgul={ilerleyen === ilerletEmir.id}
+          onKapat={() => setIlerletId(null)}
+          onOnay={() => ilerlet(ilerletEmir, not)}
+        />
       )}
 
       {/* ── Üretim geçmişi sheet'i ── */}
@@ -571,12 +604,97 @@ function UretimGecmisi({
                     <span className="font-medium text-foreground">{sure}</span>
                   )}
                 </div>
+                {a.not && (
+                  <p className="mt-1 rounded-md border bg-muted/30 px-2 py-1 text-xs whitespace-pre-wrap">
+                    {a.not}
+                  </p>
+                )}
               </div>
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/** İlerletme onayı — hangi adımın kapanacağını söyler, opsiyonel not alır. */
+function IlerletDialog({
+  emir,
+  istasyonMap,
+  not,
+  onNot,
+  mesgul,
+  onKapat,
+  onOnay,
+}: {
+  emir: FabrikaEmri;
+  istasyonMap: Map<string, Istasyon>;
+  not: string;
+  onNot: (v: string) => void;
+  mesgul: boolean;
+  onKapat: () => void;
+  onOnay: () => void;
+}) {
+  const isleniyor = emir.adimlar.find((a) => a.durum === "İşleniyor");
+  const aktifSlug = aktifIstasyon(emir);
+  const aktifAd = aktifSlug
+    ? (istasyonMap.get(aktifSlug)?.ad ?? aktifSlug)
+    : "—";
+  // Tamamlanacak adımdan sonraki istasyon (varsa) — nereye geçileceği.
+  const sonraki = isleniyor
+    ? emir.adimlar.find((a) => a.sira === isleniyor.sira + 1)
+    : null;
+  const sonrakiAd = sonraki
+    ? (istasyonMap.get(sonraki.istasyon)?.ad ?? sonraki.istasyon)
+    : null;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onKapat()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {isleniyor
+              ? `${aktifAd} tamamlansın mı?`
+              : "Üretim başlatılsın mı?"}
+          </DialogTitle>
+          <DialogDescription>
+            {emir.id} · {emir.modelAd} × {emir.adet}
+            {isleniyor
+              ? sonrakiAd
+                ? ` — ${sonrakiAd} istasyonuna geçecek.`
+                : " — bu son adım, emir tamamlanacak."
+              : ` — ${aktifAd} istasyonunda başlayacak.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        <label className="grid gap-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Açıklama (opsiyonel)
+          </span>
+          <Textarea
+            autoFocus
+            rows={3}
+            placeholder="Örn. 2 panel fire verildi, makine ayarı değişti…"
+            value={not}
+            onChange={(ev) => onNot(ev.target.value)}
+          />
+          <span className="text-[11px] text-muted-foreground">
+            Not üretim geçmişinde bu adımın altında görünür.
+          </span>
+        </label>
+
+        <DialogFooter>
+          <Button size="sm" variant="outline" onClick={onKapat}>
+            Vazgeç
+          </Button>
+          <Button size="sm" disabled={mesgul} onClick={onOnay}>
+            <ChevronsRight className="size-3.5" />
+            {mesgul ? "İşleniyor..." : isleniyor ? "İlerlet" : "Başlat"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
