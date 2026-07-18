@@ -963,6 +963,7 @@ type TalepRow = Awaited<
       fiyat: unknown;
       tarih: Date;
       tedarikEdilen: unknown;
+      alisIds: string | null;
     }[];
   }[];
 };
@@ -996,6 +997,7 @@ function mapTalep(
       fiyat: o.fiyat != null ? Number(o.fiyat) : undefined,
       tarih: tarihStr(o.tarih),
       tedarikEdilen: Number(o.tedarikEdilen),
+      alisIds: o.alisIds ? o.alisIds.split(",").filter(Boolean) : undefined,
     })),
   }));
   return {

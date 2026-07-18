@@ -544,6 +544,8 @@ export type TalepSiparis = {
   tarih: string;
   /** Bu siparişe karşı gelen (fatura eşleşmesiyle). */
   tedarikEdilen: number;
+  /** Siparişi karşılayan alış fişleri (ALS-####). */
+  alisIds?: string[];
 };
 
 /** Tedarikçiye verilen sipariş belgesi (bir firma = bir sipariş). */

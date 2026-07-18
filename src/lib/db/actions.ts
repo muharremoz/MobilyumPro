@@ -2098,9 +2098,15 @@ async function talepOtoEslesme(
     const uygula = Math.min(havuz, sipKalan);
     kalan.set(key, havuz - uygula);
 
+    // Fiş izi: siparişi karşılayan alış(lar) — detayda link olarak gösterilir.
+    const alisIds = (sip.alisIds ?? "").split(",").filter(Boolean);
+    if (!alisIds.includes(alisId)) alisIds.push(alisId);
     await tx.satinAlmaTalepSiparis.update({
       where: { id: sip.id },
-      data: { tedarikEdilen: Number(sip.tedarikEdilen) + uygula },
+      data: {
+        tedarikEdilen: Number(sip.tedarikEdilen) + uygula,
+        alisIds: alisIds.join(","),
+      },
     });
     etkilenenSatirlar.add(sip.satir.id);
     etkilenenTalepler.add(sip.satir.talepId);

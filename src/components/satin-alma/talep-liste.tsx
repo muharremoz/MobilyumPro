@@ -135,6 +135,8 @@ type GrupSatiri = {
   siparisMiktar: number;
   /** Bu firmadan gelen (fatura eşleşmesi). */
   tedarik: number;
+  /** Tedariki karşılayan alış fişleri (ALS-####). */
+  alisIds?: string[];
   /** Henüz hiç sipariş verilmemiş kalan — yalnız satırın kendi (talepte
    *  seçilen) firmasının grubunda gösterilir; diğer firmaları ilgilendirmez. */
   kalan?: number;
@@ -182,6 +184,7 @@ function firmaGruplari(
         satir: s,
         siparisMiktar: o.miktar,
         tedarik: o.tedarikEdilen,
+        alisIds: o.alisIds,
       });
       g.tahminiTutar += o.miktar * (o.fiyat ?? fiyat);
       if (o.siparisId && !g.siparisBelgeleri.includes(o.siparisId))
@@ -993,12 +996,27 @@ export function TalepListe({
                                 )}
                               </TableCell>
                               <TableCell>
-                                <Badge
-                                  variant="secondary"
-                                  className={SATIR_DURUM_RENK[s.durum]}
-                                >
-                                  {s.durum}
-                                </Badge>
+                                <span className="flex items-center gap-1.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className={SATIR_DURUM_RENK[s.durum]}
+                                  >
+                                    {s.durum}
+                                  </Badge>
+                                  {/* Tedariki karşılayan alış fişleri */}
+                                  {e.alisIds?.map((a) => (
+                                    <button
+                                      key={a}
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(`/satin-alma/${a}`)
+                                      }
+                                      className="cursor-pointer font-mono text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                                    >
+                                      {a}
+                                    </button>
+                                  ))}
+                                </span>
                               </TableCell>
                             </TableRow>
                           );
