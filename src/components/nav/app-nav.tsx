@@ -38,6 +38,7 @@ import {
   type Section,
   type SubItem,
 } from "@/components/nav/nav-config";
+import { KomutPaleti } from "@/components/nav/komut-paleti";
 
 const DARALT_KEY = "mp_nav_daralt";
 
@@ -279,45 +280,33 @@ function AppNavInner() {
   // Drill-in'den geri dönüşte ana menü de aynı animasyonla gelsin (ilk
   // yüklemede oynamaz; her dönüşte key değişip animasyon yeniden tetiklenir).
   const [donus, setDonus] = React.useState(0);
-  // Sidebar araması (Vercel "Find…") — yazınca tüm menü öğeleri süzülür.
-  const [arama, setArama] = React.useState("");
-  const aramaRef = React.useRef<HTMLInputElement>(null);
+  // Arama artık komut paleti (cmdk) — süzme ve klavye gezinmesi ona ait.
+  const [paletAcik, setPaletAcik] = React.useState(false);
 
-  // "F" kısayolu arama alanına odaklanır (Vercel'deki gibi).
+  // Kısayollar: F (yalın) ve Ctrl/Cmd+K paleti açar.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const hedef = e.target as HTMLElement;
+      const yaziyor =
+        /^(INPUT|TEXTAREA|SELECT)$/.test(hedef.tagName) ||
+        hedef.isContentEditable;
+      if (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setPaletAcik((a) => !a);
+        return;
+      }
       if (
         e.key.toLowerCase() === "f" &&
         !e.ctrlKey && !e.metaKey && !e.altKey &&
-        !/^(INPUT|TEXTAREA|SELECT)$/.test(hedef.tagName) &&
-        !hedef.isContentEditable
+        !yaziyor
       ) {
         e.preventDefault();
-        aramaRef.current?.focus();
+        setPaletAcik(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  // Arama sonuçları: tüm bölümler + alt öğeler içinde düz liste.
-  const aramaSonuclari = React.useMemo(() => {
-    const q = arama.trim().toLocaleLowerCase("tr");
-    if (!q) return null;
-    const sonuc: SubItem[] = [];
-    for (const s of [...sections, ...bottomSections]) {
-      if (s.href && s.href !== "#" && s.label.toLocaleLowerCase("tr").includes(q)) {
-        sonuc.push({ label: s.label, href: s.href, icon: s.RailIcon });
-      }
-      for (const it of s.items ?? []) {
-        if (it.href !== "#" && it.label.toLocaleLowerCase("tr").includes(q)) {
-          sonuc.push(it);
-        }
-      }
-    }
-    return sonuc;
-  }, [arama]);
 
   function daraltDegis() {
     const yeni = !daralt;
@@ -416,53 +405,26 @@ function AppNavInner() {
           </TooltipContent>
         </Tooltip>
 
-        {/* Arama (Vercel "Find…"): beyaz alan + ring, solda büyüteç, sağda F rozeti */}
+        {/* Arama — komut paletini açar (girdi paletin içinde) */}
         {!daralt && (
-          <div className="mt-2 flex h-9 shrink-0 items-center gap-2 rounded-md bg-white bg-clip-padding pr-1.5 pl-2.5 shadow-[0_0_0_1px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-within:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)]">
+          <button
+            type="button"
+            onClick={() => setPaletAcik(true)}
+            className="mt-2 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-md bg-white bg-clip-padding pr-1.5 pl-2.5 text-left shadow-[0_0_0_1px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_0_0_1px_rgba(0,0,0,0.12)] focus-visible:shadow-[0_0_0_1px_rgba(0,0,0,0.16),0_0_0_4px_rgba(0,0,0,0.16)] focus-visible:outline-none"
+          >
             <Search className="size-4 shrink-0 text-[#8f8f8f]" />
-            <input
-              ref={aramaRef}
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setArama("");
-                  e.currentTarget.blur();
-                }
-              }}
-              placeholder="Ara…"
-              className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#8f8f8f]"
-            />
-            {!arama && (
-              <kbd className="flex size-5 shrink-0 items-center justify-center rounded-[4px] bg-[#fafafa] text-xs text-[#666] shadow-[0_0_0_1px_rgba(0,0,0,0.08)]">
-                F
-              </kbd>
-            )}
-          </div>
+            <span className="min-w-0 flex-1 truncate text-sm text-[#8f8f8f]">
+              Ara…
+            </span>
+            <kbd className="flex size-5 shrink-0 items-center justify-center rounded-[4px] bg-[#fafafa] text-xs text-[#666] shadow-[0_0_0_1px_rgba(0,0,0,0.08)]">
+              F
+            </kbd>
+          </button>
         )}
 
         {/* Ana bölümler / drill-in alt menü (panel sidebar'ın yerinde açılır) */}
         <div className="mt-2 flex min-h-0 flex-1 flex-col gap-px overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {aramaSonuclari && !daralt ? (
-            <nav>
-              <ul key={arama} className="flex flex-col gap-px">
-                {aramaSonuclari.map((it, i) => (
-                  <PanelItem
-                    key={`${it.href}-${it.label}`}
-                    item={it}
-                    index={i}
-                    active={ogeAktif(it.href)}
-                    onNavigate={() => setArama("")}
-                  />
-                ))}
-                {aramaSonuclari.length === 0 && (
-                  <li className="px-2 py-3 text-sm text-[#8f8f8f]">
-                    Sonuç bulunamadı
-                  </li>
-                )}
-              </ul>
-            </nav>
-          ) : acikBolum?.items && !daralt ? (
+          {acikBolum?.items && !daralt ? (
             <>
               <button
                 type="button"
@@ -537,6 +499,7 @@ function AppNavInner() {
         </div>
       </nav>
 
+      <KomutPaleti acik={paletAcik} onAcikDegis={setPaletAcik} />
     </TooltipProvider>
   );
 }
