@@ -281,6 +281,12 @@ export function AlisForm({
       (cariId && sonFiyatMap.get(`${malzemeId}:${cariId}`)?.fiyat) || genel,
     [sonFiyatMap],
   );
+  // Herhangi bir firmadan alış kaydı olan malzemeler — fiyat trendi yalnız
+  // gerçek bir alış varsa gösterilir (yoksa karşılaştırma tabanı yok).
+  const alisliMalzemeler = React.useMemo(
+    () => new Set(sonFiyatlar.map((x) => x.malzemeId)),
+    [sonFiyatlar],
+  );
   /** Firmadan son alış kaydı (fiyat + tarih) — hovercard için. */
   const firmaSonKayit = (malzemeId: string, cariId: string) =>
     cariId ? sonFiyatMap.get(`${malzemeId}:${cariId}`) : undefined;
@@ -819,7 +825,9 @@ export function AlisForm({
                             }
                             className="h-8 pr-5 tabular-nums"
                           />
-                          {Math.abs(fark) > 0.005 && (
+                          {alisliMalzemeler.has(s.malzemeId) &&
+                            s.sonFiyat > 0.005 &&
+                            Math.abs(fark) > 0.005 && (
                             <TooltipProvider delay={0}>
                             <Tooltip>
                               <TooltipTrigger
