@@ -1016,6 +1016,9 @@ function mapTalep(
     uretimMusteri: t.uretimMusteri ?? undefined,
     uretimTermin: t.uretimTermin ? tarihStr(t.uretimTermin) : undefined,
     uretimOncelik: t.uretimOncelik ?? undefined,
+    uretimEmirleri: t.uretimEmirleri
+      ? t.uretimEmirleri.split(",").filter(Boolean)
+      : undefined,
     olusturanAd: t.olusturanAd ?? undefined,
     onaylayanAd: t.onaylayanAd ?? undefined,
     onayTarihi: t.onayTarihi ? tarihStr(t.onayTarihi) : undefined,

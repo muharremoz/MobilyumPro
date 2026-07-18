@@ -85,6 +85,7 @@ export function ProductionPlan({
   musteriler,
   parcalar,
   malzemeler,
+  acikTalepler = [],
   mevcutKullaniciId = "",
 }: {
   urunler: Model[];
@@ -92,6 +93,8 @@ export function ProductionPlan({
   musteriler: MusteriSecim[];
   parcalar: Parca[];
   malzemeler: Malzeme[];
+  /** Bu plandan doğmuş, henüz emre bağlanmamış satın alma talepleri. */
+  acikTalepler?: { id: string; modeller?: string }[];
   /** Talep audit'i için — TODO: oturum gelince sunucudan çözülecek. */
   mevcutKullaniciId?: string;
 }) {
@@ -404,6 +407,16 @@ export function ProductionPlan({
     setSeciliEksik(v ? new Set(eksikIds) : new Set());
   }
 
+  /** Plandaki seçimlerin metin imzası — talebe yazılanla aynı format. */
+  const modellerImza = secimler
+    .filter((s) => s.urunId)
+    .map((s) => `${satirAd(s)} × ${s.adet}`)
+    .join(", ");
+  // Bu plan için açılmış talep (aynı imza) — emir oluşturulunca bağlanır.
+  const bagliTalep = modellerImza
+    ? acikTalepler.find((t) => t.modeller === modellerImza)
+    : undefined;
+
   function satinAlmaTalebineGit() {
     if (secilenEksik.length === 0) {
       toast.error("Talep için en az bir eksik malzeme seçin.");
@@ -478,15 +491,16 @@ export function ProductionPlan({
             : undefined,
         hedefDepo: neden === "stok" ? (depoId ?? undefined) : undefined,
       }));
-      const res = await uretimEmriOlustur(payload);
+      const res = await uretimEmriOlustur(payload, bagliTalep?.id);
       if (!res.ok) {
         toast.error("Kaydedilemedi. Lütfen tekrar deneyin.");
         return;
       }
       toast.success(
-        durum === "Üretimde"
+        (durum === "Üretimde"
           ? `${res.ids.length} üretim emri oluşturuldu.`
-          : `${res.ids.length} taslak kaydedildi.`,
+          : `${res.ids.length} taslak kaydedildi.`) +
+          (bagliTalep ? ` ${bagliTalep.id} talebine işlendi.` : ""),
       );
       // Stok yetersizliği uyarıları (negatife düşüş / Planlandı'ya bekletme).
       for (const u of res.uyarilar ?? []) toast.warning(u, { duration: 8000 });

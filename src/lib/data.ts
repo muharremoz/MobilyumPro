@@ -606,6 +606,8 @@ export type SatinAlmaTalep = {
   uretimMusteri?: string;
   uretimTermin?: string;
   uretimOncelik?: string;
+  /** Bu talepten doğan üretim emirleri (UE-####). */
+  uretimEmirleri?: string[];
   // Audit izi
   olusturanAd?: string;
   onaylayanAd?: string;

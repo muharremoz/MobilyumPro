@@ -873,6 +873,22 @@ export function TalepListe({
                   </span>
                 </span>
               )}
+              {/* Bu talepten doğan üretim emirleri */}
+              {detay.uretimEmirleri?.length ? (
+                <span className="flex items-center gap-1">
+                  Üretim:
+                  {detay.uretimEmirleri.map((ue) => (
+                    <button
+                      key={ue}
+                      type="button"
+                      onClick={() => router.push("/uretim/emirler")}
+                      className="cursor-pointer font-mono text-foreground underline-offset-2 hover:underline"
+                    >
+                      {ue}
+                    </button>
+                  ))}
+                </span>
+              ) : null}
               {detay.alisId && (
                 <button
                   type="button"

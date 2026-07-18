@@ -83,6 +83,8 @@ function bugun(): string {
 /** Bir veya daha fazla üretim emrini DB'ye yazar; sonraki UE-#### kodlarını üretir. */
 export async function uretimEmriOlustur(
   yeniler: YeniUretimEmri[],
+  /** Emirleri doğuran satın alma talebi — emir no talebe yazılır. */
+  talepId?: string,
 ): Promise<{ ok: boolean; ids: string[]; uyarilar?: string[] }> {
   if (yeniler.length === 0) return { ok: false, ids: [] };
 
@@ -161,6 +163,26 @@ export async function uretimEmriOlustur(
           .map((e) => e.ad)
           .join(", ")})`,
       );
+    }
+  }
+
+  // Talepten doğan emirlerin numarasını talebe iliştir (çift yönlü iz).
+  if (talepId) {
+    const talep = await db.satinAlmaTalep.findUnique({
+      where: { id: talepId },
+      select: { uretimEmirleri: true },
+    });
+    if (talep) {
+      const mevcutEmirler = (talep.uretimEmirleri ?? "")
+        .split(",")
+        .filter(Boolean);
+      for (const r of rows)
+        if (!mevcutEmirler.includes(r.id)) mevcutEmirler.push(r.id);
+      await db.satinAlmaTalep.update({
+        where: { id: talepId },
+        data: { uretimEmirleri: mevcutEmirler.join(",") },
+      });
+      revalidatePath("/satin-alma/talepler");
     }
   }
 

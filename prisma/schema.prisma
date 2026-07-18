@@ -627,6 +627,8 @@ model SatinAlmaTalep {
   uretimMusteri  String?   @map("uretim_musteri")
   uretimTermin   DateTime? @map("uretim_termin") @db.Date
   uretimOncelik  String?   @map("uretim_oncelik")
+  // Talepten doğan üretim emirleri (UE-####, virgüllü — plan çok emir açabilir).
+  uretimEmirleri String?   @map("uretim_emirleri") @db.NVarChar(Max)
   // Audit izi — TODO: oturum altyapısı gelince gerçek kimlikten.
   olusturanAd    String?   @map("olusturan_ad")
   onaylayanAd    String?   @map("onaylayan_ad")
