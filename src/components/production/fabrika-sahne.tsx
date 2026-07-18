@@ -344,6 +344,26 @@ const KIT_PARCALAR = [
 ] as const;
 KIT_PARCALAR.forEach((ad) => useGLTF.preload(KIT(ad)));
 
+// Kitin renk dokusu (Textures/colormap.png) pakete dahil değil — modeller
+// tek materyalli olduğundan parça başına düz renk boyanır (işçi modelindeki
+// boya tekniğinin aynısı; sahnenin flat renk diliyle uyumlu).
+const KIT_RENK: Record<(typeof KIT_PARCALAR)[number], string> = {
+  "machine-bed": "#f59e0b",
+  machine: "#f59e0b",
+  "machine-fortified": "#d97706",
+  "machine-window": "#eab308",
+  "robot-arm-a": "#f97316",
+  "robot-arm-b": "#f97316",
+  "conveyor-long": "#57534e",
+  "scanner-high": "#3b82f6",
+  "box-large": "#c8a165",
+  "box-small": "#c8a165",
+  "box-wide": "#c8a165",
+  "box-long": "#c8a165",
+  cone: "#f97316",
+  "warning-orange": "#f97316",
+};
+
 type KitParcaProps = {
   ad: (typeof KIT_PARCALAR)[number];
   x: number;
@@ -366,15 +386,26 @@ function KitParcaModel({ ad, x, z, y = 0.22, donus = 0, olcek = 1 }: KitParcaPro
   const { scene } = useGLTF(KIT(ad));
   const model = React.useMemo(() => {
     const klon = scene.clone(true);
+    const renk = new Color(KIT_RENK[ad]);
     klon.traverse((o) => {
       const mesh = o as Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        // Eksik dokuyu düz renkle değiştir.
+        const boya = (m: MeshStandardMaterial) => {
+          const y = m.clone();
+          y.map = null;
+          y.color = renk;
+          return y;
+        };
+        mesh.material = Array.isArray(mesh.material)
+          ? mesh.material.map((m) => boya(m as MeshStandardMaterial))
+          : boya(mesh.material as MeshStandardMaterial);
       }
     });
     return klon;
-  }, [scene]);
+  }, [scene, ad]);
   return (
     <primitive
       object={model}
