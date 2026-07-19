@@ -1,14 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
-
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ErrorShakeField } from "@/components/ui/error-shake"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { kurulumuTamamla } from "@/lib/db/kurulum-actions"
+import { yoneticiOlustur } from "@/lib/db/kurulum-actions"
 
 type Hatalar = {
   firmaAdi?: string
@@ -33,8 +30,7 @@ function kullaniciAdiOner(adSoyad: string): string {
     .join(".")
 }
 
-export function KurulumForm({ className }: { className?: string }) {
-  const router = useRouter()
+export function AdimKullanici({ ileri }: { ileri: () => void }) {
   const [firmaAdi, setFirmaAdi] = React.useState("")
   const [adSoyad, setAdSoyad] = React.useState("")
   const [kullaniciAdi, setKullaniciAdi] = React.useState("")
@@ -75,29 +71,23 @@ export function KurulumForm({ className }: { className?: string }) {
     }
 
     setGonderiliyor(true)
-    const res = await kurulumuTamamla({ firmaAdi, adSoyad, kullaniciAdi, sifre })
+    const res = await yoneticiOlustur({ firmaAdi, adSoyad, kullaniciAdi, sifre })
     setGonderiliyor(false)
     if (!res.ok) {
-      hataGoster({ sifre: res.error ?? "Kurulum tamamlanamadı." })
+      hataGoster({ sifre: res.error ?? "Yönetici hesabı oluşturulamadı." })
       return
     }
-    // Oturum açıldı; sunucu bileşenleri tazelensin diye refresh.
-    router.replace("/")
-    router.refresh()
+    ileri()
   }
 
   return (
-    <form
-      className={cn("flex flex-col gap-6", className)}
-      noValidate
-      onSubmit={onSubmit}
-    >
+    <form className="flex flex-col gap-6" noValidate onSubmit={onSubmit}>
       <FieldGroup className="gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">Kuruluma hoş geldiniz</h1>
+          <h2 className="text-xl font-semibold">Firma ve yönetici hesabı</h2>
           <p className="text-sm text-muted-foreground">
-            Bu ekran yalnız bir kez açılır. Firmanızı tanıtın ve yönetici
-            hesabınızı oluşturun.
+            Panele girecek ilk hesap. Tam yetkili olur ve sonradan başka
+            kullanıcıları bu hesapla açarsınız.
           </p>
         </div>
 
@@ -174,7 +164,7 @@ export function KurulumForm({ className }: { className?: string }) {
 
         <Field>
           <Button type="submit" className="h-10" disabled={gonderiliyor}>
-            {gonderiliyor ? "Kuruluyor..." : "Kurulumu Tamamla"}
+            {gonderiliyor ? "Oluşturuluyor..." : "Devam"}
           </Button>
         </Field>
       </FieldGroup>

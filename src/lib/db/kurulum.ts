@@ -13,18 +13,11 @@ import { sifreHashle } from "./sifre";
  * GÜVENLİK: kapı yalnız "hiç kullanıcı yokken" açıktır. Tek kullanıcı
  * oluştuğu anda hem sayfa hem action kalıcı olarak kapanır — aksi halde
  * herkesin kendine yönetici açabildiği bir uç nokta bırakmış olurduk.
+ *
+ * Sihirbazın hangi adımda olduğu `lib/kurulum/kurulum-islem.ts` içindeki
+ * `kurulumAdimi()` ile belirlenir; buradaki denetim onun altındaki son
+ * emniyet kilididir.
  */
-
-/** Panelde hiç kullanıcı yok mu? (true → kurulum ekranı gösterilir) */
-export async function kurulumGerekli(): Promise<boolean> {
-  try {
-    return (await db.kullanici.count()) === 0;
-  } catch {
-    // DB'ye ulaşılamıyorsa kurulum ekranına yönlendirmek yanıltıcı olur
-    // (asıl sorun bağlantı). Normal akış sürsün, hatayı login sayfası versin.
-    return false;
-  }
-}
 
 /** Kurulumda açılan roller — yetki matrisi boş bir listeyle açılmasın diye. */
 const VARSAYILAN_ROLLER = ["Yönetici", "Kullanıcı", "Görüntüleyici"];

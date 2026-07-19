@@ -4,7 +4,7 @@ import { AppNav } from "@/components/nav/app-nav";
 import { AppHeader } from "@/components/nav/app-header";
 import { AraclarSaglayici } from "@/components/araclar/araclar-baglam";
 import { YetkiSaglayici } from "@/components/yetki/yetki-baglam";
-import { kurulumGerekli } from "@/lib/db/kurulum";
+import { kurulumAdimi } from "@/lib/kurulum/kurulum-islem";
 import { getOturum } from "@/lib/oturum";
 import { kullaniciYetkileri } from "@/lib/yetki-sunucu";
 
@@ -22,7 +22,7 @@ export default async function PanelLayout({
   const oturum = await getOturum();
   if (!oturum) {
     // Hiç kullanıcı yoksa login'e atmak çıkmaz sokak olur (liste boş).
-    redirect((await kurulumGerekli()) ? "/kurulum" : "/login");
+    redirect((await kurulumAdimi()) !== "bitti" ? "/kurulum" : "/login");
   }
 
   // Menüde yalnız listeleme yetkisi olan modüller görünür.
