@@ -29,6 +29,10 @@
 .PARAMETER NssmYolu
   nssm.exe yolu. Verilmezse PATH'te aranır, yoksa görev yoluna düşülür.
 
+.PARAMETER NodeKlasoru
+  Gömülü Node klasörü (node.exe + npm.cmd). Verilmezse önce kurulum
+  içindeki `node\` klasörüne, o da yoksa PATH'e bakılır.
+
 .PARAMETER Kaldir
   Kurulan servis ve görevleri siler.
 
@@ -44,6 +48,7 @@ param(
   [string]$Saat = "02:00",
   [string]$ServisAdi = "MobilyumPro",
   [string]$NssmYolu = "",
+  [string]$NodeKlasoru = "",
   [switch]$Kaldir
 )
 
@@ -102,10 +107,23 @@ if (-not [datetime]::TryParseExact($Saat, $bicimler, $null, "None", [ref]$zaman)
   throw "Saat biçimi HH:mm olmalı (örn. 02:00 veya 2:00). Verilen: $Saat"
 }
 
-$npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
-if (-not $npm) { throw "npm bulunamadı — Node.js kurulu mu?" }
-$node = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
-if (-not $node) { throw "node bulunamadı — Node.js kurulu mu?" }
+# Node çalıştırıcıları: önce kuruluma gömülü kopya (setup.exe böyle kurar),
+# yoksa PATH. Gömülü kopyayı öne almak, müşteri makinesinde Node kurulu
+# olmasa da servisin ayakta kalmasını sağlar.
+if (-not $NodeKlasoru) { $NodeKlasoru = Join-Path $Kok "node" }
+$gomuluNpm = Join-Path $NodeKlasoru "npm.cmd"
+$gomuluNode = Join-Path $NodeKlasoru "node.exe"
+
+if ((Test-Path $gomuluNpm) -and (Test-Path $gomuluNode)) {
+  $npm = $gomuluNpm
+  $node = $gomuluNode
+  Write-Host "Gömülü Node kullanılıyor: $NodeKlasoru"
+} else {
+  $npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+  if (-not $npm) { throw "npm bulunamadı — Node.js kurulu mu?" }
+  $node = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+  if (-not $node) { throw "node bulunamadı — Node.js kurulu mu?" }
+}
 
 Write-Host "Proje kökü : $Kok"
 Write-Host "Gece saati : $Saat"

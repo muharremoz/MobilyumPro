@@ -132,8 +132,64 @@ Kapı iki katmanlı: sayfa yönlendirmesi ekranı gizler, `ilkKurulum()` ise
 işlemi **Serializable** bir transaction içinde yeniden denetler. Tek katman
 bırakılsaydı, herkesin kendine yönetici açabildiği bir uç nokta kalırdı.
 
-İlgili dosyalar: `src/lib/db/kurulum.ts`, `src/lib/db/kurulum-actions.ts`,
-`src/app/kurulum/page.tsx`, `src/components/kurulum-form.tsx`.
+Sihirbaz dört adımdır: **SQL → Yönetici → Lisans → Özet**.
+
+- **SQL:** sunucu/port/veritabanı + SQL ya da Windows kimlik doğrulaması.
+  "Bağlantıyı test et" `master` üzerinden dener. Devam edilince veritabanı
+  (yoksa) oluşturulur, `prisma migrate deploy` çalışır ve **ancak başarılı
+  olursa** `.env` yazılır — yarıda kalan bir kurulum dosyada çalışmayan bir
+  bağlantı bırakmasın diye.
+- **Yönetici:** firma adı + ilk hesap (`USR-1001`, Yönetici).
+- **Lisans:** firma ID + anahtar. **MOCK** — lisans API'si henüz yok, yalnız
+  biçim denetlenir ve kaydedilir (`lisans_durum=dogrulanmadi`).
+- **Özet:** bilgiler gösterilir, bitirilince sihirbaz kapanır ve oturum açılır.
+
+Hangi adımda olunduğu `kurulum_tamamlandi` parametresinden okunur:
+`"1"` bitti · `"0"` yarıda · **yok** = eski kurulum (kullanıcı varsa bitmiş
+sayılır). Bu üçlü ayrım olmasaydı yönetici hesabı oluşur oluşmaz "kullanıcı
+var → bitti" denip lisans ve özet adımları atlanırdı.
+
+Uygulama artık **veritabanı olmadan da açılır**: `db` istemcisi tembel bir
+Proxy'dir, ilk kullanımda doğar ve `.env` yazıldıktan sonra `dbYenile()` ile
+tazelenir. Böylece SQL adımından sonra sunucuyu yeniden başlatmak gerekmez.
+
+> **Arıza ≠ kurulum.** `.env` dolu ama DB'ye ulaşılamıyorsa sihirbaz
+> **açılmaz**, arıza ekranı çıkar. Aksi halde geçici bir veritabanı kesintisi,
+> "isteyen uygulamayı kendi DB'sine yönlendirip yönetici olsun" deliğine
+> dönüşürdü. `.env` yalnız başarılı kurulumdan sonra yazıldığı için, dolu bir
+> `.env` + bağlanamama her zaman arızadır.
+
+İlgili dosyalar: `src/lib/kurulum/kurulum-islem.ts`,
+`src/lib/kurulum/env-dosya.ts`, `src/lib/db/kurulum.ts`,
+`src/lib/db/kurulum-actions.ts`, `src/app/kurulum/page.tsx`,
+`src/components/kurulum/`.
+
+### Adım 6 — setup.exe ✅
+
+Müşteriye giden tek dosya. İki aşamada üretilir:
+
+```powershell
+.\scripts\paket-hazirla.ps1                                   # dist-paket\ hazırlar
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scripts\setup.iss   # dist\*.exe
+```
+
+- **Node.js gömülüdür** (`dist-paket\node\`) — müşteride Node kurulu olmasına
+  gerek yok. `servis-kur.ps1` önce bu kopyaya, yoksa PATH'e bakar.
+- **SQL Server önkoşuldur**, pakette değildir. Setup bulamazsa durdurmaz,
+  yalnız uyarır: veritabanı başka bir sunucuda olabilir ve sihirbaz zaten
+  adres soruyor.
+- Kurulum `C:\MobilyumPro`'ya yapılır — Program Files değil, çünkü uygulama
+  kendi klasörüne `.env`, log ve yüklenen dosyaları yazıyor.
+- Kaldırma servisi ve görevleri siler; **`.env` ve veritabanı korunur**.
+
+Paketleme tuzakları (ikisi de yaşandı):
+
+- **`.next\dev` hariç tutulmalı.** Turbopack'in dev önbelleği bu projede
+  20 GB'ı aşıyor; yalnız `.next\cache` hariç tutulduğunda paket 25 GB çıktı,
+  doğrusuyla 1,2 GB.
+- **`node_modules` budanmamalı.** Prisma CLI devDependency; `--omit=dev` ile
+  budanırsa müşteride ne kurulum (`migrate deploy`) ne güncelleme çalışır.
+- `robocopy /XF` tam yol değil çıplak desen ister (`*.log`), yoksa 16 döner.
 
 ## Önemli kurallar / tuzaklar
 
@@ -158,7 +214,9 @@ bırakılsaydı, herkesin kendine yönetici açabildiği bir uç nokta kalırdı
 | `npm run guncelle:kontrol` | Fabrika | Yeni sürüm var mı (JSON, değiştirmez) |
 | `npm run guncelle` | Fabrika | Güncellemeyi uygular (rollback'li) |
 | `node scripts/guncelle-zamanli.mjs` | Fabrika (gece görevi) | Mod otomatikse günceller |
-| `scripts\kurulum.ps1` | Fabrika (ilk kurulum) | Sıfırdan kurar (yönetici) |
+| `scripts\paket-hazirla.ps1` | Geliştirme | setup.exe içeriğini hazırlar |
+| `scripts\setup.iss` | Geliştirme (Inno Setup) | Tek dosya kurulum paketi üretir |
+| `scripts\kurulum.ps1` | Fabrika (git ile kurulum) | Sıfırdan kurar (yönetici) |
 | `scripts\servis-kur.ps1` | Fabrika | Servis + gece görevi kurar (yönetici) |
 | `node scripts/db-tablo-sayisi.mjs` | Fabrika | Tablo sayısı (kurulum kararı için) |
 

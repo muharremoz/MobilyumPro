@@ -57,3 +57,7 @@ next-env.d.ts
 
 # kullanici dosyalari (cari dokumanlari vb.)
 /uploads
+
+# Kurulum paketi ciktilari
+dist-paket/
+dist/
