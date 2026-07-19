@@ -133,4 +133,19 @@ Bilgi "Klasör : $CiktiTam"
 Bilgi "Boyut  : $boyut GB (setup.exe sıkıştırılmış hâli belirgin küçük olur)"
 Write-Host ""
 Write-Host "    Sıradaki adım: Inno Setup ile derleyin" -ForegroundColor Yellow
-Write-Host '      & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scripts\setup.iss'
+
+# ISCC'nin yeri kuruluma göre değişiyor: winget onu kullanıcı klasörüne,
+# klasik installer ise Program Files'a koyuyor. Sabit yol yazmak yerine
+# bulup gösteriyoruz.
+$isccAdaylar = @(
+  "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+  "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+  "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+)
+$iscc = $isccAdaylar | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($iscc) {
+  Write-Host "      & `"$iscc`" scripts\setup.iss"
+} else {
+  Write-Host "      Inno Setup kurulu değil:" -ForegroundColor Yellow
+  Write-Host "      winget install --id JRSoftware.InnoSetup"
+}
