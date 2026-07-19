@@ -13,7 +13,10 @@
     "db:seed": "tsx src/lib/db/seed.ts",
     "db:yedek": "node scripts/db-yedek.mjs",
     "db:geri-yukle": "node scripts/db-geri-yukle.mjs",
-    "db:backup": "tsx src/lib/db/backup.ts"
+    "db:backup": "tsx src/lib/db/backup.ts",
+    "surum-cikar": "node scripts/surum-cikar.mjs",
+    "guncelle": "node scripts/guncelle.mjs",
+    "guncelle:kontrol": "node scripts/guncelle.mjs --kontrol"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
