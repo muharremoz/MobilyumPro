@@ -148,6 +148,7 @@ export const bottomSections: Section[] = [
       { label: "Sistem Parametreleri", href: "/ayarlar/parametreler", icon: I(SlidersHorizontalIcon) },
       { label: "Döviz Kurları", href: "/ayarlar/kurlar", icon: I(BadgePercentIcon) },
       { label: "Bağlantı Bilgileri", href: "/ayarlar/baglanti", icon: I(CpuIcon) },
+      { label: "Yazılım Güncelleme", href: "/ayarlar/guncelleme", icon: I(HistoryIcon) },
       { label: "Kullanıcılar & Roller", href: "/kullanicilar", modul: "kullanicilar", icon: I(ShieldCheckIcon) },
     ],
   },
