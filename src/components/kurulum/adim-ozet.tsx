@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { PartyPopperIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, PartyPopperIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ErrorShakeField } from "@/components/ui/error-shake"
@@ -14,6 +14,7 @@ export function AdimOzet({ ozet, geri }: { ozet: KurulumOzet; geri: () => void }
   const [calisiyor, setCalisiyor] = React.useState(false)
   const [hata, setHata] = React.useState<string>()
   const [shakeNonce, setShakeNonce] = React.useState(0)
+  const [kopyalandi, setKopyalandi] = React.useState(false)
 
   const satirlar: [string, string][] = [
     ["SQL sunucusu", ozet.sunucu],
@@ -24,6 +25,25 @@ export function AdimOzet({ ozet, geri }: { ozet: KurulumOzet; geri: () => void }
     ["Lisans firma ID", ozet.lisansFirmaId || "—"],
     ["Lisans anahtarı", ozet.lisansAnahtar || "—"],
   ]
+
+  async function kopyala() {
+    // Düz metin: kullanıcı bunu çoğunlukla bir nota ya da e-postaya
+    // yapıştıracak. Şifre BİLEREK yok — özette hiç tutulmuyor.
+    const metin = [
+      "MobilyumPro kurulum bilgileri",
+      `Tarih: ${new Date().toLocaleString("tr-TR")}`,
+      "",
+      ...satirlar.map(([e, d]) => `${e}: ${d}`),
+    ].join("\n")
+    try {
+      await navigator.clipboard.writeText(metin)
+      setKopyalandi(true)
+      setTimeout(() => setKopyalandi(false), 2500)
+    } catch {
+      setHata("Pano kullanılamadı. Bilgileri ekrandan seçip kopyalayın.")
+      setShakeNonce((n) => n + 1)
+    }
+  }
 
   async function bitir() {
     setCalisiyor(true)
@@ -42,11 +62,27 @@ export function AdimOzet({ ozet, geri }: { ozet: KurulumOzet; geri: () => void }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">Özet</h2>
-        <p className="text-sm text-muted-foreground">
-          Her şey hazır. Bilgileri son bir kez denetleyin.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Özet</h2>
+          <p className="text-sm text-muted-foreground">
+            Her şey hazır. Bilgileri son bir kez denetleyin.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={kopyala}
+          className="shrink-0"
+        >
+          {kopyalandi ? (
+            <CheckIcon className="size-4" />
+          ) : (
+            <CopyIcon className="size-4" />
+          )}
+          {kopyalandi ? "Kopyalandı" : "Bilgileri kopyala"}
+        </Button>
       </div>
 
       <dl className="divide-y rounded-lg border">

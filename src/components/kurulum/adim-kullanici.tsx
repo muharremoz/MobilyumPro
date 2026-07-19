@@ -1,6 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { EyeIcon, EyeOffIcon, KeyRoundIcon } from "lucide-react"
+
+import { sifreOner } from "@/lib/sifre-oner"
 import { Button } from "@/components/ui/button"
 import { ErrorShakeField } from "@/components/ui/error-shake"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -41,7 +44,35 @@ export function AdimKullanici({ ileri }: { ileri: () => void }) {
   const [hatalar, setHatalar] = React.useState<Hatalar>({})
   const [shakeNonce, setShakeNonce] = React.useState(0)
   const [gonderiliyor, setGonderiliyor] = React.useState(false)
+  const [sifreGorunur, setSifreGorunur] = React.useState(false)
+  const [onerildi, setOnerildi] = React.useState(false)
+  const [kopyalandi, setKopyalandi] = React.useState(false)
   const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  function sifreOnerVeDoldur() {
+    const yeni = sifreOner()
+    setSifre(yeni)
+    // Tekrar alanını da dolduruyoruz: üretilmiş şifreyi kullanıcıya elle
+    // ikinci kez yazdırmak, kopyalarken hata yapmaktan başka işe yaramaz.
+    setSifreTekrar(yeni)
+    // Görünür yapılmazsa kullanıcı kendi şifresini hiç göremeden kaydeder.
+    setSifreGorunur(true)
+    setOnerildi(true)
+    setKopyalandi(false)
+    setHatalar({})
+  }
+
+  async function sifreyiKopyala() {
+    try {
+      await navigator.clipboard.writeText(sifre)
+      setKopyalandi(true)
+      setTimeout(() => setKopyalandi(false), 2500)
+    } catch {
+      // Pano izni yoksa şifre zaten ekranda görünüyor; sessiz kalmak yerine
+      // kullanıcıyı elle seçmeye yönlendiriyoruz.
+      setSifreGorunur(true)
+    }
+  }
 
   function hataGoster(yeni: Hatalar) {
     setHatalar(yeni)
@@ -135,16 +166,39 @@ export function AdimKullanici({ ileri }: { ileri: () => void }) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="sifre">Şifre</FieldLabel>
+            <div className="flex items-center justify-between gap-2">
+              <FieldLabel htmlFor="sifre">Şifre</FieldLabel>
+              <button
+                type="button"
+                onClick={sifreOnerVeDoldur}
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Şifre öner
+              </button>
+            </div>
             <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
-              <Input
-                id="sifre"
-                type="password"
-                value={sifre}
-                onChange={(e) => setSifre(e.target.value)}
-                autoComplete="new-password"
-                className="h-10"
-              />
+              <div className="relative">
+                <Input
+                  id="sifre"
+                  type={sifreGorunur ? "text" : "password"}
+                  value={sifre}
+                  onChange={(e) => setSifre(e.target.value)}
+                  autoComplete="new-password"
+                  className="h-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSifreGorunur((g) => !g)}
+                  aria-label={sifreGorunur ? "Şifreyi gizle" : "Şifreyi göster"}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                >
+                  {sifreGorunur ? (
+                    <EyeOffIcon className="size-4" />
+                  ) : (
+                    <EyeIcon className="size-4" />
+                  )}
+                </button>
+              </div>
             </ErrorShakeField>
           </Field>
           <Field>
@@ -152,7 +206,7 @@ export function AdimKullanici({ ileri }: { ileri: () => void }) {
             <ErrorShakeField error={hatalar.sifreTekrar} shakeNonce={shakeNonce}>
               <Input
                 id="sifreTekrar"
-                type="password"
+                type={sifreGorunur ? "text" : "password"}
                 value={sifreTekrar}
                 onChange={(e) => setSifreTekrar(e.target.value)}
                 autoComplete="new-password"
@@ -161,6 +215,25 @@ export function AdimKullanici({ ileri }: { ileri: () => void }) {
             </ErrorShakeField>
           </Field>
         </div>
+
+        {onerildi && (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            <KeyRoundIcon className="mt-0.5 size-4 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-1">
+              <span>
+                Şifre üretildi ve iki alana da yazıldı.{" "}
+                <strong>Bir yere kaydedin</strong> — bu ekran bir daha açılmaz.
+              </span>
+              <button
+                type="button"
+                onClick={sifreyiKopyala}
+                className="self-start text-xs font-medium underline underline-offset-4"
+              >
+                {kopyalandi ? "Kopyalandı ✓" : "Şifreyi kopyala"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <Field>
           <Button type="submit" className="h-10" disabled={gonderiliyor}>

@@ -195,6 +195,47 @@ export async function sqlKur(bilgi: SqlBilgi): Promise<KurSonuc> {
   return { ok: true, yeniVeritabani };
 }
 
+/** Hedef veritabanının durumu — şemayı nasıl kuracağımızı bu belirler. */
+type SemaDurum = "bos" | "mobilyumpro" | "yabanci";
+
+/**
+ * Boş DB'ye `migrate deploy`, dolu bir MobilyumPro DB'sine ise baseline
+ * gerekir. Ayrımı yapmazsak dolu DB'de Prisma P3005 ile duruyor ve müşteriye
+ * "migrate-baseline" bağlantılı ham hata gösteriliyordu — kendi verisine
+ * yeniden bağlanmak isteyen biri için çıkmaz sokak.
+ *
+ * Üçüncü durum kasıtlı: tabloları olan ama BİZE ait olmayan bir veritabanı.
+ * Onu baseline'lamak, yabancı bir veritabanının üstüne şema açmak olurdu.
+ */
+async function semaDurumu(url: string): Promise<SemaDurum> {
+  const c = new PrismaClient({ datasourceUrl: url });
+  try {
+    const say = async (q: string) =>
+      Number(
+        Object.values(
+          (await c.$queryRawUnsafe<Record<string, unknown>[]>(q))[0],
+        )[0],
+      );
+    const tablo = await say(
+      "SELECT COUNT(*) AS n FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'",
+    );
+    if (tablo === 0) return "bos";
+
+    // İmza tabloları: üçü birden varsa bu bir MobilyumPro veritabanıdır.
+    const imza = await say(
+      "SELECT COUNT(*) AS n FROM INFORMATION_SCHEMA.TABLES " +
+        "WHERE TABLE_NAME IN ('kullanici','stok','sistem_parametre')",
+    );
+    return imza === 3 ? "mobilyumpro" : "yabanci";
+  } catch {
+    // Okunamıyorsa boş varsayıp migrate deploy'a bırakıyoruz; o da kendi
+    // hatasını verir. Burada tahminle baseline atmak tehlikeli olurdu.
+    return "bos";
+  } finally {
+    await c.$disconnect().catch(() => {});
+  }
+}
+
 async function semayiKur(url: string): Promise<KurSonuc> {
   const cli = join(process.cwd(), "node_modules", "prisma", "build", "index.js");
   if (!existsSync(cli)) {
@@ -204,6 +245,32 @@ async function semayiKur(url: string): Promise<KurSonuc> {
         "Prisma araçları bulunamadı (node_modules eksik). Kurulum paketi eksik gelmiş olabilir.",
     };
   }
+
+  const durum = await semaDurumu(url);
+
+  if (durum === "yabanci") {
+    return {
+      ok: false,
+      error:
+        "Bu veritabanında başka bir uygulamanın tabloları var. Boş bir veritabanı adı verin ya da MobilyumPro için ayrı bir veritabanı açın.",
+    };
+  }
+
+  if (durum === "mobilyumpro") {
+    // Mevcut MobilyumPro verisi: şema zaten yerinde, yalnız baseline'ı
+    // "uygulanmış" işaretliyoruz. VERİYE DOKUNULMAZ.
+    try {
+      await calistir(process.execPath, [cli, "migrate", "resolve", "--applied", "0_init"], {
+        cwd: process.cwd(),
+        env: { ...process.env, DATABASE_URL: url },
+        timeout: 60_000,
+        windowsHide: true,
+      });
+    } catch {
+      // Zaten işaretliyse resolve hata verir; sorun değil, deploy devam etsin.
+    }
+  }
+
   try {
     await calistir(process.execPath, [cli, "migrate", "deploy"], {
       cwd: process.cwd(),
