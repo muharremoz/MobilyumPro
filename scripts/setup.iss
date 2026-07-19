@@ -58,19 +58,25 @@ Filename: "powershell.exe"; \
   Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\servis-kur.ps1"" -NodeKlasoru ""{app}\node"""; \
   StatusMsg: "Windows servisi kaydediliyor..."; Flags: runhidden waituntilterminated
 
-; Sunucunun ayaga kalkmasi birkac saniye suruyor; tarayici hemen acilirsa
-; bos sayfa gorunur. Kullaniciyi "kurulum bozuk" sanmaktan kurtarmak icin
-; bekleyip oyle aciyoruz.
-Filename: "{app}\node\node.exe"; \
-  Parameters: "-e ""setTimeout(()=>{{}},12000)"""; \
-  StatusMsg: "Uygulama baslatiliyor..."; Flags: runhidden waituntilterminated
+; NOT: acilis beklemesi burada DEGIL, [Code] icindeki CurStepChanged'de.
+; Burada `node -e "setTimeout(()=>{{}},12000)"` deneyip yanildik: Inno'nun
+; suslu parantez kacisi bunu `{}}` yapip JS'i bozuyordu, sure aninda 1 ile
+; cikiyordu ve bekleme hic calismiyordu.
 
 Filename: "http://localhost:{#Port}"; \
   Description: "MobilyumPro'yu ac ve kuruluma basla"; \
   Flags: postinstall shellexec nowait
 
 [UninstallRun]
-; Servis ve gorevler once kaldirilir, yoksa dosyalar kilitli kalir.
+; ONCE calisan uygulama durdurulur. Gorevi silmek, o gorevin BASLATTIGI node
+; surecini oldurmuyor; sure ayakta kalinca 1616 portu ve klasordeki dosyalar
+; kilitli kaliyor, kaldirma klasoru silemiyor ve uzerine kurulum "dosya
+; kullanimda" ile (Inno cikis 5) basarisiz oluyordu. Bizzat yasandi.
+Filename: "powershell.exe"; \
+  Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\uygulama-durdur.ps1"" -Kok ""{app}"""; \
+  Flags: runhidden waituntilterminated; RunOnceId: "UygulamaDurdur"
+
+; Servis ve gorevler sonra kaldirilir.
 Filename: "powershell.exe"; \
   Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\servis-kur.ps1"" -Kaldir"; \
   Flags: runhidden waituntilterminated; RunOnceId: "ServisKaldir"
@@ -93,6 +99,34 @@ var
 begin
   Result := RegGetSubkeyNames(HKLM, 'SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL', Isimler)
             and (GetArrayLength(Isimler) > 0);
+end;
+
+{ Dosyalar kopyalanmadan ONCE onceki surumu durdurur.
+
+  Inno'nun CloseApplications ozelligi, penceresi olmayan arka plan node
+  surecini yakalayamiyor. Yakalanmayinca dosyalar kilitli kaliyor ve kurulum
+  cikis 5 ile basarisiz oluyor - bu bizzat yasandi. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Betik: String;
+  Kod: Integer;
+begin
+  Result := '';
+  Betik := ExpandConstant('{app}\scripts\uygulama-durdur.ps1');
+  { Ilk kurulumda betik henuz yok - durdurulacak bir sey de yok. }
+  if FileExists(Betik) then
+    Exec('powershell.exe',
+         '-NoProfile -ExecutionPolicy Bypass -File "' + Betik + '" -Kok "' +
+           ExpandConstant('{app}') + '"',
+         '', SW_HIDE, ewWaitUntilTerminated, Kod);
+end;
+
+{ Servis kaydedildikten sonra sunucunun ayaga kalkmasi birkac saniye suruyor;
+  tarayici hemen acilirsa bos sayfa gorunur ve kurulum bozuk sanilir. }
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    Sleep(12000);
 end;
 
 function InitializeSetup(): Boolean;

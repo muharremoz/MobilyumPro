@@ -77,6 +77,11 @@ function Gorev-Var($ad) {
 
 # ── Kaldırma ──────────────────────────────────────────────────────────
 if ($Kaldir) {
+  # Once calisan uygulamayi durdur: gorevi silmek, o gorevin BASLATTIGI
+  # node surecini oldurmuyor. Sure ayakta kalinca kurulum klasoru silinemiyor.
+  $durdur = Join-Path $PSScriptRoot "uygulama-durdur.ps1"
+  if (Test-Path $durdur) { & $durdur -Kok $Kok -ServisAdi $ServisAdi }
+
   foreach ($g in @($GorevSunucu, $GorevGece)) {
     if (Gorev-Var $g) {
       Unregister-ScheduledTask -TaskName $g -Confirm:$false
