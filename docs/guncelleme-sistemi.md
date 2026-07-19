@@ -115,6 +115,26 @@ güncelle) → `.env` → `npm ci` → `prisma generate` → **DB hazırlığı*
     kurulumu kesmek doğrusu.
 - `.env` ilk kez oluşturulduğunda `DATABASE_URL` düzenlenmesi için durur.
 
+### Adım 5 — İlk kurulum ekranı ✅
+
+Betik biter ama panele **henüz girilemez**: `migrate deploy` şemayı kurar,
+tek bir kullanıcı bile basmaz (seed de basmaz — müşteri DB'sine sahte veri
+girmiyoruz). Kullanıcı yokken `/login` listesi boştur; kurulum kendini
+kilitler. Kilidi açan tek kapı `/kurulum` ekranıdır.
+
+- Kullanıcı **yokken**: `/` ve `/login` → `/kurulum`'a yönlenir.
+- Kullanıcı **varken**: `/kurulum` → `/login`'e yönlenir ve bir daha açılmaz.
+- Ekran firma adını (`firma_adi` parametresi), varsayılan rolleri
+  (Yönetici / Kullanıcı / Görüntüleyici) ve `USR-1001` **Yönetici**
+  kullanıcısını oluşturur, ardından oturumu açar.
+
+Kapı iki katmanlı: sayfa yönlendirmesi ekranı gizler, `ilkKurulum()` ise
+işlemi **Serializable** bir transaction içinde yeniden denetler. Tek katman
+bırakılsaydı, herkesin kendine yönetici açabildiği bir uç nokta kalırdı.
+
+İlgili dosyalar: `src/lib/db/kurulum.ts`, `src/lib/db/kurulum-actions.ts`,
+`src/app/kurulum/page.tsx`, `src/components/kurulum-form.tsx`.
+
 ## Önemli kurallar / tuzaklar
 
 - **Veri asla silinmez:** güncelleme yalnız `prisma migrate deploy`. `db push`

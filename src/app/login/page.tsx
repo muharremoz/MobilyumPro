@@ -1,14 +1,20 @@
 import { GalleryVerticalEndIcon } from "lucide-react"
+import { redirect } from "next/navigation"
 
 import { DestekTalebi } from "@/components/destek-talebi"
 import { LoginForm } from "@/components/login-form"
 import { LoginTanitim } from "@/components/login-tanitim"
+import { kurulumGerekli } from "@/lib/db/kurulum"
 import { getKullanicilar, getVeritabanlari } from "@/lib/db/queries"
 
 // Şirket/kullanıcı listeleri her istekte sunucudan okunur (build'de donmasın).
 export const dynamic = "force-dynamic"
 
 export default async function LoginPage() {
+  // Sıfır kurulumda hiç kullanıcı yoktur; liste boş kalır ve panele girilemez.
+  // O çıkmaza düşmeden kurulum ekranına gönderiyoruz.
+  if (await kurulumGerekli()) redirect("/kurulum")
+
   // Kullanıcı listesi giriş öncesi gönderilir — fabrika içi panelde vardiya
   // personeli adını yazmak yerine seçsin diye. Bunun bedeli: kullanıcı adları
   // giriş yapılmadan görünür. Panel internete açılırsa burası elle yazılan

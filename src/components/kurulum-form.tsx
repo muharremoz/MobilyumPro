@@ -1,0 +1,183 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ErrorShakeField } from "@/components/ui/error-shake"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { kurulumuTamamla } from "@/lib/db/kurulum-actions"
+
+type Hatalar = {
+  firmaAdi?: string
+  adSoyad?: string
+  kullaniciAdi?: string
+  sifre?: string
+  sifreTekrar?: string
+}
+
+/** Ad soyaddan kullanıcı adı önerir: "Muharrem Öz" → "muharrem.oz" */
+function kullaniciAdiOner(adSoyad: string): string {
+  const harita: Record<string, string> = {
+    ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u",
+  }
+  return adSoyad
+    .toLowerCase()
+    .replace(/[çğıöşü]/g, (h) => harita[h] ?? h)
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(".")
+}
+
+export function KurulumForm({ className }: { className?: string }) {
+  const router = useRouter()
+  const [firmaAdi, setFirmaAdi] = React.useState("")
+  const [adSoyad, setAdSoyad] = React.useState("")
+  const [kullaniciAdi, setKullaniciAdi] = React.useState("")
+  // Kullanıcı alana kendi dokunduysa öneri artık üzerine yazmaz.
+  const [elleDegisti, setElleDegisti] = React.useState(false)
+  const [sifre, setSifre] = React.useState("")
+  const [sifreTekrar, setSifreTekrar] = React.useState("")
+  const [hatalar, setHatalar] = React.useState<Hatalar>({})
+  const [shakeNonce, setShakeNonce] = React.useState(0)
+  const [gonderiliyor, setGonderiliyor] = React.useState(false)
+  const revertTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  function hataGoster(yeni: Hatalar) {
+    setHatalar(yeni)
+    setShakeNonce((n) => n + 1)
+    clearTimeout(revertTimer.current)
+    revertTimer.current = setTimeout(() => setHatalar({}), 3000)
+  }
+
+  function adSoyadDegisti(v: string) {
+    setAdSoyad(v)
+    if (!elleDegisti) setKullaniciAdi(kullaniciAdiOner(v))
+  }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+
+    const yeni: Hatalar = {}
+    if (!firmaAdi.trim()) yeni.firmaAdi = "Firma adı zorunludur."
+    if (!adSoyad.trim()) yeni.adSoyad = "Ad soyad zorunludur."
+    if (!/^[a-z0-9._-]{3,}$/.test(kullaniciAdi.trim().toLowerCase()))
+      yeni.kullaniciAdi = "En az 3 karakter; harf, rakam, . _ -"
+    if (sifre.length < 8) yeni.sifre = "Şifre en az 8 karakter olmalıdır."
+    else if (sifre !== sifreTekrar) yeni.sifreTekrar = "Şifreler eşleşmiyor."
+    if (Object.keys(yeni).length > 0) {
+      hataGoster(yeni)
+      return
+    }
+
+    setGonderiliyor(true)
+    const res = await kurulumuTamamla({ firmaAdi, adSoyad, kullaniciAdi, sifre })
+    setGonderiliyor(false)
+    if (!res.ok) {
+      hataGoster({ sifre: res.error ?? "Kurulum tamamlanamadı." })
+      return
+    }
+    // Oturum açıldı; sunucu bileşenleri tazelensin diye refresh.
+    router.replace("/")
+    router.refresh()
+  }
+
+  return (
+    <form
+      className={cn("flex flex-col gap-6", className)}
+      noValidate
+      onSubmit={onSubmit}
+    >
+      <FieldGroup className="gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">Kuruluma hoş geldiniz</h1>
+          <p className="text-sm text-muted-foreground">
+            Bu ekran yalnız bir kez açılır. Firmanızı tanıtın ve yönetici
+            hesabınızı oluşturun.
+          </p>
+        </div>
+
+        <Field>
+          <FieldLabel htmlFor="firmaAdi">Firma Adı</FieldLabel>
+          <ErrorShakeField error={hatalar.firmaAdi} shakeNonce={shakeNonce}>
+            <Input
+              id="firmaAdi"
+              value={firmaAdi}
+              onChange={(e) => setFirmaAdi(e.target.value)}
+              placeholder="Örn. Mobilyum Mobilya San. Tic. Ltd. Şti."
+              className="h-10"
+            />
+          </ErrorShakeField>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="adSoyad">Ad Soyad</FieldLabel>
+          <ErrorShakeField error={hatalar.adSoyad} shakeNonce={shakeNonce}>
+            <Input
+              id="adSoyad"
+              value={adSoyad}
+              onChange={(e) => adSoyadDegisti(e.target.value)}
+              autoComplete="name"
+              className="h-10"
+            />
+          </ErrorShakeField>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="kullaniciAdi">Kullanıcı Adı</FieldLabel>
+          <ErrorShakeField error={hatalar.kullaniciAdi} shakeNonce={shakeNonce}>
+            <Input
+              id="kullaniciAdi"
+              value={kullaniciAdi}
+              onChange={(e) => {
+                setElleDegisti(true)
+                setKullaniciAdi(e.target.value)
+              }}
+              autoComplete="username"
+              className="h-10"
+            />
+          </ErrorShakeField>
+        </Field>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="sifre">Şifre</FieldLabel>
+            <ErrorShakeField error={hatalar.sifre} shakeNonce={shakeNonce}>
+              <Input
+                id="sifre"
+                type="password"
+                value={sifre}
+                onChange={(e) => setSifre(e.target.value)}
+                autoComplete="new-password"
+                className="h-10"
+              />
+            </ErrorShakeField>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="sifreTekrar">Şifre (tekrar)</FieldLabel>
+            <ErrorShakeField error={hatalar.sifreTekrar} shakeNonce={shakeNonce}>
+              <Input
+                id="sifreTekrar"
+                type="password"
+                value={sifreTekrar}
+                onChange={(e) => setSifreTekrar(e.target.value)}
+                autoComplete="new-password"
+                className="h-10"
+              />
+            </ErrorShakeField>
+          </Field>
+        </div>
+
+        <Field>
+          <Button type="submit" className="h-10" disabled={gonderiliyor}>
+            {gonderiliyor ? "Kuruluyor..." : "Kurulumu Tamamla"}
+          </Button>
+        </Field>
+      </FieldGroup>
+    </form>
+  )
+}
