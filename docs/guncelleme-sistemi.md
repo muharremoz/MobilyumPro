@@ -68,44 +68,52 @@ npm run surum-cikar   ◄──────────
 
 ---
 
-## ⬜ Kalan işler
+## ✅ Kalan işler — tamamlandı
 
-### Adım 3 — Windows servisi
-Uygulama makine açılınca kendiliğinden kalkmalı; gece görevi kayıtlı olmalı.
+### Adım 3 — Windows servisi ✅
+`scripts/servis-kur.ps1` (yönetici olarak, proje kökünde):
 
-- [ ] **Servis kaydı** — Önerilen: **NSSM** (küçük exe, `next start`'ı servise
-      çevirir). Alternatif: `node-windows`.
-  - Servis adı örn. `MobilyumPro`, komut: `npm run start` (port 1616),
-    çalışma dizini = proje kökü.
-  - `guncelle.mjs`'deki `GUNCELLE_RESTART_KOMUT` bu servisi yeniden başlatacak
-    (örn. `nssm restart MobilyumPro`) — `.env`'e yazılmalı.
-- [ ] **Gece görevi** — Windows **Task Scheduler** ile her gün seçilen saatte
-      `node scripts/guncelle-zamanli.mjs` (çalışma dizini = proje kökü).
-  - Not: Saat ayarı UI'da tutuluyor ama görevi asıl tetikleyen Task Scheduler.
-    Basit yol: görevi sabit bir saate (02:00) kur, `guncelleme_saat` ile
-    hizala. İleri seviye: UI saat değişince görevi güncelleyen küçük bir adım.
-- [ ] **`.env` şablonu** — güncelleyici ortam değişkenleri:
-  - `DATABASE_URL` (mevcut)
-  - `GUNCELLE_DAL` = `main`
-  - `GUNCELLE_RESTART_KOMUT` = `nssm restart MobilyumPro`
-  - `GUNCELLE_DB_YEDEK_KOMUT` = migrate ÖNCESİ SQL Server yedeği alan komut
-    (örn. `sqlcmd ... BACKUP DATABASE ...`). Ayarlıysa ve başarısızsa
-    güncelleme başlamaz — güvenlik ağı.
+```powershell
+.\scripts\servis-kur.ps1 -Saat 02:00      # kur / güncelle
+.\scripts\servis-kur.ps1 -Kaldir          # geri al
+```
 
-### Adım 4 — Installer (ilk kurulum paketi)
-Fabrikaya ilk kurulumu tek elden yapan paket/script.
+- **Uygulama otomatik başlar.** NSSM varsa gerçek Windows servisi kurulur
+  (çökünce dönüş NSSM'in işi). Yoksa "sistem açılışında" çalışan bir
+  Zamanlanmış Görev kurulur — NSSM'i zorunlu tutup tek bir exe için kurulumu
+  tıkamak istemedik. Görev SYSTEM hesabıyla çalışır, kimse oturum açmasa da
+  uygulama ayakta kalır.
+- **Gece görevi** (`MobilyumPro-Guncelleme`) `guncelle-zamanli.mjs`'i çağırır.
+  O betik mod "otomatik" değilse dokunmaz — **görevi kurmak otomatik
+  güncellemeyi AÇMAZ**, yalnız mümkün kılar.
+- Betik sonunda `.env`'e yazılacak `GUNCELLE_RESTART_KOMUT` değerini basar
+  (NSSM veya görev yoluna göre değişir).
+- Yeniden çalıştırılabilir: var olan servis/görev güncellenir.
+- Saat UI'da da tutuluyor ama **tetikleyen Windows'tur**; saati değiştirmek
+  için betiği `-Saat` ile yeniden çalıştırın.
 
-- [ ] Node.js kurulumu (veya gömülü node).
-- [ ] Repo'yu token ile `git clone` (salt-okunur **Deploy Key** veya PAT).
-- [ ] `.env` oluştur (DB bağlantısı + yukarıdaki güncelleme değişkenleri).
-- [ ] `npm ci` → `npx prisma generate` → `npm run build`.
-- [ ] **DB baseline:** mevcut verisi olan DB'de
-      `npx prisma migrate resolve --applied 0_init` (0_init'i "uygulanmış"
-      işaretler, veriye dokunmaz). Sıfır DB'de `npx prisma migrate deploy`.
-- [ ] Servisi kur + başlat (Adım 3).
-- [ ] Gece görevini kaydet (Adım 3).
+### Adım 4 — Installer ✅
+`scripts/kurulum.ps1` (yönetici olarak):
 
----
+```powershell
+.\kurulum.ps1 -RepoUrl "git@github.com:muharremoz/MobilyumPro.git"
+.\kurulum.ps1 -RepoUrl "..." -Hedef "D:\MobilyumPro" -Saat 03:30
+```
+
+Sırasıyla: ön koşul denetimi (git/node 20+/npm) → clone (veya var olanı
+güncelle) → `.env` → `npm ci` → `prisma generate` → **DB hazırlığı** →
+`npm run build` → servis + gece görevi.
+
+- **Var olan kurulumu SİLMEZ**, günceller; `.env` korunur. Kurulum betiğinin
+  veri ya da ayar kaybettirmesi kabul edilemez.
+- `OTURUM_ANAHTARI` kurulumda rastgele üretilir.
+- **DB hazırlığı kendi karar verir** (`scripts/db-tablo-sayisi.mjs` ile tablo
+  sayısına bakar):
+  - boş DB → `prisma migrate deploy`
+  - verili DB → `prisma migrate resolve --applied 0_init` (**veriye dokunmaz**)
+  - bağlanılamıyorsa durur ve söyler — yanlış tarafa düşüp veri kaybetmektense
+    kurulumu kesmek doğrusu.
+- `.env` ilk kez oluşturulduğunda `DATABASE_URL` düzenlenmesi için durur.
 
 ## Önemli kurallar / tuzaklar
 
@@ -130,7 +138,18 @@ Fabrikaya ilk kurulumu tek elden yapan paket/script.
 | `npm run guncelle:kontrol` | Fabrika | Yeni sürüm var mı (JSON, değiştirmez) |
 | `npm run guncelle` | Fabrika | Güncellemeyi uygular (rollback'li) |
 | `node scripts/guncelle-zamanli.mjs` | Fabrika (gece görevi) | Mod otomatikse günceller |
+| `scripts\kurulum.ps1` | Fabrika (ilk kurulum) | Sıfırdan kurar (yönetici) |
+| `scripts\servis-kur.ps1` | Fabrika | Servis + gece görevi kurar (yönetici) |
+| `node scripts/db-tablo-sayisi.mjs` | Fabrika | Tablo sayısı (kurulum kararı için) |
 
 İlgili dosyalar: `scripts/surum-cikar.mjs`, `scripts/guncelle.mjs`,
-`scripts/guncelle-zamanli.mjs`, `src/lib/db/guncelleme-actions.ts`,
+`scripts/guncelle-zamanli.mjs`, `scripts/kurulum.ps1`, `scripts/servis-kur.ps1`,
+`scripts/db-tablo-sayisi.mjs`, `src/lib/db/guncelleme-actions.ts`,
 `src/components/settings/guncelleme.tsx`, `src/app/(panel)/ayarlar/guncelleme/`.
+
+## Notlar
+
+- **PowerShell betikleri UTF-8 BOM'lu kaydedilmeli.** Windows PowerShell 5.1
+  BOM'suz `.ps1`'i ANSI sanıp Türkçe karakterlerde ayrıştırma hatası verir.
+- Servis/görev kurulumu **yönetici** ister; betikler değilse baştan durur,
+  yarım kurulum bırakmaz.
