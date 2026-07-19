@@ -85,7 +85,18 @@ Filename: "powershell.exe"; \
 ; Kurulumda uretilen, pakette olmayan dosyalar.
 Type: files; Name: "{app}\sunucu.log"
 Type: files; Name: "{app}\guncelle.log"
-Type: filesandordirs; Name: "{app}\.next\cache"
+Type: filesandordirs; Name: "{app}\.next"
+
+; .env korundugu icin {app} silinemiyor; Inno de altindaki BOS klasor
+; iskeletlerini birakiyordu. Kaldirmadan sonra node_modules/ duran bir
+; klasor gorunce kullanici "kaldirma calismadi" saniyor. Bunlar bizim
+; kurdugumuz klasorler, tamamen silinmeleri dogru.
+Type: filesandordirs; Name: "{app}\node"
+Type: filesandordirs; Name: "{app}\node_modules"
+Type: filesandordirs; Name: "{app}\src"
+Type: filesandordirs; Name: "{app}\scripts"
+Type: filesandordirs; Name: "{app}\prisma"
+Type: filesandordirs; Name: "{app}\public"
 
 [Code]
 { SQL Server onkosul denetimi.
