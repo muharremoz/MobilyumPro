@@ -1,4 +1,5 @@
 import { CariList } from "@/components/cari/cari-list";
+import { parametreSayi } from "@/lib/db/parametre";
 import {
   getCariler,
   getKullanicilar,
@@ -15,8 +16,10 @@ export default async function CariPage() {
     getKullanicilar(),
   ]);
   const mevcutKullaniciId = oturum.id;
+  const bakiyeUyariLimiti = await parametreSayi("bakiye_uyari", 0);
   return (
     <CariList
+      bakiyeUyariLimiti={bakiyeUyariLimiti}
       cariler={cariler}
       kolonAyari={kolonAyari}
       kullanicilar={kullanicilar.map((k) => ({ id: k.id, ad: k.adSoyad }))}

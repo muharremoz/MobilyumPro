@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -276,6 +277,11 @@ export function GenelBakis({
         kayitli={kisayollar[secili]}
       />
 
+      {/* Sayım hatırlatması ızgaranın DIŞINDA: pano kartları kullanıcı
+          tarafından gizlenebiliyor, gizlenebilir bir hatırlatma ise hiç
+          görülmeyebilir. */}
+      <SayimHatirlatma uyari={veri.sayimUyari} />
+
       <div className="grid gap-4 xl:grid-cols-2">
         {kartlar.map((k) => (
           <Kart key={k} ad={k} veri={veri} istasyon={istasyon} />
@@ -495,6 +501,45 @@ function HizliIslemler({
   );
 }
 
+
+/** Son sayımdan `sayim_uyari_gun` günden fazla geçtiyse görünür. */
+function SayimHatirlatma({
+  uyari,
+}: {
+  uyari: PanoVerisi["sayimUyari"];
+}) {
+  if (!uyari) return null;
+  const hicYok = uyari.gunGecti === null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700">
+        <ClipboardCheck className="size-4.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-amber-950">
+          {hicYok ? "Henüz stok sayımı yapılmadı" : "Stok sayımı zamanı geldi"}
+        </p>
+        <p className="text-xs text-amber-900/75">
+          {hicYok
+            ? `Tamamlanmış bir sayım kaydı yok. Sayım aralığı ${uyari.esik} gün olarak ayarlı.`
+            : `Son sayımın üstünden ${uyari.gunGecti} gün geçti` +
+              (uyari.sonTarih ? ` (${uyari.sonTarih})` : "") +
+              `. Ayarlı aralık ${uyari.esik} gün.`}
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        // Base UI: asChild değil render (proje standardı).
+        render={<Link href="/stok-yonetimi?bolum=sayim" />}
+        className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+      >
+        Sayıma git
+      </Button>
+    </div>
+  );
+}
 
 function Kart({
   ad,

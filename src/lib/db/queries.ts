@@ -795,6 +795,7 @@ export async function getAtolyeGorunumu(
  */
 export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
   const kritikEsik = await parametreSayi("kritik_stok_esigi", 5);
+  const sayimUyari = await sayimHatirlatmasi();
   const bugun = new Date();
   bugun.setHours(0, 0, 0, 0);
   const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
@@ -1017,6 +1018,7 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
     malKabulBekleyen: bekleyenSiparis.length,
     sonHareketler,
     aylikAlis,
+    sayimUyari,
     ozet: {
       acikEmir: emirler.length,
       uretimdeEmir: emirler.filter((e) => e.durum === "Üretimde").length,
@@ -1030,6 +1032,34 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
   };
 }
 
+
+/**
+ * Sayım hatırlatması: son TAMAMLANMIŞ sayımın üstünden `sayim_uyari_gun`
+ * günden fazla geçtiyse pano kartı gösterilir.
+ *
+ * Taslak sayımlar sayılmaz — açılıp bırakılmış bir belge "sayım yapıldı"
+ * anlamına gelmez, tam tersine hatırlatmanın gizlenmesine yol açardı.
+ */
+async function sayimHatirlatmasi(): Promise<
+  import("../data").PanoVerisi["sayimUyari"]
+> {
+  const esik = await parametreSayi("sayim_uyari_gun", 90);
+  const son = await db.sayim.findFirst({
+    where: { durum: "Tamamlandı" },
+    orderBy: { tarih: "desc" },
+    select: { tarih: true },
+  });
+
+  // Hiç sayım yapılmamışsa da hatırlatılır; "bilinmiyor" sessizce geçilecek
+  // bir durum değil.
+  if (!son) return { gunGecti: null, esik };
+
+  const gun = Math.floor(
+    (Date.now() - son.tarih.getTime()) / (24 * 60 * 60 * 1000),
+  );
+  if (gun < esik) return null;
+  return { gunGecti: gun, esik, sonTarih: tarihStr(son.tarih) };
+}
 
 /** Sayım listesi — satır özetleriyle. */
 export async function getSayimlar(): Promise<import("../data").Sayim[]> {

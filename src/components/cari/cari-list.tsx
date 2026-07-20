@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Pencil, Trash2 } from "lucide-react";
 
 import { useSayfalama, SayfalamaKontrol } from "@/components/ui/sayfalama";
 import { toast } from "sonner";
@@ -71,8 +71,11 @@ export function CariList({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
+  // bakiye_uyari parametresi (sunucudan). 0 → uyarı kapalı.
+  bakiyeUyariLimiti = 0,
 }: {
   cariler: Cari[];
+  bakiyeUyariLimiti?: number;
   /** Kolon ayarları (liste_ayar "cariler"). */
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
@@ -464,6 +467,20 @@ export function CariList({
                       <span className="ml-1 text-[10px] uppercase">
                         {c.bakiye < 0 ? "B" : c.bakiye > 0 ? "A" : ""}
                       </span>
+                      {/* Yalnız BİZE BORÇLU tarafta uyarılıyor (şema: pozitif =
+                          cari bizden alacaklı). Bizim borcumuzun büyük olması
+                          bir tahsilat riski değil, onu işaretlemek gürültü. */}
+                      {bakiyeUyariLimiti > 0 &&
+                        c.bakiye < 0 &&
+                        Math.abs(c.bakiye) > bakiyeUyariLimiti && (
+                          <span
+                            className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-rose-700"
+                            title={`Bakiye uyarı limitini (${formatTL(bakiyeUyariLimiti)}) aşıyor`}
+                          >
+                            <AlertTriangle className="size-3" />
+                            Limit aşımı
+                          </span>
+                        )}
                     </TableCell>
                   )}
                   {kolon.temelGorunur("durum") && (

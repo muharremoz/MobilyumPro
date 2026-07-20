@@ -125,7 +125,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "90",
     birim: "gün",
-    durum: "yakinda",
   },
 
   // ── Üretim ──────────────────────────────────────────────────────────
@@ -197,12 +196,14 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "bakiye_uyari",
     etiket: "Bakiye Uyarısı",
-    aciklama: "Cari bakiye bu tutarı aşınca satışta uyarı gösterilir (TL).",
+    // "Satışta uyarı" diyordu; satış ekranı yok. Cari listesinde rozet
+    // olarak gösteriliyor ve yalnız BİZE BORÇLU tarafta.
+    aciklama:
+      "Cari borcu bu tutarı aşınca cari listesinde uyarı rozeti çıkar (TL).",
     grup: "Satış & Cari",
     tip: "sayi",
     varsayilan: "100000",
     birim: "TL",
-    durum: "yakinda",
   },
 
   // ── Sistem ──────────────────────────────────────────────────────────

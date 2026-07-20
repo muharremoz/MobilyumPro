@@ -142,6 +142,15 @@ export type PanoVerisi = {
   }[];
   /** Son 6 ayın satın alma harcaması — eskiden yeniye sıralı. */
   aylikAlis: { ay: string; etiket: string; tutar: number }[];
+  /**
+   * Sayım hatırlatması (sayim_uyari_gun). null → hatırlatma yok.
+   * `gunGecti` null ise hiç tamamlanmış sayım yapılmamış demektir.
+   */
+  sayimUyari: {
+    gunGecti: number | null;
+    esik: number;
+    sonTarih?: string;
+  } | null;
   /** Yönetim özeti */
   ozet: {
     acikEmir: number;
