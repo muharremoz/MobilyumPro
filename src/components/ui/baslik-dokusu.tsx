@@ -51,7 +51,7 @@ const DOLU_PETEKLER: Array<[number, number]> = [
 ];
 
 export function BaslikDokusu({
-  renkSinifi = "fill-primary/8 stroke-primary/12",
+  renkSinifi = "fill-primary/4 stroke-primary/6",
 }: {
   /**
    * Doku rengi. Varsayılan primary; özet kartları gibi anlamı renkle taşıyan

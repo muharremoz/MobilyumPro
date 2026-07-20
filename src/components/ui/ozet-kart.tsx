@@ -23,25 +23,25 @@ const TON: Record<
 > = {
   primary: {
     serit: "bg-primary/10",
-    doku: "fill-primary/8 stroke-primary/12",
+    doku: "fill-primary/4 stroke-primary/6",
     etiket: "text-primary",
     deger: "text-foreground",
   },
   amber: {
     serit: "bg-amber-500/10",
-    doku: "fill-amber-500/10 stroke-amber-500/15",
+    doku: "fill-amber-500/5 stroke-amber-500/8",
     etiket: "text-amber-700",
     deger: "text-amber-600",
   },
   rose: {
     serit: "bg-rose-500/10",
-    doku: "fill-rose-500/10 stroke-rose-500/15",
+    doku: "fill-rose-500/5 stroke-rose-500/8",
     etiket: "text-rose-700",
     deger: "text-rose-600",
   },
   emerald: {
     serit: "bg-emerald-500/10",
-    doku: "fill-emerald-500/10 stroke-emerald-500/15",
+    doku: "fill-emerald-500/5 stroke-emerald-500/8",
     etiket: "text-emerald-700",
     deger: "text-emerald-600",
   },
