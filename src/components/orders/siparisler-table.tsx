@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { formatTL, formatTarih, type Siparis, type SiparisDurum } from "@/lib/data";
 import { useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 const durumlar: SiparisDurum[] = [
   "Beklemede",
@@ -59,6 +60,7 @@ export function SiparislerTable({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   // Kolon filtreleri (başlık popover'larından)
@@ -209,7 +211,7 @@ export function SiparislerTable({
                 )}
                 {kolon.temelGorunur("tutar") && (
                   <TableCell className="text-right tabular-nums">
-                    {formatTL(s.tutar)}
+                    {para(s.tutar)}
                   </TableCell>
                 )}
                 {kolon.temelGorunur("durum") && (

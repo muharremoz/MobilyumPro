@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/table";
 import { formatTL, type StokKarti, type StokGrubu } from "@/lib/data";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 const GRUPLAR: StokGrubu[] = ["Hammadde", "Yarı Mamül", "Mamül", "Hizmet"];
 const GRUP_RENK: Record<StokGrubu, string> = {
@@ -136,6 +137,7 @@ export function StokKartListe({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("stok");
@@ -600,7 +602,7 @@ export function StokKartListe({
                   )}
                   {kolon.temelGorunur("satisFiyat1") && (
                     <TableCell className="text-right tabular-nums">
-                      {formatTL(s.satisFiyat1)}
+                      {para(s.satisFiyat1)}
                     </TableCell>
                   )}
                   {kolon.temelGorunur("durum") && (

@@ -61,6 +61,7 @@ import {
   talepSil,
 } from "@/lib/db/actions";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
+import { usePara } from "@/components/bicim-baglam";
 
 const DURUM_RENK: Record<TalepDurum, string> = {
   Beklemede: "bg-amber-100 text-amber-800",
@@ -221,6 +222,7 @@ export function TalepListe({
   /** TODO: oturum altyapısı gelince gerçek giriş yapan kullanıcı. */
   mevcutKullanici: { id: string; ad: string; rol: string; departman?: string };
 }) {
+  const para = usePara();
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
 
@@ -707,7 +709,7 @@ export function TalepListe({
                           <TedarikIlerleme talep={t} />
                         </TableCell>
                         <TableCell className="text-right text-sm font-medium tabular-nums">
-                          {formatTL(t.tahminiTutar)}
+                          {para(t.tahminiTutar)}
                         </TableCell>
                         <TableCell>
                           <span className="flex items-center gap-1.5">
@@ -751,7 +753,7 @@ export function TalepListe({
             <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4">
               <span className="text-sm text-muted-foreground tabular-nums">
                 {tamamSatir(detay)}/{detay.satirlar.length} malzeme tedarik
-                edildi · tahmini {formatTL(detay.tahminiTutar)}
+                edildi · tahmini {para(detay.tahminiTutar)}
               </span>
               <div className="flex items-center gap-2">
                 {detay.durum === "Beklemede" && yonetici && (
@@ -930,7 +932,7 @@ export function TalepListe({
                           {g.cariAd}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {g.satirlar.length} kalem · {formatTL(g.tahminiTutar)}
+                          {g.satirlar.length} kalem · {para(g.tahminiTutar)}
                           {g.siparisBelgeleri.length > 0 && " · "}
                           {g.siparisBelgeleri.map((sip, i) => (
                             <React.Fragment key={sip}>
@@ -1340,6 +1342,7 @@ function SiparisDialog({
   onKapat: () => void;
   onKaydedildi: (siparisId: string) => void;
 }) {
+  const para = usePara();
   // Yalnız sipariş verilecek kalanı olan satırlar.
   const acik = grup.satirlar
     .filter((e) => (e.kalan ?? 0) > 0.0005)
@@ -1507,7 +1510,7 @@ function SiparisDialog({
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {formatTL(m * f)}
+                      {para(m * f)}
                     </TableCell>
                   </TableRow>
                 );
@@ -1535,7 +1538,7 @@ function SiparisDialog({
             <PackageCheck className="size-3.5" />
             {kaydediliyor
               ? "Oluşturuluyor..."
-              : `${net.length} kalem · ${formatTL(toplam)} sipariş ver`}
+              : `${net.length} kalem · ${para(toplam)} sipariş ver`}
           </Button>
         </DialogFooter>
       </DialogContent>

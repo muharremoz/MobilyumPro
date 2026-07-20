@@ -42,6 +42,7 @@ import { parcaSil, receteKopyala,
   silinebilirMi,
 } from "@/lib/db/actions";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 const KATEGORILER = [
   "Karyola",
@@ -111,6 +112,7 @@ export function ReceteListe({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("uretim-takibi");
@@ -455,7 +457,7 @@ export function ReceteListe({
                   )}
                   {kolon.temelGorunur("maliyet") && (
                     <TableCell className="text-right font-medium tabular-nums">
-                      {formatTL(maliyet)}
+                      {para(maliyet)}
                     </TableCell>
                   )}
                   {kolon.temelGorunur("kullanim") && (

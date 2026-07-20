@@ -11,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTL, formatTarih } from "@/lib/data";
+import { formatTarih } from "@/lib/data";
+import { paraBiciminiOku } from "@/lib/db/para-bicim-sunucu";
+import { paraFormatla } from "@/lib/para-bicim";
 import { getAlis } from "@/lib/db/queries";
 
 /** Alış detayı — salt okunur (alış silme/düzenleme v1'de yok). */
@@ -25,6 +27,7 @@ export default async function AlisDetayRoute({
   if (id === "yeni") notFound();
   const alis = await getAlis(id);
   if (!alis) notFound();
+  const bicim = await paraBiciminiOku();
 
   return (
     <div className="flex flex-col gap-3">
@@ -79,7 +82,7 @@ export default async function AlisDetayRoute({
           <div>
             <dt className="text-xs text-muted-foreground">Toplam</dt>
             <dd className="mt-0.5 font-semibold tabular-nums">
-              {formatTL(alis.toplam)}
+              {paraFormatla(alis.toplam, bicim)}
             </dd>
           </div>
           {alis.aciklama && (
@@ -114,10 +117,10 @@ export default async function AlisDetayRoute({
                   {s.birim}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatTL(s.birimFiyat)}
+                  {paraFormatla(s.birimFiyat, bicim)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatTL(s.miktar * s.birimFiyat)}
+                  {paraFormatla(s.miktar * s.birimFiyat, bicim)}
                 </TableCell>
               </TableRow>
             ))}

@@ -47,6 +47,7 @@ import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import { formatTL, formatTarih, type PanoVerisi } from "@/lib/data";
+import { usePara } from "@/components/bicim-baglam";
 
 /**
  * Genel Bakış — tek sayfa, departmana göre FARKLI KART SETİ.
@@ -251,6 +252,7 @@ export function GenelBakis({
   /** Üretim personelinin istasyonu — "istasyonumdaki iş" için. */
   istasyon?: string;
 }) {
+  const para = usePara();
   // Departman oturumdan gelir; seçiciyle değiştirilmez. Departmanı tanımsız
   // kullanıcılar yönetim özetini görür (VARSAYILAN_KART).
   const secili = departman ?? "Yönetim";
@@ -643,6 +645,7 @@ function Metrik({
 
 /** Aylık satın alma harcaması — panodaki tek zaman serisi, o yüzden grafik. */
 function AlisTrendi({ veri }: { veri: PanoVerisi }) {
+  const para = usePara();
   const seri = veri.aylikAlis;
   const toplam = seri.reduce((t, a) => t + a.tutar, 0);
   const oncekiler = seri.slice(0, -1);
@@ -665,7 +668,7 @@ function AlisTrendi({ veri }: { veri: PanoVerisi }) {
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline gap-2">
           <span className="text-xl font-semibold tabular-nums">
-            {formatTL(buAy)}
+            {para(buAy)}
           </span>
           <span className="text-xs text-muted-foreground">bu ay</span>
           {ortalama > 0 && (
@@ -693,7 +696,7 @@ function AlisTrendi({ veri }: { veri: PanoVerisi }) {
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  formatter={(deger) => formatTL(Number(deger))}
+                  formatter={(deger) => para(Number(deger))}
                 />
               }
             />
@@ -706,6 +709,7 @@ function AlisTrendi({ veri }: { veri: PanoVerisi }) {
 }
 
 function YonetimOzet({ veri }: { veri: PanoVerisi }) {
+  const para = usePara();
   const o = veri.ozet;
   return (
     <Kutu baslik="Özet" ikon={TrendingUp} genis>
@@ -723,7 +727,7 @@ function YonetimOzet({ veri }: { veri: PanoVerisi }) {
           deger={String(o.kritikStokAdet)}
           renk={o.kritikStokAdet > 0 ? "amber" : undefined}
         />
-        <Metrik etiket="Bu Ay Alış" deger={formatTL(o.aylikAlisTutar)} />
+        <Metrik etiket="Bu Ay Alış" deger={para(o.aylikAlisTutar)} />
       </div>
     </Kutu>
   );
@@ -842,6 +846,7 @@ function Emirlerim({
 }
 
 function OnayBekleyen({ veri }: { veri: PanoVerisi }) {
+  const para = usePara();
   const router = useRouter();
   return (
     <Kutu
@@ -876,7 +881,7 @@ function OnayBekleyen({ veri }: { veri: PanoVerisi }) {
               {formatTarih(t.tarih)}
             </span>
             <span className="text-sm font-medium tabular-nums">
-              {formatTL(t.tutar)}
+              {para(t.tutar)}
             </span>
           </button>
         ))}

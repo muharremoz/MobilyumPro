@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/nav/app-nav";
 import { AppHeader } from "@/components/nav/app-header";
 import { AraclarSaglayici } from "@/components/araclar/araclar-baglam";
+import { BicimSaglayici } from "@/components/bicim-baglam";
 import { YetkiSaglayici } from "@/components/yetki/yetki-baglam";
 import { parametreAcik, parametreSayi } from "@/lib/db/parametre";
+import { paraBiciminiOku } from "@/lib/db/para-bicim-sunucu";
 import { kurulumAdimi } from "@/lib/kurulum/kurulum-islem";
 import { getOturum } from "@/lib/oturum";
 import { kullaniciYetkileri } from "@/lib/yetki-sunucu";
@@ -34,6 +36,7 @@ export default async function PanelLayout({
   }
 
   const varsayilanKdv = await parametreSayi("varsayilan_kdv", 20);
+  const paraBicimi = await paraBiciminiOku();
 
   // Menüde yalnız listeleme yetkisi olan modüller görünür.
   const yetkiler = await kullaniciYetkileri(oturum);
@@ -43,6 +46,7 @@ export default async function PanelLayout({
 
   return (
     <YetkiSaglayici moduller={yetkiler} yonetici={oturum.yonetici}>
+    <BicimSaglayici bicim={paraBicimi}>
     <AraclarSaglayici varsayilanKdv={varsayilanKdv}>
     <div className="relative flex h-svh overflow-hidden bg-background">
       <AppNav izinliModuller={izinliModuller} />
@@ -54,6 +58,7 @@ export default async function PanelLayout({
       </main>
     </div>
     </AraclarSaglayici>
+    </BicimSaglayici>
     </YetkiSaglayici>
   );
 }

@@ -26,6 +26,7 @@ import {
   type Parca,
 } from "@/lib/data";
 import { posetKaydet } from "@/lib/db/actions";
+import { usePara } from "@/components/bicim-baglam";
 
 /** "Ait olduğu ürün" tür seçenekleri — etiket ↔ veri değeri eşlemesi. */
 const REF_TIP_ETIKET = { model: "Model", parca: "Parça" } as const;
@@ -50,6 +51,7 @@ export function PosetForm({
   /** Parçalar — "ait olduğu ürün" parça seçimi ve paket seçimi için. */
   parcalar?: Parca[];
 }) {
+  const para = usePara();
   const router = useRouter();
   const yeniMi = poset === null;
 
@@ -328,7 +330,7 @@ export function PosetForm({
                       {malzeme?.birim ?? "—"}
                     </span>
                     <span className="text-right text-xs text-muted-foreground tabular-nums">
-                      {formatTL(satirTutari(s))}
+                      {para(satirTutari(s))}
                     </span>
                     <Button
                       variant="ghost"
@@ -414,7 +416,7 @@ export function PosetForm({
             <KartBaslik ikon={Banknote} baslik="Maliyet Özeti" />
             <div className="p-4">
             <p className="text-2xl font-semibold tracking-tight tabular-nums">
-              {formatTL(toplam)}
+              {para(toplam)}
             </p>
             <div className="mt-3 flex flex-col gap-1.5 text-sm">
               <div className="flex items-center justify-between">

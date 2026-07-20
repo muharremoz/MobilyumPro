@@ -117,6 +117,7 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment";
 import { useYetki } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 /**
  * Stok kartının alt kayıtları — queries.getStok(id).detay ile aynı şekil.
@@ -783,6 +784,7 @@ function ReceteTab({
   parcalar: Parca[];
   malzemeler: Malzeme[];
 }) {
+  const para = usePara();
   const parca = receteParcaId
     ? parcalar.find((p) => p.id === receteParcaId)
     : undefined;
@@ -908,10 +910,10 @@ function ReceteTab({
                 {i.malzeme.birim}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {formatTL(i.malzeme.birimFiyat)}
+                {para(i.malzeme.birimFiyat)}
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                {formatTL(i.toplamFiyat)}
+                {para(i.toplamFiyat)}
               </TableCell>
             </TableRow>
           ))}
@@ -931,7 +933,7 @@ function ReceteTab({
         <div className="flex items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2.5">
           <span className="text-sm font-medium">Toplam Maliyet</span>
           <span className="text-sm font-semibold tabular-nums">
-            {formatTL(toplam)}
+            {para(toplam)}
           </span>
         </div>
       )}
@@ -1093,6 +1095,7 @@ function AnalizTab({
   kart: StokKarti;
   hareketler: StokHareket[];
 }) {
+  const para = usePara();
   const analiz = React.useMemo(() => {
     let giris = 0;
     let cikis = 0;
@@ -1165,7 +1168,7 @@ function AnalizTab({
           )} ${birim}`}
           renk={netRenk}
         />
-        <StatTile etiket="Stok Değeri" deger={formatTL(stokDegeri)} />
+        <StatTile etiket="Stok Değeri" deger={para(stokDegeri)} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -1266,6 +1269,7 @@ function StokKartiSerit({
   kart: StokKarti;
   detay: StokDetay;
 }) {
+  const para = usePara();
   const durum = stokDurumu(kart);
   const hizmet = kart.grup === "Hizmet";
   const [buyuk, setBuyuk] = React.useState<StokDokuman | null>(null);
@@ -1302,7 +1306,7 @@ function StokKartiSerit({
       deger: paraGoster(kart.satisFiyat1, kart.satisBirim1),
     });
   if (!hizmet && stokDegeri > 0)
-    metrikler.push({ etiket: "Stok Değeri", deger: formatTL(stokDegeri) });
+    metrikler.push({ etiket: "Stok Değeri", deger: para(stokDegeri) });
   if (sh)
     metrikler.push({
       etiket: "Son Hareket",

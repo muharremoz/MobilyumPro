@@ -90,6 +90,7 @@ import {
 } from "@/components/stok-karti/stok-kart-form";
 import { receteMaliyeti } from "@/components/production/recete-liste";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
+import { usePara } from "@/components/bicim-baglam";
 
 const KATEGORILER: ParcaKategori[] = [
   "Karyola",
@@ -211,6 +212,7 @@ export function ParcaForm({
   /** Malzeme bazında alış istihbaratı (son/min/max, firma ort., son hareket). */
   alisOzetleri?: MalzemeAlisOzeti[];
 }) {
+  const para = usePara();
   const router = useRouter();
   const { onayla, onayDialog } = useOnay();
   const yeniMi = recete === null;
@@ -849,7 +851,7 @@ export function ParcaForm({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
-            <Metrik etiket="Birim Maliyet" deger={formatTL(toplam)} />
+            <Metrik etiket="Birim Maliyet" deger={para(toplam)} />
             <Metrik etiket="Bileşen" deger={`${gecerli.length} satır`} />
             {!yeniMi && (
               <Metrik etiket="Kullanım" deger={`${etkiSayisi} yer`} />
@@ -1596,7 +1598,7 @@ export function ParcaForm({
                             <BilgiHucre
                               deger={
                                 <span className="text-sm font-semibold tabular-nums">
-                                  {formatTL(ozet.sonAlis.fiyat)}
+                                  {para(ozet.sonAlis.fiyat)}
                                 </span>
                               }
                               detay={
@@ -1616,14 +1618,14 @@ export function ParcaForm({
                             </span>
                           )}
                           <span className="text-sm font-semibold tabular-nums">
-                            {formatTL(satirTutari(s))}
+                            {para(satirTutari(s))}
                           </span>
                           {/* Max Şart — satın alma şartlarındaki en yüksek fiyat */}
                           {ozet?.maxSart ? (
                             <BilgiHucre
                               deger={
                                 <span className="text-sm font-semibold text-rose-700 tabular-nums">
-                                  {formatTL(ozet.maxSart.fiyat)}
+                                  {para(ozet.maxSart.fiyat)}
                                 </span>
                               }
                               detay={
@@ -1640,7 +1642,7 @@ export function ParcaForm({
                                         {f.cariAd}
                                       </span>
                                       <span className="shrink-0 text-muted-foreground tabular-nums">
-                                        {formatTL(f.fiyat)}
+                                        {para(f.fiyat)}
                                         {f.doviz !== "TL" && ` ${f.doviz}`}
                                       </span>
                                     </div>
@@ -1658,7 +1660,7 @@ export function ParcaForm({
                             <BilgiHucre
                               deger={
                                 <span className="text-sm font-semibold tabular-nums">
-                                  {formatTL(digerOrt)}
+                                  {para(digerOrt)}
                                 </span>
                               }
                               detay={
@@ -1675,7 +1677,7 @@ export function ParcaForm({
                                         {f.cariAd}
                                       </span>
                                       <span className="shrink-0 text-muted-foreground tabular-nums">
-                                        {formatTL(f.ortalama)} ({f.alisSayisi}{" "}
+                                        {para(f.ortalama)} ({f.alisSayisi}{" "}
                                         alış)
                                       </span>
                                     </div>
@@ -2147,6 +2149,7 @@ function MaliyetBazi({
   /** Bu bazı besleyen kayıt sayısı; 0 ise tutar gösterilmez (yanıltmasın). */
   veriAdet?: number;
 }) {
+  const para = usePara();
   // Hiç şart/alış yoksa gösterilecek rakam kart fiyatının kopyasıdır —
   // "Max Şart ₺18.215" gibi görünüp yanıltır. Bu durumda "—" yazılır.
   const veriYok = veriAdet === 0;
@@ -2169,7 +2172,7 @@ function MaliyetBazi({
                   : renk === "rose" && "text-rose-700",
               )}
             >
-              {veriYok ? "—" : formatTL(tutar)}
+              {veriYok ? "—" : para(tutar)}
             </span>
           </div>
         }
@@ -2192,7 +2195,7 @@ function MaliyetBazi({
                 )}
               >
                 {fark! > 0 ? "+" : ""}
-                {formatTL(fark!)}
+                {para(fark!)}
                 {yuzde !== undefined && (
                   <> ({yuzde > 0 ? "+" : ""}%{Math.round(yuzde)})</>
                 )}

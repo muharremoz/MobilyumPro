@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTL, formatTarih, type BekleyenSiparis } from "@/lib/data";
+import { usePara } from "@/components/bicim-baglam";
 
 type SortKey =
   "malzeme" | "firma" | "kalan" | "siparisTarihi" | "tahminiTeslim" | "durum";
@@ -36,6 +37,7 @@ export function SiparisListe({
 }: {
   siparisler: BekleyenSiparis[];
 }) {
+  const para = usePara();
   const router = useRouter();
   // Bilgi modalında gösterilen sipariş.
   const [bilgi, setBilgi] = React.useState<BekleyenSiparis | null>(null);
@@ -236,7 +238,7 @@ export function SiparisListe({
                       {s.birim}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {s.siparisFiyat ? formatTL(s.siparisFiyat) : "—"}
+                      {s.siparisFiyat ? para(s.siparisFiyat) : "—"}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {s.siparisTarihi ? formatTarih(s.siparisTarihi) : "—"}
@@ -344,6 +346,7 @@ function BilgiDialog({
   onKapat: () => void;
   onFatura: (cariId: string) => void;
 }) {
+  const para = usePara();
   if (!s) return null;
   // Sipariş fiyatının son alışa göre farkı (referans).
   const fark =
@@ -365,12 +368,12 @@ function BilgiDialog({
         {alisVar ? (
           <div className="divide-y">
             <Satir etiket="Firma">{s.sonAlisCariAd ?? "—"}</Satir>
-            <Satir etiket="Fiyat">{formatTL(s.sonAlisFiyat!)}</Satir>
+            <Satir etiket="Fiyat">{para(s.sonAlisFiyat!)}</Satir>
             <Satir etiket="Tarih">
               {s.sonAlisTarih ? formatTarih(s.sonAlisTarih) : "—"}
             </Satir>
             <Satir etiket="Bu siparişin fiyatı">
-              {s.siparisFiyat != null ? formatTL(s.siparisFiyat) : "—"}
+              {s.siparisFiyat != null ? para(s.siparisFiyat) : "—"}
               {fark != null && Math.abs(fark) >= 0.005 && (
                 <span
                   className={cn(

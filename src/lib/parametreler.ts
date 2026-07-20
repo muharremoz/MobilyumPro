@@ -53,12 +53,13 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "para_birimi",
     etiket: "Para Birimi",
-    aciklama: "Fiyat ve tutarların gösterileceği varsayılan para birimi.",
+    // Yalnız GÖRÜNÜMÜ çevirir; veriler her zaman TL saklanır. Yabancı birim
+    // seçilirse tutarlar güncel TCMB kuruyla o birimde gösterilir.
+    aciklama: "Tutarların gösterileceği para birimi (veriler TL saklanır).",
     grup: "Genel",
     tip: "secim",
     varsayilan: "TL",
     secenekler: ["TL", "USD", "EUR"],
-    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_kdv",
@@ -74,11 +75,10 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "ondalik_basamak",
     etiket: "Ondalık Basamak",
-    aciklama: "Miktar alanlarında gösterilecek ondalık hane sayısı.",
+    aciklama: "Para tutarlarında gösterilecek ondalık hane sayısı.",
     grup: "Genel",
     tip: "sayi",
     varsayilan: "2",
-    durum: "yakinda",
   },
 
   // ── Stok ────────────────────────────────────────────────────────────
@@ -166,16 +166,6 @@ export const PARAMETRELER: ParametreTanim[] = [
 
   // ── Satış & Cari ────────────────────────────────────────────────────
   {
-    anahtar: "varsayilan_vade",
-    etiket: "Varsayılan Vade",
-    aciklama: "Cari borçlandırmalarda önerilen vade süresi.",
-    grup: "Satış & Cari",
-    tip: "sayi",
-    varsayilan: "30",
-    birim: "gün",
-    durum: "yakinda",
-  },
-  {
     anahtar: "iskonto_limiti",
     etiket: "İskonto Üst Limiti",
     aciklama: "Satışta uygulanabilecek en yüksek iskonto oranı.",
@@ -183,15 +173,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "20",
     birim: "%",
-  },
-  {
-    anahtar: "belge_seri",
-    etiket: "Belge Seri Öneki",
-    aciklama: "Fatura/dekont belge numaralarının ön eki.",
-    grup: "Satış & Cari",
-    tip: "metin",
-    varsayilan: "FAT-2026",
-    durum: "yakinda",
   },
   {
     anahtar: "bakiye_uyari",
@@ -227,15 +208,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     // 6 idi; kod zaten 8 dayatıyordu. Parametreye bağlanınca 6'ya düşmesi
     // kuralı sessizce ZAYIFLATIRDI — davranışı korumak için 8'e çekildi.
     varsayilan: "8",
-  },
-  {
-    anahtar: "yedekleme_saati",
-    etiket: "Otomatik Yedekleme Saati",
-    aciklama: "Günlük veritabanı yedeğinin alınacağı saat (SS:DD).",
-    grup: "Sistem",
-    tip: "metin",
-    varsayilan: "23:00",
-    durum: "yakinda",
   },
   {
     anahtar: "bakim_modu",

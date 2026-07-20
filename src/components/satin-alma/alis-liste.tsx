@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { formatTL, formatTarih, type Alis } from "@/lib/data";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 type SortKey = "id" | "tarih" | "cariAd" | "depo" | "kalem" | "toplam";
 
@@ -68,6 +69,7 @@ export function AlisListe({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("satin-alma");
@@ -277,7 +279,7 @@ export function AlisListe({
                   )}
                   {kolon.temelGorunur("toplam") && (
                     <TableCell className="text-right tabular-nums">
-                      {formatTL(a.toplam)}
+                      {para(a.toplam)}
                     </TableCell>
                   )}
                   {gorunurEk.map((k) => (

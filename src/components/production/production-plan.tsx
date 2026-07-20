@@ -52,6 +52,7 @@ import {
 } from "@/lib/data";
 import { malzemeYeterlilik, type MalzemeIhtiyac } from "@/lib/bom";
 import { uretimEmriOlustur } from "@/lib/db/actions";
+import { usePara } from "@/components/bicim-baglam";
 
 type Neden = "stok" | "siparis";
 // Plan satırı model (mamül) ya da parça üretimi olabilir.
@@ -109,6 +110,7 @@ export function ProductionPlan({
   /** Talep audit'i için — TODO: oturum gelince sunucudan çözülecek. */
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   const router = useRouter();
   const modeller = React.useMemo(
     () => urunler.filter((u) => u.parcalar && u.parcalar.length > 0),
@@ -966,7 +968,7 @@ export function ProductionPlan({
                 <span className="text-xs text-muted-foreground">
                   tahmini maliyet{" "}
                   <span className="font-medium text-foreground">
-                    {formatTL(eksikMaliyet)}
+                    {para(eksikMaliyet)}
                   </span>
                 </span>
                 {satinAlmaOner && (
@@ -989,7 +991,7 @@ export function ProductionPlan({
               {secimler.length} model · {toplamAdet} adet
             </span>
             <span className="font-semibold tabular-nums">
-              {formatTL(yeterlilik.toplamMaliyet)}
+              {para(yeterlilik.toplamMaliyet)}
             </span>
           </div>
         </div>
@@ -1165,6 +1167,7 @@ function MalzemeTablosu({
     tumSec: (v: boolean) => void;
   };
 }) {
+  const para = usePara();
   return (
     <Table>
       <TableHeader>
@@ -1238,7 +1241,7 @@ function MalzemeTablosu({
                 {m.malzeme.birim}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatTL(m.toplamFiyat)}
+                {para(m.toplamFiyat)}
               </TableCell>
               <TableCell>
                 <Badge

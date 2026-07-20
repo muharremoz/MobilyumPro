@@ -80,6 +80,7 @@ import { modelIhtiyacDokumu } from "@/lib/bom";
 import { paraDegeri, paraMaskele, paraMetni } from "@/lib/para";
 import { ISTASYON_MAP } from "@/lib/fabrika";
 import { modelKaydet, modelKodOnizle, tanimKaydet } from "@/lib/db/actions";
+import { usePara } from "@/components/bicim-baglam";
 
 type Tab = "genel" | "recete" | "varyant" | "resim" | "analiz";
 
@@ -221,6 +222,7 @@ function ModelAnaliz({
   product: Model;
   hareketler: StokHareket[];
 }) {
+  const para = usePara();
   const hareketler = React.useMemo(() => {
     const arr = tumHareketler
       .filter((h) => h.ref.tip === "model" && h.ref.id === product.id)
@@ -249,7 +251,7 @@ function ModelAnaliz({
         <OzetKutu etiket="Mevcut Stok" deger={String(product.stok)} />
         <OzetKutu etiket="Toplam Giriş" deger={String(giris)} tone="emerald" />
         <OzetKutu etiket="Toplam Çıkış" deger={String(cikis)} tone="rose" />
-        <OzetKutu etiket="Stok Değeri" deger={formatTL(deger)} />
+        <OzetKutu etiket="Stok Değeri" deger={para(deger)} />
       </div>
 
       <div className="rounded-md border bg-card">
@@ -356,6 +358,7 @@ export function ModelForm({
   /** Model dokümanları (malzeme kartıyla aynı sistem; yalnız düzenlemede). */
   dokumanlar?: StokDokuman[];
 }) {
+  const para = usePara();
   const router = useRouter();
   const duzenleme = !!product;
   const baslangic: Form = product

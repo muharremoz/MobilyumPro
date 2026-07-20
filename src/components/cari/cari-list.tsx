@@ -38,6 +38,7 @@ import { cariSil,
 } from "@/lib/db/actions";
 import { usePropAynasi } from "@/hooks/use-prop-aynasi";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 const TIPLER: CariTip[] = ["Müşteri", "Tedarikçi", "Her İkisi", "Banka"];
 const TIP_RENK: Record<CariTip, string> = {
@@ -81,6 +82,7 @@ export function CariList({
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("cari");
@@ -463,7 +465,7 @@ export function CariList({
                         c.bakiye === 0 && "text-muted-foreground",
                       )}
                     >
-                      {formatTL(Math.abs(c.bakiye))}
+                      {para(Math.abs(c.bakiye))}
                       <span className="ml-1 text-[10px] uppercase">
                         {c.bakiye < 0 ? "B" : c.bakiye > 0 ? "A" : ""}
                       </span>
@@ -475,7 +477,7 @@ export function CariList({
                         Math.abs(c.bakiye) > bakiyeUyariLimiti && (
                           <span
                             className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-rose-700"
-                            title={`Bakiye uyarı limitini (${formatTL(bakiyeUyariLimiti)}) aşıyor`}
+                            title={`Bakiye uyarı limitini (${para(bakiyeUyariLimiti)}) aşıyor`}
                           >
                             <AlertTriangle className="size-3" />
                             Limit aşımı

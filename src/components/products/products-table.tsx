@@ -64,6 +64,7 @@ import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
 import { UretimeGonderDialog } from "./uretime-gonder-dialog";
 import { EtiketDialog } from "./etiket-dialog";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
+import { usePara } from "@/components/bicim-baglam";
 
 const KATEGORILER = [
   "Oturma Grubu",
@@ -201,6 +202,7 @@ export function ProductsTable({
   /** Görünürlük hesabında "ben" (TODO: oturumdan gelecek). */
   mevcutKullaniciId?: string;
 }) {
+  const para = usePara();
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
   const yetki = useYetki("uretim-plan");
@@ -789,7 +791,7 @@ export function ProductsTable({
                   )}
                   {temelGorunur("fiyat") && (
                     <TableCell className="text-right tabular-nums">
-                      {formatTL(u.fiyat)}
+                      {para(u.fiyat)}
                     </TableCell>
                   )}
                   {temelGorunur("stok") && (

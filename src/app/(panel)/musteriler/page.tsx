@@ -8,7 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTL } from "@/lib/data";
+import { paraBiciminiOku } from "@/lib/db/para-bicim-sunucu";
+import { paraFormatla } from "@/lib/para-bicim";
 import { getMusterilerDetay } from "@/lib/db/queries";
 
 function basHarfler(ad: string) {
@@ -22,6 +23,7 @@ function basHarfler(ad: string) {
 
 export default async function MusterilerPage() {
   const musteriler = await getMusterilerDetay();
+  const bicim = await paraBiciminiOku();
   return (
     <>
 
@@ -56,7 +58,7 @@ export default async function MusterilerPage() {
                   <TableCell>{m.sehir}</TableCell>
                   <TableCell className="text-right">{m.siparisSayisi}</TableCell>
                   <TableCell className="text-right font-medium">
-                    {formatTL(m.toplamHarcama)}
+                    {paraFormatla(m.toplamHarcama, bicim)}
                   </TableCell>
                 </TableRow>
               ))}
