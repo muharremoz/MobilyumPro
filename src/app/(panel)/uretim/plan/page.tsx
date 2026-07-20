@@ -1,4 +1,5 @@
 import { ProductionPlan } from "@/components/production/production-plan";
+import { uretimVarsayilanlari } from "@/lib/uretim-varsayilan";
 import {
   getModeller,
   getParcalar,
@@ -27,9 +28,12 @@ export default async function UretimPlanRoute() {
   ]);
   // Kimlik + "uretim-plan" modülü liste yetkisi; yetkisizse panoya döner.
   const mevcut = await sayfaYetkisi("uretim-plan");
+  const varsayilan = await uretimVarsayilanlari();
 
   return (
     <ProductionPlan
+      varsayilanOncelik={varsayilan.oncelik}
+      varsayilanTermin={varsayilan.termin}
       urunler={urunler}
       parcalar={parcalar}
       malzemeler={malzemeler}

@@ -1,4 +1,5 @@
 import { ProductsTable } from "@/components/products/products-table";
+import { uretimVarsayilanlari } from "@/lib/uretim-varsayilan";
 import {
   getKullanicilar,
   getListeKolonAyari,
@@ -20,8 +21,11 @@ export default async function UrunlerPage({
     getKullanicilar(),
   ]);
   const mevcutKullaniciId = oturum.id;
+  const varsayilan = await uretimVarsayilanlari();
   return (
     <ProductsTable
+      varsayilanOncelik={varsayilan.oncelik}
+      varsayilanTermin={varsayilan.termin}
       key={kategori}
       urunler={urunler}
       initialKategori={kategori}

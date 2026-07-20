@@ -136,7 +136,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "3",
     birim: "%",
-    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_oncelik",
@@ -146,7 +145,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "secim",
     varsayilan: "Normal",
     secenekler: ["Düşük", "Normal", "Yüksek", "Acil"],
-    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_termin",
@@ -156,7 +154,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "14",
     birim: "gün",
-    durum: "yakinda",
   },
   {
     anahtar: "otomatik_satinalma",

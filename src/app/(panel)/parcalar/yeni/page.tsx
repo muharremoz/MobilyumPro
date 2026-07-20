@@ -1,4 +1,5 @@
 import { ParcaForm } from "@/components/production/parca-form";
+import { parametreSayi } from "@/lib/db/parametre";
 import {
   getIstasyonlar,
   getMakineler,
@@ -18,8 +19,10 @@ export default async function YeniParcaRoute() {
       getMakineler(),
       getMalzemeAlisOzetleri(),
     ]);
+  const varsayilanFire = await parametreSayi("varsayilan_fire", 0);
   return (
     <ParcaForm
+      varsayilanFire={varsayilanFire}
       recete={null}
       parcalar={parcalar}
       malzemeler={malzemeler}

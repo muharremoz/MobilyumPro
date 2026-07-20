@@ -33,14 +33,22 @@ const ONCELIKLER: UretimOncelik[] = ["Düşük", "Normal", "Yüksek", "Acil"];
 export function UretimeGonderDialog({
   hedef,
   onKapat,
+  // Parametrelerden gelir (varsayilan_oncelik / varsayilan_termin).
+  // Termin SUNUCUDA hesaplanmış tarihtir: istemcide new Date() ile üretmek
+  // sunucu-istemci farkı yaratıp hidrasyon uyuşmazlığına yol açardı.
+  varsayilanOncelik = "Normal",
+  varsayilanTermin = "",
 }: {
   hedef: { id: string; ad: string } | null;
   onKapat: () => void;
+  varsayilanOncelik?: UretimOncelik;
+  varsayilanTermin?: string;
 }) {
   const router = useRouter();
   const [adet, setAdet] = React.useState("1");
-  const [oncelik, setOncelik] = React.useState<UretimOncelik>("Normal");
-  const [termin, setTermin] = React.useState("");
+  const [oncelik, setOncelik] =
+    React.useState<UretimOncelik>(varsayilanOncelik);
+  const [termin, setTermin] = React.useState(varsayilanTermin);
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
   // Hedef değişince formu render sırasında sıfırla (proje standardı, effect değil).
@@ -49,8 +57,8 @@ export function UretimeGonderDialog({
   if (hedefId !== oncekiId) {
     setOncekiId(hedefId);
     setAdet("1");
-    setOncelik("Normal");
-    setTermin("");
+    setOncelik(varsayilanOncelik);
+    setTermin(varsayilanTermin);
     setKaydediliyor(false);
   }
 

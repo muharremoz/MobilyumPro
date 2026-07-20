@@ -193,6 +193,9 @@ export function ParcaForm({
   makineler = [],
   dokumanlar = [],
   alisOzetleri = [],
+  // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
+  // için parametreyi kendisi okuyamaz.
+  varsayilanFire = 0,
 }: {
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
@@ -203,6 +206,8 @@ export function ParcaForm({
   istasyonlar?: Istasyon[];
   makineler?: Makine[];
   dokumanlar?: StokDokuman[];
+  /** Yeni reçete satırında önerilen fire yüzdesi (varsayilan_fire). */
+  varsayilanFire?: number;
   /** Malzeme bazında alış istihbaratı (son/min/max, firma ort., son hareket). */
   alisOzetleri?: MalzemeAlisOzeti[];
 }) {
@@ -593,6 +598,9 @@ export function ParcaForm({
       {
         bilesen: { tip, ref: "" },
         miktar: 1,
+        // Fire yalnız MALZEME satırında anlamlı: parça satırının firesi kendi
+        // reçetesinde zaten hesaplanıyor, burada da uygulamak çift sayardı.
+        ...(tip === "malzeme" ? { fire: varsayilanFire } : {}),
         // Malzeme satırı ilk istasyonla (Kesim) dolu başlar; kullanıcı değiştirebilir.
         ...(tip === "malzeme" && ilkIstasyonSlug
           ? { istasyon: ilkIstasyonSlug }

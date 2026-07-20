@@ -87,7 +87,13 @@ export function ProductionPlan({
   malzemeler,
   acikTalepler = [],
   mevcutKullaniciId = "",
+  // Parametrelerden (varsayilan_oncelik / varsayilan_termin). Termin sunucuda
+  // hesaplanmış tarihtir — istemcide üretmek hidrasyon uyuşmazlığı riski.
+  varsayilanOncelik = "Normal",
+  varsayilanTermin = "",
 }: {
+  varsayilanOncelik?: UretimOncelik;
+  varsayilanTermin?: string;
   urunler: Model[];
   depolar: Depo[];
   musteriler: MusteriSecim[];
@@ -135,8 +141,9 @@ export function ProductionPlan({
   const [musteriId, setMusteriId] = React.useState<string | null>(null);
   // Üretim penceresi: başlangıç – bitiş (termin)
   const [terminBas, setTerminBas] = React.useState("");
-  const [termin, setTermin] = React.useState("");
-  const [oncelik, setOncelik] = React.useState<UretimOncelik>("Normal");
+  const [termin, setTermin] = React.useState(varsayilanTermin);
+  const [oncelik, setOncelik] =
+    React.useState<UretimOncelik>(varsayilanOncelik);
   // İlk açılışta bir boş satır hazır gelir.
   const [secimler, setSecimler] = React.useState<Secim[]>([
     { id: 0, tip: "model", urunId: "", adet: "1" },

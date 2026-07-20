@@ -49,7 +49,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useOnay } from "@/components/ui/confirm-dialog";
-import { formatTL, type Model } from "@/lib/data";
+import { formatTL, type Model, type UretimOncelik } from "@/lib/data";
 import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import {
   modelKaydet,
@@ -182,8 +182,13 @@ export function ProductsTable({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
+  // "Üretime Gönder" penceresinin parametre kaynaklı varsayılanları.
+  varsayilanOncelik,
+  varsayilanTermin,
 }: {
   urunler: Model[];
+  varsayilanOncelik?: UretimOncelik;
+  varsayilanTermin?: string;
   initialKategori?: string;
   /** Seçili ek kolonlar + gören kullanıcılar + gizlenen temel kolonlar (liste_ayar). */
   kolonAyari?: {
@@ -873,6 +878,8 @@ export function ProductsTable({
       <UretimeGonderDialog
         hedef={uretimHedef ? { id: uretimHedef.id, ad: uretimHedef.ad } : null}
         onKapat={() => setUretimHedef(null)}
+        varsayilanOncelik={varsayilanOncelik}
+        varsayilanTermin={varsayilanTermin}
       />
 
       <EtiketDialog

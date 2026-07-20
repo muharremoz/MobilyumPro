@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ParcaForm } from "@/components/production/parca-form";
+import { parametreSayi } from "@/lib/db/parametre";
 import {
   getIstasyonlar,
   getMakineler,
@@ -40,8 +41,10 @@ export default async function ParcaDetayRoute({
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
 
+  const varsayilanFire = await parametreSayi("varsayilan_fire", 0);
   return (
     <ParcaForm
+      varsayilanFire={varsayilanFire}
       recete={recete}
       parcalar={parcalar}
       malzemeler={malzemeler}
