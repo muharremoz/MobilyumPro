@@ -87,7 +87,6 @@ export const IDENTITY_TABLOLAR = {
   yetkiSetiDetay: "yetki_seti_detay",
   kullaniciCariYetki: "kullanici_cari_yetki",
   listeAyar: "liste_ayar",
-  sayac: "sayac",
   sayimSatiri: "sayim_satiri",
   sistemParametre: "sistem_parametre",
   posetMalzeme: "poset_malzeme",

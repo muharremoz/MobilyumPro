@@ -61,15 +61,6 @@
       "isDelete": false
     },
     {
-      "id": 5,
-      "rolAd": "Yönetici",
-      "modul": "sevkiyat",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
       "id": 6,
       "rolAd": "Yönetici",
       "modul": "satin-alma",
@@ -91,42 +82,6 @@
       "id": 8,
       "rolAd": "Yönetici",
       "modul": "uretim-takibi",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 9,
-      "rolAd": "Yönetici",
-      "modul": "ssh",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 10,
-      "rolAd": "Yönetici",
-      "modul": "maliyet",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 11,
-      "rolAd": "Yönetici",
-      "modul": "verimlilik",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 12,
-      "rolAd": "Yönetici",
-      "modul": "raporlama",
       "isList": false,
       "isAdd": false,
       "isUpdate": false,
@@ -196,15 +151,6 @@
       "isDelete": false
     },
     {
-      "id": 20,
-      "rolAd": "Kullanıcı",
-      "modul": "sevkiyat",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
       "id": 21,
       "rolAd": "Kullanıcı",
       "modul": "satin-alma",
@@ -226,42 +172,6 @@
       "id": 23,
       "rolAd": "Kullanıcı",
       "modul": "uretim-takibi",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 24,
-      "rolAd": "Kullanıcı",
-      "modul": "ssh",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 25,
-      "rolAd": "Kullanıcı",
-      "modul": "maliyet",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 26,
-      "rolAd": "Kullanıcı",
-      "modul": "verimlilik",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 27,
-      "rolAd": "Kullanıcı",
-      "modul": "raporlama",
       "isList": false,
       "isAdd": false,
       "isUpdate": false,
@@ -331,15 +241,6 @@
       "isDelete": false
     },
     {
-      "id": 35,
-      "rolAd": "Görüntüleyici",
-      "modul": "sevkiyat",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
       "id": 36,
       "rolAd": "Görüntüleyici",
       "modul": "satin-alma",
@@ -361,42 +262,6 @@
       "id": 38,
       "rolAd": "Görüntüleyici",
       "modul": "uretim-takibi",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 39,
-      "rolAd": "Görüntüleyici",
-      "modul": "ssh",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 40,
-      "rolAd": "Görüntüleyici",
-      "modul": "maliyet",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 41,
-      "rolAd": "Görüntüleyici",
-      "modul": "verimlilik",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
-    },
-    {
-      "id": 42,
-      "rolAd": "Görüntüleyici",
-      "modul": "raporlama",
       "isList": false,
       "isAdd": false,
       "isUpdate": false,
@@ -513,15 +378,6 @@
       "isAdd": true,
       "isUpdate": true,
       "isDelete": true
-    },
-    {
-      "id": 4,
-      "kullaniciId": "USR-1001",
-      "modul": "verimlilik",
-      "isList": false,
-      "isAdd": false,
-      "isUpdate": false,
-      "isDelete": false
     },
     {
       "id": 5,
