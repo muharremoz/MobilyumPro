@@ -226,13 +226,13 @@ function ModelAnaliz({
       .filter((h) => h.ref.tip === "model" && h.ref.id === product.id)
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
     const net = arr.reduce((s, h) => s + turDelta(h.tur, h.miktar), 0);
-    let bakiye = product.stok - net;
-    return arr
-      .map((h) => {
-        bakiye += turDelta(h.tur, h.miktar);
-        return { ...h, bakiye };
-      })
-      .reverse();
+    const baslangic = product.stok - net;
+    // Her satırın o ana kadarki kümülatif bakiyesi (baştan sona birikimli).
+    const bakiyeler = arr.reduce<number[]>(
+      (acc, h) => [...acc, (acc.at(-1) ?? baslangic) + turDelta(h.tur, h.miktar)],
+      [],
+    );
+    return arr.map((h, i) => ({ ...h, bakiye: bakiyeler[i] })).reverse();
   }, [product, tumHareketler]);
 
   const giris = hareketler
@@ -519,10 +519,12 @@ export function ModelForm({
 
   // Canlı malzeme patlatması — fire dahil, istasyon kırılımlı, stok karşılaştırmalı.
   const seciliParcalar = urunParcalar.filter((p) => p.parcaId && p.miktar > 0);
+  // Dizi kimliği her render'da değişiyor; içerik imzasıyla bağımlılığı sabitliyoruz.
+  const seciliParcalarImza = JSON.stringify(seciliParcalar);
   const dokum = React.useMemo(
     () => modelIhtiyacDokumu(seciliParcalar, parcalar, malzemeler),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(seciliParcalar), parcalar, malzemeler],
+    [seciliParcalarImza, parcalar, malzemeler],
   );
   // Malzeme İhtiyacı odağı: işaretli parçalar (boşsa tüm model gösterilir).
   const [dokumSecim, setDokumSecim] = React.useState<Set<string>>(new Set());
@@ -540,7 +542,7 @@ export function ModelForm({
       : seciliParcalar;
     return modelIhtiyacDokumu(hedef, parcalar, malzemeler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(seciliParcalar), dokumSecim, parcalar, malzemeler]);
+  }, [seciliParcalarImza, dokumSecim, parcalar, malzemeler]);
   const toplamMaliyet = dokum.reduce((t, m) => t + m.tutar, 0);
   const eksikSayisi = dokum.filter((d) => d.brutMiktar > d.malzeme.stok).length;
   const satisFiyati = paraDegeri(form.fiyat);
