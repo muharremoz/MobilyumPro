@@ -91,9 +91,14 @@ export function ProductionPlan({
   // hesaplanmış tarihtir — istemcide üretmek hidrasyon uyuşmazlığı riski.
   varsayilanOncelik = "Normal",
   varsayilanTermin = "",
+  // otomatik_satinalma: kapalıyken eksik malzeme için satın alma önerisi
+  // gösterilmez. Eksik listesi yine görünür — asıl uyarıyı gizlemek
+  // tehlikeli olurdu, gizlenen yalnız ÖNERİ.
+  satinAlmaOner = true,
 }: {
   varsayilanOncelik?: UretimOncelik;
   varsayilanTermin?: string;
+  satinAlmaOner?: boolean;
   urunler: Model[];
   depolar: Depo[];
   musteriler: MusteriSecim[];
@@ -964,15 +969,17 @@ export function ProductionPlan({
                     {formatTL(eksikMaliyet)}
                   </span>
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={satinAlmaTalebineGit}
-                  disabled={secilenEksik.length === 0}
-                  className="ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
-                >
-                  <ShoppingCart className="size-3" /> Satın Alma Talebi Oluştur
-                </Button>
+                {satinAlmaOner && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={satinAlmaTalebineGit}
+                    disabled={secilenEksik.length === 0}
+                    className="ml-auto border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                  >
+                    <ShoppingCart className="size-3" /> Satın Alma Talebi Oluştur
+                  </Button>
+                )}
               </div>
             </div>
           )}

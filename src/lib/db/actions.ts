@@ -1792,7 +1792,17 @@ export async function sonrakiCariKodu(): Promise<string> {
 export async function cariKaydet(
   c: Cari,
   yeni = false,
-): Promise<{ ok: boolean; id: string }> {
+): Promise<{ ok: boolean; id: string; error?: string }> {
+  // İskonto üst limiti (iskonto_limiti) sunucuda denetlenir: istemci
+  // denetimi güvenlik değildir, action doğrudan da çağrılabilir.
+  const limit = await parametreSayi("iskonto_limiti", 100);
+  if ((c.iskontoOrani ?? 0) > limit) {
+    return {
+      ok: false,
+      id: c.id,
+      error: `İskonto oranı en fazla %${limit} olabilir.`,
+    };
+  }
   const id = yeni ? await sonrakiCariKodu() : c.id;
   const ortak = {
     ad: c.ad,

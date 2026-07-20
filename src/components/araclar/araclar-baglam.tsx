@@ -25,7 +25,14 @@ export function useAraclar(): AraclarApi {
   return b;
 }
 
-export function AraclarSaglayici({ children }: { children: React.ReactNode }) {
+export function AraclarSaglayici({
+  children,
+  // varsayilan_kdv parametresi; panel layout'undan (sunucu) gelir.
+  varsayilanKdv = 20,
+}: {
+  children: React.ReactNode;
+  varsayilanKdv?: number;
+}) {
   const [acik, setAcik] = React.useState(false);
   const [sekme, setSekme] = React.useState<AracSekme>("birim");
 
@@ -47,6 +54,7 @@ export function AraclarSaglayici({ children }: { children: React.ReactNode }) {
         onAcikDegis={setAcik}
         sekme={sekme}
         onSekmeDegis={setSekme}
+        varsayilanKdv={varsayilanKdv}
       />
     </Baglam.Provider>
   );

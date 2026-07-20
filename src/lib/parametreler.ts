@@ -63,12 +63,13 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "varsayilan_kdv",
     etiket: "Varsayılan KDV",
-    aciklama: "Yeni satış/fatura kalemlerinde önerilen KDV oranı.",
+    // "Satış/fatura kalemleri" diyordu ama oyle bir ekran yok; parametre
+    // Araçlar > KDV hesaplayıcısının başlangıç oranını belirliyor.
+    aciklama: "KDV hesaplayıcısında başlangıç oranı.",
     grup: "Genel",
     tip: "sayi",
     varsayilan: "20",
     birim: "%",
-    durum: "yakinda",
   },
   {
     anahtar: "ondalik_basamak",
@@ -162,7 +163,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     grup: "Üretim",
     tip: "boolean",
     varsayilan: "true",
-    durum: "yakinda",
   },
 
   // ── Satış & Cari ────────────────────────────────────────────────────
@@ -184,7 +184,6 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "20",
     birim: "%",
-    durum: "yakinda",
   },
   {
     anahtar: "belge_seri",

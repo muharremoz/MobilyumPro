@@ -4,7 +4,7 @@ import { AppNav } from "@/components/nav/app-nav";
 import { AppHeader } from "@/components/nav/app-header";
 import { AraclarSaglayici } from "@/components/araclar/araclar-baglam";
 import { YetkiSaglayici } from "@/components/yetki/yetki-baglam";
-import { parametreAcik } from "@/lib/db/parametre";
+import { parametreAcik, parametreSayi } from "@/lib/db/parametre";
 import { kurulumAdimi } from "@/lib/kurulum/kurulum-islem";
 import { getOturum } from "@/lib/oturum";
 import { kullaniciYetkileri } from "@/lib/yetki-sunucu";
@@ -33,6 +33,8 @@ export default async function PanelLayout({
     redirect("/bakim");
   }
 
+  const varsayilanKdv = await parametreSayi("varsayilan_kdv", 20);
+
   // Menüde yalnız listeleme yetkisi olan modüller görünür.
   const yetkiler = await kullaniciYetkileri(oturum);
   const izinliModuller = Object.entries(yetkiler)
@@ -41,7 +43,7 @@ export default async function PanelLayout({
 
   return (
     <YetkiSaglayici moduller={yetkiler} yonetici={oturum.yonetici}>
-    <AraclarSaglayici>
+    <AraclarSaglayici varsayilanKdv={varsayilanKdv}>
     <div className="relative flex h-svh overflow-hidden bg-background">
       <AppNav izinliModuller={izinliModuller} />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-card">

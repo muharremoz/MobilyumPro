@@ -455,7 +455,9 @@ export function CariFormPage({
     };
     const res = await cariKaydet(yeniCari, !duzenleme);
     if (!res.ok) {
-      toast.error("Cari kaydedilemedi");
+      // Sunucunun sebebi varsa onu göster (örn. iskonto üst limiti aşıldı);
+      // yoksa genel mesaja düş.
+      toast.error(res.error ?? "Cari kaydedilemedi");
       return;
     }
     if (!duzenleme) {

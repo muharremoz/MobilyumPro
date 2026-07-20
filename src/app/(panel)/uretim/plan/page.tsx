@@ -1,4 +1,5 @@
 import { ProductionPlan } from "@/components/production/production-plan";
+import { parametreAcik } from "@/lib/db/parametre";
 import { uretimVarsayilanlari } from "@/lib/uretim-varsayilan";
 import {
   getModeller,
@@ -29,9 +30,11 @@ export default async function UretimPlanRoute() {
   // Kimlik + "uretim-plan" modülü liste yetkisi; yetkisizse panoya döner.
   const mevcut = await sayfaYetkisi("uretim-plan");
   const varsayilan = await uretimVarsayilanlari();
+  const satinAlmaOner = await parametreAcik("otomatik_satinalma", true);
 
   return (
     <ProductionPlan
+      satinAlmaOner={satinAlmaOner}
       varsayilanOncelik={varsayilan.oncelik}
       varsayilanTermin={varsayilan.termin}
       urunler={urunler}

@@ -48,12 +48,15 @@ export function AraclarPaneli({
   onAcikDegis,
   sekme,
   onSekmeDegis,
+  varsayilanKdv = 20,
 }: {
   acik: boolean;
   onAcikDegis: (v: boolean) => void;
   /** Kontrollü sekme — pano kısayolu doğrudan bir araca açabilsin diye. */
   sekme: AracSekme;
   onSekmeDegis: (s: AracSekme) => void;
+  /** varsayilan_kdv parametresi — KDV aracının başlangıç oranı. */
+  varsayilanKdv?: number;
 }) {
 
   return (
@@ -83,7 +86,7 @@ export function AraclarPaneli({
       <TabIcerik tabKey={sekme}>
         {sekme === "birim" && <BirimCevirici />}
         {sekme === "termin" && <TerminHesabi />}
-        {sekme === "kdv" && <KdvHesabi />}
+        {sekme === "kdv" && <KdvHesabi varsayilanOran={varsayilanKdv} />}
         {sekme === "iskonto" && <IskontoHesabi />}
       </TabIcerik>
     </FormSheet>
@@ -277,9 +280,9 @@ function TerminHesabi() {
 }
 
 /** KDV dahil ↔ hariç. Girilen tutarın hangisi olduğu seçilir. */
-function KdvHesabi() {
+function KdvHesabi({ varsayilanOran }: { varsayilanOran: number }) {
   const [tutar, setTutar] = React.useState("");
-  const [oran, setOran] = React.useState("20");
+  const [oran, setOran] = React.useState(String(varsayilanOran));
   const [tip, setTip] = React.useState("Hariç (KDV ekle)");
 
   const t = sayi(tutar);
