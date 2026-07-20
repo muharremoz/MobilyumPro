@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 import { db } from "@/lib/db";
+import { parametreSayi } from "@/lib/db/parametre";
 
 /**
  * Oturum — imzalı çerez + her istekte DB'den tazeleme.
@@ -17,10 +18,14 @@ import { db } from "@/lib/db";
  */
 
 const CEREZ = "mp_oturum";
-// Varsayılan: bir vardiya. "Beni hatırla" işaretliyse paylaşılan atölye
-// bilgisayarlarında riski büyütmemek için yine sınırlı (30 gün) tutulur.
-const SURE_SAAT = 12;
-const HATIRLA_SAAT = 24 * 30;
+// Varsayılan: bir vardiya. Sistem Parametreleri'ndeki `oturum_suresi` bunu
+// ezer; parametre okunamazsa buraya düşülür.
+// "Beni hatırla" işaretliyse paylaşılan atölye bilgisayarlarında riski
+// büyütmemek için yine sınırlı (30 gün) tutulur ve parametreye BAĞLI DEĞİLDİR.
+// DAKİKA cinsinden: `oturum_suresi` parametresinin birimi de dakika ("dk").
+// Saat sanıp doğrudan geçirmek 480 dk'yı 480 SAATE (20 gün) çevirmişti.
+const SURE_DK = 12 * 60;
+const HATIRLA_DK = 30 * 24 * 60;
 
 function anahtar(): Uint8Array {
   const s = process.env.OTURUM_ANAHTARI;
@@ -52,11 +57,13 @@ export async function oturumAc(
   kullaniciId: string,
   hatirla = false,
 ): Promise<void> {
-  const saat = hatirla ? HATIRLA_SAAT : SURE_SAAT;
+  const dakika = hatirla
+    ? HATIRLA_DK
+    : await parametreSayi("oturum_suresi", SURE_DK);
   const jeton = await new SignJWT({ kid: kullaniciId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${saat}h`)
+    .setExpirationTime(`${Math.round(dakika)}m`)
     .sign(anahtar());
 
   const kutu = await cookies();
@@ -65,7 +72,7 @@ export async function oturumAc(
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: saat * 60 * 60,
+    maxAge: Math.round(dakika) * 60,
   });
 }
 

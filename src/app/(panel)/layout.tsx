@@ -4,6 +4,7 @@ import { AppNav } from "@/components/nav/app-nav";
 import { AppHeader } from "@/components/nav/app-header";
 import { AraclarSaglayici } from "@/components/araclar/araclar-baglam";
 import { YetkiSaglayici } from "@/components/yetki/yetki-baglam";
+import { parametreAcik } from "@/lib/db/parametre";
 import { kurulumAdimi } from "@/lib/kurulum/kurulum-islem";
 import { getOturum } from "@/lib/oturum";
 import { kullaniciYetkileri } from "@/lib/yetki-sunucu";
@@ -23,6 +24,13 @@ export default async function PanelLayout({
   if (!oturum) {
     // Hiç kullanıcı yoksa login'e atmak çıkmaz sokak olur (liste boş).
     redirect((await kurulumAdimi()) !== "bitti" ? "/kurulum" : "/login");
+  }
+
+  // Bakım modu: yalnız yöneticiler girebilir. Ayar kaydediliyor ama hiçbir
+  // şey yapmıyordu — kullanıcı sistemi kapattığını sanıp bakıma başlayabilirdi.
+  // Yöneticiyi dışarıda bırakmıyoruz, yoksa modu kapatacak kimse kalmaz.
+  if (!oturum.yonetici && (await parametreAcik("bakim_modu"))) {
+    redirect("/bakim");
   }
 
   // Menüde yalnız listeleme yetkisi olan modüller görünür.

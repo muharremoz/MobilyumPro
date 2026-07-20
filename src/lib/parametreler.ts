@@ -17,6 +17,15 @@ export type ParametreTanim = {
   secenekler?: string[];
   /** sayi için birim eki (%, gün, dk...). */
   birim?: string;
+  /**
+   * Parametre gerçekten bir davranışı etkiliyor mu?
+   *
+   * "yakinda" olanlar kaydedilir ve ekranda görünür ama HİÇBİR ŞEY YAPMAZ.
+   * Bu alan olmadan kullanıcı ayarı değiştirdiğini sanıyordu: örneğin oturum
+   * süresini 4 saat yapıp kaydediyor, oturum yine 12 saat sürüyordu.
+   * Bir parametreyi koda bağladığında buradaki işareti de kaldır.
+   */
+  durum?: "aktif" | "yakinda";
 };
 
 export const PARAMETRELER: ParametreTanim[] = [
@@ -24,7 +33,10 @@ export const PARAMETRELER: ParametreTanim[] = [
   {
     anahtar: "firma_adi",
     etiket: "Firma Adı",
-    aciklama: "Rapor ve çıktılarda görünen firma unvanı.",
+    // Açıklama eskiden "Rapor ve çıktılarda görünen firma unvanı" diyordu ama
+    // rapor/çıktı tarafında hiç kullanılmıyor — yalnız kurulumda yazılıp
+    // kurulum özetinde okunuyor. Vaat etmediğimiz şeyi yazmıyoruz.
+    aciklama: "Kurulumda girilen firma unvanı.",
     grup: "Genel",
     tip: "metin",
     varsayilan: "MobilyumPro Mobilya",
@@ -46,6 +58,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "secim",
     varsayilan: "TL",
     secenekler: ["TL", "USD", "EUR"],
+    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_kdv",
@@ -55,6 +68,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "20",
     birim: "%",
+    durum: "yakinda",
   },
   {
     anahtar: "ondalik_basamak",
@@ -63,6 +77,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     grup: "Genel",
     tip: "sayi",
     varsayilan: "2",
+    durum: "yakinda",
   },
 
   // ── Stok ────────────────────────────────────────────────────────────
@@ -109,6 +124,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "90",
     birim: "gün",
+    durum: "yakinda",
   },
 
   // ── Üretim ──────────────────────────────────────────────────────────
@@ -120,6 +136,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "3",
     birim: "%",
+    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_oncelik",
@@ -129,6 +146,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "secim",
     varsayilan: "Normal",
     secenekler: ["Düşük", "Normal", "Yüksek", "Acil"],
+    durum: "yakinda",
   },
   {
     anahtar: "varsayilan_termin",
@@ -138,6 +156,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "14",
     birim: "gün",
+    durum: "yakinda",
   },
   {
     anahtar: "otomatik_satinalma",
@@ -146,6 +165,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     grup: "Üretim",
     tip: "boolean",
     varsayilan: "true",
+    durum: "yakinda",
   },
 
   // ── Satış & Cari ────────────────────────────────────────────────────
@@ -157,6 +177,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "30",
     birim: "gün",
+    durum: "yakinda",
   },
   {
     anahtar: "iskonto_limiti",
@@ -166,6 +187,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "20",
     birim: "%",
+    durum: "yakinda",
   },
   {
     anahtar: "belge_seri",
@@ -174,6 +196,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     grup: "Satış & Cari",
     tip: "metin",
     varsayilan: "FAT-2026",
+    durum: "yakinda",
   },
   {
     anahtar: "bakiye_uyari",
@@ -183,13 +206,16 @@ export const PARAMETRELER: ParametreTanim[] = [
     tip: "sayi",
     varsayilan: "100000",
     birim: "TL",
+    durum: "yakinda",
   },
 
   // ── Sistem ──────────────────────────────────────────────────────────
   {
     anahtar: "oturum_suresi",
     etiket: "Oturum Süresi",
-    aciklama: "Hareketsiz kalınca oturumun düşeceği süre.",
+    // "Hareketsiz kalınca" diyordu ama boşta kalma takibi YOK; süre
+    // oturumun mutlak ömrü. Yapmadığımız şeyi vaat etmiyoruz.
+    aciklama: "Oturumun geçerli kalacağı toplam süre (Beni hatırla hariç).",
     grup: "Sistem",
     tip: "sayi",
     varsayilan: "480",
@@ -201,7 +227,9 @@ export const PARAMETRELER: ParametreTanim[] = [
     aciklama: "Kullanıcı şifreleri için en az karakter sayısı.",
     grup: "Sistem",
     tip: "sayi",
-    varsayilan: "6",
+    // 6 idi; kod zaten 8 dayatıyordu. Parametreye bağlanınca 6'ya düşmesi
+    // kuralı sessizce ZAYIFLATIRDI — davranışı korumak için 8'e çekildi.
+    varsayilan: "8",
   },
   {
     anahtar: "yedekleme_saati",
@@ -210,6 +238,7 @@ export const PARAMETRELER: ParametreTanim[] = [
     grup: "Sistem",
     tip: "metin",
     varsayilan: "23:00",
+    durum: "yakinda",
   },
   {
     anahtar: "bakim_modu",

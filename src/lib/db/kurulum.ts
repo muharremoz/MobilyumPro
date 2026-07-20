@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./index";
+import { parametreSayi } from "./parametre";
 import { sifreHashle } from "./sifre";
 
 /**
@@ -43,8 +44,10 @@ export async function ilkKurulum(
       error:
         "Kullanıcı adı en az 3 karakter olmalı; yalnız harf, rakam, nokta, alt çizgi ve tire.",
     };
-  if (g.sifre.length < 8)
-    return { ok: false, error: "Şifre en az 8 karakter olmalıdır." };
+  // İlk kurulumda parametre henüz DB'de yok; tanımlı varsayılana düşer.
+  const enAz = await parametreSayi("sifre_min_uzunluk", 8);
+  if (g.sifre.length < enAz)
+    return { ok: false, error: `Şifre en az ${enAz} karakter olmalıdır.` };
 
   try {
     // Serializable: iki istek aynı anda gelirse ikisi de "kullanıcı yok"

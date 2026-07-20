@@ -266,9 +266,25 @@ function ParametreSatiri({
               title="Varsayılandan farklı"
             />
           )}
+          {/* Karşılığı olmayan ayarı sessizce göstermek, kullanıcıya
+              değiştirdiğini sandırıyordu. Açıkça söylüyoruz. */}
+          {tanim.durum === "yakinda" && (
+            <span
+              className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+              title="Bu ayar kaydedilir ama henüz bir davranışı etkilemez."
+            >
+              Yakında
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {tanim.aciklama}
+          {tanim.durum === "yakinda" && (
+            <span className="text-muted-foreground/70">
+              {" "}
+              · Henüz etkin değil, kaydedilir ama uygulanmaz.
+            </span>
+          )}
         </p>
       </div>
 

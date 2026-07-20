@@ -40,6 +40,7 @@ const TANIM_TIPLERI: DefTab[] = [
 
 export function InventoryPage({
   bolum,
+  kritikEsik,
   urunler,
   malzemeler,
   parcalar,
@@ -56,6 +57,8 @@ export function InventoryPage({
   makineler,
 }: {
   bolum: string;
+  /** kritik_stok_esigi parametresi (sunucudan). */
+  kritikEsik: number;
   urunler: Model[];
   malzemeler: Malzeme[];
   parcalar: Parca[];
@@ -155,6 +158,7 @@ export function InventoryPage({
       kolonAyari={kolonAyarlari?.["stok-durumu"]}
       kullanicilar={kullanicilar}
       mevcutKullaniciId={mevcutKullaniciId}
+      kritikEsik={kritikEsik}
     />
   );
 }

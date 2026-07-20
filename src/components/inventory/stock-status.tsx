@@ -32,13 +32,14 @@ import {
 import type { Model } from "@/lib/data";
 import {
   stokDurumu,
+  KRITIK_VARSAYILAN,
   STOK_DURUM_ETIKET,
   STOK_DURUM_RENK,
 } from "@/lib/stok-durum";
 import { useYonetici } from "@/components/yetki/yetki-baglam";
 
-function durum(stok: number, minStok?: number) {
-  const d = stokDurumu(stok, minStok);
+function durum(stok: number, minStok: number | undefined, esik: number) {
+  const d = stokDurumu(stok, minStok, esik);
   return { etiket: STOK_DURUM_ETIKET[d], renk: STOK_DURUM_RENK[d] };
 }
 
@@ -63,11 +64,15 @@ export function StockStatus({
   kolonAyari,
   kullanicilar = [],
   mevcutKullaniciId = "",
+  // Eşik sunucudan gelir (kritik_stok_esigi); bu bileşen istemcide çalıştığı
+  // için parametreyi kendisi okuyamaz.
+  kritikEsik = KRITIK_VARSAYILAN,
 }: {
   urunler: Model[];
   kolonAyari?: ListeKolonAyariDegeri;
   kullanicilar?: { id: string; ad: string }[];
   mevcutKullaniciId?: string;
+  kritikEsik?: number;
 }) {
   // Kolon ayarı tüm kullanıcıları etkiler; yalnız yöneticiye açık.
   const yonetici = useYonetici();
@@ -105,9 +110,9 @@ export function StockStatus({
       const k = kategoriF === "Tümü" || u.kategori === kategoriF;
       const s = arada(u.stok, stokAralik.min, stokAralik.max);
       let dur = true;
-      if (filt === "Tükendi") dur = stokDurumu(u.stok, u.minStok) === "tukendi";
-      else if (filt === "Kritik") dur = stokDurumu(u.stok, u.minStok) === "kritik";
-      else if (filt === "Yeterli") dur = stokDurumu(u.stok, u.minStok) === "yeterli";
+      if (filt === "Tükendi") dur = stokDurumu(u.stok, u.minStok, kritikEsik) === "tukendi";
+      else if (filt === "Kritik") dur = stokDurumu(u.stok, u.minStok, kritikEsik) === "kritik";
+      else if (filt === "Yeterli") dur = stokDurumu(u.stok, u.minStok, kritikEsik) === "yeterli";
       return kod && ad && k && s && dur;
     });
     const yon = sort.dir === "asc" ? 1 : -1;
@@ -115,8 +120,8 @@ export function StockStatus({
       if (sort.key === "stok") return (a.stok - b.stok) * yon;
       if (sort.key === "durum")
         return (
-          durum(a.stok, a.minStok).etiket.localeCompare(
-            durum(b.stok, b.minStok).etiket,
+          durum(a.stok, a.minStok, kritikEsik).etiket.localeCompare(
+            durum(b.stok, b.minStok, kritikEsik).etiket,
             "tr",
           ) * yon
         );
@@ -127,10 +132,10 @@ export function StockStatus({
   }, [urunler, metinFiltre, kategoriF, stokAralik, filt, sort]);
 
   const kritik = urunler.filter(
-    (u) => stokDurumu(u.stok, u.minStok) === "kritik",
+    (u) => stokDurumu(u.stok, u.minStok, kritikEsik) === "kritik",
   ).length;
   const tukenen = urunler.filter(
-    (u) => stokDurumu(u.stok, u.minStok) === "tukendi",
+    (u) => stokDurumu(u.stok, u.minStok, kritikEsik) === "tukendi",
   ).length;
   const toplamAdet = urunler.reduce((t, u) => t + u.stok, 0);
 
@@ -243,7 +248,7 @@ export function StockStatus({
           </TableHeader>
           <TableBody>
             {filtreli.map((u) => {
-              const d = durum(u.stok, u.minStok);
+              const d = durum(u.stok, u.minStok, kritikEsik);
               return (
                 <SatirMenu
                   key={u.id}

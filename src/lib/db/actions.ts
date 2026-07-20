@@ -41,6 +41,7 @@ import {
   type SilmeSonucu,
 } from "./silme-kontrol";
 import { ean13, kodBarkod } from "@/lib/barkod";
+import { parametreSayi } from "./parametre";
 import { sifreHashle } from "./sifre";
 import { type IstasyonSlug } from "../fabrika";
 
@@ -1700,6 +1701,14 @@ export async function kullaniciKaydet(
     }
 
     if (!k.sifre) return { ok: false, error: "Şifre zorunludur." };
+    // Uzunluk kuralı burada hiç yoktu: kurulum sihirbazı 8 karakter dayatırken
+    // panelden tek harfli şifreyle kullanıcı açılabiliyordu.
+    const enAzUzunluk = await parametreSayi("sifre_min_uzunluk", 8);
+    if (k.sifre.length < enAzUzunluk)
+      return {
+        ok: false,
+        error: `Şifre en az ${enAzUzunluk} karakter olmalıdır.`,
+      };
 
     const mevcut = await db.kullanici.findMany({
       select: { id: true, kullaniciAdi: true },

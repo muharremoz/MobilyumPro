@@ -14,6 +14,7 @@ import {
   getIstasyonlar,
   getMakineler,
 } from "@/lib/db/queries";
+import { parametreSayi } from "@/lib/db/parametre";
 import { sayfaYetkisi } from "@/lib/yetki-sunucu";
 
 export default async function StokYonetimiPage({
@@ -82,9 +83,12 @@ export default async function StokYonetimiPage({
   // Kimlik + modül liste yetkisi; yetkisizse panoya döner.
   const oturum = await sayfaYetkisi(modul);
   const mevcutKullaniciId = oturum.id;
+  // Kritik stok eşiği artık koda gömülü değil, parametreden geliyor.
+  const kritikEsik = await parametreSayi("kritik_stok_esigi", 5);
   return (
     <InventoryPage
       bolum={bolum}
+      kritikEsik={kritikEsik}
       urunler={urunler}
       malzemeler={malzemeler}
       parcalar={parcalar}

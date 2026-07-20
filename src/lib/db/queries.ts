@@ -2,6 +2,7 @@ import "server-only";
 
 import { db, tarihStr } from "./index";
 import { stokDurumu } from "../stok-durum";
+import { parametreSayi } from "./parametre";
 import QRCode from "qrcode";
 
 import { kodBarkod } from "../barkod";
@@ -793,6 +794,7 @@ export async function getAtolyeGorunumu(
  * veriden beslenir (departman başına ayrı sorgu/sayfa yok).
  */
 export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
+  const kritikEsik = await parametreSayi("kritik_stok_esigi", 5);
   const bugun = new Date();
   bugun.setHours(0, 0, 0, 0);
   const ayBasi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
@@ -943,8 +945,8 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
       minStok: m.minStok != null ? Number(m.minStok) : undefined,
     }))
     // Eşik tek kaynaktan (lib/stok-durum): pano ile stok durumu ekranı aynı
-    // ürüne farklı durum vermesin.
-    .filter((m) => stokDurumu(m.stok, m.minStok) !== "yeterli")
+    // ürüne farklı durum vermesin. Varsayılan eşik artık parametreden.
+    .filter((m) => stokDurumu(m.stok, m.minStok, kritikEsik) !== "yeterli")
     .sort((a, b) => a.stok - b.stok)
     .slice(0, 12);
 
@@ -1170,6 +1172,7 @@ export type DashboardOzet = {
 };
 
 export async function getDashboardOzet(): Promise<DashboardOzet> {
+  const kritikEsik = await parametreSayi("kritik_stok_esigi", 5);
   const [urunRows, siparisRows, musteriSayisi] = await Promise.all([
     db.stok.findMany({
       where: { grup: "Mamül" },
@@ -1192,6 +1195,7 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
         stokDurumu(
           stokAdet(u),
           u.minStok != null ? Number(u.minStok) : undefined,
+          kritikEsik,
         ) === "kritik",
     ).length,
     tukenenStok: urunRows.filter(
@@ -1199,6 +1203,7 @@ export async function getDashboardOzet(): Promise<DashboardOzet> {
         stokDurumu(
           stokAdet(u),
           u.minStok != null ? Number(u.minStok) : undefined,
+          kritikEsik,
         ) === "tukendi",
     ).length,
   };
