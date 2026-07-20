@@ -18,6 +18,21 @@ iki makinede aynı veri olsun diyedir. Yerelde kaydetmediğin bir şey varsa ön
 `db:yedek` al. Tablo listesi `scripts/db-tablolar.mjs`'de; yeni tablo eklenince
 oraya da yazılmalı (IDENTITY id'li tablolar ayrıca `IDENTITY_TABLOLAR`'a).
 
+### Boşaltma koruması
+
+`db:yedek`, snapshot'ta **dolu** olan bir tablo DB'de **boş**sa yedek almaz ve
+1 ile çıkar. Sebep gerçek bir kayıp: `db:geri-yukle` çalıştırmadan `db:yedek`
+alınırsa karşı makinenin verisi sessizce snapshot'tan düşer ve kayıp git ile
+geri taşınır — `f37f9da` (bir satın alma özelliği; mesajında veriden söz yok)
+LOREN üretim zincirini böyle silmişti, 4 yedek commit'i boyunca fark edilmedi.
+
+Koruma yalnız **tamamen boşalmayı** engeller; satır sayısının azalması normaldir
+(kayıt silmiş olabilirsin) ve engellenmez. Boşaltma kasıtlıysa:
+
+```
+npm run db:yedek -- --zorla
+```
+
 ## Silme kuralı: işlem görmüş kayıt silinmez
 
 Silme action'ı **doğrudan `delete` çağırmaz** — önce `src/lib/db/silme-kontrol.ts`
