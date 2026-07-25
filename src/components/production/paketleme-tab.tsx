@@ -1,32 +1,33 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Box, Layers, Package, Plus, Trash2 } from "lucide-react";
+import {
+  Box,
+  Check,
+  GripVertical,
+  Layers,
+  Package,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { PaketIcerik, ParcaPaket, ReceteSatiri } from "@/lib/data";
 
 /**
  * Parça formundaki "Paketleme" sekmesi — koli dökümü.
  *
- * Paketleme personelinin ihtiyacı: bu iş kaç koliden çıkacak, hangi bileşen
- * hangi koliye girecek.
+ * İKİ BÖLÜM: solda parçanın bileşenleri (reçeteden), sağda paketler.
+ * Bileşen sürüklenip pakete bırakılır ya da paket seçiliyken tıklanır.
  *
- * İçerik seçenekleri PARÇANIN KENDİ REÇETESİNDEN gelir. İlk sürümde
- * sistemdeki tüm parçalar listeleniyordu; oysa zaten o parçanın içindeyiz —
- * koli, bu parçayı oluşturan bileşenlerin dağıtımıdır. Poşet ayrı tutulur,
- * çünkü reçetenin parçası değil: hazır gruplanmış donanım (vida/dübel).
+ * Tasarım geçmişi: önce içerik satırları paketin içinde açılır liste olarak
+ * seçiliyordu; malzeme adları uzun olduğu için (ör. "18 MM SUNTALAM SERÜVEN
+ * DÜZ YÜZEY 2800*2100") satır şeridi taşıyor ve karışıyordu. Kaynak listeyi
+ * ayırmak hem yer sorununu çözüyor hem de "ne dağıtıldı / ne kaldı" sorusunu
+ * tek bakışta cevaplıyor.
  */
 
 type AdKaydi = { id: string; ad: string; birim?: string };
@@ -51,6 +52,9 @@ function icerikRef(i: PaketIcerik): string {
 const sayiBicim = (n: number) =>
   n.toLocaleString("tr-TR", { maximumFractionDigits: 3 });
 
+/** Sürüklenen bileşenin taşıdığı veri (dataTransfer yerine state). */
+type Suruklenen = { tip: "malzeme" | "parca"; id: string; kalan: number };
+
 export function PaketlemeTab({
   paketler,
   onDegis,
@@ -61,14 +65,20 @@ export function PaketlemeTab({
 }: {
   paketler: ParcaPaket[];
   onDegis: (yeni: ParcaPaket[]) => void;
-  /** Bu parçanın reçetesi — içerik seçenekleri buradan gelir. */
+  /** Bu parçanın reçetesi — bileşen listesi buradan gelir. */
   recete: ReceteSatiri[];
   malzemeAdlari: Map<string, AdKaydi>;
   parcaAdlari: Map<string, AdKaydi>;
   /** Hazır malzeme poşetleri (reçetenin dışında). */
   posetler: AdKaydi[];
 }) {
-  /** Reçete satırlarından seçilebilir bileşen listesi. */
+  const [suruklenen, setSuruklenen] = React.useState<Suruklenen | null>(null);
+  const [hedefPaket, setHedefPaket] = React.useState<number | null>(null);
+  /** Tıklamayla ekleme bu pakete gider. */
+  const [seciliPaket, setSeciliPaket] = React.useState(0);
+  const suruklendi = React.useRef(false);
+
+  /** Reçete satırlarından bileşen listesi. */
   const bilesenler = React.useMemo(
     () =>
       recete
@@ -83,7 +93,6 @@ export function PaketlemeTab({
             id: r.bilesen.ref,
             ad: kayit?.ad ?? r.bilesen.ref,
             birim: kayit?.birim,
-            /** Reçetedeki miktar — dağıtım bunun üstünden denetlenir. */
             receteMiktar: r.miktar,
           };
         }),
@@ -102,20 +111,16 @@ export function PaketlemeTab({
     return m;
   }, [paketler]);
 
-  /**
-   * Reçetede olup henüz koliye konmamış (ya da eksik konmuş) bileşenler.
-   * Asıl güvence bu: bir parça sessizce unutulup koli dışında kalmasın.
-   */
-  const eksikler = React.useMemo(
+  /** Bileşen + kalan miktar. Kalan 0 ise tamamı dağıtılmış demektir. */
+  const kaynak = React.useMemo(
     () =>
-      bilesenler
-        .map((b) => ({
-          ...b,
-          kalan: b.receteMiktar - (dagitilan.get(b.id) ?? 0),
-        }))
-        .filter((b) => b.kalan > 0.0001),
+      bilesenler.map((b) => ({
+        ...b,
+        kalan: b.receteMiktar - (dagitilan.get(b.id) ?? 0),
+      })),
     [bilesenler, dagitilan],
   );
+  const kalanSayisi = kaynak.filter((b) => b.kalan > 0.0001).length;
 
   function paketGuncelle(i: number, degisim: Partial<ParcaPaket>) {
     onDegis(paketler.map((p, x) => (x === i ? { ...p, ...degisim } : p)));
@@ -123,6 +128,7 @@ export function PaketlemeTab({
 
   function paketEkle() {
     onDegis([...paketler, { sira: paketler.length + 1, icerik: [] }]);
+    setSeciliPaket(paketler.length);
   }
 
   function paketSil(i: number) {
@@ -133,10 +139,32 @@ export function PaketlemeTab({
         .filter((_, x) => x !== i)
         .map((p, idx) => ({ ...p, sira: idx + 1 })),
     );
+    setSeciliPaket((s) => (s >= i && s > 0 ? s - 1 : s));
   }
 
-  function icerikEkle(i: number, yeni: PaketIcerik) {
-    paketGuncelle(i, { icerik: [...paketler[i].icerik, yeni] });
+  /**
+   * Bileşeni pakete ekler. Aynı bileşen o pakette zaten varsa miktarı
+   * artırılır — aynı şeyi iki satır göstermek koli listesini şişirir.
+   */
+  function bilesenEkle(paketIdx: number, b: Suruklenen) {
+    if (b.kalan <= 0 || !paketler[paketIdx]) return;
+    const paket = paketler[paketIdx];
+    const mevcut = paket.icerik.findIndex(
+      (x) => x.tip === b.tip && icerikRef(x) === b.id,
+    );
+    if (mevcut >= 0) {
+      paketGuncelle(paketIdx, {
+        icerik: paket.icerik.map((x, i) =>
+          i === mevcut ? { ...x, miktar: x.miktar + b.kalan } : x,
+        ),
+      });
+      return;
+    }
+    const yeni: PaketIcerik =
+      b.tip === "malzeme"
+        ? { tip: "malzeme", malzemeId: b.id, miktar: b.kalan }
+        : { tip: "parca", parcaId: b.id, miktar: b.kalan };
+    paketGuncelle(paketIdx, { icerik: [...paket.icerik, yeni] });
   }
 
   function icerikGuncelle(i: number, j: number, yeni: PaketIcerik) {
@@ -147,16 +175,6 @@ export function PaketlemeTab({
 
   function icerikSil(i: number, j: number) {
     paketGuncelle(i, { icerik: paketler[i].icerik.filter((_, x) => x !== j) });
-  }
-
-  /** Kalan miktarın tamamını yeni satır olarak pakete koyar. */
-  function eksigiEkle(paketIdx: number, b: (typeof eksikler)[number]) {
-    icerikEkle(
-      paketIdx,
-      b.tip === "malzeme"
-        ? { tip: "malzeme", malzemeId: b.id, miktar: b.kalan }
-        : { tip: "parca", parcaId: b.id, miktar: b.kalan },
-    );
   }
 
   if (bilesenler.length === 0) {
@@ -177,237 +195,341 @@ export function PaketlemeTab({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Dağıtılmamış bileşen uyarısı */}
-      {eksikler.length > 0 && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-amber-950">
-              {eksikler.length} bileşen henüz koliye konmadı
-            </p>
-            <p className="mt-0.5 text-xs text-amber-900/80">
-              {eksikler
-                .map(
-                  (b) =>
-                    `${b.ad} (${sayiBicim(b.kalan)}${b.birim ? " " + b.birim : ""})`,
-                )
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {paketler.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-md border border-dashed bg-card p-10 text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <Package className="size-5" />
-          </span>
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">Koli dökümü tanımlanmamış</p>
-            <p className="max-w-md text-xs text-muted-foreground">
-              Bu parça kaç koliden çıkacak ve her kolinin içine ne girecek?
-              Paketleme istasyonundaki personel bu listeyi görür.
-            </p>
-          </div>
-          <Button type="button" size="sm" onClick={paketEkle}>
-            <Plus className="size-4" /> İlk paketi ekle
-          </Button>
-        </div>
-      ) : (
-        paketler.map((paket, i) => (
-          <div key={i} className="overflow-hidden rounded-md border bg-card">
-            {/* Paket başlığı: sıra + ad + koli ölçüleri */}
-            <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-3 py-2">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground tabular-nums">
-                {paket.sira}
-              </span>
-              <Input
-                value={paket.ad ?? ""}
-                onChange={(e) => paketGuncelle(i, { ad: e.target.value })}
-                placeholder={`Paket ${paket.sira} (ad opsiyonel)`}
-                className="h-8 max-w-56"
-              />
-              <div className="ml-auto flex flex-wrap items-center gap-1.5">
-                <OlcuAlani
-                  etiket="En"
-                  deger={paket.genislik}
-                  onDeger={(v) => paketGuncelle(i, { genislik: v })}
-                />
-                <OlcuAlani
-                  etiket="Boy"
-                  deger={paket.uzunluk}
-                  onDeger={(v) => paketGuncelle(i, { uzunluk: v })}
-                />
-                <OlcuAlani
-                  etiket="Yük."
-                  deger={paket.yukseklik}
-                  onDeger={(v) => paketGuncelle(i, { yukseklik: v })}
-                />
-                <OlcuAlani
-                  etiket="Ağırlık"
-                  birim="kg"
-                  deger={paket.agirlik}
-                  onDeger={(v) => paketGuncelle(i, { agirlik: v })}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => paketSil(i)}
-                  aria-label={`Paket ${paket.sira} sil`}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* İçerik */}
-            {paket.icerik.length === 0 ? (
-              <p className="px-3 py-4 text-xs text-muted-foreground">
-                Bu paketin içi boş. Aşağıdan bileşen ya da malzeme poşeti
-                ekleyin.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-24">Tür</TableHead>
-                    <TableHead>İçerik</TableHead>
-                    <TableHead className="w-32 text-right">Miktar</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paket.icerik.map((satir, j) => {
-                    const posetMi = satir.tip === "poset";
-                    const secenekler: AdKaydi[] = posetMi
-                      ? posetler
-                      : bilesenler.filter((b) => b.tip === satir.tip);
-                    const ref = icerikRef(satir);
-                    const secili =
-                      secenekler.find((x) => x.id === ref)?.ad ?? null;
-                    const birim = secenekler.find((x) => x.id === ref)?.birim;
-                    return (
-                      <TableRow key={j}>
-                        <TableCell>
-                          <TurRozeti tip={satir.tip} />
-                        </TableCell>
-                        <TableCell>
-                          <SearchSelect
-                            items={secenekler.map((x) => x.ad)}
-                            value={secili}
-                            onValueChange={(ad) => {
-                              const yeniId =
-                                secenekler.find((x) => x.ad === ad)?.id ?? "";
-                              icerikGuncelle(
-                                i,
-                                j,
-                                satir.tip === "poset"
-                                  ? { ...satir, posetId: yeniId }
-                                  : satir.tip === "malzeme"
-                                    ? { ...satir, malzemeId: yeniId }
-                                    : { ...satir, parcaId: yeniId },
-                              );
-                            }}
-                            placeholder={
-                              posetMi ? "Poşet seçin" : "Bileşen seçin"
-                            }
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            <Input
-                              inputMode="decimal"
-                              value={String(satir.miktar)}
-                              onChange={(e) =>
-                                icerikGuncelle(i, j, {
-                                  ...satir,
-                                  miktar: sayiyaCevir(e.target.value) ?? 0,
-                                })
-                              }
-                              className="h-8 w-20 text-right tabular-nums"
-                            />
-                            <span className="w-8 shrink-0 text-[11px] text-muted-foreground">
-                              {birim ?? ""}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => icerikSil(i, j)}
-                            aria-label="Satırı sil"
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+    <div className="grid gap-3 lg:grid-cols-[20rem_1fr]">
+      {/* ── SOL: bileşenler (kaynak) ── */}
+      <div className="flex flex-col overflow-hidden rounded-md border bg-card">
+        <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+          <span className="text-sm font-medium">Bileşenler</span>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-medium",
+              kalanSayisi > 0
+                ? "bg-amber-100 text-amber-800"
+                : "bg-emerald-100 text-emerald-700",
             )}
-
-            {/* Ekleme çubuğu: dağıtılmamış bileşenler tek tıkla eklenir */}
-            <div className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2">
-              {eksikler.length > 0 && (
-                <>
-                  <span className="text-[11px] text-muted-foreground">
-                    Kalan:
-                  </span>
-                  {eksikler.slice(0, 6).map((b) => (
-                    <Button
-                      key={b.id}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => eksigiEkle(i, b)}
-                      className="h-7"
-                    >
-                      <Plus className="size-3" />
-                      {b.ad}
-                      <span className="text-muted-foreground tabular-nums">
-                        {sayiBicim(b.kalan)}
-                      </span>
-                    </Button>
-                  ))}
-                  <span className="mx-1 h-4 w-px bg-border" />
-                </>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  icerikEkle(i, { tip: "poset", posetId: "", miktar: 1 })
-                }
-                className="h-7"
-              >
-                <Package className="size-3.5" /> Malzeme Poşeti
-              </Button>
-            </div>
-          </div>
-        ))
-      )}
-
-      {paketler.length > 0 && (
-        <div>
-          <Button type="button" variant="outline" size="sm" onClick={paketEkle}>
-            <Plus className="size-4" /> Paket ekle
-          </Button>
+          >
+            {kalanSayisi > 0 ? `${kalanSayisi} kaldı` : "Tamamı dağıtıldı"}
+          </span>
         </div>
-      )}
+
+        <div className="flex flex-col gap-1.5 p-2">
+          {kaynak.map((b) => {
+            const bitti = b.kalan <= 0.0001;
+            return (
+              <button
+                key={`${b.tip}-${b.id}`}
+                type="button"
+                draggable={!bitti}
+                onDragStart={() => {
+                  setSuruklenen({ tip: b.tip, id: b.id, kalan: b.kalan });
+                  suruklendi.current = true;
+                }}
+                onDragEnd={() => {
+                  setSuruklenen(null);
+                  setHedefPaket(null);
+                  // click, dragend'den sonra gelir; bir tur sonra serbest bırak.
+                  setTimeout(() => (suruklendi.current = false), 0);
+                }}
+                onClick={() => {
+                  if (suruklendi.current || bitti) return;
+                  bilesenEkle(seciliPaket, {
+                    tip: b.tip,
+                    id: b.id,
+                    kalan: b.kalan,
+                  });
+                }}
+                disabled={bitti || paketler.length === 0}
+                title={
+                  paketler.length === 0
+                    ? "Önce paket ekleyin"
+                    : bitti
+                      ? "Tamamı dağıtıldı"
+                      : `Paket ${seciliPaket + 1}'e ekle (ya da sürükleyin)`
+                }
+                className={cn(
+                  "group flex items-start gap-2 rounded-md border p-2 text-left transition-colors",
+                  bitti
+                    ? "border-dashed bg-muted/30 text-muted-foreground"
+                    : "cursor-grab hover:border-primary/40 hover:bg-primary/5 active:cursor-grabbing",
+                )}
+              >
+                {bitti ? (
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                ) : (
+                  <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <TurRozeti tip={b.tip} />
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-1 block text-xs leading-snug",
+                      bitti && "line-through",
+                    )}
+                  >
+                    {b.ad}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right text-[11px] tabular-nums">
+                  <span className={cn("font-medium", bitti && "opacity-50")}>
+                    {sayiBicim(bitti ? b.receteMiktar : b.kalan)}
+                  </span>
+                  {b.birim && (
+                    <span className="ml-0.5 text-muted-foreground">
+                      {b.birim}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="border-t px-3 py-2 text-[11px] text-muted-foreground">
+          Bileşeni pakete sürükleyin ya da seçili pakete eklemek için tıklayın.
+        </p>
+      </div>
+
+      {/* ── SAĞ: paketler (hedef) ── */}
+      <div className="flex flex-col gap-3">
+        {paketler.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-md border border-dashed bg-card p-10 text-center">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <Package className="size-5" />
+            </span>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium">Koli dökümü tanımlanmamış</p>
+              <p className="max-w-md text-xs text-muted-foreground">
+                Bu parça kaç koliden çıkacak? Paket ekleyip soldaki
+                bileşenleri içine dağıtın.
+              </p>
+            </div>
+            <Button type="button" size="sm" onClick={paketEkle}>
+              <Plus className="size-4" /> İlk paketi ekle
+            </Button>
+          </div>
+        ) : (
+          paketler.map((paket, i) => {
+            const secili = i === seciliPaket;
+            const hedef = i === hedefPaket;
+            return (
+              <div
+                key={i}
+                onClick={() => setSeciliPaket(i)}
+                onDragOver={(e) => {
+                  if (!suruklenen) return;
+                  e.preventDefault();
+                  setHedefPaket(i);
+                }}
+                onDragLeave={() => setHedefPaket((h) => (h === i ? null : h))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (suruklenen) bilesenEkle(i, suruklenen);
+                  setSuruklenen(null);
+                  setHedefPaket(null);
+                }}
+                className={cn(
+                  "overflow-hidden rounded-md border bg-card transition-colors",
+                  hedef && "border-primary bg-primary/5 ring-1 ring-primary",
+                  !hedef && secili && "border-primary/50",
+                )}
+              >
+                {/* Başlık: sıra + ad + koli ölçüleri */}
+                <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-3 py-2">
+                  <span
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold tabular-nums",
+                      secili
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted-foreground/15 text-muted-foreground",
+                    )}
+                  >
+                    {paket.sira}
+                  </span>
+                  <Input
+                    value={paket.ad ?? ""}
+                    onChange={(e) => paketGuncelle(i, { ad: e.target.value })}
+                    placeholder={`Paket ${paket.sira} (ad opsiyonel)`}
+                    className="h-8 max-w-48"
+                  />
+                  {secili && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Seçili
+                    </span>
+                  )}
+                  <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                    <OlcuAlani
+                      etiket="En"
+                      deger={paket.genislik}
+                      onDeger={(v) => paketGuncelle(i, { genislik: v })}
+                    />
+                    <OlcuAlani
+                      etiket="Boy"
+                      deger={paket.uzunluk}
+                      onDeger={(v) => paketGuncelle(i, { uzunluk: v })}
+                    />
+                    <OlcuAlani
+                      etiket="Yük."
+                      deger={paket.yukseklik}
+                      onDeger={(v) => paketGuncelle(i, { yukseklik: v })}
+                    />
+                    <OlcuAlani
+                      etiket="Ağırlık"
+                      birim="kg"
+                      deger={paket.agirlik}
+                      onDeger={(v) => paketGuncelle(i, { agirlik: v })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => paketSil(i)}
+                      aria-label={`Paket ${paket.sira} sil`}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* İçerik */}
+                {paket.icerik.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                    Soldan bileşen sürükleyin ya da bu paket seçiliyken
+                    bileşene tıklayın.
+                  </p>
+                ) : (
+                  <div className="divide-y">
+                    {paket.icerik.map((satir, j) => (
+                      <IcerikSatiri
+                        key={j}
+                        satir={satir}
+                        kaynak={kaynak}
+                        posetler={posetler}
+                        onMiktar={(m) =>
+                          icerikGuncelle(i, j, { ...satir, miktar: m })
+                        }
+                        onPosetSec={(id) =>
+                          icerikGuncelle(i, j, {
+                            tip: "poset",
+                            posetId: id,
+                            miktar: satir.miktar,
+                          })
+                        }
+                        onSil={() => icerikSil(i, j)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Poşet ekleme — reçetenin dışında olduğu için ayrı */}
+                <div className="border-t px-3 py-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      paketGuncelle(i, {
+                        icerik: [
+                          ...paket.icerik,
+                          { tip: "poset", posetId: "", miktar: 1 },
+                        ],
+                      })
+                    }
+                    className="h-7"
+                  >
+                    <Package className="size-3.5" /> Malzeme Poşeti
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {paketler.length > 0 && (
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={paketEkle}
+            >
+              <Plus className="size-4" /> Paket ekle
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function TurRozeti({ tip }: { tip: PaketIcerik["tip"] }) {
+/** Paket içindeki tek satır. Poşette seçim kutusu, bileşende sabit ad. */
+function IcerikSatiri({
+  satir,
+  kaynak,
+  posetler,
+  onMiktar,
+  onPosetSec,
+  onSil,
+}: {
+  satir: PaketIcerik;
+  kaynak: { tip: string; id: string; ad: string; birim?: string }[];
+  posetler: AdKaydi[];
+  onMiktar: (m: number) => void;
+  onPosetSec: (id: string) => void;
+  onSil: () => void;
+}) {
+  const ref = icerikRef(satir);
+  const posetMi = satir.tip === "poset";
+  const kayit = posetMi
+    ? posetler.find((p) => p.id === ref)
+    : kaynak.find((b) => b.tip === satir.tip && b.id === ref);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2">
+      <TurRozeti tip={satir.tip} />
+      {posetMi ? (
+        <SearchSelect
+          items={posetler.map((p) => p.ad)}
+          value={kayit?.ad ?? null}
+          onValueChange={(ad) =>
+            onPosetSec(posetler.find((p) => p.ad === ad)?.id ?? "")
+          }
+          placeholder="Poşet seçin"
+          className="h-8 max-w-64"
+        />
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-xs">
+          {kayit?.ad ?? ref}
+        </span>
+      )}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Input
+          inputMode="decimal"
+          value={String(satir.miktar)}
+          onChange={(e) => onMiktar(sayiyaCevir(e.target.value) ?? 0)}
+          className="h-8 w-20 text-right tabular-nums"
+        />
+        <span className="w-7 text-[11px] text-muted-foreground">
+          {kayit && "birim" in kayit ? (kayit.birim ?? "") : ""}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onSil}
+          aria-label="Satırı sil"
+          className="text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TurRozeti({ tip }: { tip: PaketIcerik["tip"] | string }) {
   const stil =
     tip === "poset"
       ? "bg-violet-100 text-violet-700"
@@ -420,11 +542,11 @@ function TurRozeti({ tip }: { tip: PaketIcerik["tip"] }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
         stil,
       )}
     >
-      <Ikon className="size-3" />
+      <Ikon className="size-2.5" />
       {etiket}
     </span>
   );
@@ -450,7 +572,7 @@ function OlcuAlani({
         value={deger == null ? "" : String(deger)}
         onChange={(e) => onDeger(sayiyaCevir(e.target.value))}
         placeholder={birim}
-        className="h-7 w-16 text-right tabular-nums"
+        className="h-7 w-14 text-right tabular-nums"
       />
     </label>
   );
