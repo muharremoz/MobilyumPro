@@ -258,20 +258,19 @@ export function PaketlemeTab({
                 ) : (
                   <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
                 )}
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <TurRozeti tip={b.tip} />
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-1 block text-xs leading-snug",
-                      bitti && "line-through",
-                    )}
-                  >
-                    {b.ad}
-                  </span>
+                {/* Tür rozeti yok: bu listedeki her satır zaten reçeteden
+                    geliyor ve adı ne olduğunu söylüyor. Her satıra "Malzeme"
+                    yazmak gürültüden başka bir şey değil. */}
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 text-xs leading-snug",
+                    bitti && "line-through",
+                  )}
+                >
+                  {b.ad}
                 </span>
-                <span className="shrink-0 text-right text-[11px] tabular-nums">
+                {/* mt-0.5: ad iki satıra sarınca miktar ilk satırla hizalı kalsın. */}
+                <span className="mt-0.5 shrink-0 text-right text-[11px] tabular-nums">
                   <span className={cn("font-medium", bitti && "opacity-50")}>
                     {sayiBicim(bitti ? b.receteMiktar : b.kalan)}
                   </span>
