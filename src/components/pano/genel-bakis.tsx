@@ -533,7 +533,10 @@ function SayimHatirlatma({
       <Button
         variant="outline"
         size="sm"
-        // Base UI: asChild değil render (proje standardı).
+        // Base UI: asChild değil render (proje standardı). render'a <a>
+        // verildiğinde nativeButton={false} ŞART — yoksa Base UI native
+        // <button> beklediğini söyleyip konsola uyarı basar.
+        nativeButton={false}
         render={<Link href="/stok-yonetimi?bolum=sayim" />}
         className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
       >

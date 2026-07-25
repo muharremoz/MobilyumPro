@@ -118,9 +118,19 @@ export const PARAMETRELER: ParametreTanim[] = [
     varsayilan: "DEP-01",
   },
   {
-    anahtar: "sayim_uyari_gun",
+    anahtar: "sayim_hatirlatma",
     etiket: "Sayım Hatırlatması",
-    aciklama: "Son sayımdan bu kadar gün geçince hatırlatma gösterilir.",
+    aciklama:
+      "Panoda sayım zamanı geldiğinde hatırlatma kartı gösterilsin mi?",
+    grup: "Stok",
+    tip: "boolean",
+    varsayilan: "true",
+  },
+  {
+    anahtar: "sayim_uyari_gun",
+    etiket: "Sayım Aralığı",
+    aciklama:
+      "Son tamamlanan sayımdan bu kadar gün geçince hatırlatılır. Hatırlatma kapalıysa kullanılmaz.",
     grup: "Stok",
     tip: "sayi",
     varsayilan: "90",

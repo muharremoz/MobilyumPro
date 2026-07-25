@@ -2,7 +2,7 @@ import "server-only";
 
 import { db, tarihStr } from "./index";
 import { stokDurumu } from "../stok-durum";
-import { parametreSayi } from "./parametre";
+import { parametreAcik, parametreSayi } from "./parametre";
 import QRCode from "qrcode";
 
 import { kodBarkod } from "../barkod";
@@ -1043,6 +1043,10 @@ export async function getPanoVerisi(): Promise<import("../data").PanoVerisi> {
 async function sayimHatirlatmasi(): Promise<
   import("../data").PanoVerisi["sayimUyari"]
 > {
+  // Hatırlatma kapalıysa hiç sorgulamıyoruz — kapalı bir özellik için
+  // her pano yüklemesinde DB'ye gitmenin anlamı yok.
+  if (!(await parametreAcik("sayim_hatirlatma", true))) return null;
+
   const esik = await parametreSayi("sayim_uyari_gun", 90);
   const son = await db.sayim.findFirst({
     where: { durum: "Tamamlandı" },
