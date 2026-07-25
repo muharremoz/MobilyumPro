@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Box,
   Check,
+  ChevronDown,
   GripVertical,
   Layers,
   Package,
@@ -13,6 +14,11 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { SearchSelect } from "@/components/ui/search-select";
 import { cn } from "@/lib/utils";
 import type { PaketIcerik, ParcaPaket, ReceteSatiri } from "@/lib/data";
@@ -76,6 +82,10 @@ export function PaketlemeTab({
   const [hedefPaket, setHedefPaket] = React.useState<number | null>(null);
   /** Tıklamayla ekleme bu pakete gider. */
   const [seciliPaket, setSeciliPaket] = React.useState(0);
+  /** Kapalı paketler (indeks). Varsayılan: hepsi açık. */
+  const [kapaliPaketler, setKapaliPaketler] = React.useState<Set<number>>(
+    () => new Set(),
+  );
   const suruklendi = React.useRef(false);
 
   /** Reçete satırlarından bileşen listesi. */
@@ -122,6 +132,15 @@ export function PaketlemeTab({
   );
   const kalanSayisi = kaynak.filter((b) => b.kalan > 0.0001).length;
 
+  function kapaliDegis(i: number) {
+    setKapaliPaketler((k) => {
+      const yeni = new Set(k);
+      if (yeni.has(i)) yeni.delete(i);
+      else yeni.add(i);
+      return yeni;
+    });
+  }
+
   function paketGuncelle(i: number, degisim: Partial<ParcaPaket>) {
     onDegis(paketler.map((p, x) => (x === i ? { ...p, ...degisim } : p)));
   }
@@ -140,6 +159,16 @@ export function PaketlemeTab({
         .map((p, idx) => ({ ...p, sira: idx + 1 })),
     );
     setSeciliPaket((s) => (s >= i && s > 0 ? s - 1 : s));
+    // Kapalı liste İNDEKS tutuyor; silinince sonrakiler bir kayar. Kaydırmazsak
+    // yanlış paket kapalı görünür.
+    setKapaliPaketler((k) => {
+      const yeni = new Set<number>();
+      for (const x of k) {
+        if (x === i) continue;
+        yeni.add(x > i ? x - 1 : x);
+      }
+      return yeni;
+    });
   }
 
   /**
@@ -312,6 +341,7 @@ export function PaketlemeTab({
           paketler.map((paket, i) => {
             const secili = i === seciliPaket;
             const hedef = i === hedefPaket;
+            const kapali = kapaliPaketler.has(i);
             return (
               <div
                 key={i}
@@ -324,7 +354,17 @@ export function PaketlemeTab({
                 onDragLeave={() => setHedefPaket((h) => (h === i ? null : h))}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (suruklenen) bilesenEkle(i, suruklenen);
+                  if (suruklenen) {
+                    bilesenEkle(i, suruklenen);
+                    // Kapalı pakete bırakılırsa açılır: eklenen satırın
+                    // gerçekten girdiğini görmek gerekir.
+                    setKapaliPaketler((k) => {
+                      if (!k.has(i)) return k;
+                      const yeni = new Set(k);
+                      yeni.delete(i);
+                      return yeni;
+                    });
+                  }
                   setSuruklenen(null);
                   setHedefPaket(null);
                 }}
@@ -334,8 +374,22 @@ export function PaketlemeTab({
                   !hedef && secili && "border-primary/50",
                 )}
               >
-                {/* Başlık: sıra + ad + koli ölçüleri */}
+                {/* Başlık: sıra + ad + özet + aç/kapa */}
                 <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => kapaliDegis(i)}
+                    aria-label={kapali ? "Paketi aç" : "Paketi kapat"}
+                    aria-expanded={!kapali}
+                    className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted-foreground/10"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "size-4 transition-transform",
+                        kapali && "-rotate-90",
+                      )}
+                    />
+                  </button>
                   <span
                     className={cn(
                       "flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold tabular-nums",
@@ -357,7 +411,37 @@ export function PaketlemeTab({
                       Seçili
                     </span>
                   )}
-                  <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                  {/* Kapalıyken içerik görünmediği için özet başlıkta durur. */}
+                  <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+                    {[
+                      `${paket.icerik.length} kalem`,
+                      paket.genislik && paket.uzunluk
+                        ? `${sayiBicim(paket.genislik)}×${sayiBicim(paket.uzunluk)}${
+                            paket.yukseklik
+                              ? `×${sayiBicim(paket.yukseklik)}`
+                              : ""
+                          } mm`
+                        : null,
+                      paket.agirlik ? `${sayiBicim(paket.agirlik)} kg` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => paketSil(i)}
+                    aria-label={`Paket ${paket.sira} sil`}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+
+                {/* Koli ölçüleri — başlığın hemen altında, ayrı şerit */}
+                {!kapali && (
+                  <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
                     <OlcuAlani
                       etiket="En"
                       deger={paket.genislik}
@@ -369,7 +453,7 @@ export function PaketlemeTab({
                       onDeger={(v) => paketGuncelle(i, { uzunluk: v })}
                     />
                     <OlcuAlani
-                      etiket="Yük."
+                      etiket="Yükseklik"
                       deger={paket.yukseklik}
                       onDeger={(v) => paketGuncelle(i, { yukseklik: v })}
                     />
@@ -379,21 +463,11 @@ export function PaketlemeTab({
                       deger={paket.agirlik}
                       onDeger={(v) => paketGuncelle(i, { agirlik: v })}
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => paketSil(i)}
-                      aria-label={`Paket ${paket.sira} sil`}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
                   </div>
-                </div>
+                )}
 
                 {/* İçerik */}
-                {paket.icerik.length === 0 ? (
+                {kapali ? null : paket.icerik.length === 0 ? (
                   <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                     Soldan bileşen sürükleyin ya da bu paket seçiliyken
                     bileşene tıklayın.
@@ -423,6 +497,7 @@ export function PaketlemeTab({
                 )}
 
                 {/* Poşet ekleme — reçetenin dışında olduğu için ayrı */}
+                {!kapali && (
                 <div className="border-t px-3 py-2">
                   <Button
                     type="button"
@@ -441,6 +516,7 @@ export function PaketlemeTab({
                     <Package className="size-3.5" /> Malzeme Poşeti
                   </Button>
                 </div>
+                )}
               </div>
             );
           })
@@ -504,15 +580,12 @@ function IcerikSatiri({
         </span>
       )}
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <Input
-          inputMode="decimal"
-          value={String(satir.miktar)}
-          onChange={(e) => onMiktar(sayiyaCevir(e.target.value) ?? 0)}
-          className="h-8 w-20 text-right tabular-nums"
+        <MiktarAlani
+          deger={satir.miktar}
+          birim={kayit && "birim" in kayit ? kayit.birim : undefined}
+          onDeger={(m) => onMiktar(m ?? 0)}
+          genislik="w-28"
         />
-        <span className="w-7 text-[11px] text-muted-foreground">
-          {kayit && "birim" in kayit ? (kayit.birim ?? "") : ""}
-        </span>
         <Button
           type="button"
           variant="ghost"
@@ -566,13 +639,48 @@ function OlcuAlani({
   return (
     <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
       {etiket}
-      <Input
+      <MiktarAlani
+        deger={deger}
+        birim={birim}
+        onDeger={onDeger}
+        genislik="w-24"
+      />
+    </label>
+  );
+}
+
+/**
+ * Miktar + birim TEK alanda: birim, input'un içinde sağda sabit ek olarak
+ * durur. Ayrı bir metin olarak yanına yazıldığında hangi sayıya ait olduğu
+ * dar satırlarda karışıyordu.
+ */
+function MiktarAlani({
+  deger,
+  birim,
+  onDeger,
+  genislik = "w-24",
+}: {
+  deger?: number;
+  birim?: string;
+  onDeger: (v: number | undefined) => void;
+  genislik?: string;
+}) {
+  return (
+    <InputGroup className={cn("h-8 overflow-hidden", genislik)}>
+      <InputGroupInput
         inputMode="decimal"
         value={deger == null ? "" : String(deger)}
         onChange={(e) => onDeger(sayiyaCevir(e.target.value))}
-        placeholder={birim}
-        className="h-7 w-14 text-right tabular-nums"
+        className="text-right tabular-nums"
       />
-    </label>
+      {birim && (
+        <InputGroupAddon
+          align="inline-end"
+          className="h-full w-9 justify-center self-stretch border-l bg-[#fafafa] px-1 text-[11px] font-normal text-muted-foreground"
+        >
+          {birim}
+        </InputGroupAddon>
+      )}
+    </InputGroup>
   );
 }
