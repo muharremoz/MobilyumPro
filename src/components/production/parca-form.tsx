@@ -69,11 +69,13 @@ import {
   type Model,
   type Parca,
   type ParcaIslem,
+  type ParcaPaket,
   type ParcaKategori,
   type ParcaOlculeri,
   type ReceteSatiri,
   type StokDokuman,
 } from "@/lib/data";
+import { PaketlemeTab } from "@/components/production/paketleme-tab";
 import type { Istasyon } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
 import {
@@ -103,7 +105,14 @@ const KATEGORILER: ParcaKategori[] = [
   "Diğer",
 ];
 
-type Tab = "genel" | "recete" | "islem" | "kullanim" | "dokuman" | "versiyon";
+type Tab =
+  | "genel"
+  | "recete"
+  | "paketleme"
+  | "islem"
+  | "kullanim"
+  | "dokuman"
+  | "versiyon";
 
 /** Ölçü alanları — form state'inde metin tutulur, kayıtta sayıya çevrilir. */
 type OlcuAlan = keyof ParcaOlculeri;
@@ -194,10 +203,13 @@ export function ParcaForm({
   makineler = [],
   dokumanlar = [],
   alisOzetleri = [],
+  posetler = [],
   // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
   // için parametreyi kendisi okuyamaz.
   varsayilanFire = 0,
 }: {
+  /** Paket içeriğine eklenebilecek malzeme poşetleri. */
+  posetler?: { id: string; ad: string }[];
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
   parcalar: Parca[];
@@ -278,6 +290,10 @@ export function ParcaForm({
   // Refakat kağıdı işlem sırası
   const [islemler, setIslemler] = React.useState<ParcaIslem[]>(
     () => recete?.islemler?.map((i) => ({ ...i })) ?? [],
+  );
+  // Koli dökümü (paketleme istasyonu için).
+  const [paketler, setPaketler] = React.useState<ParcaPaket[]>(
+    () => recete?.paketler?.map((k) => ({ ...k, icerik: [...k.icerik] })) ?? [],
   );
   // Bu parçanın bağlı olduğu modeller (Model ağacına eklenir).
   const [bagliModeller, setBagliModeller] = React.useState<
@@ -698,6 +714,15 @@ export function ParcaForm({
             : s,
         ),
         olculer: olcuVeri,
+        // Eksik seçim yapılmış satırlar kaydedilmez; boş referanslı bir
+        // paket satırı paketleme ekranında "seçilmemiş" diye görünürdü.
+        paketler: paketler.map((k, idx) => ({
+          ...k,
+          sira: idx + 1,
+          icerik: k.icerik.filter((x) =>
+            x.tip === "poset" ? x.posetId : x.parcaId,
+          ),
+        })),
         islemler: siraTazele(islemler.filter((x) => x.istasyon)).map((x) => ({
           sira: x.sira,
           istasyon: x.istasyon,
@@ -867,6 +892,12 @@ export function ParcaForm({
         </TabBtn>
         <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
           Reçete{gecerli.length ? ` (${gecerli.length})` : ""}
+        </TabBtn>
+        <TabBtn
+          aktif={tab === "paketleme"}
+          onClick={() => setTab("paketleme")}
+        >
+          Paketleme{paketler.length ? ` (${paketler.length})` : ""}
         </TabBtn>
         <TabBtn aktif={tab === "islem"} onClick={() => setTab("islem")}>
           İşlem Sırası{islemler.length ? ` (${islemler.length})` : ""}
@@ -1121,6 +1152,20 @@ export function ParcaForm({
                 </div>
               </div>
           </div>
+        )}
+
+        {/* ── PAKETLEME (koli dökümü) ───────────────────────────── */}
+        {tab === "paketleme" && (
+          <PaketlemeTab
+            paketler={paketler}
+            onDegis={setPaketler}
+            // Parçanın kendisi içeriğe eklenemez: kendi kendini içeren bir
+            // koli sonsuz döngü anlamına gelir.
+            parcalar={parcalar
+              .filter((x) => x.id !== recete?.id && x.durum === "Aktif")
+              .map((x) => ({ id: x.id, ad: x.ad }))}
+            posetler={posetler.map((x) => ({ id: x.id, ad: x.ad }))}
+          />
         )}
 
         {/* ── İŞLEM SIRASI ──────────────────────────────────────── */}

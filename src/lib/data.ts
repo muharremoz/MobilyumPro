@@ -195,6 +195,20 @@ export type Sayim = {
 export type SayimDetay = Sayim & { satirlar: SayimSatiri[] };
 
 /** QR ile açılan atölye görünümü (login'siz; tezgahta telefonla okutulur). */
+/**
+ * Üretim ekranlarına giden koli dökümü — adları çözülmüş hâli.
+ * Ekranın id'den ad araması gerekmesin diye sunucuda düzleştirilir.
+ */
+export type PaketDokumu = {
+  sira: number;
+  ad?: string;
+  uzunluk?: number;
+  genislik?: number;
+  yukseklik?: number;
+  agirlik?: number;
+  icerik: { tip: "parca" | "poset"; ad: string; miktar: number }[];
+};
+
 export type AtolyeGorunumu = {
   parcaId: string;
   parcaAd: string;
@@ -217,6 +231,8 @@ export type AtolyeGorunumu = {
     tip: string;
     kaynak: "Parça" | "Model";
   }[];
+  /** Koli dökümü — paketleme personeli için. */
+  paketler?: PaketDokumu[];
 };
 
 /** Bir parça için basılan refakat kağıdı (parça ürünle birlikte gezer). */
@@ -256,6 +272,8 @@ export type RefakatKagidi = {
   parcaGorsel?: string;
   /** Atölye görünümüne (login'siz doküman sayfası) giden QR — inline SVG. */
   qrSvg?: string;
+  /** Koli dökümü — paketleme personeli için. */
+  paketler?: PaketDokumu[];
 };
 
 /** İstasyona bağlı tezgah (SAWTECH EBATLAMA, EDGETECH 1 …). */

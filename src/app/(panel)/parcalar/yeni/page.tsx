@@ -7,22 +7,32 @@ import {
   getMalzemeler,
   getModeller,
   getParcalar,
+  getPosetler,
 } from "@/lib/db/queries";
 
 export default async function YeniParcaRoute() {
-  const [parcalar, malzemeler, modeller, istasyonlar, makineler, alisOzetleri] =
-    await Promise.all([
+  const [
+    parcalar,
+    malzemeler,
+    modeller,
+    istasyonlar,
+    makineler,
+    alisOzetleri,
+    posetler,
+  ] = await Promise.all([
       getParcalar(),
       getMalzemeler(),
       getModeller(),
       getIstasyonlar(),
       getMakineler(),
       getMalzemeAlisOzetleri(),
+      getPosetler(),
     ]);
   const varsayilanFire = await parametreSayi("varsayilan_fire", 0);
   return (
     <ParcaForm
       varsayilanFire={varsayilanFire}
+      posetler={posetler}
       recete={null}
       parcalar={parcalar}
       malzemeler={malzemeler}

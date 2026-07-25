@@ -252,6 +252,72 @@ function Kagit({ k }: { k: RefakatKagidi }) {
         </tbody>
       </table>
 
+      {/* ── Paketleme (koli dökümü) ──
+          Sadece tanımlıysa basılır: boş bir "PAKETLEME" başlığı kağıtta yer
+          kaplar ve personele tanımsızlığı zaten anlatmaz. */}
+      {k.paketler && k.paketler.length > 0 && (
+        <table className="w-full border-b border-black text-[11px]">
+          <thead>
+            <tr className="border-b border-black">
+              <th className="w-6 border-r border-black" />
+              <th className="border-r border-black text-left font-semibold">
+                PAKETLEME ({k.paketler.length} KOLİ)
+              </th>
+              <th className="w-44 border-r border-black text-left font-semibold">
+                ÖLÇÜ / AĞIRLIK
+              </th>
+              <th className="w-14 font-semibold">ADET</th>
+            </tr>
+          </thead>
+          <tbody>
+            {k.paketler.map((paket) => (
+              <React.Fragment key={paket.sira}>
+                <tr className="border-b border-black/40 bg-black/5">
+                  <td className="border-r border-black text-center font-semibold tabular-nums">
+                    {paket.sira}
+                  </td>
+                  <td className="border-r border-black px-1 font-semibold uppercase">
+                    {paket.ad ?? `PAKET ${paket.sira}`}
+                  </td>
+                  <td className="border-r border-black px-1 text-center tabular-nums">
+                    {[
+                      paket.genislik && paket.uzunluk
+                        ? `${paket.genislik}×${paket.uzunluk}${
+                            paket.yukseklik ? `×${paket.yukseklik}` : ""
+                          } mm`
+                        : null,
+                      paket.agirlik ? `${paket.agirlik} kg` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </td>
+                  <td />
+                </tr>
+                {paket.icerik.map((c, idx) => (
+                  <tr
+                    key={idx}
+                    className="border-b border-black/40 last:border-0"
+                  >
+                    <td className="border-r border-black" />
+                    <td className="border-r border-black px-1 pl-4 uppercase">
+                      {c.ad}
+                    </td>
+                    <td className="border-r border-black px-1 uppercase">
+                      {c.tip === "poset" ? "MALZEME POŞETİ" : "PARÇA"}
+                    </td>
+                    <td className="text-center tabular-nums">
+                      {c.miktar.toLocaleString("tr-TR", {
+                        maximumFractionDigits: 3,
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      )}
+
       {/* ── Alt: QR (teknik resim/doküman) + notlar ── */}
       <div className="flex text-[9px]">
         <div className="flex w-44 shrink-0 flex-col items-center border-r border-black px-2 py-2">

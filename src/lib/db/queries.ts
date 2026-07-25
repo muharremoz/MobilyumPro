@@ -180,6 +180,55 @@ export async function getParcalar(): Promise<Parca[]> {
   }));
 }
 
+/**
+ * Verilen parçaların koli dökümünü, içerik adları çözülmüş hâlde getirir.
+ * Üretim ekranları (refakat kağıdı, QR atölye görünümü) id değil ad gösterir.
+ */
+async function paketDokumleri(
+  parcaIdler: string[],
+): Promise<Map<string, import("../data").PaketDokumu[]>> {
+  const sonuc = new Map<string, import("../data").PaketDokumu[]>();
+  if (parcaIdler.length === 0) return sonuc;
+
+  const paketler = await db.parcaPaket.findMany({
+    where: { parcaId: { in: parcaIdler } },
+    orderBy: { sira: "asc" },
+    include: {
+      icerik: {
+        orderBy: { id: "asc" },
+        include: {
+          altParca: { select: { ad: true } },
+          poset: { select: { ad: true } },
+        },
+      },
+    },
+  });
+
+  const sayi = (v: unknown) => (v == null ? undefined : Number(v));
+  for (const k of paketler) {
+    const arr = sonuc.get(k.parcaId) ?? [];
+    arr.push({
+      sira: k.sira,
+      ad: k.ad ?? undefined,
+      uzunluk: sayi(k.uzunluk),
+      genislik: sayi(k.genislik),
+      yukseklik: sayi(k.yukseklik),
+      agirlik: sayi(k.agirlik),
+      // Adı çözülemeyen satır atlanır: personele "—" göstermek yerine hiç
+      // göstermemek daha az yanıltıcı (silinmiş kayıt olabilir).
+      icerik: k.icerik.flatMap((i) => {
+        const ad =
+          i.tip === "poset" ? i.poset?.ad : i.altParca?.ad;
+        return ad
+          ? [{ tip: i.tip as "parca" | "poset", ad, miktar: Number(i.miktar) }]
+          : [];
+      }),
+    });
+    sonuc.set(k.parcaId, arr);
+  }
+  return sonuc;
+}
+
 /** parca_paket satırını uygulama tipine çevirir. */
 function mapPaket(k: {
   id: number;
@@ -694,6 +743,7 @@ export async function getRefakatKagitlari(
 
   const pvcMi = (ad: string) => /PVC|BANT/i.test(ad);
   const sayi = (v: unknown) => (v == null ? undefined : Number(v));
+  const paketMap = await paketDokumleri(bom.map((b) => b.parcaId));
 
   return Promise.all(
     bom.map(async (b, i) => {
@@ -743,6 +793,7 @@ export async function getRefakatKagitlari(
       urunGorsel:
         stokGorsel.get(ustModel?.id ?? emir.modelId) || undefined,
       parcaGorsel: parcaGorsel.get(b.parcaId) || undefined,
+      paketler: paketMap.get(b.parcaId),
       // QR: atölye görünümü (/q/<parcaId>.<emirId>) — login gerektirmez.
       qrSvg: await QRCode.toString(
         `${tabanUrl ?? ""}/q/${b.parcaId}.${emir.id}`,
@@ -833,6 +884,7 @@ export async function getAtolyeGorunumu(
         kaynak: "Model" as const,
       })),
     ],
+    paketler: (await paketDokumleri([parca.id])).get(parca.id),
   };
 }
 

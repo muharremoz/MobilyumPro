@@ -146,6 +146,69 @@ export default async function AtolyeRoute({
         </section>
       )}
 
+      {/* Koli dökümü — paketleme personeli için */}
+      {g.paketler && g.paketler.length > 0 && (
+        <section className="rounded-md border bg-card p-4">
+          <h2 className="text-sm font-semibold">
+            Paketleme · {g.paketler.length} koli
+          </h2>
+          <div className="mt-2 flex flex-col gap-2">
+            {g.paketler.map((k) => (
+              <div key={k.sira} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary text-[11px] font-semibold text-primary-foreground tabular-nums">
+                    {k.sira}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {k.ad ?? `Paket ${k.sira}`}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {[
+                      k.genislik && k.uzunluk
+                        ? `${mm(k.genislik)}×${mm(k.uzunluk)}${
+                            k.yukseklik ? `×${mm(k.yukseklik)}` : ""
+                          }`
+                        : null,
+                      k.agirlik ? `${k.agirlik} kg` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </div>
+                {k.icerik.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {k.icerik.map((c, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-baseline justify-between gap-3 text-sm"
+                      >
+                        <span className="min-w-0">
+                          <span
+                            className={
+                              c.tip === "poset"
+                                ? "mr-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700"
+                                : "mr-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"
+                            }
+                          >
+                            {c.tip === "poset" ? "Poşet" : "Parça"}
+                          </span>
+                          {c.ad}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground tabular-nums">
+                          {c.miktar.toLocaleString("tr-TR", {
+                            maximumFractionDigits: 3,
+                          })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* İşlem sırası */}
       <section className="rounded-md border bg-card p-4">
         <h2 className="text-sm font-semibold">İşlem Sırası</h2>

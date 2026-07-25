@@ -11,6 +11,7 @@ import {
   getParcaDokumanlar,
   getParcalar,
   getReceteVersiyonlari,
+  getPosetler,
 } from "@/lib/db/queries";
 
 export default async function ParcaDetayRoute({
@@ -28,6 +29,7 @@ export default async function ParcaDetayRoute({
     makineler,
     dokumanlar,
     alisOzetleri,
+    posetler,
   ] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
@@ -37,6 +39,7 @@ export default async function ParcaDetayRoute({
     getMakineler(),
     getParcaDokumanlar(id),
     getMalzemeAlisOzetleri(),
+    getPosetler(),
   ]);
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
@@ -45,6 +48,7 @@ export default async function ParcaDetayRoute({
   return (
     <ParcaForm
       varsayilanFire={varsayilanFire}
+      posetler={posetler}
       recete={recete}
       parcalar={parcalar}
       malzemeler={malzemeler}
