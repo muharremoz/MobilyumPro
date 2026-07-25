@@ -319,6 +319,21 @@ export function ParcaForm({
     () => new Map(parcalar.map((p) => [p.id, p])),
     [parcalar],
   );
+  // Paketleme sekmesi için ad + birim haritaları (reçete satırını çözer).
+  const paketMalzemeAdlari = React.useMemo(
+    () =>
+      new Map(
+        malzemeler.map((m) => [m.id, { id: m.id, ad: m.ad, birim: m.birim }]),
+      ),
+    [malzemeler],
+  );
+  const paketParcaAdlari = React.useMemo(
+    () =>
+      new Map(
+        parcalar.map((p) => [p.id, { id: p.id, ad: p.ad, birim: "adet" }]),
+      ),
+    [parcalar],
+  );
 
   // ── Kullanım (yayılma uyarısı + sekme) ────────────────────────────────
   const kullanim = React.useMemo(() => {
@@ -720,7 +735,11 @@ export function ParcaForm({
           ...k,
           sira: idx + 1,
           icerik: k.icerik.filter((x) =>
-            x.tip === "poset" ? x.posetId : x.parcaId,
+            x.tip === "poset"
+              ? x.posetId
+              : x.tip === "malzeme"
+                ? x.malzemeId
+                : x.parcaId,
           ),
         })),
         islemler: siraTazele(islemler.filter((x) => x.istasyon)).map((x) => ({
@@ -1159,11 +1178,11 @@ export function ParcaForm({
           <PaketlemeTab
             paketler={paketler}
             onDegis={setPaketler}
-            // Parçanın kendisi içeriğe eklenemez: kendi kendini içeren bir
-            // koli sonsuz döngü anlamına gelir.
-            parcalar={parcalar
-              .filter((x) => x.id !== recete?.id && x.durum === "Aktif")
-              .map((x) => ({ id: x.id, ad: x.ad }))}
+            // İçerik seçenekleri bu parçanın REÇETESİNDEN gelir: koli, parçayı
+            // oluşturan bileşenlerin dağıtımıdır.
+            recete={satirlar}
+            malzemeAdlari={paketMalzemeAdlari}
+            parcaAdlari={paketParcaAdlari}
             posetler={posetler.map((x) => ({ id: x.id, ad: x.ad }))}
           />
         )}

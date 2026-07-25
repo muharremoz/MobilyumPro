@@ -76,19 +76,24 @@ model ParcaPaket {
   @@map("parca_paket")
 }
 
-/// Paketin içindekiler. Tip "parca" ya da "poset" olur.
-/// Doğrudan MALZEME satırı YOKTUR: malzemeler poşette gruplanır, poşet
-/// pakete girer — vidayı tek tek koliye yazmak yerine tek kaynak.
+/// Paketin içindekiler: "malzeme" | "parca" | "poset".
+///
+/// Malzeme ve parça satırları PARÇANIN KENDİ REÇETESİNDEN seçilir — koli,
+/// bu parçayı oluşturan bileşenlerin dağıtımıdır. Sistemdeki rastgele bir
+/// parçayı koliye koymak anlamsız olurdu.
+/// Poşet ayrı: hazır gruplanmış donanım (vida/dübel) tek satırda girer.
 model ParcaPaketIcerik {
   id         Int     @id @default(autoincrement())
   paketId    Int     @map("paket_id")
-  /// "parca" | "poset"
+  /// "malzeme" | "parca" | "poset"
   tip        String
+  malzemeId  String? @map("malzeme_id")
   altParcaId String? @map("alt_parca_id")
   posetId    String? @map("poset_id")
   miktar     Decimal @default(1) @db.Decimal(14, 3)
 
   paket    ParcaPaket @relation(fields: [paketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  malzeme  Stok?      @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   altParca Parca?     @relation("PakettekiParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   poset    Poset?     @relation(fields: [posetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -964,6 +969,7 @@ model Stok {
   // Birleşme: reçete bileşeni / mamul BOM / üretim emri artık Stok'a bağlı
   receteSatirlari ReceteSatiri[]
   modelParcalar   ModelParca[]
+  paketIcerigi    ParcaPaketIcerik[]
   talepSatirlari  SatinAlmaTalepSatiri[]
 
   @@map("stok")

@@ -187,10 +187,16 @@ export default async function AtolyeRoute({
                             className={
                               c.tip === "poset"
                                 ? "mr-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700"
-                                : "mr-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"
+                                : c.tip === "malzeme"
+                                  ? "mr-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+                                  : "mr-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"
                             }
                           >
-                            {c.tip === "poset" ? "Poşet" : "Parça"}
+                            {c.tip === "poset"
+                              ? "Poşet"
+                              : c.tip === "malzeme"
+                                ? "Malzeme"
+                                : "Parça"}
                           </span>
                           {c.ad}
                         </span>
@@ -198,6 +204,7 @@ export default async function AtolyeRoute({
                           {c.miktar.toLocaleString("tr-TR", {
                             maximumFractionDigits: 3,
                           })}
+                          {c.birim ? ` ${c.birim}` : ""}
                         </span>
                       </li>
                     ))}

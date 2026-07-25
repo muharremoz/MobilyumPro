@@ -1108,6 +1108,7 @@ export async function parcaKaydet(
           const icerik = paket.icerik.map((i) => ({
             paketId: olusan.id,
             tip: i.tip,
+            malzemeId: i.tip === "malzeme" ? i.malzemeId : null,
             altParcaId: i.tip === "parca" ? i.parcaId : null,
             posetId: i.tip === "poset" ? i.posetId : null,
             miktar: i.miktar,

@@ -197,6 +197,7 @@ async function paketDokumleri(
       icerik: {
         orderBy: { id: "asc" },
         include: {
+          malzeme: { select: { ad: true, stokBirimi: true } },
           altParca: { select: { ad: true } },
           poset: { select: { ad: true } },
         },
@@ -218,9 +219,23 @@ async function paketDokumleri(
       // göstermemek daha az yanıltıcı (silinmiş kayıt olabilir).
       icerik: k.icerik.flatMap((i) => {
         const ad =
-          i.tip === "poset" ? i.poset?.ad : i.altParca?.ad;
+          i.tip === "poset"
+            ? i.poset?.ad
+            : i.tip === "malzeme"
+              ? i.malzeme?.ad
+              : i.altParca?.ad;
         return ad
-          ? [{ tip: i.tip as "parca" | "poset", ad, miktar: Number(i.miktar) }]
+          ? [
+              {
+                tip: i.tip as "malzeme" | "parca" | "poset",
+                ad,
+                miktar: Number(i.miktar),
+                birim:
+                  i.tip === "malzeme"
+                    ? (i.malzeme?.stokBirimi ?? undefined)
+                    : undefined,
+              },
+            ]
           : [];
       }),
     });
@@ -240,6 +255,7 @@ function mapPaket(k: {
   agirlik: unknown;
   icerik: {
     tip: string;
+    malzemeId: string | null;
     altParcaId: string | null;
     posetId: string | null;
     miktar: unknown;
@@ -261,6 +277,10 @@ function mapPaket(k: {
         return [{ tip: "poset", posetId: i.posetId, miktar: Number(i.miktar) }];
       if (i.tip === "parca" && i.altParcaId)
         return [{ tip: "parca", parcaId: i.altParcaId, miktar: Number(i.miktar) }];
+      if (i.tip === "malzeme" && i.malzemeId)
+        return [
+          { tip: "malzeme", malzemeId: i.malzemeId, miktar: Number(i.miktar) },
+        ];
       return [];
     }),
   };

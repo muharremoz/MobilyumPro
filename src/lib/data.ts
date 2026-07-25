@@ -206,7 +206,13 @@ export type PaketDokumu = {
   genislik?: number;
   yukseklik?: number;
   agirlik?: number;
-  icerik: { tip: "parca" | "poset"; ad: string; miktar: number }[];
+  icerik: {
+    tip: "malzeme" | "parca" | "poset";
+    ad: string;
+    miktar: number;
+    /** Malzeme satırlarında birim (adet/m²...) — personel için anlamlı. */
+    birim?: string;
+  }[];
 };
 
 export type AtolyeGorunumu = {
@@ -316,8 +322,13 @@ export type Parca = {
   paketler?: ParcaPaket[];
 };
 
-/** Paket içeriği: ya bir alt parça ya da hazır bir malzeme poşeti. */
+/**
+ * Paket içeriği. Malzeme ve parça satırları PARÇANIN KENDİ REÇETESİNDEN
+ * seçilir — koli, bu parçayı oluşturan bileşenlerin dağıtımıdır.
+ * Poşet ayrı: hazır gruplanmış donanım tek satırda girer.
+ */
 export type PaketIcerik =
+  | { tip: "malzeme"; malzemeId: string; miktar: number }
   | { tip: "parca"; parcaId: string; miktar: number }
   | { tip: "poset"; posetId: string; miktar: number };
 

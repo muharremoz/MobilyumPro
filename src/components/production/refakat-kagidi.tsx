@@ -303,12 +303,17 @@ function Kagit({ k }: { k: RefakatKagidi }) {
                       {c.ad}
                     </td>
                     <td className="border-r border-black px-1 uppercase">
-                      {c.tip === "poset" ? "MALZEME POŞETİ" : "PARÇA"}
+                      {c.tip === "poset"
+                        ? "MALZEME POŞETİ"
+                        : c.tip === "malzeme"
+                          ? "MALZEME"
+                          : "PARÇA"}
                     </td>
                     <td className="text-center tabular-nums">
                       {c.miktar.toLocaleString("tr-TR", {
                         maximumFractionDigits: 3,
                       })}
+                      {c.birim ? ` ${c.birim}` : ""}
                     </td>
                   </tr>
                 ))}
