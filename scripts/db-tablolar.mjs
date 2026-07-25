@@ -42,6 +42,9 @@ export const TABLO_SIRASI = [
   "modelParca",
   "poset",
   "posetMalzeme",
+  // Paketleme: içerik hem parçaya hem poşete bağlanıyor, ikisinden de sonra.
+  "parcaPaket",
+  "parcaPaketIcerik",
   // Hareketler / belgeler
   "siparis",
   "cariIslem",
@@ -90,6 +93,8 @@ export const IDENTITY_TABLOLAR = {
   sayimSatiri: "sayim_satiri",
   sistemParametre: "sistem_parametre",
   posetMalzeme: "poset_malzeme",
+  parcaPaket: "parca_paket",
+  parcaPaketIcerik: "parca_paket_icerik",
   alisSatiri: "alis_satiri",
   satinAlmaTalepSatiri: "satin_alma_talep_satiri",
   satinAlmaTalepSiparis: "satin_alma_talep_siparis",

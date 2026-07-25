@@ -42,8 +42,57 @@ model Parca {
   versiyonlar  ReceteVersiyon[]
   dokumanlar   ParcaDokuman[]
   islemler     ParcaIslem[]
+  paketler     ParcaPaket[]
+  paketIcerigi ParcaPaketIcerik[] @relation("PakettekiParca")
 
   @@map("parca")
+}
+
+// ── Paketleme (koli dökümü) ─────────────────────────────────────────────
+/// Bir parçanın kaç koliden çıkacağı ve her kolinin içine ne gireceği.
+/// Paketleme istasyonundaki personelin ihtiyacı: "bu iş kaç paket, hangi
+/// poşet/parça hangi koliye".
+///
+/// Paket bilerek AYRI BİR PARÇA KAYDI DEĞİL, parçanın alt satırı: her koli
+/// için parça kartı açtırmak tanım yükünü gereksiz büyütürdü.
+model ParcaPaket {
+  id      Int    @id @default(autoincrement())
+  parcaId String @map("parca_id")
+  /// Görünen sıra (Paket 1, Paket 2...).
+  sira    Int
+  /// Opsiyonel ad ("Gövde Kolisi"); boşsa "Paket {sira}" gösterilir.
+  ad      String?
+
+  // Koli dış ölçüleri (mm) ve brüt ağırlık (kg) — sevkiyat/nakliye hesabı için.
+  uzunluk   Decimal? @db.Decimal(10, 2)
+  genislik  Decimal? @db.Decimal(10, 2)
+  yukseklik Decimal? @db.Decimal(10, 2)
+  agirlik   Decimal? @db.Decimal(10, 3)
+
+  parca  Parca              @relation(fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  icerik ParcaPaketIcerik[]
+
+  @@unique([parcaId, sira])
+  @@map("parca_paket")
+}
+
+/// Paketin içindekiler. Tip "parca" ya da "poset" olur.
+/// Doğrudan MALZEME satırı YOKTUR: malzemeler poşette gruplanır, poşet
+/// pakete girer — vidayı tek tek koliye yazmak yerine tek kaynak.
+model ParcaPaketIcerik {
+  id         Int     @id @default(autoincrement())
+  paketId    Int     @map("paket_id")
+  /// "parca" | "poset"
+  tip        String
+  altParcaId String? @map("alt_parca_id")
+  posetId    String? @map("poset_id")
+  miktar     Decimal @default(1) @db.Decimal(14, 3)
+
+  paket    ParcaPaket @relation(fields: [paketId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  altParca Parca?     @relation("PakettekiParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  poset    Poset?     @relation(fields: [posetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("parca_paket_icerik")
 }
 
 // ── Makine (istasyona bağlı tezgah: SAWTECH EBATLAMA, EDGETECH 1 ...) ──
@@ -527,10 +576,13 @@ model Poset {
   // refId iki farklı tabloya işaret ettiği için FK bağlanmaz.
   refTip     String?        @map("ref_tip")
   refId      String?        @map("ref_id")
-  // Poşetin içine konacağı parça paketi/kolisi (parca.id).
-  paketParcaId String?      @map("paket_parca_id")
 
+  // NOT: eskiden `paketParcaId` vardı (poşet → konacağı koli). Paket artık
+  // parçanın altında tanımlandığı ve İÇERİĞİNDE poşeti seçtiği için bağ ters
+  // yöne taşındı; iki uçtan da kurulabilseydi aynı bilginin iki kaynağı olur
+  // ve zamanla çelişirlerdi. Bkz. ParcaPaketIcerik.
   malzemeler PosetMalzeme[]
+  paketlerde ParcaPaketIcerik[]
 
   @@map("poset")
 }

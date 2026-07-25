@@ -566,6 +566,12 @@
       "anahtar": "firma_adi",
       "deger": "Enmobi Mobilya",
       "aciklama": null
+    },
+    {
+      "id": 1006,
+      "anahtar": "sayim_hatirlatma",
+      "deger": "false",
+      "aciklama": null
     }
   ],
   "grup": [
@@ -16245,6 +16251,8 @@
   "modelParca": [],
   "poset": [],
   "posetMalzeme": [],
+  "parcaPaket": [],
+  "parcaPaketIcerik": [],
   "siparis": [],
   "cariIslem": [],
   "stokHareket": [],

@@ -11,6 +11,8 @@ import type {
   Model,
   ModelVaryant,
   Parca,
+  ParcaPaket,
+  PaketIcerik,
   Malzeme,
   Doviz,
   Kur,
@@ -112,7 +114,15 @@ export async function getModeller(): Promise<Model[]> {
 
 export async function getParcalar(): Promise<Parca[]> {
   const [parcaRows, receteRows, docs] = await Promise.all([
-    db.parca.findMany({ include: { islemler: { orderBy: { sira: "asc" } } } }),
+    db.parca.findMany({
+      include: {
+        islemler: { orderBy: { sira: "asc" } },
+        paketler: {
+          orderBy: { sira: "asc" },
+          include: { icerik: { orderBy: { id: "asc" } } },
+        },
+      },
+    }),
     db.receteSatiri.findMany(),
     db.parcaDokuman.findMany({
       select: { parcaId: true, url: true, tip: true },
@@ -166,7 +176,45 @@ export async function getParcalar(): Promise<Parca[]> {
       operasyon: i.operasyon,
       aciklama: i.aciklama ?? undefined,
     })),
+    paketler: p.paketler.map(mapPaket),
   }));
+}
+
+/** parca_paket satırını uygulama tipine çevirir. */
+function mapPaket(k: {
+  id: number;
+  sira: number;
+  ad: string | null;
+  uzunluk: unknown;
+  genislik: unknown;
+  yukseklik: unknown;
+  agirlik: unknown;
+  icerik: {
+    tip: string;
+    altParcaId: string | null;
+    posetId: string | null;
+    miktar: unknown;
+  }[];
+}): ParcaPaket {
+  const sayi = (v: unknown) => (v == null ? undefined : Number(v));
+  return {
+    id: k.id,
+    sira: k.sira,
+    ad: k.ad ?? undefined,
+    uzunluk: sayi(k.uzunluk),
+    genislik: sayi(k.genislik),
+    yukseklik: sayi(k.yukseklik),
+    agirlik: sayi(k.agirlik),
+    // Bozuk satır (tip dolu ama referans boş) listeye alınmaz; paketleme
+    // ekranında "boş satır" göstermek personeli yanıltır.
+    icerik: k.icerik.flatMap((i): PaketIcerik[] => {
+      if (i.tip === "poset" && i.posetId)
+        return [{ tip: "poset", posetId: i.posetId, miktar: Number(i.miktar) }];
+      if (i.tip === "parca" && i.altParcaId)
+        return [{ tip: "parca", parcaId: i.altParcaId, miktar: Number(i.miktar) }];
+      return [];
+    }),
+  };
 }
 
 export async function getParcaDokumanlar(
@@ -270,7 +318,6 @@ function mapPoset(p: PosetRow): import("../data").Poset {
     durum: p.durum as Durum,
     refTip: (p.refTip ?? undefined) as "model" | "parca" | undefined,
     refId: p.refId ?? undefined,
-    paketParcaId: p.paketParcaId ?? undefined,
     malzemeler: p.malzemeler.map((m) => ({
       malzemeId: m.malzemeId,
       miktar: Number(m.miktar),

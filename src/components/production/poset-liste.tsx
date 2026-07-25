@@ -36,7 +36,6 @@ type SortKey =
   | "ad"
   | "aciklama"
   | "urun"
-  | "paket"
   | "malzeme"
   | "durum";
 
@@ -57,11 +56,6 @@ const TEMEL_KOLONLAR: KolonTanim[] = [
     key: "urun",
     label: "Ait Olduğu Ürün",
     aciklama: "Poşetin hazırlandığı model ya da parça.",
-  },
-  {
-    key: "paket",
-    label: "Paket",
-    aciklama: "Poşetin içine konacağı parça paketi.",
   },
   { key: "malzeme", label: "Malzeme", aciklama: "Poşetteki malzeme sayısı." },
   { key: "durum", label: "Durum", aciklama: "Aktif/Pasif durumu." },
@@ -97,7 +91,6 @@ export function PosetListe({
   const [adFiltre, setAdFiltre] = React.useState("");
   const [aciklamaFiltre, setAciklamaFiltre] = React.useState("");
   const [urunFiltre, setUrunFiltre] = React.useState("");
-  const [paketFiltre, setPaketFiltre] = React.useState("");
   const [malzemeAralik, setMalzemeAralik] = React.useState({
     min: "",
     max: "",
@@ -137,18 +130,12 @@ export function PosetListe({
     },
     [modelAdlari, parcaAdlari],
   );
-  const paketAdi = React.useCallback(
-    (p: Poset): string =>
-      p.paketParcaId ? (parcaAdlari.get(p.paketParcaId) ?? p.paketParcaId) : "",
-    [parcaAdlari],
-  );
 
   const filtreli = React.useMemo(() => {
     const qKod = kodFiltre.toLocaleLowerCase("tr");
     const qAd = adFiltre.toLocaleLowerCase("tr");
     const qAciklama = aciklamaFiltre.toLocaleLowerCase("tr");
     const qUrun = urunFiltre.toLocaleLowerCase("tr");
-    const qPaket = paketFiltre.toLocaleLowerCase("tr");
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const arr = liste.filter(
@@ -158,7 +145,6 @@ export function PosetListe({
         (!qAciklama ||
           (p.aciklama ?? "").toLocaleLowerCase("tr").includes(qAciklama)) &&
         (!qUrun || urunAdi(p).toLocaleLowerCase("tr").includes(qUrun)) &&
-        (!qPaket || paketAdi(p).toLocaleLowerCase("tr").includes(qPaket)) &&
         arada(p.malzemeler.length, malzemeAralik.min, malzemeAralik.max) &&
         (durum === "Tümü" || p.durum === durum),
     );
@@ -173,8 +159,6 @@ export function PosetListe({
               ? (p.aciklama ?? "")
               : sort.key === "urun"
                 ? urunAdi(p)
-                : sort.key === "paket"
-                  ? paketAdi(p)
                   : sort.key === "malzeme"
                     ? p.malzemeler.length
                     : p.durum;
@@ -190,9 +174,7 @@ export function PosetListe({
     adFiltre,
     aciklamaFiltre,
     urunFiltre,
-    paketFiltre,
     urunAdi,
-    paketAdi,
     malzemeAralik,
     durum,
     sort,
@@ -291,19 +273,6 @@ export function PosetListe({
                   Ait Olduğu Ürün
                 </SiralaFiltreBaslik>
               )}
-              {kolon.temelGorunur("paket") && (
-                <SiralaFiltreBaslik
-                  sira={sira("paket")}
-                  onSirala={sirala("paket")}
-                  filtre={{
-                    tip: "metin",
-                    deger: paketFiltre,
-                    onDeger: setPaketFiltre,
-                  }}
-                >
-                  Paket
-                </SiralaFiltreBaslik>
-              )}
               {kolon.temelGorunur("malzeme") && (
                 <SiralaFiltreBaslik
                   className="text-right"
@@ -383,11 +352,6 @@ export function PosetListe({
                       ) : (
                         <span className="text-muted-foreground">Genel</span>
                       )}
-                    </TableCell>
-                  )}
-                  {kolon.temelGorunur("paket") && (
-                    <TableCell className="text-muted-foreground">
-                      {paketAdi(p) || "—"}
                     </TableCell>
                   )}
                   {kolon.temelGorunur("malzeme") && (

@@ -36,7 +36,7 @@ type RefTip = keyof typeof REF_TIP_ETIKET;
  * Malzeme Poşeti oluşturma/düzenleme — reçete detay sayfasıyla (recete-detay)
  * birebir aynı yerleşim: üst şerit (geri + ad + durum + açıklama + Kaydet),
  * solda bileşen grid'i (#fafafa başlık + alt ekleme şeridi), sağda özet kolonu
- * (ait olduğu ürün / konacağı paket + maliyet özeti).
+ * (ait olduğu ürün + maliyet özeti).
  */
 export function PosetForm({
   poset,
@@ -48,7 +48,7 @@ export function PosetForm({
   malzemeler: Malzeme[];
   /** Mamül stok kartları — "ait olduğu ürün" model seçimi için. */
   modeller?: Model[];
-  /** Parçalar — "ait olduğu ürün" parça seçimi ve paket seçimi için. */
+  /** Parçalar — "ait olduğu ürün" parça seçimi için. */
   parcalar?: Parca[];
 }) {
   const para = usePara();
@@ -68,10 +68,6 @@ export function PosetForm({
     poset?.refTip ?? null,
   );
   const [refId, setRefId] = React.useState<string>(poset?.refId ?? "");
-  // Poşetin konacağı parça paketi (opsiyonel).
-  const [paketParcaId, setPaketParcaId] = React.useState<string>(
-    poset?.paketParcaId ?? "",
-  );
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
   const malzemeMap = React.useMemo(
@@ -87,7 +83,7 @@ export function PosetForm({
     [parcalar],
   );
 
-  // ── Ait olduğu ürün / paket seçenekleri ───────────────────────────────
+  // ── Ait olduğu ürün seçenekleri ───────────────────────────────────────
   const aktifModeller = React.useMemo(
     () => modeller.filter((m) => m.durum === "Aktif"),
     [modeller],
@@ -104,27 +100,8 @@ export function PosetForm({
       : (parcaMap.get(refId)?.ad ?? null)
     : null;
 
-  /**
-   * Paket seçenekleri: ait olduğu ürün bir MODEL ise o modelin BOM'undaki
-   * parçalarla sınırlanır; aksi halde tüm aktif parçalar listelenir.
-   */
-  const paketSecenekleri = React.useMemo(() => {
-    if (refTip === "model" && refId) {
-      const model = modelMap.get(refId);
-      if (model) {
-        const bom = (model.parcalar ?? [])
-          .map((ps) => parcaMap.get(ps.parcaId))
-          .filter((p): p is Parca => Boolean(p));
-        if (bom.length > 0) return bom;
-      }
-    }
-    return aktifParcalar;
-  }, [refTip, refId, modelMap, parcaMap, aktifParcalar]);
-  const paketAdi = paketParcaId
-    ? (parcaMap.get(paketParcaId)?.ad ?? null)
-    : null;
 
-  /** Tür değişince seçili kayıt (ve daraltılmış paket seçimi) temizlenir. */
+  /** Tür değişince seçili kayıt temizlenir. */
   function refTipSec(secim: string | null) {
     const yeni =
       secim === REF_TIP_ETIKET.model
@@ -135,14 +112,11 @@ export function PosetForm({
     if (yeni === refTip) return;
     setRefTip(yeni);
     setRefId("");
-    setPaketParcaId("");
   }
 
-  /** Model değişince, önceki modelin BOM'undan gelen paket seçimi düşer. */
   function refSec(adSecim: string | null) {
     const bulunan = refSecenekleri.find((x) => x.ad === adSecim);
     setRefId(bulunan?.id ?? "");
-    if (refTip === "model") setPaketParcaId("");
   }
 
   // ── Kirli takibi ──────────────────────────────────────────────────────
@@ -151,8 +125,7 @@ export function PosetForm({
       return (
         ad.trim() !== "" ||
         satirlar.length > 0 ||
-        refTip !== null ||
-        paketParcaId !== ""
+        refTip !== null
       );
     if (!poset) return false;
     if (
@@ -160,8 +133,7 @@ export function PosetForm({
       aciklama !== (poset.aciklama ?? "") ||
       durum !== poset.durum ||
       refTip !== (poset.refTip ?? null) ||
-      refId !== (poset.refId ?? "") ||
-      paketParcaId !== (poset.paketParcaId ?? "")
+      refId !== (poset.refId ?? "")
     )
       return true;
     const key = (r: PosetSatiri[]) =>
@@ -174,7 +146,6 @@ export function PosetForm({
     satirlar,
     refTip,
     refId,
-    paketParcaId,
     poset,
     yeniMi,
   ]);
@@ -216,7 +187,6 @@ export function PosetForm({
       // Tür seçili ama kayıt seçilmemişse bağ kurulmaz (ikisi birlikte gider).
       refTip: refId ? (refTip ?? undefined) : undefined,
       refId: refId || undefined,
-      paketParcaId: paketParcaId || undefined,
       malzemeler: gecerli,
     });
     setKaydediliyor(false);
@@ -361,7 +331,7 @@ export function PosetForm({
 
         {/* ── Sağ: özet kolonu ── */}
         <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80">
-          {/* Ait olduğu ürün + konacağı paket (ikisi de opsiyonel) */}
+          {/* Ait olduğu ürün (opsiyonel) */}
           <div className="overflow-hidden rounded-md border bg-card">
             <KartBaslik ikon={Boxes} baslik="Ait Olduğu Ürün" />
             <div className="flex flex-col gap-2 p-4">
@@ -385,28 +355,6 @@ export function PosetForm({
               )}
               <p className="text-xs text-muted-foreground">
                 Boş bırakılırsa genel amaçlı malzeme poşeti olur.
-              </p>
-            </div>
-          </div>
-
-          <div className="overflow-hidden rounded-md border bg-card">
-            <KartBaslik ikon={PackageCheck} baslik="Konacağı Paket" />
-            <div className="flex flex-col gap-2 p-4">
-              <SearchSelect
-                items={paketSecenekleri.map((p) => p.ad)}
-                value={paketAdi}
-                onValueChange={(adSecim) =>
-                  setPaketParcaId(
-                    paketSecenekleri.find((p) => p.ad === adSecim)?.id ?? "",
-                  )
-                }
-                placeholder="Parça seçin (opsiyonel)"
-                className="h-8"
-              />
-              <p className="text-xs text-muted-foreground">
-                {refTip === "model" && refId
-                  ? "Seçili modelin parçalarıyla sınırlı."
-                  : "Poşetin içine konacağı parçanın paketi."}
               </p>
             </div>
           </div>

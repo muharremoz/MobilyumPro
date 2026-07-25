@@ -1088,6 +1088,35 @@ export async function parcaKaydet(
           });
       }
 
+      // Koli dökümü: sil-yeniden yaz. Paket satırları kullanıcı tarafından
+      // serbestçe eklenip çıkarıldığı için eşleştirmeye çalışmak yerine
+      // topluca değiştiriyoruz (içerik cascade ile gider).
+      if (p.paketler) {
+        await tx.parcaPaket.deleteMany({ where: { parcaId } });
+        for (const [idx, paket] of p.paketler.entries()) {
+          const olusan = await tx.parcaPaket.create({
+            data: {
+              parcaId,
+              sira: paket.sira || idx + 1,
+              ad: paket.ad?.trim() || null,
+              uzunluk: paket.uzunluk ?? null,
+              genislik: paket.genislik ?? null,
+              yukseklik: paket.yukseklik ?? null,
+              agirlik: paket.agirlik ?? null,
+            },
+          });
+          const icerik = paket.icerik.map((i) => ({
+            paketId: olusan.id,
+            tip: i.tip,
+            altParcaId: i.tip === "parca" ? i.parcaId : null,
+            posetId: i.tip === "poset" ? i.posetId : null,
+            miktar: i.miktar,
+          }));
+          if (icerik.length)
+            await tx.parcaPaketIcerik.createMany({ data: icerik });
+        }
+      }
+
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
       await tx.receteSatiri.deleteMany({ where: { parcaId } });
       const satirlar = p.recete.map((r) => ({
@@ -1297,7 +1326,6 @@ export async function posetKaydet(
         durum: p.durum,
         refTip: p.refTip ?? null,
         refId: p.refId ?? null,
-        paketParcaId: p.paketParcaId ?? null,
       };
       await tx.poset.upsert({
         where: { id: posetId },

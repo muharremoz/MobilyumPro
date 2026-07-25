@@ -366,24 +366,35 @@ export async function parcaSilinebilirMi(id: string): Promise<SilmeSonucu> {
           .then((r) => r.map((x) => `${x.id} (${x.durum})`)),
     },
     {
-      // Poşetin ait olduğu ürün ya da konacağı paket bu parça olabilir.
+      // Poşetin ait olduğu ürün bu parça olabilir.
       etiket: "malzeme poşeti bağlantısı",
       say: () =>
-        db.poset.count({
-          where: {
-            OR: [{ paketParcaId: id }, { refTip: "parca", refId: id }],
-          },
-        }),
+        db.poset.count({ where: { refTip: "parca", refId: id } }),
       ornekler: () =>
         db.poset
           .findMany({
-            where: {
-              OR: [{ paketParcaId: id }, { refTip: "parca", refId: id }],
-            },
+            where: { refTip: "parca", refId: id },
             take: ORNEK_LIMIT,
             select: { ad: true },
           })
           .then((r) => r.map((x) => x.ad)),
+    },
+    {
+      // Parça, BAŞKA bir parçanın koli dökümünde kullanılıyor olabilir.
+      // Kendi paketleri engel değil — onlar cascade ile gider.
+      etiket: "paket içeriği",
+      say: () =>
+        db.parcaPaketIcerik.count({
+          where: { altParcaId: id, paket: { parcaId: { not: id } } },
+        }),
+      ornekler: () =>
+        db.parcaPaketIcerik
+          .findMany({
+            where: { altParcaId: id, paket: { parcaId: { not: id } } },
+            take: ORNEK_LIMIT,
+            select: { paket: { select: { parcaId: true, sira: true } } },
+          })
+          .then((r) => r.map((x) => `${x.paket.parcaId} · Paket ${x.paket.sira}`)),
     },
   ]);
 }
@@ -632,9 +643,23 @@ export async function posetSilinebilirMi(id: string): Promise<SilmeSonucu> {
   });
   if (!p)
     return { silinebilir: false, engeller: [], mesaj: "Poşet bulunamadı." };
-  // Poşetin kendi malzeme satırları engel değil (cascade); dışarıdan
-  // referans olursa buraya eklenecek.
-  return topla(p.ad, []);
+  // Poşetin kendi malzeme satırları engel değil (cascade).
+  return topla(p.ad, [
+    {
+      // Poşet bir parçanın koli dökümüne konmuşsa silinemez: paketleme
+      // personeli o poşeti bekliyor, sessizce kaybolmamalı.
+      etiket: "paket içeriği",
+      say: () => db.parcaPaketIcerik.count({ where: { posetId: id } }),
+      ornekler: () =>
+        db.parcaPaketIcerik
+          .findMany({
+            where: { posetId: id },
+            take: ORNEK_LIMIT,
+            select: { paket: { select: { parcaId: true, sira: true } } },
+          })
+          .then((r) => r.map((x) => `${x.paket.parcaId} · Paket ${x.paket.sira}`)),
+    },
+  ]);
 }
 
 /** Kullanıcı — kendi yetkileri engel değil; iş kayıtlarındaki izler engeldir. */

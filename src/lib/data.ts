@@ -294,6 +294,32 @@ export type Parca = {
   olculer?: ParcaOlculeri;
   /** Refakat kağıdındaki işlem sırası. */
   islemler?: ParcaIslem[];
+  /** Koli dökümü — paketleme personeli için (bkz. ParcaPaket). */
+  paketler?: ParcaPaket[];
+};
+
+/** Paket içeriği: ya bir alt parça ya da hazır bir malzeme poşeti. */
+export type PaketIcerik =
+  | { tip: "parca"; parcaId: string; miktar: number }
+  | { tip: "poset"; posetId: string; miktar: number };
+
+/**
+ * Bir kolinin tanımı. Paket ayrı bir parça kaydı DEĞİL, parçanın alt satırı.
+ * Malzemeler doğrudan pakete yazılmaz; poşette gruplanıp poşet pakete girer.
+ */
+export type ParcaPaket = {
+  id?: number;
+  /** Paket 1, Paket 2... */
+  sira: number;
+  /** Opsiyonel ad ("Gövde Kolisi"); boşsa "Paket {sira}". */
+  ad?: string;
+  /** Koli dış ölçüleri (mm). */
+  uzunluk?: number;
+  genislik?: number;
+  yukseklik?: number;
+  /** Brüt ağırlık (kg). */
+  agirlik?: number;
+  icerik: PaketIcerik[];
 };
 
 // Stok hareketleri — model (ürün) veya malzeme için.
@@ -552,8 +578,9 @@ export type Poset = {
   /** Poşetin ait olduğu ürün: mamül kartı ya da parça. */
   refTip?: "model" | "parca";
   refId?: string;
-  /** Poşetin içine konacağı parça paketi (parca.id). */
-  paketParcaId?: string;
+  // Poşetin hangi koliye gireceği ARTIK BURADA DEĞİL: paket, parçanın altında
+  // tanımlanıp içeriğinde poşeti seçiyor (bkz. ParcaPaket). İki uçtan da
+  // kurulabilseydi aynı bilginin iki kaynağı olurdu.
   malzemeler: PosetSatiri[];
 };
 
