@@ -13,6 +13,8 @@ import type {
   Parca,
   ParcaPaket,
   PaketIcerik,
+  OlcuBirimi,
+  AgirlikBirimi,
   Malzeme,
   Doviz,
   Kur,
@@ -215,6 +217,8 @@ async function paketDokumleri(
       genislik: sayi(k.genislik),
       yukseklik: sayi(k.yukseklik),
       agirlik: sayi(k.agirlik),
+      olcuBirimi: k.olcuBirimi,
+      agirlikBirimi: k.agirlikBirimi,
       // Adı çözülemeyen satır atlanır: personele "—" göstermek yerine hiç
       // göstermemek daha az yanıltıcı (silinmiş kayıt olabilir).
       icerik: k.icerik.flatMap((i) => {
@@ -253,6 +257,8 @@ function mapPaket(k: {
   genislik: unknown;
   yukseklik: unknown;
   agirlik: unknown;
+  olcuBirimi: string;
+  agirlikBirimi: string;
   icerik: {
     tip: string;
     malzemeId: string | null;
@@ -270,6 +276,8 @@ function mapPaket(k: {
     genislik: sayi(k.genislik),
     yukseklik: sayi(k.yukseklik),
     agirlik: sayi(k.agirlik),
+    olcuBirimi: k.olcuBirimi as OlcuBirimi,
+    agirlikBirimi: k.agirlikBirimi as AgirlikBirimi,
     // Bozuk satır (tip dolu ama referans boş) listeye alınmaz; paketleme
     // ekranında "boş satır" göstermek personeli yanıltır.
     icerik: k.icerik.flatMap((i): PaketIcerik[] => {

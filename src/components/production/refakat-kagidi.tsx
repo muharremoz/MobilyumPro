@@ -284,9 +284,11 @@ function Kagit({ k }: { k: RefakatKagidi }) {
                       paket.genislik && paket.uzunluk
                         ? `${paket.genislik}×${paket.uzunluk}${
                             paket.yukseklik ? `×${paket.yukseklik}` : ""
-                          } mm`
+                          } ${paket.olcuBirimi ?? "mm"}`
                         : null,
-                      paket.agirlik ? `${paket.agirlik} kg` : null,
+                      paket.agirlik
+                        ? `${paket.agirlik} ${paket.agirlikBirimi ?? "kg"}`
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

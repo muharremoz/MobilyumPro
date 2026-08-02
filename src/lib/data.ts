@@ -206,6 +206,8 @@ export type PaketDokumu = {
   genislik?: number;
   yukseklik?: number;
   agirlik?: number;
+  olcuBirimi?: string;
+  agirlikBirimi?: string;
   icerik: {
     tip: "malzeme" | "parca" | "poset";
     ad: string;
@@ -342,14 +344,23 @@ export type ParcaPaket = {
   sira: number;
   /** Opsiyonel ad ("Gövde Kolisi"); boşsa "Paket {sira}". */
   ad?: string;
-  /** Koli dış ölçüleri (mm). */
+  /** Koli dış ölçüleri — birim `olcuBirimi` alanında. */
   uzunluk?: number;
   genislik?: number;
   yukseklik?: number;
-  /** Brüt ağırlık (kg). */
+  /** Brüt ağırlık — birim `agirlikBirimi` alanında. */
   agirlik?: number;
+  /** Üç ölçünün ortak birimi (mm | cm | m). */
+  olcuBirimi?: OlcuBirimi;
+  /** Ağırlık birimi (kg | g). */
+  agirlikBirimi?: AgirlikBirimi;
   icerik: PaketIcerik[];
 };
+
+export const OLCU_BIRIMLERI = ["mm", "cm", "m"] as const;
+export const AGIRLIK_BIRIMLERI = ["kg", "g"] as const;
+export type OlcuBirimi = (typeof OLCU_BIRIMLERI)[number];
+export type AgirlikBirimi = (typeof AGIRLIK_BIRIMLERI)[number];
 
 // Stok hareketleri — model (ürün) veya malzeme için.
 export type StokHareketTuru = "Giriş" | "Çıkış" | "Transfer";

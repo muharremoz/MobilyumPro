@@ -1103,6 +1103,8 @@ export async function parcaKaydet(
               genislik: paket.genislik ?? null,
               yukseklik: paket.yukseklik ?? null,
               agirlik: paket.agirlik ?? null,
+              olcuBirimi: paket.olcuBirimi ?? "mm",
+              agirlikBirimi: paket.agirlikBirimi ?? "kg",
             },
           });
           const icerik = paket.icerik.map((i) => ({

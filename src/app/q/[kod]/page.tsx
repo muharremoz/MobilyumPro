@@ -167,9 +167,11 @@ export default async function AtolyeRoute({
                       k.genislik && k.uzunluk
                         ? `${mm(k.genislik)}×${mm(k.uzunluk)}${
                             k.yukseklik ? `×${mm(k.yukseklik)}` : ""
-                          }`
+                          } ${k.olcuBirimi ?? "mm"}`
                         : null,
-                      k.agirlik ? `${k.agirlik} kg` : null,
+                      k.agirlik
+                        ? `${k.agirlik} ${k.agirlikBirimi ?? "kg"}`
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

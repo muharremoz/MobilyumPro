@@ -63,11 +63,17 @@ model ParcaPaket {
   /// Opsiyonel ad ("Gövde Kolisi"); boşsa "Paket {sira}" gösterilir.
   ad      String?
 
-  // Koli dış ölçüleri (mm) ve brüt ağırlık (kg) — sevkiyat/nakliye hesabı için.
+  // Koli dış ölçüleri ve brüt ağırlık — sevkiyat/nakliye hesabı için.
+  // Değerler GİRİLDİĞİ gibi saklanır; hangi birimde girildiği ayrı tutulur.
+  // Normalize edip saklasaydık kullanıcı 60 cm yazıp 600 mm görürdü.
   uzunluk   Decimal? @db.Decimal(10, 2)
   genislik  Decimal? @db.Decimal(10, 2)
   yukseklik Decimal? @db.Decimal(10, 2)
   agirlik   Decimal? @db.Decimal(10, 3)
+  /// Üç ölçünün ortak birimi: mm | cm | m
+  olcuBirimi   String @default("mm") @map("olcu_birimi")
+  /// Ağırlık birimi: kg | g
+  agirlikBirimi String @default("kg") @map("agirlik_birimi")
 
   parca  Parca              @relation(fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   icerik ParcaPaketIcerik[]

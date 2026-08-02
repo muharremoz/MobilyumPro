@@ -21,7 +21,15 @@ import {
 } from "@/components/ui/input-group";
 import { SearchSelect } from "@/components/ui/search-select";
 import { cn } from "@/lib/utils";
-import type { PaketIcerik, ParcaPaket, ReceteSatiri } from "@/lib/data";
+import {
+  AGIRLIK_BIRIMLERI,
+  OLCU_BIRIMLERI,
+  type AgirlikBirimi,
+  type OlcuBirimi,
+  type PaketIcerik,
+  type ParcaPaket,
+  type ReceteSatiri,
+} from "@/lib/data";
 
 /**
  * Parça formundaki "Paketleme" sekmesi — koli dökümü.
@@ -342,6 +350,8 @@ export function PaketlemeTab({
             const secili = i === seciliPaket;
             const hedef = i === hedefPaket;
             const kapali = kapaliPaketler.has(i);
+            const olcuB = paket.olcuBirimi ?? "mm";
+            const agirlikB = paket.agirlikBirimi ?? "kg";
             return (
               <div
                 key={i}
@@ -420,9 +430,11 @@ export function PaketlemeTab({
                             paket.yukseklik
                               ? `×${sayiBicim(paket.yukseklik)}`
                               : ""
-                          } mm`
+                          } ${olcuB}`
                         : null,
-                      paket.agirlik ? `${sayiBicim(paket.agirlik)} kg` : null,
+                      paket.agirlik
+                        ? `${sayiBicim(paket.agirlik)} ${agirlikB}`
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}
@@ -439,29 +451,51 @@ export function PaketlemeTab({
                   </Button>
                 </div>
 
-                {/* Koli ölçüleri — başlığın hemen altında, ayrı şerit */}
+                {/* Koli ölçüleri — başlığın hemen altında, ayrı şerit.
+                    Birim paket başına tek: üç ölçü aynı birimi paylaşır,
+                    yoksa eni cm boyu mm olan koli çıkar. */}
                 {!kapali && (
                   <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
                     <OlcuAlani
                       etiket="En"
+                      birim={olcuB}
                       deger={paket.genislik}
                       onDeger={(v) => paketGuncelle(i, { genislik: v })}
                     />
                     <OlcuAlani
                       etiket="Boy"
+                      birim={olcuB}
                       deger={paket.uzunluk}
                       onDeger={(v) => paketGuncelle(i, { uzunluk: v })}
                     />
                     <OlcuAlani
                       etiket="Yükseklik"
+                      birim={olcuB}
                       deger={paket.yukseklik}
                       onDeger={(v) => paketGuncelle(i, { yukseklik: v })}
                     />
+                    <BirimSecici
+                      secenekler={OLCU_BIRIMLERI}
+                      deger={olcuB}
+                      onDeger={(v) =>
+                        paketGuncelle(i, { olcuBirimi: v as OlcuBirimi })
+                      }
+                    />
+                    <span className="mx-1 h-4 w-px bg-border" />
                     <OlcuAlani
                       etiket="Ağırlık"
-                      birim="kg"
+                      birim={agirlikB}
                       deger={paket.agirlik}
                       onDeger={(v) => paketGuncelle(i, { agirlik: v })}
+                    />
+                    <BirimSecici
+                      secenekler={AGIRLIK_BIRIMLERI}
+                      deger={agirlikB}
+                      onDeger={(v) =>
+                        paketGuncelle(i, {
+                          agirlikBirimi: v as AgirlikBirimi,
+                        })
+                      }
                     />
                   </div>
                 )}
@@ -621,6 +655,37 @@ function TurRozeti({ tip }: { tip: PaketIcerik["tip"] | string }) {
       <Ikon className="size-2.5" />
       {etiket}
     </span>
+  );
+}
+
+/** Birim seçici — paket başına tek birim (mm/cm/m, kg/g). */
+function BirimSecici({
+  secenekler,
+  deger,
+  onDeger,
+}: {
+  secenekler: readonly string[];
+  deger: string;
+  onDeger: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border p-0.5">
+      {secenekler.map((b) => (
+        <button
+          key={b}
+          type="button"
+          onClick={() => onDeger(b)}
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+            deger === b
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted",
+          )}
+        >
+          {b}
+        </button>
+      ))}
+    </div>
   );
 }
 
