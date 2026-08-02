@@ -111,7 +111,9 @@ export function SearchSelect({
         className={cn("min-w-(--anchor-width)", listeClassName)}
       >
         {sekmeler && (
-          <div className="flex gap-1 border-b p-1">
+          // Az sekmede eşit bölünür; çok sekmede (grup listeleri) sarar,
+          // yoksa 10 sekme flex-1 ile okunmaz genişliğe iner.
+          <div className="flex flex-wrap gap-1 border-b p-1">
             {sekmeler.map((sek) => (
               <button
                 key={sek.key}
@@ -119,7 +121,8 @@ export function SearchSelect({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setAktifSekme(sek.key)}
                 className={cn(
-                  "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  sekmeler.length <= 4 ? "flex-1" : "shrink-0",
                   aktifSekme === sek.key
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-black/5",

@@ -290,6 +290,40 @@ export function ParcaForm({
   );
 
   /**
+   * Reçete seçiminde malzemeler GRUBA göre sekmelenir. Etiket "Grup · Ad"
+   * biçiminde; SearchSelect gösterirken öneki atar, değer korunur.
+   *
+   * "Tümü" sekmesi ilk sırada: sekmeli modda arama yalnız AKTİF sekmede
+   * çalışıyor, tek başına grup sekmeleri bırakılsa kullanıcı malzemenin
+   * hangi grupta olduğunu bilmeden arayamazdı.
+   */
+  const malzemeEtiketi = React.useCallback(
+    (m: Malzeme) => `${m.grup?.trim() || "Grupsuz"} · ${m.ad}`,
+    [],
+  );
+  const malzemeSekmeleri = React.useMemo(() => {
+    const gruplu = new Map<string, string[]>();
+    for (const m of tumMalzemeler) {
+      const g = m.grup?.trim() || "Grupsuz";
+      const arr = gruplu.get(g) ?? [];
+      arr.push(malzemeEtiketi(m));
+      gruplu.set(g, arr);
+    }
+    const tumu = tumMalzemeler.map(malzemeEtiketi);
+    return [
+      { key: "tumu", label: "Tümü", items: tumu },
+      ...[...gruplu.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], "tr"))
+        .map(([g, items]) => ({ key: g, label: g, items })),
+    ];
+  }, [tumMalzemeler, malzemeEtiketi]);
+  /** Etiket → malzeme id (aynı ad farklı gruplarda olabilir). */
+  const etiketToId = React.useMemo(
+    () => new Map(tumMalzemeler.map((m) => [malzemeEtiketi(m), m.id])),
+    [tumMalzemeler, malzemeEtiketi],
+  );
+
+  /**
    * Yeni malzemeyi kaydeder ve açıldığı reçete satırına yerleştirir.
    * Kart hemen DB'ye yazılır: reçete satırı bir id'ye bağlanmak zorunda,
    * "taslak malzeme" tutmak kaydedilmemiş referans demek olurdu.
@@ -1618,9 +1652,15 @@ export function ParcaForm({
                             )}
                             <div className="min-w-0 flex-1">
                               <SearchSelect
+                                // Malzemede gruplu sekme; parçada düz liste.
+                                sekmeler={
+                                  s.bilesen.tip === "malzeme"
+                                    ? malzemeSekmeleri
+                                    : undefined
+                                }
                                 items={
                                   s.bilesen.tip === "malzeme"
-                                    ? tumMalzemeler.map((m) => m.ad)
+                                    ? undefined
                                     : parcalar
                                         .filter((p) => p.id !== recete?.id)
                                         .map((p) => p.ad)
@@ -1644,16 +1684,20 @@ export function ParcaForm({
                                     : undefined
                                 }
                                 value={
-                                  s.bilesen.ref
-                                    ? bilesenAd(s.bilesen.tip, s.bilesen.ref)
-                                    : null
+                                  !s.bilesen.ref
+                                    ? null
+                                    : s.bilesen.tip === "malzeme"
+                                      ? (tumMalzemeler
+                                          .filter(
+                                            (m) => m.id === s.bilesen.ref,
+                                          )
+                                          .map(malzemeEtiketi)[0] ?? null)
+                                      : bilesenAd(s.bilesen.tip, s.bilesen.ref)
                                 }
                                 onValueChange={(adSecim) => {
                                   const ref =
                                     s.bilesen.tip === "malzeme"
-                                      ? tumMalzemeler.find(
-                                          (m) => m.ad === adSecim,
-                                        )?.id
+                                      ? etiketToId.get(adSecim ?? "")
                                       : parcalar.find((p) => p.ad === adSecim)
                                           ?.id;
                                   satirGuncelle(i, {
