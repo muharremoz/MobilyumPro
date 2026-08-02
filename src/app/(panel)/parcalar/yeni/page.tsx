@@ -8,6 +8,8 @@ import {
   getModeller,
   getParcalar,
   getPosetler,
+  getGruplar,
+  getTanimlar,
 } from "@/lib/db/queries";
 
 export default async function YeniParcaRoute() {
@@ -19,6 +21,8 @@ export default async function YeniParcaRoute() {
     makineler,
     alisOzetleri,
     posetler,
+    gruplar,
+    tanimlar,
   ] = await Promise.all([
       getParcalar(),
       getMalzemeler(),
@@ -27,12 +31,16 @@ export default async function YeniParcaRoute() {
       getMakineler(),
       getMalzemeAlisOzetleri(),
       getPosetler(),
+      getGruplar(),
+      getTanimlar(),
     ]);
   const varsayilanFire = await parametreSayi("varsayilan_fire", 0);
   return (
     <ParcaForm
       varsayilanFire={varsayilanFire}
       posetler={posetler}
+      stokGruplari={gruplar}
+      birimler={tanimlar.birim.map((t) => t.ad)}
       recete={null}
       parcalar={parcalar}
       malzemeler={malzemeler}

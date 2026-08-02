@@ -42,6 +42,8 @@ import { TabIcerik } from "@/components/ui/tab-icerik";
 import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
+import { GrupSecici } from "@/components/ui/grup-secici";
+import { BoxesIcon } from "@/components/ui/icons/boxes";
 import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
 import {
@@ -61,11 +63,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  formatTL,
   formatTarih,
   type Makine,
   type Malzeme,
   type MalzemeAlisOzeti,
+  type StokGrup,
   type Model,
   type Parca,
   type ParcaIslem,
@@ -83,6 +85,7 @@ import {
   parcaDokumanKaydet,
   parcaDokumanSil,
   receteGeriYukle,
+  stokKaydet,
 } from "@/lib/db/actions";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import {
@@ -204,12 +207,17 @@ export function ParcaForm({
   dokumanlar = [],
   alisOzetleri = [],
   posetler = [],
+  stokGruplari = [],
+  birimler = [],
   // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
   // için parametreyi kendisi okuyamaz.
   varsayilanFire = 0,
 }: {
   /** Paket içeriğine eklenebilecek malzeme poşetleri. */
   posetler?: { id: string; ad: string }[];
+  /** Reçetede "yeni malzeme" için grup ağacı ve birim listesi. */
+  stokGruplari?: StokGrup[];
+  birimler?: string[];
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
   parcalar: Parca[];
@@ -262,6 +270,63 @@ export function ParcaForm({
   );
   const [yeniKatAcik, setYeniKatAcik] = React.useState(false);
   const [yeniKat, setYeniKat] = React.useState("");
+  // Reçete satırından hızlı malzeme açma.
+  const [yeniMlzAcik, setYeniMlzAcik] = React.useState(false);
+  const [yeniMlzSatir, setYeniMlzSatir] = React.useState<number | null>(null);
+  const [yeniMlz, setYeniMlz] = React.useState({
+    ad: "",
+    grup: "",
+    birim: "adet",
+  });
+  const [yeniMlzKaydediliyor, setYeniMlzKaydediliyor] = React.useState(false);
+  const [yerelMalzemeler, setYerelMalzemeler] = React.useState<Malzeme[]>([]);
+  /**
+   * Sunucudan gelen liste + bu formda açılan yeni malzemeler.
+   * Sayfa yenilenmeden eklenen kart hemen seçilebilir olmalı.
+   */
+  const tumMalzemeler = React.useMemo(
+    () => [...malzemeler, ...yerelMalzemeler],
+    [malzemeler, yerelMalzemeler],
+  );
+
+  /**
+   * Yeni malzemeyi kaydeder ve açıldığı reçete satırına yerleştirir.
+   * Kart hemen DB'ye yazılır: reçete satırı bir id'ye bağlanmak zorunda,
+   * "taslak malzeme" tutmak kaydedilmemiş referans demek olurdu.
+   */
+  async function yeniMalzemeEkle() {
+    const ad = yeniMlz.ad.trim();
+    if (!ad || yeniMlzKaydediliyor) return;
+    setYeniMlzKaydediliyor(true);
+    const res = await stokKaydet(
+      {
+        id: "",
+        ad,
+        grup: "Hammadde",
+        altGrup: yeniMlz.grup || undefined,
+        stokBirimi: yeniMlz.birim || "adet",
+      } as Parameters<typeof stokKaydet>[0],
+      true,
+    );
+    setYeniMlzKaydediliyor(false);
+    if (!res.ok || !res.id) {
+      toast.error(res.error ?? "Malzeme eklenemedi");
+      return;
+    }
+    const kayit = {
+      id: res.id,
+      ad,
+      birim: yeniMlz.birim || "adet",
+    } as Malzeme;
+    setYerelMalzemeler((l) => [...l, kayit]);
+    if (yeniMlzSatir !== null)
+      satirGuncelle(yeniMlzSatir, {
+        bilesen: { tip: "malzeme", ref: res.id },
+      });
+    setYeniMlzAcik(false);
+    toast.success(`${ad} eklendi (${res.id})`);
+  }
+
   function kategoriEkle() {
     const v = yeniKat.trim();
     if (!v) return;
@@ -1555,10 +1620,28 @@ export function ParcaForm({
                               <SearchSelect
                                 items={
                                   s.bilesen.tip === "malzeme"
-                                    ? malzemeler.map((m) => m.ad)
+                                    ? tumMalzemeler.map((m) => m.ad)
                                     : parcalar
                                         .filter((p) => p.id !== recete?.id)
                                         .map((p) => p.ad)
+                                }
+                                addLabel={
+                                  s.bilesen.tip === "malzeme"
+                                    ? "Yeni malzeme ekle"
+                                    : undefined
+                                }
+                                onAdd={
+                                  s.bilesen.tip === "malzeme"
+                                    ? () => {
+                                        setYeniMlzSatir(i);
+                                        setYeniMlz({
+                                          ad: "",
+                                          grup: "",
+                                          birim: birimler[0] ?? "adet",
+                                        });
+                                        setYeniMlzAcik(true);
+                                      }
+                                    : undefined
                                 }
                                 value={
                                   s.bilesen.ref
@@ -1568,8 +1651,9 @@ export function ParcaForm({
                                 onValueChange={(adSecim) => {
                                   const ref =
                                     s.bilesen.tip === "malzeme"
-                                      ? malzemeler.find((m) => m.ad === adSecim)
-                                          ?.id
+                                      ? tumMalzemeler.find(
+                                          (m) => m.ad === adSecim,
+                                        )?.id
                                       : parcalar.find((p) => p.ad === adSecim)
                                           ?.id;
                                   satirGuncelle(i, {
@@ -2056,6 +2140,66 @@ export function ParcaForm({
             </Button>
             <Button size="sm" onClick={geriYukle}>
               <RotateCcw className="size-3.5" /> Geri Yükle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Yeni malzeme — reçete satırından hızlı açma */}
+      <Dialog open={yeniMlzAcik} onOpenChange={setYeniMlzAcik}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Yeni Malzeme</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <AnimatedField label="Malzeme Adı" icon={BoxesIcon}>
+              <Input
+                autoFocus
+                placeholder="Örn. 18 MM SUNTALAM BEYAZ"
+                value={yeniMlz.ad}
+                onChange={(e) =>
+                  setYeniMlz((y) => ({ ...y, ad: e.target.value }))
+                }
+              />
+            </AnimatedField>
+            <div className="grid grid-cols-2 gap-3">
+              <AnimatedField label="Grup" icon={FolderOpenIcon}>
+                <GrupSecici
+                  gruplar={stokGruplari}
+                  value={yeniMlz.grup || null}
+                  onValueChange={(v) =>
+                    setYeniMlz((y) => ({ ...y, grup: v ?? "" }))
+                  }
+                  placeholder="Grup seç"
+                />
+              </AnimatedField>
+              <AnimatedField label="Birim" icon={ScanTextIcon}>
+                <SearchSelect
+                  items={birimler}
+                  value={yeniMlz.birim || null}
+                  onValueChange={(v) =>
+                    setYeniMlz((y) => ({ ...y, birim: v ?? "adet" }))
+                  }
+                  placeholder="Birim"
+                />
+              </AnimatedField>
+            </div>
+            {/* Kod grubun kısa kodundan üretilir; kullanıcıya söylüyoruz ki
+                "kod nerede" diye aramasın. */}
+            <p className="text-xs text-muted-foreground">
+              Kod, seçilen grubun koduna göre otomatik verilir. Diğer
+              bilgileri sonra malzeme kartından tamamlayabilirsiniz.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniMlzAcik(false)}>
+              İptal
+            </Button>
+            <Button
+              onClick={yeniMalzemeEkle}
+              disabled={!yeniMlz.ad.trim() || yeniMlzKaydediliyor}
+            >
+              {yeniMlzKaydediliyor ? "Ekleniyor..." : "Ekle ve seç"}
             </Button>
           </DialogFooter>
         </DialogContent>

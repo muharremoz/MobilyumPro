@@ -3158,12 +3158,24 @@ export async function talepSil(
 
 // ── Stok kartı ──────────────────────────────────────────────────────────
 
-/** Sıradaki stok kodu (STK-####, 1000''den başlar). */
-/** Yeni malzeme/stok için sıradaki kod (STK-####) + otomatik EAN-13 barkod. */
-export async function sonrakiStokKodu(): Promise<{
+/**
+ * Yeni stok kartı için sıradaki kod + otomatik EAN-13 barkod.
+ *
+ * Kod, kartın GRUBUNUN kısa kodundan üretilir (AKSESUAR → AKS-000001).
+ * Grup seçilmemişse ya da grubun kodu yoksa eski STK-#### önekine düşülür;
+ * kodsuz bir grup yüzünden kayıt engellemek doğru olmaz.
+ *
+ * MEVCUT KODLARA DOKUNULMAZ: yalnız yeni kartlar grup kodu alır. Stok
+ * kodu `stok_hareket.ref_id` gibi FK'sız bağlarda kullanılıyor; geriye
+ * dönük yeniden kodlama o bağları sessizce koparırdı.
+ */
+export async function sonrakiStokKodu(altGrup?: string): Promise<{
   kod: string;
   barkod: string;
 }> {
+  const grupKod = altGrup ? await grupKodunuBul(altGrup) : "";
+  if (grupKod) return grupSonrakiKod(grupKod);
+
   const rows = await db.stok.findMany({ select: { id: true } });
   let max = 1000;
   for (const r of rows) {
@@ -3172,6 +3184,22 @@ export async function sonrakiStokKodu(): Promise<{
   }
   const kod = `STK-${max + 1}`;
   return { kod, barkod: kodBarkod(kod) };
+}
+
+/** Grup ADINDAN kısa kodu bulur (stok kartı grubu adla saklanıyor). */
+async function grupKodunuBul(grupAdi: string): Promise<string> {
+  const g = await db.grup.findFirst({
+    where: { ad: grupAdi },
+    select: { kod: true },
+  });
+  return g?.kod?.trim() ?? "";
+}
+
+/** Yeni malzeme kodu önizlemesi — seçilen gruba göre (istemci çağırır). */
+export async function stokKodOnizle(
+  altGrup: string,
+): Promise<{ kod: string; barkod: string }> {
+  return sonrakiStokKodu(altGrup);
 }
 
 /**
@@ -3216,7 +3244,7 @@ export async function stokKaydet(
   yeni = false,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
-    const id = yeni ? (await sonrakiStokKodu()).kod : s.id;
+    const id = yeni ? (await sonrakiStokKodu(s.altGrup)).kod : s.id;
     // Yeni kartta barkod koddan otomatik üretilir; düzenlemede korunur.
     const barkod = yeni ? kodBarkod(id) : (s.barkod ?? null);
     const veri = {

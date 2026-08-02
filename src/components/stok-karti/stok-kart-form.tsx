@@ -80,6 +80,7 @@ import { modelMalzemeIhtiyaci } from "@/lib/bom";
 import { ISTASYON_MAP } from "@/lib/fabrika";
 import {
   stokKaydet,
+  stokKodOnizle,
   stokUreticiKaydet,
   stokUreticiSil,
   stokMusteriKaydet,
@@ -539,6 +540,23 @@ export function StokKartForm({
     : { ...bos, id: sonrakiKod, barkod: sonrakiBarkod };
   const [form, setForm] = React.useState<Form>(baslangic);
   const [tab, setTab] = React.useState<Tab>("genel");
+
+  // Kod artık GRUBA bağlı (AKSESUAR → AKS-000001). Sunucudan gelen tek
+  // seferlik önizleme grup değişince yanlış kalırdı; yeni kartta grup
+  // seçildikçe tazeleniyor.
+  const yeniKart = !kart;
+  const seciliGrup = form.altGrup;
+  React.useEffect(() => {
+    if (!yeniKart) return;
+    let iptal = false;
+    stokKodOnizle(seciliGrup).then((r) => {
+      if (!iptal && r.kod)
+        setForm((f) => ({ ...f, id: r.kod, barkod: r.barkod }));
+    });
+    return () => {
+      iptal = true;
+    };
+  }, [yeniKart, seciliGrup]);
   const durumRef = React.useRef<AnimatedIconHandle>(null);
 
   const set = (k: keyof Form) => (v: string) =>
