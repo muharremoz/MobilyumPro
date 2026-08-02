@@ -146,6 +146,7 @@ export async function getParcalar(): Promise<Parca[]> {
       miktar: Number(r.miktar),
       fire: Number(r.fire) || undefined,
       istasyon: r.istasyon ?? undefined,
+      grup: r.grup ?? undefined,
     };
     const arr = receteByParca.get(r.parcaId) ?? [];
     arr.push(satir);

@@ -71,6 +71,8 @@ export type ReceteSatiri = {
   fire?: number;
   /** Malzemenin tüketildiği fabrika istasyonu (slug); boşsa ilk istasyon. */
   istasyon?: string;
+  /** Reçete grubu ("Gövde", "Kapak"...); boş = gruplanmamış. */
+  grup?: string;
 };
 export type ParcaSatiri = { parcaId: string; miktar: number };
 

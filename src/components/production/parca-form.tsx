@@ -43,6 +43,12 @@ import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
 import { GrupSecici } from "@/components/ui/grup-secici";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BoxesIcon } from "@/components/ui/icons/boxes";
 import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -601,6 +607,42 @@ export function ParcaForm({
     );
 
   /** Filtre + sıralama uygulanmış görünüm; i = satirlar'daki gerçek indeks. */
+  /**
+   * Reçete grupları: satırların bölümlere ayrılması ("Gövde", "Kapak").
+   * Grup adı satırın kendi alanında tutuluyor — ayrı tablo yerine metin,
+   * çünkü grup yalnız bu reçeteye ait, başka yerde kullanılmıyor.
+   *
+   * Boş bir grup da yaşamalı (kullanıcı grubu açıp içini sonra doldurur),
+   * o yüzden satırlardan türetmiyoruz; ayrı bir listede de tutuyoruz.
+   */
+  const [ekGruplar, setEkGruplar] = React.useState<string[]>([]);
+  const [yeniGrupAcik, setYeniGrupAcik] = React.useState(false);
+  const [yeniGrupAd, setYeniGrupAd] = React.useState("");
+
+  const grupSirasi = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const s of satirlar) if (s.grup?.trim()) set.add(s.grup.trim());
+    for (const g of ekGruplar) set.add(g);
+    return [...set];
+  }, [satirlar, ekGruplar]);
+
+  function grupEkle() {
+    const ad = yeniGrupAd.trim();
+    if (!ad) return;
+    if (!grupSirasi.includes(ad)) setEkGruplar((g) => [...g, ad]);
+    setYeniGrupAcik(false);
+    setYeniGrupAd("");
+  }
+
+  function grupSil(ad: string) {
+    // Satırlar silinmez, yalnız gruptan çıkar: kullanıcı grubu kaldırırken
+    // içindeki bileşenleri kaybetmeyi beklemez.
+    setSatirlar((l) =>
+      l.map((x) => (x.grup?.trim() === ad ? { ...x, grup: undefined } : x)),
+    );
+    setEkGruplar((g) => g.filter((x) => x !== ad));
+  }
+
   const gorunum = React.useMemo(() => {
     const arada = (n: number, min: string, max: string) =>
       (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
@@ -640,7 +682,17 @@ export function ParcaForm({
       const fireOk = arada(r.s.fire ?? 0, fireAralik.min, fireAralik.max);
       return grupOk && adOk && istOk && mikOk && fireOk;
     });
-    if (!satirSort) return suzgec;
+    // Kullanıcı bir kolona göre sıralamadıysa satırlar GRUBA göre öbeklenir;
+    // grup başlıkları ancak bitişik satırlarda anlamlı olur.
+    if (!satirSort) {
+      const sira = (r: (typeof rows)[number]) => {
+        const g = r.s.grup?.trim() ?? "";
+        const idx = grupSirasi.indexOf(g);
+        // Gruplanmamışlar en sona.
+        return g === "" || idx < 0 ? grupSirasi.length : idx;
+      };
+      return [...suzgec].sort((a, b) => sira(a) - sira(b) || a.i - b.i);
+    }
     const yon = satirSort.dir === "asc" ? 1 : -1;
     const deger = (r: (typeof rows)[number]): string | number => {
       switch (satirSort.key) {
@@ -673,6 +725,7 @@ export function ParcaForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     satirlar,
+    grupSirasi,
     tipF,
     bilesenF,
     istasyonF,
@@ -724,12 +777,13 @@ export function ParcaForm({
     bandToplam > 0 ? ((deger - bandToplam) / bandToplam) * 100 : 0;
 
   // ── Eylemler ──────────────────────────────────────────────────────────
-  function satirEkle(tip: "malzeme" | "parca") {
+  function satirEkle(tip: "malzeme" | "parca", grup?: string) {
     setSatirlar((s) => [
       ...s,
       {
         bilesen: { tip, ref: "" },
         miktar: 1,
+        ...(grup ? { grup } : {}),
         // Fire yalnız MALZEME satırında anlamlı: parça satırının firesi kendi
         // reçetesinde zaten hesaplanıyor, burada da uygulamak çift sayardı.
         ...(tip === "malzeme" ? { fire: varsayilanFire } : {}),
@@ -1512,7 +1566,7 @@ export function ParcaForm({
             {/* Bileşen grid'i — tam genişlik (dar ekranda yatay kayar) */}
             <div className="overflow-x-auto rounded-md border bg-card">
               <div className="min-w-[1180px]">
-                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
+                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
                   <SiralaFiltreBaslik
                     asDiv
                     sira={sortu("tip")}
@@ -1602,18 +1656,55 @@ export function ParcaForm({
                     Diğer Ort.
                   </SiralaFiltreBaslik>
                   <span>Son Hareket</span>
+                  {/* Grup ataması + satır kaldırma kolonları (başlıksız). */}
+                  <span />
                   <span />
                 </div>
                 <div className="divide-y">
-                  {gorunum.map(({ s, i, malzeme, ozet, digerFirmalar, digerOrt }) => {
+                  {gorunum.map((r, sira) => {
+                    const { s, i, malzeme, ozet, digerFirmalar, digerOrt } = r;
                     const alt =
                       s.bilesen.tip === "parca"
                         ? parcaMap.get(s.bilesen.ref)
                         : undefined;
                     const acik = acikAltlar.has(i);
+                    // Grup başlığı: bu satırın grubu bir öncekinden farklıysa.
+                    const grupAdi = s.grup?.trim() || "";
+                    const oncekiGrup =
+                      sira === 0 ? null : (gorunum[sira - 1].s.grup?.trim() || "");
+                    const basligiGoster = !satirSort && grupAdi !== oncekiGrup;
                     return (
                       <React.Fragment key={i}>
-                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_36px] items-center gap-2 px-3 py-2">
+                        {basligiGoster && (
+                          <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
+                            <FolderOpenIcon className="size-3.5 shrink-0 text-primary" />
+                            <span className="text-xs font-semibold text-primary">
+                              {grupAdi || "Gruplanmamış"}
+                            </span>
+                            {grupAdi && (
+                              <div className="ml-auto flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-xs"
+                                  onClick={() => satirEkle("malzeme", grupAdi)}
+                                >
+                                  <Plus className="size-3" /> Malzeme
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => grupSil(grupAdi)}
+                                  aria-label={`${grupAdi} grubunu kaldır`}
+                                  className="size-6 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash className="size-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 px-3 py-2">
                           <Badge
                             variant="secondary"
                             className={cn(
@@ -1908,6 +1999,56 @@ export function ParcaForm({
                               —
                             </span>
                           )}
+                          {/* Grup ataması: grup oluşturmak tek başına yetmez,
+                              satırın hangi gruba gideceği seçilebilmeli. */}
+                          {grupSirasi.length > 0 && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Grubu değiştir"
+                                    title={
+                                      s.grup?.trim()
+                                        ? `Grup: ${s.grup.trim()}`
+                                        : "Gruba ata"
+                                    }
+                                  />
+                                }
+                              >
+                                <FolderOpenIcon
+                                  className={cn(
+                                    "size-3.5",
+                                    s.grup?.trim()
+                                      ? "text-primary"
+                                      : "text-muted-foreground",
+                                  )}
+                                />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {grupSirasi.map((g) => (
+                                  <DropdownMenuItem
+                                    key={g}
+                                    onClick={() =>
+                                      satirGuncelle(i, { grup: g })
+                                    }
+                                  >
+                                    {g}
+                                  </DropdownMenuItem>
+                                ))}
+                                {s.grup?.trim() && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      satirGuncelle(i, { grup: undefined })
+                                    }
+                                  >
+                                    Gruptan çıkar
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -1968,6 +2109,45 @@ export function ParcaForm({
                       </React.Fragment>
                     );
                   })}
+                  {/* Henüz satırı olmayan gruplar: kullanıcı grubu açıp içini
+                      sonra doldurabilmeli, yoksa grup kaybolmuş görünür. */}
+                  {!satirSort &&
+                    grupSirasi
+                      .filter(
+                        (g) => !satirlar.some((x) => (x.grup?.trim() || "") === g),
+                      )
+                      .map((g) => (
+                        <div key={`bos-${g}`}>
+                          <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
+                            <FolderOpenIcon className="size-3.5 shrink-0 text-primary" />
+                            <span className="text-xs font-semibold text-primary">
+                              {g}
+                            </span>
+                            <div className="ml-auto flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs"
+                                onClick={() => satirEkle("malzeme", g)}
+                              >
+                                <Plus className="size-3" /> Malzeme
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => grupSil(g)}
+                                aria-label={`${g} grubunu kaldır`}
+                                className="size-6 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash className="size-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="px-3 py-3 text-xs text-muted-foreground">
+                            Bu grup boş.
+                          </p>
+                        </div>
+                      ))}
                   {satirlar.length === 0 ? (
                     <p className="p-8 text-center text-sm text-muted-foreground">
                       Henüz bileşen yok — aşağıdan malzeme veya alt parça ekleyin.
@@ -1987,6 +2167,16 @@ export function ParcaForm({
                     onClick={() => satirEkle("malzeme")}
                   >
                     <Plus className="size-3.5" /> Malzeme
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setYeniGrupAd("");
+                      setYeniGrupAcik(true);
+                    }}
+                  >
+                    <FolderOpenIcon className="size-3.5" /> Reçete grubu oluştur
                   </Button>
                 </div>
               </div>
@@ -2184,6 +2374,39 @@ export function ParcaForm({
             </Button>
             <Button size="sm" onClick={geriYukle}>
               <RotateCcw className="size-3.5" /> Geri Yükle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Yeni reçete grubu */}
+      <Dialog open={yeniGrupAcik} onOpenChange={setYeniGrupAcik}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Reçete Grubu</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Örn. Gövde, Kapak, Aksesuar"
+            value={yeniGrupAd}
+            onChange={(e) => setYeniGrupAd(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                grupEkle();
+              }
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Reçete satırlarını bölümlere ayırır. Satırın grubunu satırdaki
+            klasör düğmesinden değiştirebilirsiniz.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniGrupAcik(false)}>
+              İptal
+            </Button>
+            <Button onClick={grupEkle} disabled={!yeniGrupAd.trim()}>
+              Oluştur
             </Button>
           </DialogFooter>
         </DialogContent>

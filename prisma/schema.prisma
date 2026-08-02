@@ -180,6 +180,10 @@ model ReceteSatiri {
   fire       Decimal @default(0) @db.Decimal(5, 2)
   // Bileşenin tüketildiği istasyon (fabrika rotası slug'ı; null → ilk istasyon)
   istasyon   String?
+  /// Reçete grubu adı ("Gövde", "Kapak", "Aksesuar"). Kullanıcının reçeteyi
+  /// bölümlere ayırması için; boş = gruplanmamış. Ayrı tablo yerine metin:
+  /// grup yalnız bu reçeteye ait, başka yerde kullanılmıyor.
+  grup       String?
 
   parca    Parca  @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   stok     Stok?  @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
