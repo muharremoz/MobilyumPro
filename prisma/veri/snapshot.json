@@ -535,7 +535,7 @@
     {
       "id": 4,
       "listeId": "pano-kisayol:USR-1001:Yönetim",
-      "kolonlarJson": "{\"kisayollar\":[\"uretimTakip\",\"talepler\",\"stokDurum\",\"cari\"]}"
+      "kolonlarJson": "{\"kisayollar\":[\"uretimPlan\",\"stokDurum\",\"talepler\",\"uretimTakip\",\"cari\"]}"
     },
     {
       "id": 5,
@@ -551,7 +551,7 @@
   "sayac": [
     {
       "ad": "SH",
-      "deger": 1000
+      "deger": 1001
     }
   ],
   "sistemParametre": [
@@ -789,6 +789,14 @@
       "kod": "PJ",
       "ustId": null,
       "sira": 4,
+      "durum": "Aktif"
+    },
+    {
+      "id": "cmsc1lzbo0001vflck11kv9ky",
+      "ad": "alt tabla",
+      "kod": "12",
+      "ustId": "cmrnyhwn3000pvf74zveifz1d",
+      "sira": 0,
       "durum": "Aktif"
     }
   ],
@@ -1660,13 +1668,13 @@
       "sehir": "Antalya",
       "semt": null,
       "adres": null,
-      "bakiye": "0",
+      "bakiye": "900",
       "paraBirimi": "TL",
       "durum": "Aktif",
       "not": null,
       "createDate": "2026-07-18T11:22:55.611Z",
       "createUserId": null,
-      "updateDate": "2026-07-20T09:20:06.097Z",
+      "updateDate": "2026-08-02T18:12:05.244Z",
       "updateUserId": null
     },
     {
@@ -1715,12 +1723,20 @@
   "cariCrm": [],
   "cariDokuman": [
     {
-      "id": 3,
+      "id": 4,
       "cariId": "1001",
-      "ad": "Fiyat Listesi",
+      "ad": "fiyat",
       "url": "https://www.solerpalau.com.tr/Fiyat_Listesi.pdf",
       "tip": "Fiyat Listesi",
       "gecerlilik": "2026-07-01T00:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "cariId": "1001",
+      "ad": "tesrt",
+      "url": "https://www.solerpalau.com.tr/Fiyat_Listesi.pdf",
+      "tip": "Fiyat Listesi",
+      "gecerlilik": "2026-08-03T00:00:00.000Z"
     }
   ],
   "kullaniciCariYetki": [],
@@ -2807,15 +2823,15 @@
       "etiketler": null,
       "favori": false,
       "durum": "Aktif",
-      "stokMiktar": "0",
+      "stokMiktar": "1",
       "varyantlarJson": null,
       "gorsel": null,
       "gorsellerJson": null,
       "createDate": "2026-07-16T20:16:50.626Z",
       "createUserId": null,
-      "updateDate": "2026-07-20T09:20:06.096Z",
+      "updateDate": "2026-08-02T18:12:05.220Z",
       "updateUserId": null,
-      "maliyetFiyati": "0",
+      "maliyetFiyati": "900",
       "maliyetBirimi": "TL",
       "satisFiyat1": "0",
       "satisBirim1": "TL",
@@ -16225,45 +16241,695 @@
       "satisBirim4": "TL",
       "satisFiyat5": "0",
       "satisBirim5": "TL"
+    },
+    {
+      "id": "URN-5406",
+      "kod": null,
+      "ad": "IKON YATAK ODASI",
+      "cins": null,
+      "grup": "Mamül",
+      "altGrup": null,
+      "detayGrup": null,
+      "kategori": "YATAK ODASI",
+      "marka": null,
+      "model": null,
+      "stokBirimi": "adet",
+      "alisBirimi": null,
+      "alisCarpani": null,
+      "alisFiyatBirimi": null,
+      "puan": null,
+      "yukseklik": null,
+      "genislik": null,
+      "boy": null,
+      "kalinlik": null,
+      "agirlik": null,
+      "minSiparis": null,
+      "minStok": null,
+      "maxStok": null,
+      "muhasebeKodu": null,
+      "receteParcaId": null,
+      "rota": "fabrika",
+      "ureticiCariId": null,
+      "ureticiKodu": null,
+      "bolum": null,
+      "renk": null,
+      "renkKodu": null,
+      "barkod": "8690000000012",
+      "aciklama": null,
+      "etiketler": null,
+      "favori": false,
+      "durum": "Aktif",
+      "stokMiktar": "0",
+      "varyantlarJson": null,
+      "gorsel": null,
+      "gorsellerJson": null,
+      "createDate": "2026-08-02T17:08:39.687Z",
+      "createUserId": null,
+      "updateDate": "2026-08-02T17:13:49.410Z",
+      "updateUserId": null,
+      "maliyetFiyati": "0",
+      "maliyetBirimi": "TL",
+      "satisFiyat1": "0",
+      "satisBirim1": "TL",
+      "satisFiyat2": "0",
+      "satisBirim2": "TL",
+      "satisFiyat3": "0",
+      "satisBirim3": "TL",
+      "satisFiyat4": "0",
+      "satisBirim4": "TL",
+      "satisFiyat5": "0",
+      "satisBirim5": "TL"
+    },
+    {
+      "id": "YTK-000001",
+      "kod": null,
+      "ad": "BIEN YATAK ODAIS",
+      "cins": null,
+      "grup": "Mamül",
+      "altGrup": null,
+      "detayGrup": null,
+      "kategori": "YATAK ODASI",
+      "marka": null,
+      "model": null,
+      "stokBirimi": "adet",
+      "alisBirimi": null,
+      "alisCarpani": null,
+      "alisFiyatBirimi": null,
+      "puan": null,
+      "yukseklik": null,
+      "genislik": null,
+      "boy": null,
+      "kalinlik": null,
+      "agirlik": null,
+      "minSiparis": null,
+      "minStok": null,
+      "maxStok": null,
+      "muhasebeKodu": null,
+      "receteParcaId": null,
+      "rota": "fabrika",
+      "ureticiCariId": null,
+      "ureticiKodu": null,
+      "bolum": null,
+      "renk": null,
+      "renkKodu": null,
+      "barkod": "8690000000012",
+      "aciklama": null,
+      "etiketler": null,
+      "favori": false,
+      "durum": "Aktif",
+      "stokMiktar": "0",
+      "varyantlarJson": null,
+      "gorsel": null,
+      "gorsellerJson": null,
+      "createDate": "2026-08-02T17:08:35.962Z",
+      "createUserId": null,
+      "updateDate": "2026-08-02T17:08:35.962Z",
+      "updateUserId": null,
+      "maliyetFiyati": "0",
+      "maliyetBirimi": "TL",
+      "satisFiyat1": "0",
+      "satisBirim1": "TL",
+      "satisFiyat2": "0",
+      "satisBirim2": "TL",
+      "satisFiyat3": "0",
+      "satisBirim3": "TL",
+      "satisFiyat4": "0",
+      "satisBirim4": "TL",
+      "satisFiyat5": "0",
+      "satisBirim5": "TL"
     }
   ],
   "stokDokuman": [],
   "stokUretici": [
     {
-      "id": 4,
+      "id": 5,
       "stokId": "STK-1001",
       "cariId": "1001",
       "cariAd": "Starwood",
       "ureticiKodu": null,
-      "fiyat": "10000",
+      "fiyat": "750",
       "doviz": "TL",
-      "minSiparis": "10",
-      "tedarikGun": 5,
-      "fiyatTarihi": "2026-06-01T00:00:00.000Z"
+      "minSiparis": null,
+      "tedarikGun": null,
+      "fiyatTarihi": "2026-08-04T00:00:00.000Z"
     }
   ],
   "stokMusteri": [],
-  "parca": [],
+  "parca": [
+    {
+      "id": "PRC-2001",
+      "ad": "BIEN DOLAP",
+      "kategori": "Dolap",
+      "aciklama": null,
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
+    },
+    {
+      "id": "PRC-9255",
+      "ad": "BIEN DOLAP2",
+      "kategori": "Dolap",
+      "aciklama": null,
+      "durum": "Aktif",
+      "kabaUzunluk": null,
+      "kabaGenislik": null,
+      "netUzunluk": null,
+      "netGenislik": null,
+      "bitmisUzunluk": null,
+      "bitmisGenislik": null,
+      "kalinlik": null
+    }
+  ],
   "parcaDokuman": [],
-  "parcaIslem": [],
-  "receteSatiri": [],
-  "receteVersiyon": [],
-  "modelParca": [],
+  "parcaIslem": [
+    {
+      "id": 4,
+      "parcaId": "PRC-2001",
+      "sira": 1,
+      "istasyon": "kesim",
+      "makineId": 1,
+      "operasyon": "",
+      "aciklama": null
+    },
+    {
+      "id": 6,
+      "parcaId": "PRC-9255",
+      "sira": 1,
+      "istasyon": "kesim",
+      "makineId": 1,
+      "operasyon": "",
+      "aciklama": null
+    }
+  ],
+  "receteSatiri": [
+    {
+      "id": 1090,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1002",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    },
+    {
+      "id": 1091,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1006",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    },
+    {
+      "id": 1092,
+      "parcaId": "PRC-2001",
+      "tip": "malzeme",
+      "malzemeId": "STK-1019",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    },
+    {
+      "id": 1096,
+      "parcaId": "PRC-9255",
+      "tip": "malzeme",
+      "malzemeId": "STK-1002",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    },
+    {
+      "id": 1097,
+      "parcaId": "PRC-9255",
+      "tip": "malzeme",
+      "malzemeId": "STK-1006",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    },
+    {
+      "id": 1098,
+      "parcaId": "PRC-9255",
+      "tip": "malzeme",
+      "malzemeId": "STK-1019",
+      "altParcaId": null,
+      "miktar": "1",
+      "fire": "3",
+      "istasyon": "kesim",
+      "grup": null
+    }
+  ],
+  "receteVersiyon": [
+    {
+      "id": 1013,
+      "parcaId": "PRC-2001",
+      "versiyonNo": 1,
+      "tarih": "2026-08-02T17:05:50.200Z",
+      "aciklama": null,
+      "satirlarJson": "[{\"tip\":\"malzeme\",\"ref\":\"STK-1002\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"},{\"tip\":\"malzeme\",\"ref\":\"STK-1006\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"},{\"tip\":\"malzeme\",\"ref\":\"STK-1019\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"}]"
+    },
+    {
+      "id": 1014,
+      "parcaId": "PRC-9255",
+      "versiyonNo": 1,
+      "tarih": "2026-08-02T17:06:00.835Z",
+      "aciklama": null,
+      "satirlarJson": "[{\"tip\":\"malzeme\",\"ref\":\"STK-1002\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"},{\"tip\":\"malzeme\",\"ref\":\"STK-1006\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"},{\"tip\":\"malzeme\",\"ref\":\"STK-1019\",\"miktar\":1,\"fire\":3,\"istasyon\":\"kesim\"}]"
+    }
+  ],
+  "modelParca": [
+    {
+      "id": 1026,
+      "modelId": "YTK-000001",
+      "parcaId": "PRC-2001",
+      "miktar": "1"
+    },
+    {
+      "id": 1027,
+      "modelId": "YTK-000001",
+      "parcaId": "PRC-9255",
+      "miktar": "1"
+    },
+    {
+      "id": 1030,
+      "modelId": "URN-5406",
+      "parcaId": "PRC-2001",
+      "miktar": "1"
+    },
+    {
+      "id": 1031,
+      "modelId": "URN-5406",
+      "parcaId": "PRC-9255",
+      "miktar": "1"
+    }
+  ],
   "poset": [],
   "posetMalzeme": [],
-  "parcaPaket": [],
-  "parcaPaketIcerik": [],
+  "parcaPaket": [
+    {
+      "id": 7,
+      "parcaId": "PRC-2001",
+      "sira": 1,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    },
+    {
+      "id": 8,
+      "parcaId": "PRC-2001",
+      "sira": 2,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    },
+    {
+      "id": 9,
+      "parcaId": "PRC-2001",
+      "sira": 3,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    },
+    {
+      "id": 13,
+      "parcaId": "PRC-9255",
+      "sira": 1,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    },
+    {
+      "id": 14,
+      "parcaId": "PRC-9255",
+      "sira": 2,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    },
+    {
+      "id": 15,
+      "parcaId": "PRC-9255",
+      "sira": 3,
+      "ad": null,
+      "uzunluk": null,
+      "genislik": null,
+      "yukseklik": null,
+      "agirlik": null,
+      "olcuBirimi": "mm",
+      "agirlikBirimi": "kg"
+    }
+  ],
+  "parcaPaketIcerik": [
+    {
+      "id": 9,
+      "paketId": 7,
+      "tip": "malzeme",
+      "malzemeId": "STK-1002",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    },
+    {
+      "id": 10,
+      "paketId": 8,
+      "tip": "malzeme",
+      "malzemeId": "STK-1006",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    },
+    {
+      "id": 11,
+      "paketId": 9,
+      "tip": "malzeme",
+      "malzemeId": "STK-1019",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    },
+    {
+      "id": 15,
+      "paketId": 13,
+      "tip": "malzeme",
+      "malzemeId": "STK-1002",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    },
+    {
+      "id": 16,
+      "paketId": 14,
+      "tip": "malzeme",
+      "malzemeId": "STK-1006",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    },
+    {
+      "id": 17,
+      "paketId": 15,
+      "tip": "malzeme",
+      "malzemeId": "STK-1019",
+      "altParcaId": null,
+      "posetId": null,
+      "miktar": "1"
+    }
+  ],
   "siparis": [],
-  "cariIslem": [],
-  "stokHareket": [],
+  "cariIslem": [
+    {
+      "id": "CI-3001",
+      "cariId": "1004",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tur": "Alacak",
+      "tutar": "900",
+      "belge": "1541651615",
+      "aciklama": "Satın alma ALS-1001 (1 kalem)"
+    }
+  ],
+  "stokHareket": [
+    {
+      "id": "SH-1001",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tur": "Giriş",
+      "refTip": "malzeme",
+      "refId": "STK-1019",
+      "miktar": "1",
+      "birim": "m²",
+      "depo": "DEP-01",
+      "aciklama": "Satın alma ALS-1001 — AGT",
+      "emirId": null,
+      "istasyon": null
+    }
+  ],
   "uretimEmri": [],
   "uretimEmriAdim": [],
-  "alis": [],
-  "alisSatiri": [],
-  "satinAlmaTalep": [],
-  "satinAlmaTalepSatiri": [],
-  "satinAlmaSiparis": [],
-  "satinAlmaTalepSiparis": [],
+  "alis": [
+    {
+      "id": "ALS-1001",
+      "cariId": "1004",
+      "cariAd": "AGT",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "depo": "DEP-01",
+      "belgeNo": "1541651615",
+      "aciklama": "Üretim planı malzeme ihtiyacı",
+      "toplam": "900"
+    }
+  ],
+  "alisSatiri": [
+    {
+      "id": 48,
+      "alisId": "ALS-1001",
+      "cariId": "1004",
+      "cariAd": "AGT",
+      "malzemeId": "STK-1019",
+      "malzemeAd": "08 MM SUNTALAM TAKSUS 1830*3660",
+      "miktar": "1",
+      "birim": "m²",
+      "birimFiyat": "900"
+    }
+  ],
+  "satinAlmaTalep": [
+    {
+      "id": "TAL-1001",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "kaynak": "Üretim Planı",
+      "modeller": "BIEN DOLAP × 1, BIEN DOLAP2 × 1",
+      "aciklama": "Üretim planı malzeme ihtiyacı",
+      "durum": "Tedarik Sürecinde",
+      "alisId": "ALS-1001",
+      "createDate": "2026-08-02T18:08:19.256Z",
+      "depo": "DEP-01",
+      "uretimMusteri": null,
+      "uretimTermin": "2026-08-15T00:00:00.000Z",
+      "uretimOncelik": "Normal",
+      "uretimEmirleri": null,
+      "olusturanAd": "Muharrem Öz",
+      "onaylayanAd": "Muharrem Öz",
+      "onayTarihi": "2026-08-02T00:00:00.000Z",
+      "redNedeni": null,
+      "baslatanAd": "Muharrem Öz",
+      "baslatmaTarihi": "2026-08-02T00:00:00.000Z"
+    }
+  ],
+  "satinAlmaTalepSatiri": [
+    {
+      "id": 68,
+      "talepId": "TAL-1001",
+      "malzemeId": "STK-1019",
+      "malzemeAd": "08 MM SUNTALAM TAKSUS 1830*3660",
+      "miktar": "0.5",
+      "birim": "m²",
+      "tedarikEdilen": "0",
+      "cariId": "1002",
+      "cariAd": "Kastamonu Entegre",
+      "tahminiFiyat": "600",
+      "satirDurum": "Sipariş Verildi"
+    },
+    {
+      "id": 69,
+      "talepId": "TAL-1001",
+      "malzemeId": "STK-1019",
+      "malzemeAd": "08 MM SUNTALAM TAKSUS 1830*3660",
+      "miktar": "1",
+      "birim": "m²",
+      "tedarikEdilen": "1",
+      "cariId": "1004",
+      "cariAd": "AGT",
+      "tahminiFiyat": "900",
+      "satirDurum": "Tedarik Edildi"
+    },
+    {
+      "id": 70,
+      "talepId": "TAL-1001",
+      "malzemeId": "STK-1019",
+      "malzemeAd": "08 MM SUNTALAM TAKSUS 1830*3660",
+      "miktar": "0.56",
+      "birim": "m²",
+      "tedarikEdilen": "0",
+      "cariId": "1005",
+      "cariAd": "Çamsan Entegre",
+      "tahminiFiyat": "450",
+      "satirDurum": "Sipariş Verildi"
+    },
+    {
+      "id": 71,
+      "talepId": "TAL-1001",
+      "malzemeId": "STK-1002",
+      "malzemeAd": "18 MM SUNTALAM ROTA GÖLGE 2100*2800",
+      "miktar": "2.06",
+      "birim": "m²",
+      "tedarikEdilen": "0",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "tahminiFiyat": null,
+      "satirDurum": "Sipariş Verildi"
+    },
+    {
+      "id": 72,
+      "talepId": "TAL-1001",
+      "malzemeId": "STK-1006",
+      "malzemeAd": "18 MM SUNTALAM STARWOOD ZEYBEK MERMER 2100*2800",
+      "miktar": "2.06",
+      "birim": "m²",
+      "tedarikEdilen": "0",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "tahminiFiyat": null,
+      "satirDurum": "Sipariş Verildi"
+    }
+  ],
+  "satinAlmaSiparis": [
+    {
+      "id": "SIP-1001",
+      "talepId": "TAL-1001",
+      "cariId": "1002",
+      "cariAd": "Kastamonu Entegre",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "depo": "DEP-01",
+      "notlar": null,
+      "durum": "Açık",
+      "mailTarihi": null,
+      "olusturanAd": "Muharrem Öz",
+      "createDate": "2026-08-02T18:09:43.908Z"
+    },
+    {
+      "id": "SIP-1002",
+      "talepId": "TAL-1001",
+      "cariId": "1004",
+      "cariAd": "AGT",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "depo": "DEP-01",
+      "notlar": null,
+      "durum": "Açık",
+      "mailTarihi": null,
+      "olusturanAd": "Muharrem Öz",
+      "createDate": "2026-08-02T18:10:36.482Z"
+    },
+    {
+      "id": "SIP-1003",
+      "talepId": "TAL-1001",
+      "cariId": "1005",
+      "cariAd": "Çamsan Entegre",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "depo": "DEP-01",
+      "notlar": null,
+      "durum": "Açık",
+      "mailTarihi": null,
+      "olusturanAd": "Muharrem Öz",
+      "createDate": "2026-08-02T18:10:40.728Z"
+    },
+    {
+      "id": "SIP-1004",
+      "talepId": "TAL-1001",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "depo": "DEP-01",
+      "notlar": null,
+      "durum": "Açık",
+      "mailTarihi": null,
+      "olusturanAd": "Muharrem Öz",
+      "createDate": "2026-08-02T18:10:46.377Z"
+    }
+  ],
+  "satinAlmaTalepSiparis": [
+    {
+      "id": 19,
+      "satirId": 68,
+      "siparisId": "SIP-1001",
+      "cariId": "1002",
+      "cariAd": "Kastamonu Entegre",
+      "miktar": "0.5",
+      "fiyat": "600",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tedarikEdilen": "0",
+      "alisIds": null
+    },
+    {
+      "id": 20,
+      "satirId": 69,
+      "siparisId": "SIP-1002",
+      "cariId": "1004",
+      "cariAd": "AGT",
+      "miktar": "1",
+      "fiyat": "900",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tedarikEdilen": "1",
+      "alisIds": "ALS-1001"
+    },
+    {
+      "id": 21,
+      "satirId": 70,
+      "siparisId": "SIP-1003",
+      "cariId": "1005",
+      "cariAd": "Çamsan Entegre",
+      "miktar": "0.56",
+      "fiyat": "450",
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tedarikEdilen": "0",
+      "alisIds": null
+    },
+    {
+      "id": 22,
+      "satirId": 71,
+      "siparisId": "SIP-1004",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "miktar": "2.06",
+      "fiyat": null,
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tedarikEdilen": "0",
+      "alisIds": null
+    },
+    {
+      "id": 23,
+      "satirId": 72,
+      "siparisId": "SIP-1004",
+      "cariId": "1001",
+      "cariAd": "Starwood",
+      "miktar": "2.06",
+      "fiyat": null,
+      "tarih": "2026-08-02T00:00:00.000Z",
+      "tedarikEdilen": "0",
+      "alisIds": null
+    }
+  ],
   "sayim": [],
   "sayimSatiri": []
 }
