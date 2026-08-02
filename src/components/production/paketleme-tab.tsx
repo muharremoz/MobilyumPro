@@ -91,6 +91,15 @@ export function PaketlemeTab({
   /** Hazır malzeme poşetleri (reçetenin dışında). */
   posetler: AdKaydi[];
 }) {
+  /**
+   * Pakete doğrudan eklenebilecek malzemeler — reçetede olmayanlar dahil
+   * (ambalaj: koli, streç, köpük). Reçete bileşenleri sol panelden gelir;
+   * bu liste yalnız satır içi seçim için.
+   */
+  const tumMalzemeler = React.useMemo<AdKaydi[]>(
+    () => [...malzemeAdlari.values()],
+    [malzemeAdlari],
+  );
   const [suruklenen, setSuruklenen] = React.useState<Suruklenen | null>(null);
   const [hedefPaket, setHedefPaket] = React.useState<number | null>(null);
   /** Tıklamayla ekleme bu pakete gider. */
@@ -625,10 +634,18 @@ export function PaketlemeTab({
                         onMiktar={(m) =>
                           icerikGuncelle(i, j, { ...satir, miktar: m })
                         }
+                        tumMalzemeler={tumMalzemeler}
                         onPosetSec={(id) =>
                           icerikGuncelle(i, j, {
                             tip: "poset",
                             posetId: id,
+                            miktar: satir.miktar,
+                          })
+                        }
+                        onMalzemeSec={(id) =>
+                          icerikGuncelle(i, j, {
+                            tip: "malzeme",
+                            malzemeId: id,
                             miktar: satir.miktar,
                           })
                         }
@@ -656,6 +673,22 @@ export function PaketlemeTab({
                     className="h-7"
                   >
                     <Package className="size-3.5" /> Malzeme Poşeti
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      paketGuncelle(i, {
+                        icerik: [
+                          ...paket.icerik,
+                          { tip: "malzeme", malzemeId: "", miktar: 1 },
+                        ],
+                      })
+                    }
+                    className="ml-1.5 h-7"
+                  >
+                    <Layers className="size-3.5" /> Malzeme
                   </Button>
                 </div>
                 )}
@@ -686,22 +719,29 @@ function IcerikSatiri({
   satir,
   kaynak,
   posetler,
+  tumMalzemeler,
   onMiktar,
   onPosetSec,
+  onMalzemeSec,
   onSil,
 }: {
   satir: PaketIcerik;
   kaynak: { tip: string; id: string; ad: string; birim?: string }[];
   posetler: AdKaydi[];
+  /** Ambalaj vb. için reçete dışı malzeme seçimi. */
+  tumMalzemeler: AdKaydi[];
   onMiktar: (m: number) => void;
   onPosetSec: (id: string) => void;
+  onMalzemeSec: (id: string) => void;
   onSil: () => void;
 }) {
   const ref = icerikRef(satir);
   const posetMi = satir.tip === "poset";
+  const malzemeMi = satir.tip === "malzeme";
   const kayit = posetMi
     ? posetler.find((p) => p.id === ref)
-    : kaynak.find((b) => b.tip === satir.tip && b.id === ref);
+    : (kaynak.find((b) => b.tip === satir.tip && b.id === ref) ??
+      (malzemeMi ? tumMalzemeler.find((m) => m.id === ref) : undefined));
 
   return (
     <div className="flex items-center gap-2 px-3 py-2">
@@ -714,6 +754,19 @@ function IcerikSatiri({
             onPosetSec(posetler.find((p) => p.ad === ad)?.id ?? "")
           }
           placeholder="Poşet seçin"
+          className="h-8 max-w-64"
+        />
+      ) : malzemeMi ? (
+        // Malzeme satırı doğrudan da eklenebiliyor (ambalaj: koli, streç,
+        // köpük). Bu yüzden tüm malzemeler arasından seçilebilir; reçeteden
+        // gelen satır da buradan düzeltilebilir.
+        <SearchSelect
+          items={tumMalzemeler.map((m) => m.ad)}
+          value={kayit?.ad ?? null}
+          onValueChange={(ad) =>
+            onMalzemeSec(tumMalzemeler.find((m) => m.ad === ad)?.id ?? "")
+          }
+          placeholder="Malzeme seçin"
           className="h-8 max-w-64"
         />
       ) : (
