@@ -5,6 +5,7 @@ import {
   Box,
   Check,
   ChevronDown,
+  FolderOpen,
   GripVertical,
   Layers,
   Package,
@@ -67,7 +68,11 @@ const sayiBicim = (n: number) =>
   n.toLocaleString("tr-TR", { maximumFractionDigits: 3 });
 
 /** Sürüklenen bileşenin taşıdığı veri (dataTransfer yerine state). */
-type Suruklenen = { tip: "malzeme" | "parca"; id: string; kalan: number };
+type Bilesen = { tip: "malzeme" | "parca"; id: string; kalan: number };
+/** Sürüklenen: tek bileşen ya da bir reçete grubunun tamamı. */
+type Suruklenen =
+  | { tur: "bilesen"; bilesen: Bilesen }
+  | { tur: "grup"; grup: string };
 
 export function PaketlemeTab({
   paketler,
@@ -112,6 +117,10 @@ export function PaketlemeTab({
             ad: kayit?.ad ?? r.bilesen.ref,
             birim: kayit?.birim,
             receteMiktar: r.miktar,
+            // Reçetede tanımlanan grup ("Gövde", "Kapak"). Paketlemede de
+            // aynı bölümleme kullanılır: grubun tamamı tek seferde koliye
+            // konabilsin diye.
+            grup: r.grup?.trim() || "",
           };
         }),
     [recete, malzemeAdlari, parcaAdlari],
@@ -139,6 +148,23 @@ export function PaketlemeTab({
     [bilesenler, dagitilan],
   );
   const kalanSayisi = kaynak.filter((b) => b.kalan > 0.0001).length;
+
+  /** Kaynak listesi reçete gruplarına göre öbeklenir; grupsuzlar en sonda. */
+  const grupluKaynak = React.useMemo(() => {
+    const m = new Map<string, typeof kaynak>();
+    for (const b of kaynak) {
+      const arr = m.get(b.grup) ?? [];
+      arr.push(b);
+      m.set(b.grup, arr);
+    }
+    return [...m.entries()]
+      .sort((a, b) => (a[0] === "" ? 1 : b[0] === "" ? -1 : 0))
+      .map(([grup, items]) => ({
+        grup,
+        items,
+        kalan: items.filter((x) => x.kalan > 0.0001).length,
+      }));
+  }, [kaynak]);
 
   function kapaliDegis(i: number) {
     setKapaliPaketler((k) => {
@@ -183,25 +209,46 @@ export function PaketlemeTab({
    * Bileşeni pakete ekler. Aynı bileşen o pakette zaten varsa miktarı
    * artırılır — aynı şeyi iki satır göstermek koli listesini şişirir.
    */
-  function bilesenEkle(paketIdx: number, b: Suruklenen) {
-    if (b.kalan <= 0 || !paketler[paketIdx]) return;
+  /**
+   * Bileşen(ler)i pakete ekler. Aynı bileşen o pakette zaten varsa yeni satır
+   * açılmaz, miktarı artar — aynı şeyi iki satırda göstermek koli listesini
+   * şişirir.
+   *
+   * Grup sürüklendiğinde grubun TÜM kalan bileşenleri tek işlemde eklenir;
+   * tek tek eklemek 10 satırlık bir gövde grubunda anlamsız iş olurdu.
+   */
+  function bilesenEkle(paketIdx: number, kaynakSecim: Suruklenen) {
     const paket = paketler[paketIdx];
-    const mevcut = paket.icerik.findIndex(
-      (x) => x.tip === b.tip && icerikRef(x) === b.id,
-    );
-    if (mevcut >= 0) {
-      paketGuncelle(paketIdx, {
-        icerik: paket.icerik.map((x, i) =>
+    if (!paket) return;
+    const eklenecek: Bilesen[] =
+      kaynakSecim.tur === "bilesen"
+        ? [kaynakSecim.bilesen]
+        : kaynak
+            .filter(
+              (b) => b.grup === kaynakSecim.grup && b.kalan > 0.0001,
+            )
+            .map((b) => ({ tip: b.tip, id: b.id, kalan: b.kalan }));
+    if (eklenecek.length === 0) return;
+
+    let icerik = [...paket.icerik];
+    for (const b of eklenecek) {
+      if (b.kalan <= 0) continue;
+      const mevcut = icerik.findIndex(
+        (x) => x.tip === b.tip && icerikRef(x) === b.id,
+      );
+      if (mevcut >= 0) {
+        icerik = icerik.map((x, i) =>
           i === mevcut ? { ...x, miktar: x.miktar + b.kalan } : x,
-        ),
-      });
-      return;
+        );
+      } else {
+        icerik.push(
+          b.tip === "malzeme"
+            ? { tip: "malzeme", malzemeId: b.id, miktar: b.kalan }
+            : { tip: "parca", parcaId: b.id, miktar: b.kalan },
+        );
+      }
     }
-    const yeni: PaketIcerik =
-      b.tip === "malzeme"
-        ? { tip: "malzeme", malzemeId: b.id, miktar: b.kalan }
-        : { tip: "parca", parcaId: b.id, miktar: b.kalan };
-    paketGuncelle(paketIdx, { icerik: [...paket.icerik, yeni] });
+    paketGuncelle(paketIdx, { icerik });
   }
 
   function icerikGuncelle(i: number, j: number, yeni: PaketIcerik) {
@@ -250,7 +297,63 @@ export function PaketlemeTab({
         </div>
 
         <div className="flex flex-col gap-1.5 p-2">
-          {kaynak.map((b) => {
+          {grupluKaynak.map((g) => (
+            <React.Fragment key={g.grup || "__grupsuz"}>
+              {/* Grup başlığı — grubun tamamı tek seferde koliye konabilir.
+                  Grupsuz bileşenler için başlık basılmaz; tek bir "Grupsuz"
+                  başlığı bilgi vermeden yer kaplar. */}
+              {g.grup && (
+                <button
+                  type="button"
+                  draggable={g.kalan > 0}
+                  onDragStart={() => {
+                    setSuruklenen({ tur: "grup", grup: g.grup });
+                    suruklendi.current = true;
+                  }}
+                  onDragEnd={() => {
+                    setSuruklenen(null);
+                    setHedefPaket(null);
+                    setTimeout(() => (suruklendi.current = false), 0);
+                  }}
+                  onClick={() => {
+                    if (suruklendi.current || g.kalan === 0) return;
+                    bilesenEkle(seciliPaket, { tur: "grup", grup: g.grup });
+                  }}
+                  disabled={g.kalan === 0 || paketler.length === 0}
+                  title={
+                    paketler.length === 0
+                      ? "Önce paket ekleyin"
+                      : g.kalan === 0
+                        ? "Grubun tamamı dağıtıldı"
+                        : `Grubu Paket ${seciliPaket + 1}'e ekle (ya da sürükleyin)`
+                  }
+                  className={cn(
+                    "mt-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors first:mt-0",
+                    g.kalan > 0
+                      ? "cursor-grab bg-primary/[0.07] hover:bg-primary/15 active:cursor-grabbing"
+                      : "bg-muted/40",
+                  )}
+                >
+                  <FolderOpen
+                    className={cn(
+                      "size-3.5 shrink-0",
+                      g.kalan > 0 ? "text-primary" : "text-muted-foreground",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-xs font-semibold",
+                      g.kalan > 0 ? "text-primary" : "text-muted-foreground",
+                    )}
+                  >
+                    {g.grup}
+                  </span>
+                  <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+                    {g.kalan > 0 ? `${g.kalan} kaldı` : "tamam"}
+                  </span>
+                </button>
+              )}
+              {g.items.map((b) => {
             const bitti = b.kalan <= 0.0001;
             return (
               <button
@@ -258,7 +361,10 @@ export function PaketlemeTab({
                 type="button"
                 draggable={!bitti}
                 onDragStart={() => {
-                  setSuruklenen({ tip: b.tip, id: b.id, kalan: b.kalan });
+                  setSuruklenen({
+                    tur: "bilesen",
+                    bilesen: { tip: b.tip, id: b.id, kalan: b.kalan },
+                  });
                   suruklendi.current = true;
                 }}
                 onDragEnd={() => {
@@ -270,9 +376,8 @@ export function PaketlemeTab({
                 onClick={() => {
                   if (suruklendi.current || bitti) return;
                   bilesenEkle(seciliPaket, {
-                    tip: b.tip,
-                    id: b.id,
-                    kalan: b.kalan,
+                    tur: "bilesen",
+                    bilesen: { tip: b.tip, id: b.id, kalan: b.kalan },
                   });
                 }}
                 disabled={bitti || paketler.length === 0}
@@ -319,11 +424,14 @@ export function PaketlemeTab({
                 </span>
               </button>
             );
-          })}
+              })}
+            </React.Fragment>
+          ))}
         </div>
 
         <p className="border-t px-3 py-2 text-[11px] text-muted-foreground">
-          Bileşeni pakete sürükleyin ya da seçili pakete eklemek için tıklayın.
+          Bileşeni ya da grubun tamamını pakete sürükleyin; seçili pakete
+          eklemek için tıklamanız yeterli.
         </p>
       </div>
 
