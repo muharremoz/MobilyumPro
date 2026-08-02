@@ -10,6 +10,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  FolderOpen,
   Info,
   Layers,
   ListOrdered,
@@ -1677,7 +1678,7 @@ export function ParcaForm({
                       <React.Fragment key={i}>
                         {basligiGoster && (
                           <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
-                            <FolderOpenIcon className="size-3.5 shrink-0 text-primary" />
+                            <FolderOpen className="size-3.5 shrink-0 text-primary" />
                             <span className="text-xs font-semibold text-primary">
                               {grupAdi || "Gruplanmamış"}
                             </span>
@@ -2017,7 +2018,7 @@ export function ParcaForm({
                                   />
                                 }
                               >
-                                <FolderOpenIcon
+                                <FolderOpen
                                   className={cn(
                                     "size-3.5",
                                     s.grup?.trim()
@@ -2119,7 +2120,7 @@ export function ParcaForm({
                       .map((g) => (
                         <div key={`bos-${g}`}>
                           <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
-                            <FolderOpenIcon className="size-3.5 shrink-0 text-primary" />
+                            <FolderOpen className="size-3.5 shrink-0 text-primary" />
                             <span className="text-xs font-semibold text-primary">
                               {g}
                             </span>
@@ -2176,7 +2177,7 @@ export function ParcaForm({
                       setYeniGrupAcik(true);
                     }}
                   >
-                    <FolderOpenIcon className="size-3.5" /> Reçete grubu oluştur
+                    <FolderOpen className="size-3.5" /> Reçete grubu oluştur
                   </Button>
                 </div>
               </div>
