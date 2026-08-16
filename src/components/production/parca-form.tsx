@@ -72,6 +72,7 @@ import {
 import {
   formatTarih,
   type Makine,
+  olcudenMiktar,
   type Malzeme,
   type MalzemeAlisOzeti,
   type StokGrup,
@@ -821,6 +822,26 @@ export function ParcaForm({
     ]);
     setTab("recete");
   }
+  /**
+   * Ölçü değişince miktarı da tazeler. Ölçü ile miktar iki ayrı kaynak
+   * olsaydı hangisinin doğru olduğu belirsiz kalırdı; ölçü doluysa miktar
+   * ONDAN türetilir.
+   */
+  function olcuGuncelle(i: number, degisim: { en?: number; boy?: number }) {
+    setSatirlar((l) =>
+      l.map((s, x) => {
+        if (x !== i) return s;
+        const yeni = { ...s, ...degisim };
+        const birim =
+          s.bilesen.tip === "malzeme"
+            ? malzemeMap.get(s.bilesen.ref)?.birim
+            : undefined;
+        const m = olcudenMiktar(birim, yeni.en, yeni.boy);
+        return m == null ? yeni : { ...yeni, miktar: m };
+      }),
+    );
+  }
+
   function satirGuncelle(i: number, degisim: Partial<ReceteSatiri>) {
     setSatirlar((s) => {
       const n = [...s];
@@ -1694,6 +1715,13 @@ export function ParcaForm({
                         ? parcaMap.get(s.bilesen.ref)
                         : undefined;
                     const acik = acikAltlar.has(i);
+                    // Ölçüden miktar yalnız m² / m birimlerinde anlamlı.
+                    const satirBirim =
+                      s.bilesen.tip === "malzeme" ? malzeme?.birim : undefined;
+                    const bLower = (satirBirim ?? "").trim().toLowerCase();
+                    const m2Mi = bLower === "m²" || bLower === "m2";
+                    const olculuMu = m2Mi || bLower === "m" || bLower === "mt";
+                    const hesaplanan = olcudenMiktar(satirBirim, s.en, s.boy);
                     // Grup başlığı: bu satırın grubu bir öncekinden farklıysa.
                     const grupAdi = s.grup?.trim() || "";
                     const oncekiGrup =
@@ -1828,6 +1856,37 @@ export function ParcaForm({
                                 }
                                 className="h-8"
                               />
+                              {/* Kesim ölçüsü — yalnız ölçüden miktar
+                                  hesaplanabilen birimlerde (m², m). Ölçü
+                                  girilince Miktar kilitlenir ve buradan
+                                  hesaplanır; iki kaynak olsaydı hangisinin
+                                  doğru olduğu belirsiz kalırdı. */}
+                              {olculuMu && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  {m2Mi && (
+                                    <>
+                                      <OlcuKutusu
+                                        etiket="En"
+                                        deger={s.en}
+                                        onDeger={(v) =>
+                                          olcuGuncelle(i, { en: v })
+                                        }
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">
+                                        ×
+                                      </span>
+                                    </>
+                                  )}
+                                  <OlcuKutusu
+                                    etiket="Boy"
+                                    deger={s.boy}
+                                    onDeger={(v) => olcuGuncelle(i, { boy: v })}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    mm
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <Input
@@ -1883,15 +1942,29 @@ export function ParcaForm({
                                   type="number"
                                   min={0}
                                   step="any"
-                                  value={s.miktar}
+                                  value={
+                                    hesaplanan == null
+                                      ? s.miktar
+                                      : Number(hesaplanan.toFixed(4))
+                                  }
                                   onChange={(e) =>
                                     satirGuncelle(i, {
                                       miktar: Number(e.target.value),
                                     })
                                   }
+                                  // Ölçüden hesaplanıyorsa elle değiştirmek
+                                  // iki çelişen kaynak yaratır: kilitli.
+                                  readOnly={hesaplanan != null}
+                                  title={
+                                    hesaplanan != null
+                                      ? "Kesim ölçüsünden hesaplanıyor"
+                                      : undefined
+                                  }
                                   className={cn(
                                     "h-8 text-right tabular-nums",
                                     birim && "pr-11",
+                                    hesaplanan != null &&
+                                      "bg-muted/50 text-muted-foreground",
                                   )}
                                 />
                                 {birim && (
@@ -2746,5 +2819,31 @@ function MaliyetBazi({
         </div>
       </HoverCardContent>
     </HoverCard>
+  );
+}
+
+/** Reçete satırındaki dar kesim ölçüsü alanı (mm). */
+function OlcuKutusu({
+  etiket,
+  deger,
+  onDeger,
+}: {
+  etiket: string;
+  deger?: number;
+  onDeger: (v: number | undefined) => void;
+}) {
+  return (
+    <input
+      inputMode="decimal"
+      placeholder={etiket}
+      aria-label={etiket}
+      value={deger == null ? "" : String(deger)}
+      onChange={(e) => {
+        const t = e.target.value.trim().replace(",", ".");
+        const n = Number(t);
+        onDeger(t === "" || !Number.isFinite(n) || n < 0 ? undefined : n);
+      }}
+      className="h-6 w-14 rounded border border-input bg-transparent px-1 text-right text-[11px] tabular-nums outline-none focus-visible:border-ring"
+    />
   );
 }

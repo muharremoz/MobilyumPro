@@ -1131,6 +1131,8 @@ export async function parcaKaydet(
         fire: r.fire ?? 0,
         istasyon: r.istasyon ?? null,
         grup: r.grup?.trim() || null,
+        en: r.en ?? null,
+        boy: r.boy ?? null,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
 

@@ -73,7 +73,32 @@ export type ReceteSatiri = {
   istasyon?: string;
   /** Reçete grubu ("Gövde", "Kapak"...); boş = gruplanmamış. */
   grup?: string;
+  /** Kesim ölçüleri (mm) — dolu ise `miktar` bunlardan hesaplanır. */
+  en?: number;
+  boy?: number;
 };
+
+/**
+ * Ölçüden miktar: m² birimli malzemede en×boy, m birimlide yalnız boy.
+ * Diğer birimlerde (adet, kg...) ölçüden miktar türetmek anlamsız — null
+ * döner ve miktar elle girilir.
+ */
+export function olcudenMiktar(
+  birim: string | undefined,
+  en?: number,
+  boy?: number,
+): number | null {
+  const b = (birim ?? "").trim().toLowerCase();
+  if (b === "m²" || b === "m2") {
+    if (!en || !boy) return null;
+    return (en * boy) / 1_000_000;
+  }
+  if (b === "m" || b === "mt") {
+    if (!boy) return null;
+    return boy / 1000;
+  }
+  return null;
+}
 export type ParcaSatiri = { parcaId: string; miktar: number };
 
 /**
