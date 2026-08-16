@@ -155,15 +155,22 @@ export function SearchSelect({
                   type="button"
                   title={kopyaBaslik}
                   aria-label={`${gosterim(item)} — ${kopyaBaslik}`}
-                  // mousedown: ComboboxItem seçimi mouseup'ta olur, önce
-                  // yakalamazsak kopya yerine öğe seçilirdi.
-                  onMouseDown={(e) => {
+                  // Kopya SEÇİM DEĞİL. ComboboxItem seçimi click'te yapıyor
+                  // ve click düğmeden balonlanıyor; durdurmazsak kopya
+                  // açılırken satırın malzemesi de değişirdi.
+                  onPointerDownCapture={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setAcik(false);
                     onKopyala(item);
                   }}
-                  className="ml-2 grid size-6 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/oge:opacity-100 focus-visible:opacity-100 hover:bg-black/10 hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  // svg'ye pointer-events:none veren ComboboxItem kuralı
+                  // düğmenin kendisini de etkilemesin.
+                  className="ml-2 grid size-6 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/oge:opacity-100 focus-visible:opacity-100 hover:bg-black/10 hover:text-foreground [&_svg]:pointer-events-none"
                 >
                   <Copy className="size-3.5" />
                 </button>

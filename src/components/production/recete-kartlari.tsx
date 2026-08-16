@@ -5,6 +5,8 @@ import { Box, ChevronDown, FolderOpen, Plus, Ruler, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+
 import { SearchSelect } from "@/components/ui/search-select";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
@@ -559,7 +561,16 @@ function MalzemeSatiri({
             // Kenar bantları gibi birbirinin varyantı olan kartlar çok:
             // sıfırdan yazmak yerine mevcut satırdan kopya açılır.
             kopyaBaslik="Bu malzemenin kopyasını oluştur"
-            onKopyala={(etiket) => onYeniMalzeme(etiketToId.get(etiket))}
+            onKopyala={(etiket) => {
+              const id = etiketToId.get(etiket);
+              // id çözülemezse sessizce boş "yeni malzeme" formu açılırdı;
+              // kullanıcı kopyalamanın çalışmadığını anlayamazdı.
+              if (!id) {
+                toast.error("Kopyalanacak malzeme bulunamadı");
+                return;
+              }
+              onYeniMalzeme(id);
+            }}
             className="h-8"
           />
         </div>
