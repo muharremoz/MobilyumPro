@@ -186,6 +186,8 @@ export type ParcaKategori = string;
 /** Refakat kağıdındaki işlem sırası satırı (istasyon · makine · operasyon). */
 export type ParcaIslem = {
   id?: number;
+  /** Ait olduğu parçanın (reçete grubunun) adı. Boş = modül geneli. */
+  grup?: string;
   sira: number;
   /** İstasyon slug'ı (kesim, bantlama …). */
   istasyon: string;
@@ -332,6 +334,8 @@ export type AtolyeGorunumu = {
   malzemeler: { ad: string; miktar: number }[];
   islemler: {
     sira: number;
+    /** İşlemin ait olduğu parça (reçete grubu) adı. */
+    parcaAd?: string;
     istasyonAd: string;
     makineAd?: string;
     operasyon: string;
@@ -375,6 +379,8 @@ export type RefakatKagidi = {
   /** İşlem sırası (istasyon · makine · operasyon). */
   islemler: {
     sira: number;
+    /** İşlemin ait olduğu parça (reçete grubu) adı. */
+    parcaAd?: string;
     istasyonAd: string;
     makineAd?: string;
     operasyon: string;

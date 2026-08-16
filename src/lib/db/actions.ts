@@ -79,6 +79,7 @@ import type {
   Malzeme,
   Model,
   Parca,
+  ParcaIslem,
   ReceteGrup,
   ReceteSatiri,
   Depo,
@@ -1081,21 +1082,21 @@ export async function parcaKaydet(
         update: veri,
       });
 
-      // İşlem sırası (refakat kağıdı): verilmişse tamamen yeniden yazılır.
-      if (p.islemler) {
-        await tx.parcaIslem.deleteMany({ where: { parcaId } });
-        if (p.islemler.length)
-          await tx.parcaIslem.createMany({
-            data: p.islemler.map((i, idx) => ({
-              parcaId,
-              sira: i.sira || idx + 1,
-              istasyon: i.istasyon,
-              makineId: i.makineId ?? null,
-              operasyon: i.operasyon,
-              aciklama: i.aciklama ?? null,
-            })),
+      // İşlem sırası artık PARÇAYA (reçete grubuna) bağlı. Gruplar aşağıda
+      // silinip yeniden yazıldığı için işlemler HER durumda silinmek zorunda:
+      // FK NoAction, referans veren işlem varken grup silinemez.
+      //
+      // Çağıran islemler vermediyse (yalnız reçeteyi kaydeden akışlar)
+      // mevcutlar anlık kopyalanır ve aynı parça adlarıyla geri yazılır;
+      // sessizce kaybolmaları üretim kağıdını boşaltırdı.
+      const mevcutIslemler = p.islemler
+        ? null
+        : await tx.parcaIslem.findMany({
+            where: { parcaId },
+            orderBy: { sira: "asc" },
+            include: { grup: { select: { ad: true } } },
           });
-      }
+      await tx.parcaIslem.deleteMany({ where: { parcaId } });
 
       // Koli dökümü: sil-yeniden yaz. Paket satırları kullanıcı tarafından
       // serbestçe eklenip çıkarıldığı için eşleştirmeye çalışmak yerine
@@ -1131,7 +1132,7 @@ export async function parcaKaydet(
 
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
       // SATIRLAR ÖNCE silinir: gruba FK ile bağlılar (NoAction), grup önce
-      // silinseydi FK ihlali olurdu.
+      // silinseydi FK ihlali olurdu. (İşlemler yukarıda silindi.)
       await tx.receteSatiri.deleteMany({ where: { parcaId } });
       await tx.receteGrup.deleteMany({ where: { parcaId } });
 
@@ -1172,6 +1173,29 @@ export async function parcaKaydet(
         bantSag: r.bant?.sag ?? false,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
+
+      // İşlem sırası: gruplar yazıldıktan sonra, parça adından id çözülerek.
+      const yazilacakIslemler = (p.islemler ??
+        (mevcutIslemler ?? []).map((i) => ({
+          grup: i.grup?.ad,
+          sira: i.sira,
+          istasyon: i.istasyon,
+          makineId: i.makineId ?? undefined,
+          operasyon: i.operasyon,
+          aciklama: i.aciklama ?? undefined,
+        }))) as ParcaIslem[];
+      if (yazilacakIslemler.length)
+        await tx.parcaIslem.createMany({
+          data: yazilacakIslemler.map((i, idx) => ({
+            parcaId,
+            grupId: grupIdByAd.get(i.grup?.trim() ?? "") ?? null,
+            sira: i.sira || idx + 1,
+            istasyon: i.istasyon,
+            makineId: i.makineId ?? null,
+            operasyon: i.operasyon,
+            aciklama: i.aciklama ?? null,
+          })),
+        });
 
       // Versiyon: son anlık kopyayla aynıysa yazma.
       const snapshot = receteSnapshot(p.recete);

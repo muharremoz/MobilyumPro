@@ -232,6 +232,11 @@ export default async function AtolyeRoute({
                 <span className="w-5 shrink-0 text-muted-foreground tabular-nums">
                   {i.sira}
                 </span>
+                {i.parcaAd && (
+                  <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">
+                    {i.parcaAd}
+                  </span>
+                )}
                 <span className="font-medium">{i.istasyonAd}</span>
                 {i.makineAd && (
                   <span className="text-muted-foreground">{i.makineAd}</span>

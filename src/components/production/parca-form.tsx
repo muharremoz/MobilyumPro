@@ -7,11 +7,8 @@ import {
   ArrowLeft,
   AlertTriangle,
   History,
-  ChevronDown,
-  ChevronUp,
   Info,
   Layers,
-  ListOrdered,
   Plus,
   RockingChair,
   RotateCcw,
@@ -115,7 +112,6 @@ type Tab =
   | "genel"
   | "recete"
   | "paketleme"
-  | "islem"
   | "kullanim"
   | "dokuman"
   | "versiyon";
@@ -739,34 +735,6 @@ export function ParcaForm({
   /** Sıra numaralarını 1..n olarak tazeler. */
   const siraTazele = (l: ParcaIslem[]) =>
     l.map((x, i) => ({ ...x, sira: i + 1 }));
-  function islemEkle() {
-    setIslemler((l) =>
-      siraTazele([
-        ...l,
-        {
-          sira: l.length + 1,
-          istasyon: ilkIstasyonSlug ?? "",
-          operasyon: "",
-        },
-      ]),
-    );
-  }
-  function islemGuncelle(i: number, degisim: Partial<ParcaIslem>) {
-    setIslemler((l) => l.map((x, j) => (j === i ? { ...x, ...degisim } : x)));
-  }
-  function islemSil(i: number) {
-    setIslemler((l) => siraTazele(l.filter((_, j) => j !== i)));
-  }
-  function islemTasi(i: number, yon: -1 | 1) {
-    setIslemler((l) => {
-      const h = i + yon;
-      if (h < 0 || h >= l.length) return l;
-      const n = [...l];
-      [n[i], n[h]] = [n[h], n[i]];
-      return siraTazele(n);
-    });
-  }
-
   async function kaydetUygula() {
     if (!ad.trim()) {
       toast.error("Parça adı gerekli");
@@ -809,6 +777,8 @@ export function ParcaForm({
           ),
         })),
         islemler: siraTazele(islemler.filter((x) => x.istasyon)).map((x) => ({
+          // grup = işlemin ait olduğu parça; sunucuda id'ye çözülüyor.
+          grup: x.grup,
           sira: x.sira,
           istasyon: x.istasyon,
           makineId: x.makineId,
@@ -976,16 +946,13 @@ export function ParcaForm({
           Genel
         </TabBtn>
         <TabBtn aktif={tab === "recete"} onClick={() => setTab("recete")}>
-          Reçete{gecerli.length ? ` (${gecerli.length})` : ""}
+          Parçalar{gecerli.length ? ` (${gecerli.length})` : ""}
         </TabBtn>
         <TabBtn
           aktif={tab === "paketleme"}
           onClick={() => setTab("paketleme")}
         >
           Paketleme{paketler.length ? ` (${paketler.length})` : ""}
-        </TabBtn>
-        <TabBtn aktif={tab === "islem"} onClick={() => setTab("islem")}>
-          İşlem Sırası{islemler.length ? ` (${islemler.length})` : ""}
         </TabBtn>
         <TabBtn
           aktif={tab === "kullanim"}
@@ -1254,143 +1221,6 @@ export function ParcaForm({
         )}
 
         {/* ── İŞLEM SIRASI ──────────────────────────────────────── */}
-        {tab === "islem" && (
-          <div className="rounded-md border bg-card">
-            <KartBaslik
-              ikon={ListOrdered}
-              baslik="İşlem Sırası"
-              sag={
-                <span className="text-xs text-muted-foreground">
-                  {islemler.length} satır
-                </span>
-              }
-            />
-            <div className="grid gap-2 p-4">
-              {islemler.length > 0 && (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/40 hover:bg-muted/40">
-                        <TableHead className="w-14">Sıra</TableHead>
-                        <TableHead className="w-48">İstasyon</TableHead>
-                        <TableHead className="w-52">Makine</TableHead>
-                        <TableHead>Operasyon</TableHead>
-                        <TableHead className="w-24" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {islemler.map((x, i) => {
-                        const istMakineler = makineler.filter(
-                          (m) => m.istasyon === x.istasyon,
-                        );
-                        const seciliMakine = istMakineler.find(
-                          (m) => m.id === x.makineId,
-                        );
-                        return (
-                          <TableRow key={i}>
-                            <TableCell className="text-sm font-medium tabular-nums">
-                              {x.sira}
-                            </TableCell>
-                            <TableCell>
-                              <SearchSelect
-                                items={istasyonlar.map((s) => s.ad)}
-                                value={istasyonMap.get(x.istasyon)?.ad ?? null}
-                                onValueChange={(adSecim) =>
-                                  islemGuncelle(i, {
-                                    istasyon:
-                                      istasyonlar.find((s) => s.ad === adSecim)
-                                        ?.slug ?? "",
-                                    // İstasyon değişince makine seçimi düşer.
-                                    makineId: undefined,
-                                  })
-                                }
-                                placeholder="İstasyon"
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <SearchSelect
-                                items={istMakineler.map((m) => m.ad)}
-                                value={seciliMakine?.ad ?? null}
-                                onValueChange={(adSecim) =>
-                                  islemGuncelle(i, {
-                                    makineId: istMakineler.find(
-                                      (m) => m.ad === adSecim,
-                                    )?.id,
-                                  })
-                                }
-                                placeholder={
-                                  istMakineler.length
-                                    ? "Makine (opsiyonel)"
-                                    : "Makine yok"
-                                }
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={x.operasyon}
-                                onChange={(e) =>
-                                  islemGuncelle(i, {
-                                    operasyon: e.target.value,
-                                  })
-                                }
-                                placeholder="Örn. NET KESİM"
-                                className="h-8"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => islemTasi(i, -1)}
-                                  disabled={i === 0}
-                                  aria-label="Yukarı taşı"
-                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                                >
-                                  <ChevronUp className="size-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => islemTasi(i, 1)}
-                                  disabled={i === islemler.length - 1}
-                                  aria-label="Aşağı taşı"
-                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                                >
-                                  <ChevronDown className="size-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => islemSil(i)}
-                                  aria-label="Kaldır"
-                                  className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-rose-600 hover:bg-rose-50"
-                                >
-                                  <Trash className="size-3.5" />
-                                </button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={islemEkle}
-                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/40 hover:text-foreground"
-              >
-                <Plus className="size-3.5" /> İşlem ekle
-              </button>
-              <p className="text-[11px] text-muted-foreground">
-                Refakat kağıdındaki işlem sırası. Aynı istasyon birden çok kez
-                yazılabilir (örn. dört kenar için dört bantlama satırı).
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* ── REÇETE (BOM) ──────────────────────────────────────── */}
         {tab === "recete" && (
           <div className="flex flex-col gap-3">
@@ -1500,6 +1330,9 @@ export function ParcaForm({
               ilkIstasyonSlug={ilkIstasyonSlug}
               varsayilanFire={varsayilanFire}
               tutkalKgMetre={tutkalKgMetre}
+              islemler={islemler}
+              onIslemler={setIslemler}
+              makineler={makineler}
             />
           </div>
         )}

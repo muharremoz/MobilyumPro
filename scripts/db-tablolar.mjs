@@ -36,9 +36,9 @@ export const TABLO_SIRASI = [
   "stokMusteri",
   "parca",
   "parcaDokuman",
-  "parcaIslem",
-  // Grup satırdan ÖNCE: satır gruba FK ile bağlı.
+  // Grup, satır VE işlemden ÖNCE: ikisi de gruba FK ile bağlı.
   "receteGrup",
+  "parcaIslem",
   "receteSatiri",
   "receteVersiyon",
   "modelParca",

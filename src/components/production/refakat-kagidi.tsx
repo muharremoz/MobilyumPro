@@ -211,6 +211,9 @@ function Kagit({ k }: { k: RefakatKagidi }) {
         <thead>
           <tr className="border-b border-black">
             <th className="w-6 border-r border-black" />
+            <th className="w-28 border-r border-black text-left font-semibold">
+              PARÇA
+            </th>
             <th className="border-r border-black text-left font-semibold">
               İŞLEM SIRASI
             </th>
@@ -225,8 +228,8 @@ function Kagit({ k }: { k: RefakatKagidi }) {
           {k.islemler.length === 0 ? (
             <tr>
               <td colSpan={5} className="py-3 text-center text-[10px]">
-                Parçanın işlem sırası tanımlı değil (Parça kartı → İşlem
-                Sırası).
+                İşlem sırası tanımlı değil (Modül kartı → Parçalar → parça
+                kartındaki İşlem Sırası).
               </td>
             </tr>
           ) : (
@@ -234,6 +237,11 @@ function Kagit({ k }: { k: RefakatKagidi }) {
               <tr key={i.sira} className="border-b border-black/40 last:border-0">
                 <td className="border-r border-black text-center tabular-nums">
                   {i.sira}
+                </td>
+                {/* Parça adı: işlem sırası artık modül geneli değil, parça
+                    bazında; atölye hangi panel olduğunu bilmeli. */}
+                <td className="border-r border-black px-1 uppercase">
+                  {i.parcaAd ?? ""}
                 </td>
                 <td className="border-r border-black px-1 font-semibold uppercase">
                   {i.istasyonAd}

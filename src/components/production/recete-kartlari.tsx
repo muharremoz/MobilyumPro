@@ -1,13 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { Box, ChevronDown, FolderOpen, Plus, Ruler, Trash } from "lucide-react";
+import {
+  Box,
+  ChevronDown,
+  ChevronUp,
+  FolderOpen,
+  ListOrdered,
+  Plus,
+  Ruler,
+  Trash,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 import { SearchSelect } from "@/components/ui/search-select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import {
@@ -18,6 +33,7 @@ import {
   tutkalMi,
   type KenarSecim,
   type Malzeme,
+  type ParcaIslem,
   type ReceteGrup,
   type ReceteSatiri,
 } from "@/lib/data";
@@ -87,6 +103,9 @@ export function ReceteKartlari({
   ilkIstasyonSlug,
   varsayilanFire = 0,
   tutkalKgMetre = 0,
+  islemler = [],
+  onIslemler,
+  makineler = [],
 }: {
   gruplar: ReceteGrup[];
   satirlar: ReceteSatiri[];
@@ -107,6 +126,13 @@ export function ReceteKartlari({
   varsayilanFire?: number;
   /** Metre kenar bandı başına tutkal (kg) — sistem parametresi. */
   tutkalKgMetre?: number;
+  /**
+   * İşlem sırası. Ayrı sekmede dururken hangi işlemin hangi parçaya ait
+   * olduğu görünmüyordu; artık parçanın kendi kartında.
+   */
+  islemler?: ParcaIslem[];
+  onIslemler?: (l: ParcaIslem[]) => void;
+  makineler?: { id: number; ad: string; istasyon: string }[];
 }) {
   const [acikOlculer, setAcikOlculer] = React.useState<Set<string>>(
     () => new Set(),
@@ -116,18 +142,9 @@ export function ReceteKartlari({
     [malzemeler],
   );
 
-  const [acikGorseller, setAcikGorseller] = React.useState<Set<string>>(
-    () => new Set(),
-  );
-
-  function gorselAcKapa(ad: string) {
-    setAcikGorseller((s) => {
-      const y = new Set(s);
-      if (y.has(ad)) y.delete(ad);
-      else y.add(ad);
-      return y;
-    });
-  }
+  // Görsel MODALDA açılıyor: kart içinde 224 px yer kaplayınca malzeme
+  // satırları ekrandan taşıyor, parçalar arası karşılaştırma zorlaşıyordu.
+  const [gorselParca, setGorselParca] = React.useState<string | null>(null);
 
   function olcuAcKapa(ad: string) {
     setAcikOlculer((s) => {
@@ -227,6 +244,28 @@ export function ReceteKartlari({
     onGruplar(gruplar.filter((g) => g.ad !== ad));
   }
 
+  /** Bir parçanın kenar bandı satırları (önizleme + rozet için). */
+  function bantSatirlariniAl(grupAd: string) {
+    return satirlar
+      .filter((x) => (x.grup ?? "") === grupAd)
+      .filter((x) => {
+        const m =
+          x.bilesen.tip === "malzeme"
+            ? malzemeMap.get(x.bilesen.ref)
+            : undefined;
+        return bantMi(m?.birim) && x.bant;
+      })
+      .map((x) => ({
+        ad:
+          (x.bilesen.tip === "malzeme"
+            ? malzemeMap.get(x.bilesen.ref)?.ad
+            : undefined) ?? "Kenar bandı",
+        kenarlar: x.bant ?? {},
+      }));
+  }
+
+  const gorselGrup = gruplar.find((g) => g.ad === gorselParca);
+
   const grupsuz = satirlar
     .map((s, i) => ({ s, i }))
     .filter(({ s }) => !s.grup?.trim());
@@ -238,7 +277,6 @@ export function ReceteKartlari({
           .map((s, i) => ({ s, i }))
           .filter(({ s }) => (s.grup ?? "") === g.ad);
         const olcuAcik = acikOlculer.has(g.ad);
-        const gorselAcik = acikGorseller.has(g.ad);
         const { en, boy } = parcaOlcusu(g);
         // Önizlemeye yalnız kenar bandı satırları girer; suntalam/vida panelin
         // kenarını göstermez.
@@ -297,16 +335,10 @@ export function ReceteKartlari({
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => gorselAcKapa(g.ad)}
+                  onClick={() => setGorselParca(g.ad)}
                 >
                   <Box className="size-3.5" />
                   Görsel
-                  <ChevronDown
-                    className={cn(
-                      "size-3 transition-transform",
-                      gorselAcik && "rotate-180",
-                    )}
-                  />
                 </Button>
                 <Button
                   type="button"
@@ -368,18 +400,6 @@ export function ReceteKartlari({
               </div>
             )}
 
-            {/* 3D önizleme — bantlı kenarlar renkli şeritle belirginleşir */}
-            {gorselAcik && (
-              <div className="border-b bg-muted/10 px-3 py-3">
-                <ParcaOnizleme
-                  en={en}
-                  boy={boy}
-                  kalinlik={g.kalinlik}
-                  bantlar={bantSatirlari}
-                />
-              </div>
-            )}
-
             {/* Malzemeler */}
             {kendi.length === 0 ? (
               <p className="px-3 py-4 text-xs text-muted-foreground">
@@ -423,6 +443,18 @@ export function ReceteKartlari({
                   />
                 ))}
               </div>
+            )}
+
+            {/* İşlem sırası — bu parçaya ait */}
+            {onIslemler && (
+              <IslemBolumu
+                grupAd={g.ad}
+                islemler={islemler}
+                onIslemler={onIslemler}
+                istasyonlar={istasyonlar}
+                makineler={makineler}
+                ilkIstasyonSlug={ilkIstasyonSlug}
+              />
             )}
           </div>
         );
@@ -490,6 +522,26 @@ export function ReceteKartlari({
           <Plus className="size-4" /> Parçasız malzeme
         </Button>
       </div>
+
+      {/* Görsel önizleme — kart içinde değil, modalda */}
+      <Dialog
+        open={gorselGrup != null}
+        onOpenChange={(a) => !a && setGorselParca(null)}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{gorselGrup?.ad}</DialogTitle>
+          </DialogHeader>
+          {gorselGrup && (
+            <ParcaOnizleme
+              en={parcaOlcusu(gorselGrup).en}
+              boy={parcaOlcusu(gorselGrup).boy}
+              kalinlik={gorselGrup.kalinlik}
+              bantlar={bantSatirlariniAl(gorselGrup.ad)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -752,5 +804,188 @@ function SayiKutusu({
       onChange={(e) => onDeger(sayiCoz(e.target.value))}
       className="h-8 w-full text-right text-xs tabular-nums"
     />
+  );
+}
+
+/**
+ * Bir parçanın işlem sırası (refakat kağıdı adımları).
+ *
+ * Önceden modül genelinde tek listeydi; hangi adımın hangi parçaya ait olduğu
+ * görünmüyor, atölyede "bu bantlama hangi panel için" sorusu cevapsız
+ * kalıyordu. Artık parçanın kartında duruyor ve kaydedilirken o parçaya
+ * bağlanıyor.
+ */
+function IslemBolumu({
+  grupAd,
+  islemler,
+  onIslemler,
+  istasyonlar,
+  makineler,
+  ilkIstasyonSlug,
+}: {
+  grupAd: string;
+  islemler: ParcaIslem[];
+  onIslemler: (l: ParcaIslem[]) => void;
+  istasyonlar: AdKaydi[];
+  makineler: { id: number; ad: string; istasyon: string }[];
+  ilkIstasyonSlug?: string;
+}) {
+  const [acik, setAcik] = React.useState(false);
+  // Sıra numaraları PARÇA İÇİNDE 1'den başlar: atölye kağıdında "3. adım"
+  // dendiğinde o parçanın üçüncü adımı kastediliyor.
+  const kendi = islemler
+    .map((x, i) => ({ x, i }))
+    .filter(({ x }) => (x.grup ?? "") === grupAd);
+
+  function guncelle(i: number, d: Partial<ParcaIslem>) {
+    onIslemler(islemler.map((x, j) => (j === i ? { ...x, ...d } : x)));
+  }
+  function ekle() {
+    setAcik(true);
+    onIslemler([
+      ...islemler,
+      {
+        grup: grupAd,
+        sira: kendi.length + 1,
+        istasyon: ilkIstasyonSlug ?? "",
+        operasyon: "",
+      },
+    ]);
+  }
+  function sil(i: number) {
+    onIslemler(islemler.filter((_, j) => j !== i));
+  }
+  /** Parça içinde komşu adımla yer değiştirir (global dizide takas). */
+  function tasi(yerel: number, yon: -1 | 1) {
+    const hedef = yerel + yon;
+    if (hedef < 0 || hedef >= kendi.length) return;
+    const a = kendi[yerel].i;
+    const b = kendi[hedef].i;
+    const n = [...islemler];
+    [n[a], n[b]] = [n[b], n[a]];
+    // Sıra numaraları dizideki yeni konuma göre tazelenir; eski numaralar
+    // kalsaydı kaydetmede adımlar yer değiştirmiş görünmezdi.
+    onIslemler(n.map((x, j) => ({ ...x, sira: j + 1 })));
+  }
+
+  return (
+    <div className="border-t bg-muted/10">
+      <button
+        type="button"
+        onClick={() => setAcik((a) => !a)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ListOrdered className="size-3.5" />
+        İşlem Sırası
+        {kendi.length > 0 && (
+          <span className="rounded bg-muted px-1.5 tabular-nums">
+            {kendi.length}
+          </span>
+        )}
+        <ChevronDown
+          className={cn("size-3 transition-transform", acik && "rotate-180")}
+        />
+      </button>
+      {acik && (
+        <div className="flex flex-col gap-1.5 px-3 pb-3">
+          {kendi.map(({ x, i }, yerel) => {
+            const istMakineler = makineler.filter(
+              (m) => m.istasyon === x.istasyon,
+            );
+            return (
+              <div key={i} className="flex flex-wrap items-center gap-1.5">
+                <span className="w-5 shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                  {yerel + 1}
+                </span>
+                <div className="w-40 shrink-0">
+                  <SearchSelect
+                    items={istasyonlar.map((o) => o.ad)}
+                    value={
+                      istasyonlar.find((o) => o.id === x.istasyon)?.ad ?? null
+                    }
+                    onValueChange={(ad) =>
+                      guncelle(i, {
+                        istasyon:
+                          istasyonlar.find((o) => o.ad === ad)?.id ?? "",
+                        // İstasyon değişince makine seçimi düşer.
+                        makineId: undefined,
+                      })
+                    }
+                    placeholder="İstasyon"
+                    className="h-8"
+                  />
+                </div>
+                <div className="w-44 shrink-0">
+                  <SearchSelect
+                    items={istMakineler.map((m) => m.ad)}
+                    value={
+                      istMakineler.find((m) => m.id === x.makineId)?.ad ?? null
+                    }
+                    onValueChange={(ad) =>
+                      guncelle(i, {
+                        makineId: istMakineler.find((m) => m.ad === ad)?.id,
+                      })
+                    }
+                    placeholder={
+                      istMakineler.length ? "Makine (ops.)" : "Makine yok"
+                    }
+                    className="h-8"
+                  />
+                </div>
+                <Input
+                  value={x.operasyon}
+                  onChange={(e) => guncelle(i, { operasyon: e.target.value })}
+                  placeholder="Örn. NET KESİM"
+                  className="h-8 min-w-40 flex-1"
+                />
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7"
+                    disabled={yerel === 0}
+                    onClick={() => tasi(yerel, -1)}
+                    aria-label="Yukarı taşı"
+                  >
+                    <ChevronUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7"
+                    disabled={yerel === kendi.length - 1}
+                    onClick={() => tasi(yerel, 1)}
+                    aria-label="Aşağı taşı"
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => sil(i)}
+                    aria-label="Kaldır"
+                  >
+                    <Trash className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 w-fit text-xs"
+            onClick={ekle}
+          >
+            <Plus className="size-3" /> İşlem ekle
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

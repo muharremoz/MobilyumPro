@@ -118,7 +118,10 @@ export async function getParcalar(): Promise<Parca[]> {
   const [parcaRows, receteRows, docs] = await Promise.all([
     db.parca.findMany({
       include: {
-        islemler: { orderBy: { sira: "asc" } },
+        islemler: {
+        orderBy: { sira: "asc" },
+        include: { grup: { select: { ad: true } } },
+      },
         paketler: {
           orderBy: { sira: "asc" },
           include: { icerik: { orderBy: { id: "asc" } } },
@@ -188,6 +191,7 @@ export async function getParcalar(): Promise<Parca[]> {
     },
     islemler: p.islemler.map((i) => ({
       id: i.id,
+      grup: i.grupId != null ? grupAdiById.get(i.grupId) : undefined,
       sira: i.sira,
       istasyon: i.istasyon,
       makineId: i.makineId ?? undefined,
@@ -778,7 +782,10 @@ export async function getRefakatKagitlari(
   const parcalar = await db.parca.findMany({
     where: { id: { in: bom.map((b) => b.parcaId) } },
     include: {
-      islemler: { orderBy: { sira: "asc" } },
+      islemler: {
+        orderBy: { sira: "asc" },
+        include: { grup: { select: { ad: true } } },
+      },
       recete: { include: { stok: { select: { id: true, ad: true } } } },
     },
   });
@@ -843,6 +850,9 @@ export async function getRefakatKagitlari(
         : undefined,
       islemler: (p?.islemler ?? []).map((x) => ({
         sira: x.sira,
+        // Parça adı atölye için şart: işlem sırası artık modül geneli değil,
+        // parça bazında tutuluyor.
+        parcaAd: x.grup?.ad,
         istasyonAd: istAd.get(x.istasyon) ?? x.istasyon,
         makineAd: x.makineId ? makineAd.get(x.makineId) : undefined,
         operasyon: x.operasyon,
@@ -873,7 +883,10 @@ export async function getAtolyeGorunumu(
   const parca = await db.parca.findUnique({
     where: { id: parcaId },
     include: {
-      islemler: { orderBy: { sira: "asc" } },
+      islemler: {
+        orderBy: { sira: "asc" },
+        include: { grup: { select: { ad: true } } },
+      },
       dokumanlar: true,
       recete: { include: { stok: { select: { ad: true } } } },
     },
@@ -923,6 +936,7 @@ export async function getAtolyeGorunumu(
       })),
     islemler: parca.islemler.map((i) => ({
       sira: i.sira,
+      parcaAd: i.grup?.ad,
       istasyonAd: istAd.get(i.istasyon) ?? i.istasyon,
       makineAd: i.makineId ? makineAd.get(i.makineId) : undefined,
       operasyon: i.operasyon,
