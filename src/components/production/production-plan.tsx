@@ -468,15 +468,17 @@ export function ProductionPlan({
     router.push(`/satin-alma/yeni?${p.toString()}`);
   }
 
+  // Stok yetersizliği ARTIK ENGEL DEĞİL: kararı sunucu veriyor. Düşüm
+  // sırasında negatif_stok açıksa uyarıyla devam ediliyor, kapalıysa emir
+  // Planlandı'ya çekilip bekletiliyor. Burada da engellemek, parametre açık
+  // olsa bile üretime göndermeyi imkânsız kılıyordu.
   const gonderEngel = !modelGecerli
     ? "En az bir model/parça ekleyin"
     : !hedefGecerli
       ? neden === "stok"
         ? "Hedef depo seçin"
         : "Müşteri seçin"
-      : !yeterli
-        ? "Stok yetersiz — yalnız taslak kaydedebilirsiniz"
-        : null;
+      : null;
 
   const [kaydediliyor, setKaydediliyor] = React.useState(false);
 
@@ -1009,7 +1011,12 @@ export function ProductionPlan({
         <Button
           onClick={() => olustur("Üretimde")}
           disabled={!!gonderEngel || kaydediliyor}
-          title={gonderEngel ?? undefined}
+          title={
+            gonderEngel ??
+            (yeterli
+              ? undefined
+              : "Stok yetersiz — emir açılır, düşüm sonucuna göre uyarı verilir")
+          }
         >
           <Hammer className="size-4" /> Üretime Gönder
         </Button>
