@@ -96,16 +96,49 @@ function Etiket({
   );
 }
 
+/** Kenardan dışarı çıkan gösterme çizgisi (ucunda yatay raf). */
+function CikmaCizgisi({
+  baslangic,
+  bitis,
+  raf,
+  renk,
+}: {
+  baslangic: [number, number, number];
+  bitis: [number, number, number];
+  raf: number;
+  renk: string;
+}) {
+  const geo = React.useMemo(
+    () =>
+      cizgiGeometrisi([
+        baslangic,
+        bitis,
+        bitis,
+        [bitis[0] + raf, bitis[1], bitis[2]],
+      ]),
+    [baslangic, bitis, raf],
+  );
+  React.useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <lineSegments geometry={geo}>
+      <lineBasicMaterial color={renk} />
+    </lineSegments>
+  );
+}
+
 /** Panel gövdesi + bantlı kenar şeritleri + ölçü kotaları. */
 function Panel({
   en,
   boy,
   kalinlik,
+  kalinlikVarsayilan,
   bantlar,
 }: {
   en: number;
   boy: number;
   kalinlik: number;
+  /** Ölçü girilmediği için 18 mm varsayıldıysa etikette belirtilir. */
+  kalinlikVarsayilan: boolean;
   bantlar: BantGosterim[];
 }) {
   // En büyük kenar 2 birim olacak şekilde ölçekle: 400×2000 bir parça da,
@@ -122,15 +155,56 @@ function Panel({
   const kotaPay = buyuk * 0.16; // kota çizgisinin panelden uzaklığı
   const centik = buyuk * 0.03;
 
+  // Her bantlı kenar bir ÇIKMA ÇİZGİSİYLE (leader) dışarı taşınıp orada
+  // yazıyla adlandırılıyor. Etiket şeridin üstünde dursaydı ince şeritte
+  // okunmaz, panelin ortasında dursaydı sol/sağ üst üste binerdi.
+  //
+  // Yönler kotalarla çakışmayacak şekilde seçildi: en kotası altta, boy
+  // kotası solda; bu yüzden alt çıkması sağ-alta, sol çıkması sol-üste gider.
+  const cikma = kotaPay * 0.95;
   const kenarlar: {
     kenar: keyof KenarSecim;
     konum: [number, number, number];
     boyut: [number, number, number];
+    /** Çizginin panelden çıktığı nokta. */
+    baslangic: [number, number, number];
+    /** Yazının durduğu nokta (çizginin ucu). */
+    bitis: [number, number, number];
+    /** Ucundaki yatay raf yönü (+1 sağa, -1 sola). */
+    rafYon: 1 | -1;
   }[] = [
-    { kenar: "ust", konum: [0, y / 2 + serit / 2, 0], boyut: [g, serit, k] },
-    { kenar: "alt", konum: [0, -y / 2 - serit / 2, 0], boyut: [g, serit, k] },
-    { kenar: "sol", konum: [-g / 2 - serit / 2, 0, 0], boyut: [serit, y, k] },
-    { kenar: "sag", konum: [g / 2 + serit / 2, 0, 0], boyut: [serit, y, k] },
+    {
+      kenar: "ust",
+      konum: [0, y / 2 + serit / 2, 0],
+      boyut: [g, serit, k],
+      baslangic: [g * 0.15, y / 2 + serit, 0],
+      bitis: [g * 0.15 + cikma * 0.7, y / 2 + cikma, 0],
+      rafYon: 1,
+    },
+    {
+      kenar: "alt",
+      konum: [0, -y / 2 - serit / 2, 0],
+      boyut: [g, serit, k],
+      baslangic: [g * 0.15, -y / 2 - serit, 0],
+      bitis: [g / 2 + cikma * 0.9, -y / 2 - cikma * 0.55, 0],
+      rafYon: 1,
+    },
+    {
+      kenar: "sol",
+      konum: [-g / 2 - serit / 2, 0, 0],
+      boyut: [serit, y, k],
+      baslangic: [-g / 2 - serit, y * 0.28, 0],
+      bitis: [-g / 2 - cikma * 0.9, y * 0.28 + cikma * 0.6, 0],
+      rafYon: -1,
+    },
+    {
+      kenar: "sag",
+      konum: [g / 2 + serit / 2, 0, 0],
+      boyut: [serit, y, k],
+      baslangic: [g / 2 + serit, y * 0.05, 0],
+      bitis: [g / 2 + cikma, y * 0.05 + cikma * 0.35, 0],
+      rafYon: 1,
+    },
   ];
 
   const govde = React.useMemo(() => new BoxGeometry(g, y, k), [g, y, k]);
@@ -189,29 +263,48 @@ function Panel({
       <Etiket konum={[boyKotaX - centik * 2.4, 0, 0]}>
         {sayiBicim(boy)} mm
       </Etiket>
-      {/* Kalınlık: panelin kalınlık yüzüne bakan köşede */}
-      <Etiket konum={[g / 2 + kotaPay * 0.55, y / 2 + kotaPay * 0.5, k / 2]}>
-        t = {sayiBicim(kalinlik)} mm
+      {/* Panel kalınlığı: çizgi doğrudan kalınlık yüzünü gösteriyor. Yalnız
+          "Kalınlık 18 mm" yazsaydı neyin kalınlığı olduğu belirsiz kalırdı
+          (panelin mi, bandın mı). */}
+      <CikmaCizgisi
+        baslangic={[g / 2, y / 2, k / 2]}
+        bitis={[g / 2 + kotaPay * 0.7, y / 2 + kotaPay * 0.7, k / 2]}
+        raf={centik * 1.6}
+        renk={RENK.kota}
+      />
+      <Etiket
+        konum={[
+          g / 2 + kotaPay * 0.7 + centik * 3,
+          y / 2 + kotaPay * 0.7,
+          k / 2,
+        ]}
+      >
+        Panel kalınlığı {sayiBicim(kalinlik)} mm
+        {kalinlikVarsayilan ? " (varsayılan)" : ""}
       </Etiket>
 
-      {/* Bantlı kenarlar */}
-      {kenarlar.map(({ kenar, konum, boyut }) => {
+      {/* Bantlı kenarlar — şerit + çıkma çizgisi + yazı */}
+      {kenarlar.map(({ kenar, konum, boyut, baslangic, bitis, rafYon }) => {
         const bagli = kenarBantlari(bantlar, kenar);
         if (bagli.length === 0) return null;
-        // Etiket şeridin ORTASINDA değil ucunda: ortada dursa dar panelde
-        // sol/sağ etiketleri üst üste binerdi.
-        const etiketKonum: [number, number, number] =
-          kenar === "sol" || kenar === "sag"
-            ? [konum[0], y / 2 - serit * 4, 0]
-            : [g / 2 - serit * 4, konum[1], 0];
+        const raf = centik * 1.6 * rafYon;
         return (
           <group key={kenar}>
             <mesh position={konum}>
               <boxGeometry args={boyut} />
               <meshStandardMaterial color={bagli[0].renk} roughness={0.6} />
             </mesh>
-            <Etiket konum={etiketKonum} renk={bagli[0].renk}>
-              {KENAR_ADI[kenar]}
+            <CikmaCizgisi
+              baslangic={baslangic}
+              bitis={bitis}
+              raf={raf}
+              renk={bagli[0].renk}
+            />
+            <Etiket
+              konum={[bitis[0] + raf * 1.9, bitis[1], bitis[2]]}
+              renk={bagli[0].renk}
+            >
+              {KENAR_ADI[kenar]} bant
               {bagli.length > 1 ? ` ×${bagli.length}` : ""}
             </Etiket>
           </group>
@@ -273,7 +366,13 @@ export function ParcaOnizleme({
           <ambientLight intensity={1.1} />
           <directionalLight position={[2, 4, 6]} intensity={0.8} />
           <directionalLight position={[-3, -2, -4]} intensity={0.25} />
-          <Panel en={en} boy={boy} kalinlik={kal} bantlar={bantliOlanlar} />
+          <Panel
+            en={en}
+            boy={boy}
+            kalinlik={kal}
+            kalinlikVarsayilan={!kalinlik || kalinlik <= 0}
+            bantlar={bantliOlanlar}
+          />
           <OrbitControls
             enablePan={false}
             minDistance={2}
