@@ -104,8 +104,8 @@ function getCrumbs(
     return {
       crumbs: [
         { label: "Üretim Yönetimi" },
-        { label: "Parça", href: "/stok-yonetimi?bolum=parcalar" },
-        { label: "Yeni Parça" },
+        { label: "Modül", href: "/stok-yonetimi?bolum=parcalar" },
+        { label: "Yeni Modül" },
       ],
       Icon: iconForHref("/uretim/emirler"),
     };
@@ -115,8 +115,8 @@ function getCrumbs(
     return {
       crumbs: [
         { label: "Üretim Yönetimi" },
-        { label: "Parça", href: "/stok-yonetimi?bolum=parcalar" },
-        { label: "Parça" },
+        { label: "Modül", href: "/stok-yonetimi?bolum=parcalar" },
+        { label: "Modül" },
       ],
       Icon: iconForHref("/uretim/emirler"),
       meta: id,

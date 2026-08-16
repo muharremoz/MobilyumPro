@@ -88,7 +88,10 @@ export const sections: Section[] = [
     RailIcon: I(HammerIcon),
     items: [
       { groupHeader: "Kartlar", label: "Malzeme", href: "/stok-karti", modul: "stok", icon: I(BoxesIcon) },
-      { label: "Parça", href: "/stok-yonetimi?bolum=parcalar", modul: "stok", icon: I(CpuIcon) },
+      // "Parça" → "Modül": bugünkü parça kayıtları aslında modül (dolap,
+      // komodin). Rota ve şema adları henüz taşınmadı; tam yeniden
+      // adlandırma yapısal işin (Model→Modül→Parça) parçası.
+      { label: "Modül", href: "/stok-yonetimi?bolum=parcalar", modul: "stok", icon: I(CpuIcon) },
       { label: "Model", href: "/urunler", modul: "uretim-plan", icon: I(RockingChairIcon) },
       { groupHeader: "Üretim", label: "Üretim Planı", href: "/uretim/plan", modul: "uretim-plan", icon: I(CalendarDaysIcon) },
       { label: "Üretim Takibi", href: "/uretim/emirler", icon: I(HammerIcon) },
