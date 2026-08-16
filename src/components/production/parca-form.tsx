@@ -93,6 +93,7 @@ import {
   parcaDokumanSil,
   receteGeriYukle,
   stokKaydet,
+  tanimKaydet,
 } from "@/lib/db/actions";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import {
@@ -216,6 +217,7 @@ export function ParcaForm({
   posetler = [],
   stokGruplari = [],
   birimler = [],
+  parcaAdlari = [],
   // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
   // için parametreyi kendisi okuyamaz.
   varsayilanFire = 0,
@@ -225,6 +227,8 @@ export function ParcaForm({
   /** Reçetede "yeni malzeme" için grup ağacı ve birim listesi. */
   stokGruplari?: StokGrup[];
   birimler?: string[];
+  /** Tanımlamalar → Parçalar (reçete grubu = parça adı). */
+  parcaAdlari?: string[];
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
   parcalar: Parca[];
@@ -619,6 +623,27 @@ export function ParcaForm({
   const [ekGruplar, setEkGruplar] = React.useState<string[]>([]);
   const [yeniGrupAcik, setYeniGrupAcik] = React.useState(false);
   const [yeniGrupAd, setYeniGrupAd] = React.useState("");
+  // Tanımlamalar → Parçalar listesi; yerelde eklenen de burada birikir.
+  const [parcaTanimlari, setParcaTanimlari] =
+    React.useState<string[]>(parcaAdlari);
+  const [yeniParcaAcik, setYeniParcaAcik] = React.useState(false);
+  const [yeniParcaAd, setYeniParcaAd] = React.useState("");
+
+  /** Listede olmayan bir parça adını Tanımlamalar'a kaydeder ve seçer. */
+  async function parcaTanimiEkle() {
+    const ad = yeniParcaAd.trim();
+    if (!ad) return;
+    if (!parcaTanimlari.includes(ad)) {
+      const res = await tanimKaydet("parca", { ad, durum: "Aktif" });
+      if (!res?.ok) {
+        toast.error("Parça eklenemedi");
+        return;
+      }
+      setParcaTanimlari((l) => [...l, ad].sort((a, b) => a.localeCompare(b, "tr")));
+    }
+    setYeniGrupAd(ad);
+    setYeniParcaAcik(false);
+  }
 
   const grupSirasi = React.useMemo(() => {
     const set = new Set<string>();
@@ -2384,22 +2409,25 @@ export function ParcaForm({
       <Dialog open={yeniGrupAcik} onOpenChange={setYeniGrupAcik}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Yeni Reçete Grubu</DialogTitle>
+            <DialogTitle>Reçete Grubu (Parça)</DialogTitle>
           </DialogHeader>
-          <Input
-            autoFocus
-            placeholder="Örn. Gövde, Kapak, Aksesuar"
-            value={yeniGrupAd}
-            onChange={(e) => setYeniGrupAd(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                grupEkle();
-              }
+          {/* Grup = parça adı (ALT TABLA, SAĞ YAN...). Serbest metin yerine
+              Tanımlamalar → Parçalar listesinden seçiliyor ki aynı parça her
+              reçetede aynı adla geçsin; listede yoksa oradan eklenebiliyor. */}
+          <SearchSelect
+            items={parcaTanimlari.filter((x) => !grupSirasi.includes(x))}
+            value={yeniGrupAd || null}
+            onValueChange={(v) => setYeniGrupAd(v ?? "")}
+            placeholder="Parça seçin"
+            emptyText="Parça bulunamadı"
+            addLabel="Yeni parça ekle"
+            onAdd={() => {
+              setYeniParcaAd("");
+              setYeniParcaAcik(true);
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Reçete satırlarını bölümlere ayırır. Satırın grubunu satırdaki
+            Reçete satırlarını parçalara ayırır. Satırın parçasını satırdaki
             klasör düğmesinden değiştirebilirsiniz.
           </p>
           <DialogFooter>
@@ -2408,6 +2436,39 @@ export function ParcaForm({
             </Button>
             <Button onClick={grupEkle} disabled={!yeniGrupAd.trim()}>
               Oluştur
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Yeni parça tanımı — reçete grubu seçicisinden açılır */}
+      <Dialog open={yeniParcaAcik} onOpenChange={setYeniParcaAcik}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yeni Parça</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Örn. ALT TABLA, SAĞ YAN"
+            value={yeniParcaAd}
+            onChange={(e) => setYeniParcaAd(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                parcaTanimiEkle();
+              }
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Tanımlamalar → Parçalar listesine eklenir; diğer reçetelerde de
+            seçilebilir olur.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYeniParcaAcik(false)}>
+              İptal
+            </Button>
+            <Button onClick={parcaTanimiEkle} disabled={!yeniParcaAd.trim()}>
+              Ekle ve seç
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -57,6 +57,7 @@ export default async function ParcaDetayRoute({
       posetler={posetler}
       stokGruplari={gruplar}
       birimler={tanimlar.birim.map((t) => t.ad)}
+      parcaAdlari={tanimlar.parca.map((t) => t.ad)}
       recete={recete}
       parcalar={parcalar}
       malzemeler={malzemeler}

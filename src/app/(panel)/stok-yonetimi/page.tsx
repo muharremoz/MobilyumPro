@@ -33,6 +33,7 @@ export default async function StokYonetimiPage({
     "kumaslar",
     "birimler",
     "istasyonlar",
+    "parca-tanim",
   ];
   const modul = TANIM_BOLUMLERI.includes(bolum) ? "tanimlamalar" : "stok";
   const [

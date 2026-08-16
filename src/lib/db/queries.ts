@@ -1669,6 +1669,7 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     bolge: new Map(),
     sehir: new Map(),
     semt: new Map(),
+    parca: new Map(),
   };
 
   const sonuc: Record<TanimTip, TanimKalemi[]> = {
@@ -1686,6 +1687,7 @@ export async function getTanimlar(): Promise<Record<TanimTip, TanimKalemi[]>> {
     bolge: [],
     sehir: [],
     semt: [],
+    parca: [],
   };
   for (const r of rows) {
     const tip = r.tip as TanimTip;

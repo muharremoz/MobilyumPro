@@ -41,6 +41,7 @@ export default async function YeniParcaRoute() {
       posetler={posetler}
       stokGruplari={gruplar}
       birimler={tanimlar.birim.map((t) => t.ad)}
+      parcaAdlari={tanimlar.parca.map((t) => t.ad)}
       recete={null}
       parcalar={parcalar}
       malzemeler={malzemeler}

@@ -639,6 +639,8 @@ export type TanimTip =
   | "renk"
   | "kumas"
   | "birim"
+  // Parça adları (ALT TABLA, SAĞ YAN...) — modülü oluşturan paneller.
+  | "parca"
   | "ulke"
   | "bolge"
   | "sehir"
