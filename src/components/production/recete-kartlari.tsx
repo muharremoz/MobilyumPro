@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, FolderOpen, Plus, Ruler, Trash } from "lucide-react";
+import { Box, ChevronDown, FolderOpen, Plus, Ruler, Trash } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import {
   bantUzunlugu,
@@ -16,6 +17,25 @@ import {
   type ReceteGrup,
   type ReceteSatiri,
 } from "@/lib/data";
+
+/**
+ * 3D önizleme yalnız açıldığında yüklenir: three.js + drei ~600 KB, her
+ * reçete açılışında peşin ödenmemeli.
+ */
+const ParcaOnizleme = dynamic(
+  () =>
+    import("@/components/production/parca-onizleme").then(
+      (m) => m.ParcaOnizleme,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-56 items-center justify-center rounded-md border bg-muted/20 text-xs text-muted-foreground">
+        Önizleme yükleniyor…
+      </div>
+    ),
+  },
+);
 
 /**
  * Reçete — PARÇA KARTLARI.
@@ -87,6 +107,19 @@ export function ReceteKartlari({
     () => new Map(malzemeler.map((m) => [m.id, m])),
     [malzemeler],
   );
+
+  const [acikGorseller, setAcikGorseller] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+
+  function gorselAcKapa(ad: string) {
+    setAcikGorseller((s) => {
+      const y = new Set(s);
+      if (y.has(ad)) y.delete(ad);
+      else y.add(ad);
+      return y;
+    });
+  }
 
   function olcuAcKapa(ad: string) {
     setAcikOlculer((s) => {
@@ -166,7 +199,25 @@ export function ReceteKartlari({
           .map((s, i) => ({ s, i }))
           .filter(({ s }) => (s.grup ?? "") === g.ad);
         const olcuAcik = acikOlculer.has(g.ad);
+        const gorselAcik = acikGorseller.has(g.ad);
         const { en, boy } = parcaOlcusu(g);
+        // Önizlemeye yalnız kenar bandı satırları girer; suntalam/vida panelin
+        // kenarını göstermez.
+        const bantSatirlari = kendi
+          .filter(({ s }) => {
+            const m =
+              s.bilesen.tip === "malzeme"
+                ? malzemeMap.get(s.bilesen.ref)
+                : undefined;
+            return bantMi(m?.birim) && s.bant;
+          })
+          .map(({ s }) => ({
+            ad:
+              (s.bilesen.tip === "malzeme"
+                ? malzemeMap.get(s.bilesen.ref)?.ad
+                : undefined) ?? "Kenar bandı",
+            kenarlar: s.bant ?? {},
+          }));
 
         return (
           <div key={g.ad} className="overflow-hidden rounded-lg border bg-card">
@@ -199,6 +250,22 @@ export function ReceteKartlari({
                     className={cn(
                       "size-3 transition-transform",
                       olcuAcik && "rotate-180",
+                    )}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => gorselAcKapa(g.ad)}
+                >
+                  <Box className="size-3.5" />
+                  Görsel
+                  <ChevronDown
+                    className={cn(
+                      "size-3 transition-transform",
+                      gorselAcik && "rotate-180",
                     )}
                   />
                 </Button>
@@ -259,6 +326,18 @@ export function ReceteKartlari({
                     onDeger={(v) => grupGuncelle(g.ad, { kalinlik: v })}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* 3D önizleme — bantlı kenarlar renkli şeritle belirginleşir */}
+            {gorselAcik && (
+              <div className="border-b bg-muted/10 px-3 py-3">
+                <ParcaOnizleme
+                  en={en}
+                  boy={boy}
+                  kalinlik={g.kalinlik}
+                  bantlar={bantSatirlari}
+                />
               </div>
             )}
 
