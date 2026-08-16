@@ -48,6 +48,12 @@ const BOS_SATIR = (sira: number): ProjeSatir => ({
   parcalar: [],
 });
 
+/** Kenar bandı birimi mi? (m / mt) */
+function bantMi(birim?: string) {
+  const b = (birim ?? "").trim().toLowerCase();
+  return b === "m" || b === "mt";
+}
+
 const DURUMLAR: Proje["durum"][] = [
   "Teklif",
   "Kazanıldı",
@@ -339,7 +345,12 @@ export function ProjeForm({
               }}
             />
           ))}
-          <Button variant="outline" size="sm" className="w-fit" onClick={modulEkle}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={modulEkle}
+          >
             <Plus className="size-4" /> Modül ekle
           </Button>
         </div>
@@ -678,7 +689,9 @@ function ParcaKutusu({
             elle
           </span>
         )}
-        <span className="ml-auto text-[11px] tabular-nums">{para(maliyet)}</span>
+        <span className="ml-auto text-[11px] tabular-nums">
+          {para(maliyet)}
+        </span>
       </div>
 
       <div className="grid grid-cols-4 gap-1">
@@ -704,85 +717,116 @@ function ParcaKutusu({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="text-[10px] text-muted-foreground">Bant:</span>
-        {(
-          [
-            ["ust", "Üst"],
-            ["alt", "Alt"],
-            ["sol", "Sol"],
-            ["sag", "Sağ"],
-          ] as [keyof KenarSecim, string][]
-        ).map(([k, etiket]) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onDegis({ bant: { ...bant, [k]: !bant[k] } })}
-            className={cn(
-              "rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
-              bant[k]
-                ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {etiket}
-          </button>
-        ))}
-      </div>
-
       <div className="flex flex-col gap-1">
         {parca.malzemeler.map((m, i) => {
           const mlz = malzemeMap.get(m.malzemeId);
           const hesap = satirMiktari(
             mlz?.birim,
-            { ad: parca.ad, sira: parca.sira, netEn: parca.en, netBoy: parca.boy },
+            {
+              ad: parca.ad,
+              sira: parca.sira,
+              netEn: parca.en,
+              netBoy: parca.boy,
+            },
             parca.bant,
           );
+          const kenarli = bantMi(mlz?.birim);
           return (
-            <div key={i} className="flex items-center gap-1">
-              <div className="min-w-0 flex-1">
-                <SearchSelect
-                  sekmeler={malzemeSekmeleri}
-                  value={
-                    mlz
-                      ? (malzemeler
-                          .filter((x) => x.id === mlz.id)
-                          .map(malzemeEtiketi)[0] ?? null)
-                      : null
-                  }
-                  onValueChange={(etiket) =>
+            <div key={i} className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1">
+                  <SearchSelect
+                    sekmeler={malzemeSekmeleri}
+                    value={
+                      mlz
+                        ? (malzemeler
+                            .filter((x) => x.id === mlz.id)
+                            .map(malzemeEtiketi)[0] ?? null)
+                        : null
+                    }
+                    onValueChange={(etiket) =>
+                      onDegis({
+                        malzemeler: parca.malzemeler.map((x, j) =>
+                          j === i
+                            ? {
+                                ...x,
+                                malzemeId: etiketToId.get(etiket ?? "") ?? "",
+                              }
+                            : x,
+                        ),
+                      })
+                    }
+                    placeholder="Malzeme seçin"
+                    className="h-7"
+                  />
+                </div>
+                {/* Miktar çerçeveli bir alanda: düz yazıyken hangi rakamın
+                    hangi malzemeye ait olduğu seçilmiyordu. Değer ölçüden
+                    türediği için salt okunur. */}
+                <div className="relative w-24 shrink-0">
+                  <div
+                    className="flex h-7 items-center justify-end rounded-md border bg-muted/40 pr-9 pl-2 text-xs text-foreground tabular-nums"
+                    title="Parçanın ölçüsünden hesaplanıyor"
+                  >
+                    {hesap == null
+                      ? (m.miktar ?? 1)
+                      : Number(hesap.toFixed(3))}
+                  </div>
+                  {mlz?.birim && (
+                    <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {mlz.birim}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() =>
                     onDegis({
-                      malzemeler: parca.malzemeler.map((x, j) =>
-                        j === i
-                          ? {
-                              ...x,
-                              malzemeId: etiketToId.get(etiket ?? "") ?? "",
-                            }
-                          : x,
-                      ),
+                      malzemeler: parca.malzemeler.filter((_, j) => j !== i),
                     })
                   }
-                  placeholder="Malzeme"
-                  className="h-7"
-                />
+                  aria-label="Malzemeyi kaldır"
+                >
+                  <Trash className="size-3" />
+                </Button>
               </div>
-              <span className="w-16 shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
-                {hesap == null ? (m.miktar ?? 1) : Number(hesap.toFixed(3))}{" "}
-                {mlz?.birim}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() =>
-                  onDegis({
-                    malzemeler: parca.malzemeler.filter((_, j) => j !== i),
-                  })
-                }
-                aria-label="Malzemeyi kaldır"
-              >
-                <Trash className="size-3" />
-              </Button>
+
+              {/* Kenar seçimi YALNIZ kenar bandı satırının altında: bant
+                  seçilmemişken dört düğme her kutuda yer kaplıyor ve
+                  suntalam satırıyla ilgisiz görünüyordu. */}
+              {kenarli && (
+                <div className="flex flex-wrap items-center gap-1 pl-1">
+                  <span className="text-[10px] text-muted-foreground">
+                    Kenarlar:
+                  </span>
+                  {(
+                    [
+                      ["ust", "Üst"],
+                      ["alt", "Alt"],
+                      ["sol", "Sol"],
+                      ["sag", "Sağ"],
+                    ] as [keyof KenarSecim, string][]
+                  ).map(([k, etiket]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() =>
+                        onDegis({ bant: { ...bant, [k]: !bant[k] } })
+                      }
+                      className={cn(
+                        "rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        bant[k]
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {etiket}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
