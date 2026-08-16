@@ -29,7 +29,7 @@ export default async function ProjeDetayRoute({
       proje={proje}
       malzemeler={malzemeler}
       cariler={cariler.map((c) => ({ id: c.id, ad: c.ad }))}
-      modulAdlari={tanimlar.parca.map((t) => t.ad)}
+      modulAdlari={tanimlar.modul.map((t) => t.ad)}
     />
   );
 }

@@ -59,7 +59,8 @@ export type TabKey =
   | "kumaslar"
   | "birimler"
   // Modül listesi zaten bolum=parcalar; tanım sekmesi ayrı anahtar almalı.
-  | "parca-tanim";
+  | "parca-tanim"
+  | "modul-tanim";
 
 export const TABS: Record<TabKey, { label: string; tekil: string }> = {
   gruplar: { label: "Gruplar", tekil: "Grup" },
@@ -70,6 +71,7 @@ export const TABS: Record<TabKey, { label: string; tekil: string }> = {
   kumaslar: { label: "Kumaşlar", tekil: "Kumaş" },
   birimler: { label: "Birimler", tekil: "Birim" },
   "parca-tanim": { label: "Parçalar", tekil: "Parça" },
+  "modul-tanim": { label: "Modüller", tekil: "Modül" },
 };
 
 // Sol menü grupları (alt menü).
@@ -77,7 +79,7 @@ export const MENU: { label: string; keys: TabKey[] }[] = [
   { label: "Stok", keys: ["gruplar", "tipler"] },
   { label: "Model", keys: ["markalar", "koleksiyonlar"] },
   { label: "Özellik", keys: ["renkler", "kumaslar", "birimler"] },
-  { label: "Üretim", keys: ["parca-tanim"] },
+  { label: "Üretim", keys: ["modul-tanim", "parca-tanim"] },
 ];
 
 type DuzTab = Exclude<TabKey, "gruplar">;
@@ -91,6 +93,7 @@ const TIP_MAP: Record<DuzTab, TanimTip> = {
   kumaslar: "kumas",
   birimler: "birim",
   "parca-tanim": "parca",
+  "modul-tanim": "modul",
 };
 
 const BOS: Record<DuzTab, Tanim[]> = {
@@ -101,6 +104,7 @@ const BOS: Record<DuzTab, Tanim[]> = {
   kumaslar: [],
   birimler: [],
   "parca-tanim": [],
+  "modul-tanim": [],
 };
 
 function tanimlardanData(
@@ -115,6 +119,7 @@ function tanimlardanData(
     kumaslar: tanimlar.kumas,
     birimler: tanimlar.birim,
     "parca-tanim": tanimlar.parca,
+    "modul-tanim": tanimlar.modul,
   };
 }
 

@@ -113,7 +113,8 @@ export const sections: Section[] = [
       { groupHeader: "Özellik", label: "Renkler", href: "/stok-yonetimi?bolum=renkler", icon: I(ChartPieIcon) },
       { label: "Kumaşlar", href: "/stok-yonetimi?bolum=kumaslar", icon: I(SlidersHorizontalIcon) },
       { label: "Birimler", href: "/stok-yonetimi?bolum=birimler", icon: I(ScanTextIcon) },
-      { groupHeader: "Üretim", label: "Parçalar", href: "/stok-yonetimi?bolum=parca-tanim", icon: I(CpuIcon) },
+      { groupHeader: "Üretim", label: "Modüller", href: "/stok-yonetimi?bolum=modul-tanim", icon: I(BoxesIcon) },
+      { label: "Parçalar", href: "/stok-yonetimi?bolum=parca-tanim", icon: I(CpuIcon) },
     ],
   },
   {

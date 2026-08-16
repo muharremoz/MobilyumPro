@@ -37,6 +37,7 @@ const TANIM_TIPLERI: DefTab[] = [
   "kumaslar",
   "birimler",
   "parca-tanim",
+  "modul-tanim",
 ];
 
 export function InventoryPage({

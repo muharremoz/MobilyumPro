@@ -64,7 +64,7 @@ export function ProjeForm({
   proje: Proje | null;
   malzemeler: Malzeme[];
   cariler: { id: string; ad: string }[];
-  /** Tanımlamalar → Parçalar: modül adı buradan seçilir. */
+  /** Tanımlamalar → Modüller (DOLAP, ŞİFONYER, BAZA...). */
   modulAdlari: string[];
 }) {
   const router = useRouter();
@@ -78,7 +78,9 @@ export function ProjeForm({
     proje?.durum ?? "Teklif",
   );
   const [aciklama, setAciklama] = React.useState(proje?.aciklama ?? "");
-  const [dokumanlar, setDokumanlar] = React.useState(proje?.dokumanlar ?? []);
+  // Dosya alanı şimdilik gizli; mevcut dokümanlar kaybolmasın diye
+  // kaydetmede olduğu gibi geri yazılıyor.
+  const [dokumanlar] = React.useState(proje?.dokumanlar ?? []);
   const [satirlar, setSatirlar] = React.useState<ProjeSatir[]>(
     proje?.satirlar ?? [],
   );
@@ -312,59 +314,8 @@ export function ProjeForm({
         </label>
       </div>
 
-      {/* Teklif dosyaları */}
-      <div className="rounded-md border bg-card p-3">
-        <p className="mb-2 text-xs font-medium">Teklif Dosyaları</p>
-        <div className="flex flex-col gap-1.5">
-          {dokumanlar.map((d, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              <Input
-                value={d.ad}
-                onChange={(e) =>
-                  setDokumanlar((l) =>
-                    l.map((x, j) => (j === i ? { ...x, ad: e.target.value } : x)),
-                  )
-                }
-                placeholder="Dosya adı"
-                className="h-8 w-56"
-              />
-              <Input
-                value={d.url}
-                onChange={(e) =>
-                  setDokumanlar((l) =>
-                    l.map((x, j) =>
-                      j === i ? { ...x, url: e.target.value } : x,
-                    ),
-                  )
-                }
-                placeholder="Bağlantı / dosya yolu"
-                className="h-8 flex-1"
-              />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-7 text-muted-foreground hover:text-destructive"
-                onClick={() =>
-                  setDokumanlar((l) => l.filter((_, j) => j !== i))
-                }
-                aria-label="Kaldır"
-              >
-                <Trash className="size-3.5" />
-              </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-fit text-xs"
-            onClick={() =>
-              setDokumanlar((l) => [...l, { ad: "", url: "", tip: "Doküman" }])
-            }
-          >
-            <Plus className="size-3" /> Dosya ekle
-          </Button>
-        </div>
-      </div>
+      {/* Teklif dosyaları — dosya yükleme akışı netleşene kadar gizli.
+          Alan ve tablo duruyor, yalnız arayüzde gösterilmiyor. */}
 
       {/* Modüller ve parçaları */}
       <div className="grid min-h-0 gap-3 lg:grid-cols-[320px_1fr]">
@@ -503,17 +454,15 @@ function ModulKarti({
         </Button>
       </div>
 
+      {/* Modülün hemen altında ölçüleri: mobilyada konuşulan sıra
+          yükseklik → derinlik → genişlik, alan adları da öyle etiketli
+          (şemada boy = yükseklik, en = genişlik). */}
       <div
-        className="grid grid-cols-4 gap-1.5 px-2 py-2"
+        className="grid grid-cols-2 gap-1.5 px-2 py-2"
         onClick={(e) => e.stopPropagation()}
       >
         <OlcuAlani
-          etiket="En"
-          deger={satir.en}
-          onDeger={(v) => onDegis({ en: v })}
-        />
-        <OlcuAlani
-          etiket="Boy"
+          etiket="Yükseklik"
           deger={satir.boy}
           onDeger={(v) => onDegis({ boy: v })}
         />
@@ -523,7 +472,12 @@ function ModulKarti({
           onDeger={(v) => onDegis({ derinlik: v })}
         />
         <OlcuAlani
-          etiket="Kalınlık"
+          etiket="Genişlik"
+          deger={satir.en}
+          onDeger={(v) => onDegis({ en: v })}
+        />
+        <OlcuAlani
+          etiket="Panel kalınlığı"
           deger={satir.kalinlik}
           onDeger={(v) => onDegis({ kalinlik: v })}
         />

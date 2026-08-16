@@ -752,6 +752,8 @@ export type TanimTip =
   | "birim"
   // Parça adları (ALT TABLA, SAĞ YAN...) — modülü oluşturan paneller.
   | "parca"
+  // Modül adları (DOLAP, ŞİFONYER, BAZA...) — projede seçilen gövde tipi.
+  | "modul"
   | "ulke"
   | "bolge"
   | "sehir"
