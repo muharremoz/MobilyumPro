@@ -19,12 +19,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { ReceteKartlari } from "@/components/production/recete-kartlari";
 import { cn } from "@/lib/utils";
 import { modelKopyaVerisi, modelKopyala } from "@/lib/db/actions";
-import type {
-  Malzeme,
-  Model,
-  ReceteGrup,
-  ReceteSatiri,
-} from "@/lib/data";
+import type { Malzeme, Model, ReceteGrup, ReceteSatiri } from "@/lib/data";
 
 /**
  * Model kopyalama penceresi.
@@ -69,10 +64,14 @@ export function seriOnEki(modulAdlari: string[], modelAd: string): string {
 
 /**
  * Modül adını yeni modele uyarlar: "BIEN DOLAP" + seri "BIEN" + yeni ad
- * "TEST" → "TEST DOLAP".
+ * "TEST MODEL" → "TEST MODEL DOLAP".
  *
- * Seri ön ekiyle başlamayan modül adının başına yeni ön ek eklenir
- * ("KAPAK" → "TEST KAPAK"): kopyanın bütün modülleri yeni modele bağlı
+ * Yeni adın TAMAMI kullanılır, ilk kelimesi değil: model adına boşluk
+ * eklendiğinde modül adı ilk kelimede kalıyor, kullanıcı yazdığının
+ * sürmediğini görüyordu.
+ *
+ * Seri ön ekiyle başlamayan modül adının başına yeni ad eklenir
+ * ("KAPAK" → "TEST MODEL KAPAK"): kopyanın bütün modülleri yeni modele bağlı
  * görünmeli. Türetilen ad her zaman düzenlenebilir.
  */
 export function modulAdiUyarla(
@@ -80,14 +79,17 @@ export function modulAdiUyarla(
   seriOnEk: string,
   yeniModelAd: string,
 ): string {
-  const yeniOnEk = ilkKelime(yeniModelAd);
-  if (!yeniOnEk) return modulAd;
+  const yeni = yeniModelAd.trim();
+  if (!yeni) return modulAd;
   const parcalar = modulAd.trim().split(/\s+/).filter(Boolean);
   if (parcalar.length === 0) return modulAd;
-  if (seriOnEk && kucuk(parcalar[0]) === kucuk(seriOnEk))
-    return [yeniOnEk, ...parcalar.slice(1)].join(" ");
-  if (kucuk(parcalar[0]) === kucuk(yeniOnEk)) return modulAd;
-  return [yeniOnEk, ...parcalar].join(" ");
+  const kalan =
+    seriOnEk && kucuk(parcalar[0]) === kucuk(seriOnEk)
+      ? parcalar.slice(1)
+      : parcalar;
+  // Ad zaten yeni adla başlıyorsa tekrar eklenmez ("TEST TEST DOLAP" olmaz).
+  if (kucuk(kalan.join(" ")).startsWith(kucuk(yeni))) return kalan.join(" ");
+  return [yeni, ...kalan].join(" ");
 }
 
 export function ModelKopyaDialog({
@@ -117,9 +119,9 @@ export function ModelKopyaDialog({
   >([]);
   // Kaynak reçeteler — "kaç satır değişti" sayımı için dokunulmadan saklanır.
   // Ref değil state: render sırasında okunuyor, sayaçlar buna göre çiziliyor.
-  const [kaynakRecete, setKaynakRecete] = React.useState<
-    Map<string, string[]>
-  >(() => new Map());
+  const [kaynakRecete, setKaynakRecete] = React.useState<Map<string, string[]>>(
+    () => new Map(),
+  );
 
   React.useEffect(() => {
     if (!acik || !model) return;
@@ -296,8 +298,8 @@ export function ModelKopyaDialog({
           <DialogTitle>Model Kopyala</DialogTitle>
           <DialogDescription>
             {model?.ad} modelinin tüm modülleri yeni kayıt olarak kopyalanır.
-            Malzemeleri şimdi değiştirebilirsiniz; sonradan düzenlemek
-            orijinali etkilemez.
+            Malzemeleri şimdi değiştirebilirsiniz; sonradan düzenlemek orijinali
+            etkilemez.
           </DialogDescription>
         </DialogHeader>
 
@@ -312,7 +314,10 @@ export function ModelKopyaDialog({
               value={yeniAd}
               onChange={(e) => setYeniAd(e.target.value)}
               placeholder={`Örn. ${model?.ad ?? ""} 2`}
-              className={cn("mt-1 h-8", !adGecerli && yeniAd && "border-destructive")}
+              className={cn(
+                "mt-1 h-8",
+                !adGecerli && yeniAd && "border-destructive",
+              )}
             />
           </div>
           <div className="flex items-center gap-4 pb-1">
@@ -442,7 +447,9 @@ export function ModelKopyaDialog({
                       toast.info("Yeni parça tanımı modül sayfasından eklenir")
                     }
                     onYeniMalzeme={() =>
-                      toast.info("Yeni malzeme kartı malzeme sayfasından eklenir")
+                      toast.info(
+                        "Yeni malzeme kartı malzeme sayfasından eklenir",
+                      )
                     }
                     istasyonlar={istasyonlar.map((x) => ({
                       id: x.slug,
@@ -456,9 +463,7 @@ export function ModelKopyaDialog({
                     // Öbekler KAYNAK reçeteden hesaplanıyor: değiştirdikçe
                     // satırların grubu değişince öbek listeden kaybolur,
                     // kullanıcı az önce seçtiği hedefi göremezdi.
-                    kaynakRefler={
-                      kaynakRecete.get(secili.kaynakParcaId) ?? []
-                    }
+                    kaynakRefler={kaynakRecete.get(secili.kaynakParcaId) ?? []}
                     topluSecim={topluSecim}
                     onTopluSecim={(grup, etiket) =>
                       setTopluSecim((x) => ({ ...x, [grup]: etiket }))
