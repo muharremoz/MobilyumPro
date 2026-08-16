@@ -71,11 +71,13 @@ import {
   type ParcaKategori,
   type ParcaOlculeri,
   type ReceteGrup,
+  type StokKarti,
   type ReceteSatiri,
   type StokDokuman,
 } from "@/lib/data";
 import { PaketlemeTab } from "@/components/production/paketleme-tab";
 import { ReceteKartlari } from "@/components/production/recete-kartlari";
+
 import type { Istasyon } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
 import {
@@ -84,12 +86,14 @@ import {
   parcaDokumanSil,
   receteGeriYukle,
   stokKaydet,
+  stokKopyaTaslagi,
   tanimKaydet,
 } from "@/lib/db/actions";
 import { useOnay } from "@/components/ui/confirm-dialog";
 import {
   DokumanlarTab,
   ResimLightbox,
+  StokKartForm,
   resimMi,
 } from "@/components/stok-karti/stok-kart-form";
 import { receteMaliyeti } from "@/components/production/recete-liste";
@@ -195,6 +199,19 @@ function Metrik({ etiket, deger }: { etiket: string; deger: string }) {
   );
 }
 
+/** Gömülü malzeme kartı formunu besleyen tanım listeleri. */
+export type StokTanimlari = {
+  cinsler: string[];
+  tipler: string[];
+  markalar: string[];
+  modeller: string[];
+  bolumler: string[];
+  renkKodlari: string[];
+  renkler: { ad: string; cinsler?: string[] }[];
+  tedarikciler: { id: string; ad: string }[];
+  musteriCariler: { id: string; ad: string }[];
+};
+
 export function ParcaForm({
   recete,
   parcalar,
@@ -209,6 +226,7 @@ export function ParcaForm({
   stokGruplari = [],
   birimler = [],
   parcaAdlari = [],
+  stokTanimlari,
   // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
   // için parametreyi kendisi okuyamaz.
   varsayilanFire = 0,
@@ -221,6 +239,12 @@ export function ParcaForm({
   birimler?: string[];
   /** Tanımlamalar → Parçalar (reçete grubu = parça adı). */
   parcaAdlari?: string[];
+  /**
+   * Malzeme KOPYALAMA formunun ihtiyaç duyduğu tanım listeleri. Reçeteden
+   * kopya açılınca tam stok kartı formu gömülü çalışıyor; bu listeler
+   * olmadan grup/cins/renk alanları boş açılırdı.
+   */
+  stokTanimlari?: StokTanimlari;
   /** null → yeni parça oluşturma modu */
   recete: Parca | null;
   parcalar: Parca[];
@@ -284,6 +308,14 @@ export function ParcaForm({
     birim: "adet",
   });
   const [yeniMlzKaydediliyor, setYeniMlzKaydediliyor] = React.useState(false);
+  // Malzeme kopyalama: taslak sunucudan gelir (kaynağın tüm tanım bilgileri).
+  const [kopya, setKopya] = React.useState<{
+    kart: StokKarti;
+    sonrakiKod: string;
+    sonrakiBarkod: string;
+    satir: number;
+  } | null>(null);
+  const [kopyaYukleniyor, setKopyaYukleniyor] = React.useState(false);
   const [yerelMalzemeler, setYerelMalzemeler] = React.useState<Malzeme[]>([]);
   /**
    * Sunucudan gelen liste + bu formda açılan yeni malzemeler.
@@ -364,6 +396,24 @@ export function ParcaForm({
       });
     setYeniMlzAcik(false);
     toast.success(`${ad} eklendi (${res.id})`);
+  }
+
+  /** Kaynak kartın kopya taslağını getirip gömülü tanım formunu açar. */
+  async function malzemeKopyala(satirIndex: number, kaynakId: string) {
+    if (kopyaYukleniyor) return;
+    setKopyaYukleniyor(true);
+    const res = await stokKopyaTaslagi(kaynakId);
+    setKopyaYukleniyor(false);
+    if (!res.ok || !res.kart) {
+      toast.error(res.error ?? "Kopya oluşturulamadı");
+      return;
+    }
+    setKopya({
+      kart: res.kart,
+      sonrakiKod: res.sonrakiKod ?? "",
+      sonrakiBarkod: res.sonrakiBarkod ?? "",
+      satir: satirIndex,
+    });
   }
 
   function kategoriEkle() {
@@ -1433,22 +1483,17 @@ export function ParcaForm({
                 setYeniParcaAcik(true);
               }}
               onYeniMalzeme={(idx: number, kaynakId?: string) => {
+                // Kopyada tam tanım formu açılır: kenar bandı gibi varyant
+                // kartlarda genişlik/renk/fiyat da taşınmalı, ad+birim yetmez.
+                if (kaynakId) {
+                  malzemeKopyala(idx, kaynakId);
+                  return;
+                }
                 setYeniMlzSatir(idx);
                 // Kopyala: yeni kart kaynağın grubu/birimiyle, adı "(kopya)"
                 // ekiyle açılır. Ad aynı kalsaydı listede iki tıpatıp kayıt
                 // olur, hangisinin hangisi olduğu ayırt edilemezdi.
-                const k = kaynakId
-                  ? tumMalzemeler.find((m) => m.id === kaynakId)
-                  : undefined;
-                setYeniMlz(
-                  k
-                    ? {
-                        ad: `${k.ad} (kopya)`,
-                        grup: k.grup ?? "",
-                        birim: k.birim || "adet",
-                      }
-                    : { ad: "", grup: "", birim: "adet" },
-                );
+                setYeniMlz({ ad: "", grup: "", birim: "adet" });
                 setYeniMlzAcik(true);
               }}
               istasyonlar={istasyonlar.map((x) => ({ id: x.slug, ad: x.ad }))}
@@ -1684,6 +1729,66 @@ export function ParcaForm({
               Ekle ve seç
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Malzeme kopyala — kaynağın tüm tanımıyla dolu gerçek kart formu */}
+      <Dialog
+        open={kopya !== null}
+        onOpenChange={(a) => {
+          if (!a) setKopya(null);
+        }}
+      >
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Malzeme Kopyala</DialogTitle>
+            <DialogDescription>
+              Bilgiler kaynak malzemeden geldi. Değiştirip kaydedin; yeni kart
+              reçete satırına kendiliğinden yerleşir.
+            </DialogDescription>
+          </DialogHeader>
+          {kopya && (
+            <StokKartForm
+              kart={kopya.kart}
+              sonrakiKod={kopya.sonrakiKod}
+              sonrakiBarkod={kopya.sonrakiBarkod}
+              gruplar={stokGruplari}
+              birimler={birimler}
+              parcalar={parcalar}
+              malzemeler={tumMalzemeler}
+              cinsler={stokTanimlari?.cinsler ?? []}
+              tipler={stokTanimlari?.tipler ?? []}
+              markalar={stokTanimlari?.markalar ?? []}
+              modeller={stokTanimlari?.modeller ?? []}
+              bolumler={stokTanimlari?.bolumler ?? []}
+              renkKodlari={stokTanimlari?.renkKodlari ?? []}
+              renkler={stokTanimlari?.renkler ?? []}
+              tedarikciler={stokTanimlari?.tedarikciler ?? []}
+              musteriCariler={stokTanimlari?.musteriCariler ?? []}
+              onKaydedildi={(id, ad) => {
+                const satirIdx = kopya.satir;
+                setKopya(null);
+                if (!id) return;
+                // Yerel listeye köprü kayıt: router.refresh() dönene kadar
+                // satır ham id gösterip "seçilmemiş" gibi durmasın.
+                setYerelMalzemeler((l) => [
+                  ...l,
+                  {
+                    ...kopya.kart,
+                    id,
+                    ad,
+                    birim: kopya.kart.stokBirimi,
+                    stok: 0,
+                    birimFiyat: kopya.kart.maliyetFiyati,
+                  } as unknown as Malzeme,
+                ]);
+                satirGuncelle(satirIdx, {
+                  bilesen: { tip: "malzeme", ref: id },
+                });
+                router.refresh();
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

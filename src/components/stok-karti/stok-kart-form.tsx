@@ -452,6 +452,7 @@ export function StokKartForm({
   malzemeler = BOS_MALZEMELER,
   tedarikciler = BOS_CARILER,
   musteriCariler = BOS_CARILER,
+  onKaydedildi,
 }: {
   kart?: StokKarti;
   detay?: StokDetay;
@@ -485,6 +486,12 @@ export function StokKartForm({
   tedarikciler?: { id: string; ad: string }[];
   /** Müşteri tipli cariler (Müşteriler sekmesi). */
   musteriCariler?: { id: string; ad: string }[];
+  /**
+   * Verilirse form gömülü çalışır: kaydedince stok listesine gitmez, yeni
+   * kartın id'siyle bu geri çağrıyı işletir. Reçeteden malzeme kopyalarken
+   * kullanıcı sayfadan koparılmamalı — kaydedilmemiş reçete kaybolurdu.
+   */
+  onKaydedildi?: (id: string, ad: string) => void;
 } = {}) {
   const yetki = useYetki("stok");
   const router = useRouter();
@@ -594,11 +601,13 @@ export function StokKartForm({
     }
     if (!duzenleme) {
       toast.success(`Malzeme eklendi (${res.id})`);
-      router.push("/stok-karti");
+      if (onKaydedildi) onKaydedildi(res.id ?? "", yeniKart.ad);
+      else router.push("/stok-karti");
       return;
     }
     toast.success("Malzeme güncellendi");
-    router.push("/stok-karti");
+    if (onKaydedildi) onKaydedildi(kart?.id ?? "", yeniKart.ad);
+    else router.push("/stok-karti");
   }
 
   // Kayıt gerektiren sekmeler yeni modda pasif (bir stok id'sine bağlılar).

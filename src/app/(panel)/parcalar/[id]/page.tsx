@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ParcaForm } from "@/components/production/parca-form";
 import { parametreSayi } from "@/lib/db/parametre";
 import {
+  getCariler,
   getIstasyonlar,
   getMakineler,
   getMalzemeAlisOzetleri,
@@ -34,6 +35,7 @@ export default async function ParcaDetayRoute({
     posetler,
     gruplar,
     tanimlar,
+    cariler,
   ] = await Promise.all([
     getParcalar(),
     getMalzemeler(),
@@ -46,6 +48,7 @@ export default async function ParcaDetayRoute({
     getPosetler(),
     getGruplar(),
     getTanimlar(),
+    getCariler(),
   ]);
   const recete = parcalar.find((p) => p.id === id);
   if (!recete) notFound();
@@ -60,6 +63,21 @@ export default async function ParcaDetayRoute({
       stokGruplari={gruplar}
       birimler={tanimlar.birim.map((t) => t.ad)}
       parcaAdlari={tanimlar.parca.map((t) => t.ad)}
+      stokTanimlari={{
+        cinsler: tanimlar.cins.map((t) => t.ad),
+        tipler: tanimlar.tip.map((t) => t.ad),
+        markalar: tanimlar.marka.map((t) => t.ad),
+        modeller: tanimlar.model.map((t) => t.ad),
+        bolumler: istasyonlar.map((i) => i.ad),
+        renkKodlari: tanimlar.renkKodu.map((t) => t.ad),
+        renkler: tanimlar.renk.map((t) => ({ ad: t.ad, cinsler: t.cinsler })),
+        tedarikciler: cariler
+          .filter((c) => c.tip === "Tedarikçi" || c.tip === "Her İkisi")
+          .map((c) => ({ id: c.id, ad: c.ad })),
+        musteriCariler: cariler
+          .filter((c) => c.tip === "Müşteri" || c.tip === "Her İkisi")
+          .map((c) => ({ id: c.id, ad: c.ad })),
+      }}
       recete={recete}
       parcalar={parcalar}
       malzemeler={malzemeler}

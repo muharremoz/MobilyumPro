@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
 import { db, tarihDate } from "./index";
+import { getStok } from "./queries";
 import { getOturum } from "@/lib/oturum";
 import { sayacHazirla, sonrakiNo } from "./sayac";
 import {
@@ -3202,6 +3203,44 @@ export async function talepSil(
  * kodu `stok_hareket.ref_id` gibi FK'sız bağlarda kullanılıyor; geriye
  * dönük yeniden kodlama o bağları sessizce koparırdı.
  */
+/**
+ * Bir stok kartının KOPYA taslağını döndürür (kaydetmez).
+ *
+ * Reçeteden "kopyasını oluştur" denince kullanıcı, kaynağın bütün tanım
+ * bilgileriyle (grup, cins, renk, ölçü, fiyat...) dolu bir form görmeli;
+ * yalnız ad/grup/birim taşımak kenar bandı gibi varyant kartlarda işi
+ * bitirmiyordu.
+ *
+ * Kimlik alanları (id, kod, barkod) taşınmaz: yeni kart kendi kodunu alır.
+ * Ada "(kopya)" eklenir, yoksa listede iki tıpatıp kayıt olur.
+ */
+export async function stokKopyaTaslagi(kaynakId: string): Promise<{
+  ok: boolean;
+  kart?: StokKarti;
+  sonrakiKod?: string;
+  sonrakiBarkod?: string;
+  error?: string;
+}> {
+  const kaynak = await getStok(kaynakId);
+  if (!kaynak) return { ok: false, error: "Kaynak malzeme bulunamadı" };
+  const sonraki = await sonrakiStokKodu(kaynak.kart.altGrup ?? undefined);
+  return {
+    ok: true,
+    kart: {
+      ...kaynak.kart,
+      id: "",
+      kod: "",
+      barkod: "",
+      ad: `${kaynak.kart.ad} (kopya)`,
+      // Stok miktarı kopyalanmaz: yeni kart sıfır bakiyeyle doğar, hareketi
+      // olmadan miktar göstermek envanteri şişirirdi.
+      miktar: 0,
+    },
+    sonrakiKod: sonraki.kod,
+    sonrakiBarkod: sonraki.barkod,
+  };
+}
+
 export async function sonrakiStokKodu(altGrup?: string): Promise<{
   kod: string;
   barkod: string;
