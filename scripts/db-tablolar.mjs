@@ -61,6 +61,15 @@ export const TABLO_SIRASI = [
   "satinAlmaTalepSiparis",
   "sayim",
   "sayimSatiri",
+  // Proje sipariş: şablon → parça → malzeme, sonra proje → satır → parça.
+  "modulSablon",
+  "sablonParca",
+  "sablonParcaMalzeme",
+  "proje",
+  "projeDokuman",
+  "projeSatir",
+  "projeParca",
+  "projeParcaMalzeme",
 ];
 
 /** Kendine referans veren tablolar: aynı tablo içinde üst→alt sırası korunmalı. */
@@ -104,4 +113,10 @@ export const IDENTITY_TABLOLAR = {
   stokUretici: "stok_uretici",
   stokMusteri: "stok_musteri",
   stokDokuman: "stok_dokuman",
+  sablonParca: "sablon_parca",
+  sablonParcaMalzeme: "sablon_parca_malzeme",
+  projeDokuman: "proje_dokuman",
+  projeSatir: "proje_satir",
+  projeParca: "proje_parca",
+  projeParcaMalzeme: "proje_parca_malzeme",
 };
