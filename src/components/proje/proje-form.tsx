@@ -318,9 +318,10 @@ export function ProjeForm({
           Alan ve tablo duruyor, yalnız arayüzde gösterilmiyor. */}
 
       {/* Modüller ve parçaları */}
-      <div className="grid min-h-0 gap-3 lg:grid-cols-[320px_1fr]">
-        {/* SOL: modül kartları */}
-        <div className="flex flex-col gap-2">
+      <div className="grid min-h-0 gap-3 xl:grid-cols-[520px_1fr]">
+        {/* SOL: modül kartları — ikili ızgara, tek sütunda az modül
+            görünüyordu ve liste hemen uzuyordu. */}
+        <div className="grid h-fit grid-cols-2 gap-2">
           {satirlar.map((s, i) => (
             <ModulKarti
               key={i}
@@ -339,7 +340,12 @@ export function ProjeForm({
               }}
             />
           ))}
-          <Button variant="outline" size="sm" className="w-fit" onClick={modulEkle}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="col-span-2 w-fit"
+            onClick={modulEkle}
+          >
             <Plus className="size-4" /> Modül ekle
           </Button>
         </div>
@@ -483,8 +489,11 @@ function ModulKarti({
         />
       </div>
 
+      {/* Üç sayaç TEK SATIRDA: yan yana dizilince dar kartta "Adet" alt
+          satıra düşüyor ve modülün kaç adet olduğu gözden kaçıyordu.
+          Maliyet aşağıdaki Parçalar şeridine alındı. */}
       <div
-        className="flex flex-wrap items-center gap-3 border-t px-2 py-2"
+        className="grid grid-cols-3 gap-1 border-t px-2 py-2"
         onClick={(e) => e.stopPropagation()}
       >
         <Sayac
@@ -504,9 +513,6 @@ function ModulKarti({
           enAz={1}
           onDeger={(v) => onDegis({ adet: v })}
         />
-        <span className="ml-auto text-xs font-medium tabular-nums">
-          {para(maliyet)}
-        </span>
       </div>
 
       {/* Modülün parçaları — ikinci seviye */}
@@ -525,6 +531,9 @@ function ModulKarti({
           Parçalar
           <span className="rounded bg-muted px-1 tabular-nums">
             {satir.parcalar.length}
+          </span>
+          <span className="ml-auto font-medium text-foreground tabular-nums">
+            {para(maliyet)}
           </span>
         </button>
         {parcalarAcik && (
@@ -597,9 +606,9 @@ function Sayac({
   onDeger: (v: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-[11px] text-muted-foreground">{etiket}</span>
-      <div className="flex items-center rounded-md border">
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] text-muted-foreground">{etiket}</span>
+      <div className="flex items-center justify-between rounded-md border">
         <button
           type="button"
           onClick={() => onDeger(Math.max(enAz, deger - 1))}
