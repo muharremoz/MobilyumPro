@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Package, Plus, Trash } from "lucide-react";
+import { ChevronDown, Minus, Package, Plus, Trash } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,25 @@ export function ProjeForm({
     proje?.satirlar ?? [],
   );
   const [aktif, setAktif] = React.useState(0);
+  // Soldaki ağaçtan seçilen parça sağdaki kutuyu vurgular. Sol yalnız
+  // modülleri gösterirken "hangi kutu neydi" ancak sağda aranarak
+  // bulunabiliyordu; modül + parça iki seviye birlikte duruyor.
+  const [seciliParca, setSeciliParca] = React.useState<string | null>(null);
+  const kutuRefleri = React.useRef<Map<string, HTMLDivElement | null>>(
+    new Map(),
+  );
+
+  function parcayaGit(satirIndex: number, parcaAd: string) {
+    setAktif(satirIndex);
+    setSeciliParca(parcaAd);
+    // Kutu ekranın dışında kalmış olabilir; seçim görünmezse tıklama
+    // hiçbir şey yapmamış gibi durur.
+    requestAnimationFrame(() => {
+      kutuRefleri.current
+        .get(parcaAd)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }
 
   const malzemeMap = React.useMemo(
     () => new Map(malzemeler.map((m) => [m.id, m])),
@@ -359,7 +378,9 @@ export function ProjeForm({
               modulAdlari={modulAdlari}
               maliyet={satirMaliyeti(s)}
               para={para}
+              seciliParca={i === aktif ? seciliParca : null}
               onSec={() => setAktif(i)}
+              onParcaSec={(ad) => parcayaGit(i, ad)}
               onDegis={(d) => satirGuncelle(i, d)}
               onSil={() => {
                 setSatirlar((l) => l.filter((_, j) => j !== i));
@@ -397,6 +418,8 @@ export function ProjeForm({
                   <ParcaKutusu
                     key={pi}
                     parca={p}
+                    vurgulu={seciliParca === p.ad}
+                    kutuRef={(el) => kutuRefleri.current.set(p.ad, el)}
                     malzemeler={malzemeler}
                     malzemeMap={malzemeMap}
                     malzemeSekmeleri={malzemeSekmeleri}
@@ -426,22 +449,27 @@ export function ProjeForm({
 function ModulKarti({
   satir,
   aktif,
+  seciliParca,
   modulAdlari,
   maliyet,
   para,
   onSec,
+  onParcaSec,
   onDegis,
   onSil,
 }: {
   satir: ProjeSatir;
   aktif: boolean;
+  seciliParca: string | null;
   modulAdlari: string[];
   maliyet: number;
   para: (n: number) => string;
   onSec: () => void;
+  onParcaSec: (ad: string) => void;
   onDegis: (d: Partial<ProjeSatir>) => void;
   onSil: () => void;
 }) {
+  const [parcalarAcik, setParcalarAcik] = React.useState(true);
   return (
     <div
       onClick={onSec}
@@ -526,6 +554,55 @@ function ModulKarti({
           {para(maliyet)}
         </span>
       </div>
+
+      {/* Modülün parçaları — ikinci seviye */}
+      <div className="border-t" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={() => setParcalarAcik((a) => !a)}
+          className="flex w-full items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronDown
+            className={cn(
+              "size-3 transition-transform",
+              !parcalarAcik && "-rotate-90",
+            )}
+          />
+          Parçalar
+          <span className="rounded bg-muted px-1 tabular-nums">
+            {satir.parcalar.length}
+          </span>
+        </button>
+        {parcalarAcik && (
+          <div className="pb-1">
+            {satir.parcalar.length === 0 ? (
+              <p className="px-3 pb-2 text-[11px] text-muted-foreground">
+                Ölçü girin, parçalar türetilecek.
+              </p>
+            ) : (
+              satir.parcalar.map((p, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onParcaSec(p.ad)}
+                  className={cn(
+                    "flex w-full items-center gap-1.5 px-3 py-1 text-left text-[11px] transition-colors",
+                    seciliParca === p.ad
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/60",
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate">{p.ad}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {p.adet > 1 ? `${p.adet} × ` : ""}
+                    {p.en ?? "—"}×{p.boy ?? "—"}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -597,6 +674,8 @@ function Sayac({
 /** Sağdaki parça kutusu: ölçüler + kenar bandı + malzeme. */
 function ParcaKutusu({
   parca,
+  vurgulu,
+  kutuRef,
   malzemeler,
   malzemeMap,
   malzemeSekmeleri,
@@ -607,6 +686,8 @@ function ParcaKutusu({
   onDegis,
 }: {
   parca: ProjeParca;
+  vurgulu?: boolean;
+  kutuRef?: (el: HTMLDivElement | null) => void;
   malzemeler: Malzeme[];
   malzemeMap: Map<string, Malzeme>;
   malzemeSekmeleri: { key: string; label: string; items: string[] }[];
@@ -619,7 +700,13 @@ function ParcaKutusu({
   const bant = parca.bant ?? {};
   const otomatik = COGALAN_PARCALAR.some((x) => parca.ad.startsWith(x));
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5">
+    <div
+      ref={kutuRef}
+      className={cn(
+        "flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5 transition-colors",
+        vurgulu && "border-primary ring-1 ring-primary/40",
+      )}
+    >
       <div className="flex items-center gap-1.5">
         <span className="truncate text-xs font-semibold">{parca.ad}</span>
         {otomatik && (
