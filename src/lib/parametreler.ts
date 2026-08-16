@@ -148,6 +148,16 @@ export const PARAMETRELER: ParametreTanim[] = [
     birim: "%",
   },
   {
+    anahtar: "tutkal_kg_metre",
+    etiket: "Metre Başına Kenarbandı Tutkalı",
+    aciklama:
+      "Kenar bandı olan parçalarda tutkal miktarı bu katsayıyla hesaplanır: bant metresi × katsayı.",
+    grup: "Üretim",
+    tip: "sayi",
+    varsayilan: "0,007",
+    birim: "kg/m",
+  },
+  {
     anahtar: "varsayilan_oncelik",
     etiket: "Varsayılan Öncelik",
     aciklama: "Yeni üretim emirlerinde seçili gelen öncelik.",

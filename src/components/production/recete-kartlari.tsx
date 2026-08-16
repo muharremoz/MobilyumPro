@@ -12,6 +12,7 @@ import {
   bantUzunlugu,
   parcaOlcusu,
   satirMiktari,
+  tutkalMi,
   type KenarSecim,
   type Malzeme,
   type ReceteGrup,
@@ -82,6 +83,7 @@ export function ReceteKartlari({
   istasyonlar,
   ilkIstasyonSlug,
   varsayilanFire = 0,
+  tutkalKgMetre = 0,
 }: {
   gruplar: ReceteGrup[];
   satirlar: ReceteSatiri[];
@@ -99,6 +101,8 @@ export function ReceteKartlari({
   ilkIstasyonSlug?: string;
   /** Yeni malzeme satırının başlangıç fire yüzdesi (sistem parametresi). */
   varsayilanFire?: number;
+  /** Metre kenar bandı başına tutkal (kg) — sistem parametresi. */
+  tutkalKgMetre?: number;
 }) {
   const [acikOlculer, setAcikOlculer] = React.useState<Set<string>>(
     () => new Set(),
@@ -131,39 +135,63 @@ export function ReceteKartlari({
   }
 
   function grupGuncelle(ad: string, degisim: Partial<ReceteGrup>) {
-    const yeni = gruplar.map((g) => (g.ad === ad ? { ...g, ...degisim } : g));
-    onGruplar(yeni);
-    // Ölçü değişince o parçanın satırlarının miktarı da tazelenir; ölçü ile
-    // miktar iki ayrı kaynak olsaydı hangisinin doğru olduğu belirsiz kalırdı.
-    miktarlariTazele(ad, yeni);
+    const y = gruplar.map((g) => (g.ad === ad ? { ...g, ...degisim } : g));
+    onGruplar(y);
+    // Ölçü değişince satır miktarları da tazelenir; ölçü ile miktar iki ayrı
+    // kaynak olsaydı hangisinin doğru olduğu belirsiz kalırdı.
+    onSatirlar(tazele(satirlar, y));
   }
 
-  function miktarlariTazele(grupAd: string, grupListesi: ReceteGrup[]) {
-    const g = grupListesi.find((x) => x.ad === grupAd);
-    onSatirlar(
-      satirlar.map((s) => {
-        if ((s.grup ?? "") !== grupAd) return s;
-        const birim =
-          s.bilesen.tip === "malzeme"
-            ? malzemeMap.get(s.bilesen.ref)?.birim
-            : undefined;
-        const m = satirMiktari(birim, g, s.bant);
-        return m == null ? s : { ...s, miktar: m };
-      }),
-    );
+  /**
+   * Türetilen miktarları yeniden hesaplar.
+   *
+   * Üç kural var ve hepsi aynı yerde durmalı, yoksa biri güncellenip diğeri
+   * eski kalır:
+   *  - m² satırı → parçanın alanı
+   *  - m/mt satırı → seçilen kenarların uzunluğu
+   *  - tutkal satırı → o parçadaki TOPLAM bant metresi × katsayı
+   * Tutkal parça genelinde toplandığı için tek satır değil, hep bütün
+   * liste üzerinden hesaplanıyor.
+   */
+  function tazele(
+    satirListesi: ReceteSatiri[],
+    grupListesi: ReceteGrup[],
+  ): ReceteSatiri[] {
+    const grupOf = (s: ReceteSatiri) =>
+      grupListesi.find((x) => x.ad === (s.grup ?? ""));
+    const malzemeOf = (s: ReceteSatiri) =>
+      s.bilesen.tip === "malzeme" ? malzemeMap.get(s.bilesen.ref) : undefined;
+
+    // Parça bazında toplam bant metresi (tutkal bundan türer).
+    const bantMetre = new Map<string, number>();
+    for (const s of satirListesi) {
+      if (!bantMi(malzemeOf(s)?.birim)) continue;
+      const ad = s.grup ?? "";
+      const mm = bantUzunlugu(grupOf(s), s.bant);
+      if (mm > 0) bantMetre.set(ad, (bantMetre.get(ad) ?? 0) + mm / 1000);
+    }
+
+    return satirListesi.map((s) => {
+      const m = malzemeOf(s);
+      if (tutkalMi(m?.ad)) {
+        const metre = bantMetre.get(s.grup ?? "") ?? 0;
+        // Bant yoksa kullanıcının elle girdiği miktara dokunulmaz.
+        return metre > 0
+          ? { ...s, miktar: Number((metre * tutkalKgMetre).toFixed(4)) }
+          : s;
+      }
+      const hesap = satirMiktari(m?.birim, grupOf(s), s.bant);
+      return hesap == null ? s : { ...s, miktar: hesap };
+    });
   }
 
   function satirGuncelle(i: number, degisim: Partial<ReceteSatiri>) {
-    const yeni = satirlar.map((s, x) => (x === i ? { ...s, ...degisim } : s));
-    // Kenar seçimi değişince bant uzunluğu yeniden hesaplanır.
-    const s = yeni[i];
-    const birim =
-      s.bilesen.tip === "malzeme"
-        ? malzemeMap.get(s.bilesen.ref)?.birim
-        : undefined;
-    const g = gruplar.find((x) => x.ad === (s.grup ?? ""));
-    const m = satirMiktari(birim, g, s.bant);
-    onSatirlar(m == null ? yeni : yeni.map((x, j) => (j === i ? { ...x, miktar: m } : x)));
+    onSatirlar(
+      tazele(
+        satirlar.map((s, x) => (x === i ? { ...s, ...degisim } : s)),
+        gruplar,
+      ),
+    );
   }
 
   function satirEkle(grupAd?: string) {
@@ -364,10 +392,22 @@ export function ReceteKartlari({
                     malzemeler={malzemeler}
                     istasyonlar={istasyonlar}
                     ilkIstasyonSlug={ilkIstasyonSlug}
+                    otomatik={
+                      tutkalMi(
+                        s.bilesen.tip === "malzeme"
+                          ? malzemeMap.get(s.bilesen.ref)?.ad
+                          : undefined,
+                      ) && bantSatirlari.length > 0
+                    }
                     onDegis={(d) => satirGuncelle(i, d)}
                     onYeniMalzeme={() => onYeniMalzeme(i)}
                     onSil={() =>
-                      onSatirlar(satirlar.filter((_, j) => j !== i))
+                      onSatirlar(
+                        tazele(
+                          satirlar.filter((_, j) => j !== i),
+                          gruplar,
+                        ),
+                      )
                     }
                   />
                 ))}
@@ -455,6 +495,7 @@ function MalzemeSatiri({
   istasyonlar,
   ilkIstasyonSlug,
   parcaSecenekleri,
+  otomatik,
   onDegis,
   onYeniMalzeme,
   onSil,
@@ -469,6 +510,8 @@ function MalzemeSatiri({
   istasyonlar: AdKaydi[];
   ilkIstasyonSlug?: string;
   parcaSecenekleri?: string[];
+  /** Miktarı başka bir satırdan türüyor (tutkal): elle girilemez. */
+  otomatik?: boolean;
   onDegis: (d: Partial<ReceteSatiri>) => void;
   onYeniMalzeme: () => void;
   onSil: () => void;
@@ -476,6 +519,8 @@ function MalzemeSatiri({
   const birim = malzeme?.birim ?? "";
   const kenarli = bantMi(birim);
   const hesaplanan = satirMiktari(birim, grup, satir.bant);
+  // Tutkal ölçüden değil, bant metresinden türüyor; değeri üst bileşen yazdı.
+  const kilitli = hesaplanan != null || otomatik === true;
   const bantMm = kenarli ? bantUzunlugu(grup, satir.bant) : 0;
 
   return (
@@ -516,16 +561,18 @@ function MalzemeSatiri({
               hesaplanan == null ? satir.miktar : Number(hesaplanan.toFixed(4))
             }
             onChange={(e) => onDegis({ miktar: Number(e.target.value) })}
-            readOnly={hesaplanan != null}
+            readOnly={kilitli}
             title={
-              hesaplanan != null
-                ? "Parçanın kesim ölçüsünden hesaplanıyor"
-                : undefined
+              otomatik
+                ? "Parçadaki toplam kenar bandı metresinden hesaplanıyor"
+                : hesaplanan != null
+                  ? "Parçanın kesim ölçüsünden hesaplanıyor"
+                  : undefined
             }
             className={cn(
               "h-8 text-right tabular-nums",
               birim && "pr-10",
-              hesaplanan != null && "bg-muted/50 text-muted-foreground",
+              kilitli && "bg-muted/50 text-muted-foreground",
             )}
           />
           {birim && (

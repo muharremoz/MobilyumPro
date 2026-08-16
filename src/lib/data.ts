@@ -149,6 +149,17 @@ export function satirMiktari(
   }
   return null;
 }
+/**
+ * Malzeme kenarbandı tutkalı mı?
+ *
+ * Ad üzerinden tanınıyor: tutkal için ayrı bir malzeme tipi alanı yok ve
+ * eklemek her fabrikanın stok kartlarını elden geçirmesini gerektirirdi.
+ * Türkçe büyük/küçük harf farkı (İ/ı) için locale'li karşılaştırma şart.
+ */
+export function tutkalMi(ad?: string): boolean {
+  return (ad ?? "").toLocaleLowerCase("tr").includes("tutkal");
+}
+
 export type ParcaSatiri = { parcaId: string; miktar: number };
 
 /**

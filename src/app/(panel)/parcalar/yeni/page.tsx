@@ -35,9 +35,11 @@ export default async function YeniParcaRoute() {
       getTanimlar(),
     ]);
   const varsayilanFire = await parametreSayi("varsayilan_fire", 0);
+  const tutkalKgMetre = await parametreSayi("tutkal_kg_metre", 0.007);
   return (
     <ParcaForm
       varsayilanFire={varsayilanFire}
+      tutkalKgMetre={tutkalKgMetre}
       posetler={posetler}
       stokGruplari={gruplar}
       birimler={tanimlar.birim.map((t) => t.ad)}

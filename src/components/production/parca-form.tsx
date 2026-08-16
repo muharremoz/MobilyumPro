@@ -212,6 +212,7 @@ export function ParcaForm({
   // varsayilan_fire parametresi (sunucudan); bu bileşen istemcide çalıştığı
   // için parametreyi kendisi okuyamaz.
   varsayilanFire = 0,
+  tutkalKgMetre = 0,
 }: {
   /** Paket içeriğine eklenebilecek malzeme poşetleri. */
   posetler?: { id: string; ad: string }[];
@@ -231,6 +232,8 @@ export function ParcaForm({
   dokumanlar?: StokDokuman[];
   /** Yeni reçete satırında önerilen fire yüzdesi (varsayilan_fire). */
   varsayilanFire?: number;
+  /** Metre kenar bandı başına tutkal (kg) — sistem parametresi. */
+  tutkalKgMetre?: number;
   /** Malzeme bazında alış istihbaratı (son/min/max, firma ort., son hareket). */
   alisOzetleri?: MalzemeAlisOzeti[];
 }) {
@@ -1437,6 +1440,7 @@ export function ParcaForm({
               istasyonlar={istasyonlar.map((x) => ({ id: x.slug, ad: x.ad }))}
               ilkIstasyonSlug={ilkIstasyonSlug}
               varsayilanFire={varsayilanFire}
+              tutkalKgMetre={tutkalKgMetre}
             />
           </div>
         )}
