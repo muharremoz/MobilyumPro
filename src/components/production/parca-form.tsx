@@ -1613,7 +1613,7 @@ export function ParcaForm({
             {/* Bileşen grid'i — tam genişlik (dar ekranda yatay kayar) */}
             <div className="overflow-x-auto rounded-md border bg-card">
               <div className="min-w-[1180px]">
-                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
+                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_64px_64px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
                   <SiralaFiltreBaslik
                     asDiv
                     sira={sortu("tip")}
@@ -1665,6 +1665,10 @@ export function ParcaForm({
                   >
                     İstasyon
                   </SiralaFiltreBaslik>
+                  {/* Kesim ölçüleri Miktar'ın hemen solunda: En × Boy → Miktar
+                      ilişkisi okunurken görünsün. */}
+                  <span className="text-right">En</span>
+                  <span className="text-right">Boy</span>
                   <SiralaFiltreBaslik
                     asDiv
                     sira={sortu("miktar")}
@@ -1758,7 +1762,7 @@ export function ParcaForm({
                             )}
                           </div>
                         )}
-                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 px-3 py-2">
+                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_64px_64px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 px-3 py-2">
                           <Badge
                             variant="secondary"
                             className={cn(
@@ -1856,37 +1860,6 @@ export function ParcaForm({
                                 }
                                 className="h-8"
                               />
-                              {/* Kesim ölçüsü — yalnız ölçüden miktar
-                                  hesaplanabilen birimlerde (m², m). Ölçü
-                                  girilince Miktar kilitlenir ve buradan
-                                  hesaplanır; iki kaynak olsaydı hangisinin
-                                  doğru olduğu belirsiz kalırdı. */}
-                              {olculuMu && (
-                                <div className="mt-1 flex items-center gap-1">
-                                  {m2Mi && (
-                                    <>
-                                      <OlcuKutusu
-                                        etiket="En"
-                                        deger={s.en}
-                                        onDeger={(v) =>
-                                          olcuGuncelle(i, { en: v })
-                                        }
-                                      />
-                                      <span className="text-[10px] text-muted-foreground">
-                                        ×
-                                      </span>
-                                    </>
-                                  )}
-                                  <OlcuKutusu
-                                    etiket="Boy"
-                                    deger={s.boy}
-                                    onDeger={(v) => olcuGuncelle(i, { boy: v })}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">
-                                    mm
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           </div>
                           <Input
@@ -1928,6 +1901,32 @@ export function ParcaForm({
                               title="Alt parçanın tüketim yerleri kendi satırlarından gelir"
                             >
                               kendi reçetesi
+                            </span>
+                          )}
+                          {/* En / Boy — kesim ölçüsü (mm). Yalnız ölçüden
+                              miktar hesaplanabilen birimlerde girilir; diğer
+                              birimlerde hücre boş kalır ki kolon hizası
+                              bozulmasın. */}
+                          {olculuMu && m2Mi ? (
+                            <OlcuKutusu
+                              etiket="En"
+                              deger={s.en}
+                              onDeger={(v) => olcuGuncelle(i, { en: v })}
+                            />
+                          ) : (
+                            <span className="text-center text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          {olculuMu ? (
+                            <OlcuKutusu
+                              etiket="Boy"
+                              deger={s.boy}
+                              onDeger={(v) => olcuGuncelle(i, { boy: v })}
+                            />
+                          ) : (
+                            <span className="text-center text-xs text-muted-foreground">
+                              —
                             </span>
                           )}
                           {/* Miktar — birim rozeti input içinde */}
@@ -2843,7 +2842,7 @@ function OlcuKutusu({
         const n = Number(t);
         onDeger(t === "" || !Number.isFinite(n) || n < 0 ? undefined : n);
       }}
-      className="h-6 w-14 rounded border border-input bg-transparent px-1 text-right text-[11px] tabular-nums outline-none focus-visible:border-ring"
+      className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-right text-xs tabular-nums outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
     />
   );
 }
