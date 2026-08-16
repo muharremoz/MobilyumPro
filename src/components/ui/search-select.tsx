@@ -117,67 +117,80 @@ export function SearchSelect({
       <ComboboxContent
         anchor={anchorRef}
         sideOffset={10}
-        className={cn("min-w-(--anchor-width)", listeClassName)}
-      >
-        {sekmeler && (
-          // Az sekmede eşit bölünür; çok sekmede (grup listeleri) sarar,
-          // yoksa 10 sekme flex-1 ile okunmaz genişliğe iner.
-          <div className="flex flex-wrap gap-1 border-b p-1">
-            {sekmeler.map((sek) => (
-              <button
-                key={sek.key}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setAktifSekme(sek.key)}
-                className={cn(
-                  "rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                  sekmeler.length <= 4 ? "flex-1" : "shrink-0",
-                  aktifSekme === sek.key
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-black/5",
-                )}
-              >
-                {sek.label}
-                <span className="ml-1 tabular-nums opacity-60">
-                  {sek.items.length}
-                </span>
-              </button>
-            ))}
-          </div>
+        className={cn(
+          "min-w-(--anchor-width)",
+          // Sekmeli modda SABİT genişlik: genişlik içerikten (en uzun öğe)
+          // hesaplanınca grup değiştirdikçe kutu zıplıyordu. Uzun adlar
+          // satırda kırpılır.
+          sekmeler && "w-[min(52rem,92vw)]",
+          listeClassName,
         )}
-        <ComboboxEmpty>{emptyText}</ComboboxEmpty>
-        <ComboboxList>
-          {(item: string) => (
-            <ComboboxItem key={item} value={item} className="group/oge">
-              <span className="min-w-0 flex-1 truncate">{gosterim(item)}</span>
-              {onKopyala && (
+      >
+        {/* Gruplar YANDA: üstte yatay şerit olduğunda 10+ grup satıra
+            sığmayıp sarıyor ve listeyi aşağı itiyordu. Yan sütun hem sabit
+            kalıyor hem uzun grup adları tam okunuyor. */}
+        <div className={cn(sekmeler && "flex items-stretch")}>
+          {sekmeler && (
+            <div className="max-h-72 w-44 shrink-0 overflow-y-auto border-r p-1">
+              {sekmeler.map((sek) => (
                 <button
+                  key={sek.key}
                   type="button"
-                  title={kopyaBaslik}
-                  aria-label={`${gosterim(item)} — ${kopyaBaslik}`}
-                  // Kopya SEÇİM DEĞİL. ComboboxItem seçimi click'te yapıyor
-                  // ve click düğmeden balonlanıyor; durdurmazsak kopya
-                  // açılırken satırın malzemesi de değişirdi.
-                  onPointerDownCapture={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setAcik(false);
-                    onKopyala(item);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  // svg'ye pointer-events:none veren ComboboxItem kuralı
-                  // düğmenin kendisini de etkilemesin.
-                  className="ml-2 grid size-6 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/oge:opacity-100 focus-visible:opacity-100 hover:bg-black/10 hover:text-foreground [&_svg]:pointer-events-none"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setAktifSekme(sek.key)}
+                  className={cn(
+                    "flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors",
+                    aktifSekme === sek.key
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-black/5",
+                  )}
                 >
-                  <Copy className="size-3.5" />
+                  <span className="min-w-0 flex-1 truncate">{sek.label}</span>
+                  <span className="shrink-0 tabular-nums opacity-60">
+                    {sek.items.length}
+                  </span>
                 </button>
-              )}
-            </ComboboxItem>
+              ))}
+            </div>
           )}
-        </ComboboxList>
+          <div className="min-w-0 flex-1">
+            <ComboboxEmpty>{emptyText}</ComboboxEmpty>
+            <ComboboxList>
+              {(item: string) => (
+                <ComboboxItem key={item} value={item} className="group/oge">
+                  <span className="min-w-0 flex-1 truncate">
+                    {gosterim(item)}
+                  </span>
+                  {onKopyala && (
+                    <button
+                      type="button"
+                      title={kopyaBaslik}
+                      aria-label={`${gosterim(item)} — ${kopyaBaslik}`}
+                      // Kopya SEÇİM DEĞİL. ComboboxItem seçimi click'te yapıyor
+                      // ve click düğmeden balonlanıyor; durdurmazsak kopya
+                      // açılırken satırın malzemesi de değişirdi.
+                      onPointerDownCapture={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAcik(false);
+                        onKopyala(item);
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      // svg'ye pointer-events:none veren ComboboxItem kuralı
+                      // düğmenin kendisini de etkilemesin.
+                      className="ml-2 grid size-6 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/oge:opacity-100 focus-visible:opacity-100 hover:bg-black/10 hover:text-foreground [&_svg]:pointer-events-none"
+                    >
+                      <Copy className="size-3.5" />
+                    </button>
+                  )}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </div>
+        </div>
         {onAdd && (
           <div className="border-t p-1">
             <button

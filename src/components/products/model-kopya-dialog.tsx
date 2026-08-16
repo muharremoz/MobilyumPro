@@ -49,25 +49,45 @@ type Modul = {
   gruplar: ReceteGrup[];
 };
 
+const kucuk = (x: string) => x.toLocaleLowerCase("tr");
+const ilkKelime = (x: string) => x.trim().split(/\s+/)[0] ?? "";
+
 /**
- * Modül adını yeni modele uyarlar: "DORA DOLAP" + yeni ad "IKON YATAK ODASI"
- * → "IKON DOLAP". Modül adı kaynak modelin ilk kelimesiyle başlıyorsa o
- * kelime yeni modelin ilk kelimesiyle değişir; başlamıyorsa ad korunur
- * (kullanıcı zaten elle düzenleyebiliyor).
+ * Modüllerin ortak seri ön ekini bulur ("BIEN DOLAP", "BIEN DOLAP2" → "BIEN").
+ *
+ * Kaynak MODELİN adına bakmak yetmiyor: model bir kopyanın kopyasıysa adı
+ * ("YENİ MODEL") modüllerin taşıdığı seriyle ("BIEN") ilgisiz kalıyor ve
+ * hiçbir modül yeniden adlandırılamıyordu. Ortak ön ek yoksa modelin ilk
+ * kelimesine düşülür.
+ */
+export function seriOnEki(modulAdlari: string[], modelAd: string): string {
+  const ilkler = modulAdlari.map(ilkKelime).filter(Boolean);
+  if (ilkler.length > 0 && ilkler.every((x) => kucuk(x) === kucuk(ilkler[0])))
+    return ilkler[0];
+  return ilkKelime(modelAd);
+}
+
+/**
+ * Modül adını yeni modele uyarlar: "BIEN DOLAP" + seri "BIEN" + yeni ad
+ * "TEST" → "TEST DOLAP".
+ *
+ * Seri ön ekiyle başlamayan modül adının başına yeni ön ek eklenir
+ * ("KAPAK" → "TEST KAPAK"): kopyanın bütün modülleri yeni modele bağlı
+ * görünmeli. Türetilen ad her zaman düzenlenebilir.
  */
 export function modulAdiUyarla(
   modulAd: string,
-  eskiModelAd: string,
+  seriOnEk: string,
   yeniModelAd: string,
 ): string {
-  const eskiOnEk = eskiModelAd.trim().split(/\s+/)[0] ?? "";
-  const yeniOnEk = yeniModelAd.trim().split(/\s+/)[0] ?? "";
-  if (!eskiOnEk || !yeniOnEk) return modulAd;
-  const kucuk = (x: string) => x.toLocaleLowerCase("tr");
-  const parcalar = modulAd.trim().split(/\s+/);
-  if (parcalar.length === 0 || kucuk(parcalar[0]) !== kucuk(eskiOnEk))
-    return modulAd;
-  return [yeniOnEk, ...parcalar.slice(1)].join(" ");
+  const yeniOnEk = ilkKelime(yeniModelAd);
+  if (!yeniOnEk) return modulAd;
+  const parcalar = modulAd.trim().split(/\s+/).filter(Boolean);
+  if (parcalar.length === 0) return modulAd;
+  if (seriOnEk && kucuk(parcalar[0]) === kucuk(seriOnEk))
+    return [yeniOnEk, ...parcalar.slice(1)].join(" ");
+  if (kucuk(parcalar[0]) === kucuk(yeniOnEk)) return modulAd;
+  return [yeniOnEk, ...parcalar].join(" ");
 }
 
 export function ModelKopyaDialog({
@@ -86,6 +106,11 @@ export function ModelKopyaDialog({
   const [moduller, setModuller] = React.useState<Modul[]>([]);
   const [aktif, setAktif] = React.useState(0);
   const [gorunum, setGorunum] = React.useState<"kart" | "liste">("kart");
+  // Toplu değiştirmede öbek başına seçilen hedef (etiket). Modüller arasında
+  // ortak: "tüm modüllerde uygula" varsayılan açık, seçim de öyle davranmalı.
+  const [topluSecim, setTopluSecim] = React.useState<Record<string, string>>(
+    {},
+  );
   const [malzemeler, setMalzemeler] = React.useState<Malzeme[]>([]);
   const [istasyonlar, setIstasyonlar] = React.useState<
     { slug: string; ad: string }[]
@@ -102,6 +127,7 @@ export function ModelKopyaDialog({
     setYukleniyor(true);
     setYeniAd("");
     setAktif(0);
+    setTopluSecim({});
     modelKopyaVerisi(model.id)
       .then((res) => {
         if (iptal) return;
@@ -141,14 +167,25 @@ export function ModelKopyaDialog({
   // düzeltmek zorunda kalmasın. Elle değiştirilen ad korunur.
   const elleDegisen = React.useRef<Set<number>>(new Set());
   React.useEffect(() => {
-    if (!model || !yeniAd.trim()) return;
-    setModuller((l) =>
-      l.map((m, i) =>
+    if (!model) return;
+    setModuller((l) => {
+      if (l.length === 0) return l;
+      const ad = yeniAd.trim();
+      const seri = seriOnEki(
+        l.map((m) => m.kaynakAd),
+        model.ad,
+      );
+      return l.map((m, i) =>
         elleDegisen.current.has(i)
           ? m
-          : { ...m, ad: modulAdiUyarla(m.kaynakAd, model.ad, yeniAd) },
-      ),
-    );
+          : {
+              ...m,
+              // Ad silinince kaynak adına dönülür; yarım kalmış bir türetme
+              // ekranda asılı kalmasın.
+              ad: ad ? modulAdiUyarla(m.kaynakAd, seri, ad) : m.kaynakAd,
+            },
+      );
+    });
   }, [yeniAd, model]);
 
   const malzemeMap = React.useMemo(
@@ -198,17 +235,24 @@ export function ModelKopyaDialog({
    * Bir stok grubundaki tüm satırların malzemesini değiştirir.
    * Kapsam: yalnız seçili modül ya da bütün modüller — renk değişikliği
    * genelde modelin tamamını ilgilendirdiği için ikincisi de gerekiyor.
+   *
+   * Eşleştirme satırın GÜNCEL değil KAYNAK malzemesinin grubuna göre: bir kez
+   * değiştirilen satır başka gruba geçtiği için aynı öbekten ikinci bir seçim
+   * hiçbir satırı bulamaz, kullanıcı fikrini değiştiremezdi.
    */
   function topluDegistir(grup: string, hedefId: string, tumu: boolean) {
     setModuller((l) =>
       l.map((m, i) => {
         if (!tumu && i !== aktif) return m;
+        const kaynak = kaynakRecete.get(m.kaynakParcaId) ?? [];
         return {
           ...m,
-          recete: m.recete.map((r) => {
+          recete: m.recete.map((r, x) => {
             if (r.bilesen.tip !== "malzeme") return r;
-            const mlz = malzemeMap.get(r.bilesen.ref);
-            if ((mlz?.grup ?? "Grupsuz") !== grup) return r;
+            // Pencere açıldıktan sonra eklenen satırın kaynağı yok; onda
+            // güncel malzemesine bakılır.
+            const olcut = kaynak[x] ?? r.bilesen.ref;
+            if ((malzemeMap.get(olcut)?.grup ?? "Grupsuz") !== grup) return r;
             return { ...r, bilesen: { tip: "malzeme", ref: hedefId } };
           }),
         };
@@ -409,6 +453,16 @@ export function ModelKopyaDialog({
                 ) : (
                   <ListeGorunum
                     satirlar={secili.recete}
+                    // Öbekler KAYNAK reçeteden hesaplanıyor: değiştirdikçe
+                    // satırların grubu değişince öbek listeden kaybolur,
+                    // kullanıcı az önce seçtiği hedefi göremezdi.
+                    kaynakRefler={
+                      kaynakRecete.get(secili.kaynakParcaId) ?? []
+                    }
+                    topluSecim={topluSecim}
+                    onTopluSecim={(grup, etiket) =>
+                      setTopluSecim((x) => ({ ...x, [grup]: etiket }))
+                    }
                     malzemeMap={malzemeMap}
                     malzemeSekmeleri={malzemeSekmeleri}
                     etiketToId={etiketToId}
@@ -511,6 +565,9 @@ function GorunumBtn({
  */
 function ListeGorunum({
   satirlar,
+  kaynakRefler,
+  topluSecim,
+  onTopluSecim,
   malzemeMap,
   malzemeSekmeleri,
   etiketToId,
@@ -520,6 +577,10 @@ function ListeGorunum({
   onToplu,
 }: {
   satirlar: ReceteSatiri[];
+  /** Modülün ilk hâlindeki malzeme id'leri — öbekler bundan türer. */
+  kaynakRefler: string[];
+  topluSecim: Record<string, string>;
+  onTopluSecim: (grup: string, etiket: string) => void;
   malzemeMap: Map<string, Malzeme>;
   malzemeSekmeleri: { key: string; label: string; items: string[] }[];
   etiketToId: Map<string, string>;
@@ -532,13 +593,13 @@ function ListeGorunum({
 
   const obekler = React.useMemo(() => {
     const m = new Map<string, number>();
-    for (const s of satirlar) {
-      if (s.bilesen.tip !== "malzeme") continue;
-      const g = malzemeMap.get(s.bilesen.ref)?.grup ?? "Grupsuz";
+    for (const ref of kaynakRefler) {
+      if (!ref) continue;
+      const g = malzemeMap.get(ref)?.grup ?? "Grupsuz";
       m.set(g, (m.get(g) ?? 0) + 1);
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "tr"));
-  }, [satirlar, malzemeMap]);
+  }, [kaynakRefler, malzemeMap]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -570,8 +631,10 @@ function ListeGorunum({
                 <div className="min-w-0 flex-1">
                   <SearchSelect
                     sekmeler={malzemeSekmeleri}
-                    value={null}
+                    temizlenebilir
+                    value={topluSecim[grup] ?? null}
                     onValueChange={(etiket) => {
+                      onTopluSecim(grup, etiket ?? "");
                       const id = etiketToId.get(etiket ?? "");
                       if (!id) return;
                       onToplu(grup, id, tumModuller);
