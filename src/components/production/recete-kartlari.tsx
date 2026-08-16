@@ -18,11 +18,11 @@ import { toast } from "sonner";
 
 import { SearchSelect } from "@/components/ui/search-select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import {
@@ -239,7 +239,9 @@ export function ReceteKartlari({
     // Satırlar silinmez, yalnız parçadan çıkar: kullanıcı parçayı kaldırırken
     // içindeki malzemeleri kaybetmeyi beklemez.
     onSatirlar(
-      satirlar.map((s) => ((s.grup ?? "") === ad ? { ...s, grup: undefined } : s)),
+      satirlar.map((s) =>
+        (s.grup ?? "") === ad ? { ...s, grup: undefined } : s,
+      ),
     );
     onGruplar(gruplar.filter((g) => g.ad !== ad));
   }
@@ -311,7 +313,9 @@ export function ReceteKartlari({
                   {g.kalinlik ? ` · ${sayiBicim(g.kalinlik)} mm kalınlık` : ""}
                 </span>
               ) : (
-                <span className="text-[11px] text-amber-700">Ölçü girilmedi</span>
+                <span className="text-[11px] text-amber-700">
+                  Ölçü girilmedi
+                </span>
               )}
               <div className="ml-auto flex items-center gap-1">
                 <Button
@@ -499,9 +503,7 @@ export function ReceteKartlari({
             seçilir ki aynı parça her reçetede aynı adla geçsin. */}
         <div className="w-56">
           <SearchSelect
-            items={parcaAdlari.filter(
-              (x) => !gruplar.some((g) => g.ad === x),
-            )}
+            items={parcaAdlari.filter((x) => !gruplar.some((g) => g.ad === x))}
             value={null}
             onValueChange={(v) => {
               if (!v) return;
@@ -523,25 +525,29 @@ export function ReceteKartlari({
         </Button>
       </div>
 
-      {/* Görsel önizleme — kart içinde değil, modalda */}
-      <Dialog
+      {/* Görsel önizleme SHEET'te: yandan açılınca reçete listesi görünür
+          kalıyor, parçalar arasında gezerken bağlam kaybolmuyor. */}
+      <Sheet
         open={gorselGrup != null}
         onOpenChange={(a) => !a && setGorselParca(null)}
       >
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{gorselGrup?.ad}</DialogTitle>
-          </DialogHeader>
-          {gorselGrup && (
-            <ParcaOnizleme
-              en={parcaOlcusu(gorselGrup).en}
-              boy={parcaOlcusu(gorselGrup).boy}
-              kalinlik={gorselGrup.kalinlik}
-              bantlar={bantSatirlariniAl(gorselGrup.ad)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        <SheetContent side="right" className="sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>{gorselGrup?.ad}</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+            {gorselGrup && (
+              <ParcaOnizleme
+                en={parcaOlcusu(gorselGrup).en}
+                boy={parcaOlcusu(gorselGrup).boy}
+                kalinlik={gorselGrup.kalinlik}
+                bantlar={bantSatirlariniAl(gorselGrup.ad)}
+                yukseklikClass="h-[70vh] min-h-80"
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

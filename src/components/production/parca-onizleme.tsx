@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { Html, OrbitControls } from "@react-three/drei";
 import { BoxGeometry } from "three";
 
+import { cn } from "@/lib/utils";
 import type { KenarSecim } from "@/lib/data";
 
 /**
@@ -70,15 +71,39 @@ function Panel({
   // panele oranla sabit tutulur (0.4 mm bant hiçbir ölçekte seçilmezdi).
   const serit = Math.max(Math.min(g, y) * 0.045, 0.02);
 
+  // Etiket şeridin üstünde değil DIŞINDA duruyor: dar bir panelde sol ve sağ
+  // etiketleri panelin ortasında üst üste biniyordu.
+  const etiketPay = Math.max(g, y) * 0.22;
   const kenarlar: {
     kenar: keyof KenarSecim;
     konum: [number, number, number];
+    etiket: [number, number, number];
     boyut: [number, number, number];
   }[] = [
-    { kenar: "ust", konum: [0, y / 2 + serit / 2, 0], boyut: [g, serit, k] },
-    { kenar: "alt", konum: [0, -y / 2 - serit / 2, 0], boyut: [g, serit, k] },
-    { kenar: "sol", konum: [-g / 2 - serit / 2, 0, 0], boyut: [serit, y, k] },
-    { kenar: "sag", konum: [g / 2 + serit / 2, 0, 0], boyut: [serit, y, k] },
+    {
+      kenar: "ust",
+      konum: [0, y / 2 + serit / 2, 0],
+      etiket: [0, y / 2 + etiketPay, 0],
+      boyut: [g, serit, k],
+    },
+    {
+      kenar: "alt",
+      konum: [0, -y / 2 - serit / 2, 0],
+      etiket: [0, -y / 2 - etiketPay, 0],
+      boyut: [g, serit, k],
+    },
+    {
+      kenar: "sol",
+      konum: [-g / 2 - serit / 2, 0, 0],
+      etiket: [-g / 2 - etiketPay, 0, 0],
+      boyut: [serit, y, k],
+    },
+    {
+      kenar: "sag",
+      konum: [g / 2 + serit / 2, 0, 0],
+      etiket: [g / 2 + etiketPay, 0, 0],
+      boyut: [serit, y, k],
+    },
   ];
 
   // Kenar çizgisi geometrisi: ölçü değişmedikçe yeniden kurulmasın.
@@ -98,7 +123,7 @@ function Panel({
         <lineBasicMaterial color="#8a7355" />
       </lineSegments>
 
-      {kenarlar.map(({ kenar, konum, boyut }) => {
+      {kenarlar.map(({ kenar, konum, etiket, boyut }) => {
         const bagli = kenarBantlari(bantlar, kenar);
         if (bagli.length === 0) return null;
         return (
@@ -111,9 +136,9 @@ function Panel({
                 metalness={0.05}
               />
             </mesh>
-            <Html position={konum} center distanceFactor={6}>
+            <Html position={etiket} center distanceFactor={9}>
               <span
-                className="rounded px-1 py-0.5 text-[10px] font-medium whitespace-nowrap text-white shadow"
+                className="rounded px-1 py-0.5 text-[9px] font-medium whitespace-nowrap text-white shadow"
                 style={{ background: bagli[0].renk }}
               >
                 {KENAR_ADI[kenar]}
@@ -132,11 +157,14 @@ export function ParcaOnizleme({
   boy,
   kalinlik,
   bantlar,
+  yukseklikClass = "h-56",
 }: {
   en?: number;
   boy?: number;
   kalinlik?: number;
   bantlar: BantGosterim[];
+  /** Sahne yüksekliği. Modalda kart içindekinden çok daha yüksek olmalı. */
+  yukseklikClass?: string;
 }) {
   if (!en || !boy) {
     return (
@@ -155,7 +183,12 @@ export function ParcaOnizleme({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="h-56 overflow-hidden rounded-md border bg-gradient-to-b from-muted/10 to-muted/40">
+      <div
+        className={cn(
+          "overflow-hidden rounded-md border bg-gradient-to-b from-muted/10 to-muted/40",
+          yukseklikClass,
+        )}
+      >
         <Canvas
           camera={{ position: [1.4, 1.1, 2.6], fov: 40 }}
           dpr={[1, 2]}
