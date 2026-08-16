@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   AlertTriangle,
-  ChevronRight,
   History,
   ChevronDown,
   ChevronUp,
-  FolderOpen,
   Info,
   Layers,
   ListOrdered,
@@ -19,7 +17,6 @@ import {
   RotateCcw,
   Ruler,
   Trash,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,7 +30,6 @@ import { IconInput, type AnimatedIconHandle } from "@/components/ui/icon-input";
 import { AnimatedField } from "@/components/ui/animated-field";
 import { KartBaslik } from "@/components/ui/kart-baslik";
 import { SekmeButonu } from "@/components/ui/sekme-butonu";
-import { SiralaFiltreBaslik } from "@/components/ui/kolon-filtre";
 import {
   HoverCard,
   HoverCardContent,
@@ -44,12 +40,6 @@ import { BlocksIcon } from "@/components/ui/icons/blocks";
 import { ScanTextIcon } from "@/components/ui/icons/scan-text";
 import { FolderOpenIcon } from "@/components/ui/icons/folder-open";
 import { GrupSecici } from "@/components/ui/grup-secici";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { BoxesIcon } from "@/components/ui/icons/boxes";
 import { AlignLeftIcon } from "@/components/ui/icons/align-left";
 import { CircleCheckIcon } from "@/components/ui/icons/circle-check";
@@ -70,9 +60,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  formatTarih,
   type Makine,
-  olcudenMiktar,
   type Malzeme,
   type MalzemeAlisOzeti,
   type StokGrup,
@@ -82,10 +70,12 @@ import {
   type ParcaPaket,
   type ParcaKategori,
   type ParcaOlculeri,
+  type ReceteGrup,
   type ReceteSatiri,
   type StokDokuman,
 } from "@/lib/data";
 import { PaketlemeTab } from "@/components/production/paketleme-tab";
+import { ReceteKartlari } from "@/components/production/recete-kartlari";
 import type { Istasyon } from "@/lib/fabrika";
 import type { ReceteVersiyonGorunum } from "@/lib/db/queries";
 import {
@@ -246,7 +236,7 @@ export function ParcaForm({
 }) {
   const para = usePara();
   const router = useRouter();
-  const { onayla, onayDialog } = useOnay();
+  const { onayDialog } = useOnay();
   const yeniMi = recete === null;
   const istasyonMap = React.useMemo(
     () => new Map(istasyonlar.map((i) => [i.slug, i])),
@@ -387,6 +377,10 @@ export function ParcaForm({
   const [satirlar, setSatirlar] = React.useState<ReceteSatiri[]>(
     recete?.recete.map((r) => ({ ...r, bilesen: { ...r.bilesen } })) ?? [],
   );
+  // Reçete grupları = PARÇALAR. Kesim ölçüleri burada durur (satırda değil).
+  const [receteGruplari, setReceteGruplari] = React.useState<ReceteGrup[]>(
+    () => recete?.gruplar?.map((g) => ({ ...g })) ?? [],
+  );
   // Refakat kağıdı ölçüleri — metin olarak tutulur (boş = tanımsız).
   const [olculer, setOlculer] = React.useState<Record<OlcuAlan, string>>(() => {
     const o = recete?.olculer;
@@ -414,8 +408,7 @@ export function ParcaForm({
     () => new Map(modeller.map((m) => [m.id, m])),
     [modeller],
   );
-  const [versiyonlar, setVersiyonlar] = usePropAynasi(versiyonlarProp);
-  const [acikAltlar, setAcikAltlar] = React.useState<Set<number>>(new Set());
+  const [versiyonlar] = usePropAynasi(versiyonlarProp);
   const [kaydetOnay, setKaydetOnay] = React.useState(false);
   const [degisiklikNotu, setDegisiklikNotu] = React.useState("");
   const [geriYukleNo, setGeriYukleNo] = React.useState<number | null>(null);
@@ -530,6 +523,7 @@ export function ParcaForm({
     aciklama,
     durum,
     satirlar,
+    receteGruplari,
     olculer,
     olcuDoluMu,
     islemler,
@@ -560,57 +554,10 @@ export function ParcaForm({
         ) * brut
       : 0;
   };
-  const enPahali = [...gecerli]
-    .map((s) => ({ s, tutar: satirTutari(s) }))
-    .sort((a, b) => b.tutar - a.tutar)
-    .slice(0, 3);
-
   const bilesenAd = (tip: "malzeme" | "parca", ref: string) =>
     tip === "malzeme"
       ? (malzemeMap.get(ref)?.ad ?? ref)
       : (parcaMap.get(ref)?.ad ?? ref);
-
-  // ── Reçete satırları: kolon filtre + sıralama (proje standardı) ───────
-  type SatirSortKey =
-    | "tip"
-    | "bilesen"
-    | "istasyon"
-    | "miktar"
-    | "fire"
-    | "tutar"
-    | "sonAlis"
-    | "digerOrt";
-  const [tipF, setTipF] = React.useState("Tümü");
-  // Reçetede geçen malzemelerin grupları (filtre seçenekleri).
-  const gruplar = React.useMemo(
-    () =>
-      [
-        ...new Set(
-          satirlar
-            .map((s) =>
-              s.bilesen.tip === "malzeme"
-                ? malzemeMap.get(s.bilesen.ref)?.grup
-                : undefined,
-            )
-            .filter((g): g is string => !!g),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "tr")),
-    [satirlar, malzemeMap],
-  );
-  const [bilesenF, setBilesenF] = React.useState("");
-  const [istasyonF, setIstasyonF] = React.useState("Tümü");
-  const [miktarAralik, setMiktarAralik] = React.useState({ min: "", max: "" });
-  const [fireAralik, setFireAralik] = React.useState({ min: "", max: "" });
-  const [satirSort, setSatirSort] = React.useState<{
-    key: SatirSortKey;
-    dir: "asc" | "desc";
-  } | null>(null);
-  const sortu = (k: SatirSortKey) =>
-    satirSort?.key === k ? satirSort.dir : null;
-  const sirala = (k: SatirSortKey) => (dir: "asc" | "desc") =>
-    setSatirSort((mev) =>
-      mev?.key === k && mev.dir === dir ? null : { key: k, dir },
-    );
 
   /** Filtre + sıralama uygulanmış görünüm; i = satirlar'daki gerçek indeks. */
   /**
@@ -621,9 +568,6 @@ export function ParcaForm({
    * Boş bir grup da yaşamalı (kullanıcı grubu açıp içini sonra doldurur),
    * o yüzden satırlardan türetmiyoruz; ayrı bir listede de tutuyoruz.
    */
-  const [ekGruplar, setEkGruplar] = React.useState<string[]>([]);
-  const [yeniGrupAcik, setYeniGrupAcik] = React.useState(false);
-  const [yeniGrupAd, setYeniGrupAd] = React.useState("");
   // Tanımlamalar → Parçalar listesi; yerelde eklenen de burada birikir.
   const [parcaTanimlari, setParcaTanimlari] =
     React.useState<string[]>(parcaAdlari);
@@ -642,37 +586,11 @@ export function ParcaForm({
       }
       setParcaTanimlari((l) => [...l, ad].sort((a, b) => a.localeCompare(b, "tr")));
     }
-    setYeniGrupAd(ad);
     setYeniParcaAcik(false);
   }
 
-  const grupSirasi = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const s of satirlar) if (s.grup?.trim()) set.add(s.grup.trim());
-    for (const g of ekGruplar) set.add(g);
-    return [...set];
-  }, [satirlar, ekGruplar]);
-
-  function grupEkle() {
-    const ad = yeniGrupAd.trim();
-    if (!ad) return;
-    if (!grupSirasi.includes(ad)) setEkGruplar((g) => [...g, ad]);
-    setYeniGrupAcik(false);
-    setYeniGrupAd("");
-  }
-
-  function grupSil(ad: string) {
-    // Satırlar silinmez, yalnız gruptan çıkar: kullanıcı grubu kaldırırken
-    // içindeki bileşenleri kaybetmeyi beklemez.
-    setSatirlar((l) =>
-      l.map((x) => (x.grup?.trim() === ad ? { ...x, grup: undefined } : x)),
-    );
-    setEkGruplar((g) => g.filter((x) => x !== ad));
-  }
-
+  // Maliyet bandı satır özetleri (kart düzeninde filtre/sıralama yok).
   const gorunum = React.useMemo(() => {
-    const arada = (n: number, min: string, max: string) =>
-      (min === "" || n >= Number(min)) && (max === "" || n <= Number(max));
     const rows = satirlar.map((s, i) => {
       const malzeme =
         s.bilesen.tip === "malzeme" ? malzemeMap.get(s.bilesen.ref) : undefined;
@@ -697,83 +615,15 @@ export function ParcaForm({
         tutar: satirTutari(s),
       };
     });
-    const suzgec = rows.filter((r) => {
-      const grupOk = tipF === "Tümü" || (r.malzeme?.grup ?? "—") === tipF;
-      const adOk = r.ad.toLowerCase().includes(bilesenF.toLowerCase());
-      const istOk =
-        istasyonF === "Tümü" ||
-        (r.s.bilesen.tip === "malzeme" &&
-          (istasyonMap.get(r.s.istasyon ?? ilkIstasyonSlug ?? "")?.ad ??
-            "") === istasyonF);
-      const mikOk = arada(r.s.miktar, miktarAralik.min, miktarAralik.max);
-      const fireOk = arada(r.s.fire ?? 0, fireAralik.min, fireAralik.max);
-      return grupOk && adOk && istOk && mikOk && fireOk;
-    });
-    // Kullanıcı bir kolona göre sıralamadıysa satırlar GRUBA göre öbeklenir;
-    // grup başlıkları ancak bitişik satırlarda anlamlı olur.
-    if (!satirSort) {
-      const sira = (r: (typeof rows)[number]) => {
-        const g = r.s.grup?.trim() ?? "";
-        const idx = grupSirasi.indexOf(g);
-        // Gruplanmamışlar en sona.
-        return g === "" || idx < 0 ? grupSirasi.length : idx;
-      };
-      return [...suzgec].sort((a, b) => sira(a) - sira(b) || a.i - b.i);
-    }
-    const yon = satirSort.dir === "asc" ? 1 : -1;
-    const deger = (r: (typeof rows)[number]): string | number => {
-      switch (satirSort.key) {
-        case "tip":
-          return r.malzeme?.grup ?? "";
-        case "istasyon":
-          return r.s.bilesen.tip === "malzeme"
-            ? (istasyonMap.get(r.s.istasyon ?? ilkIstasyonSlug ?? "")?.ad ?? "")
-            : "";
-        case "bilesen":
-          return r.ad;
-        case "miktar":
-          return r.s.miktar;
-        case "fire":
-          return r.s.fire ?? 0;
-        case "tutar":
-          return r.tutar;
-        case "sonAlis":
-          return r.ozet?.sonAlis?.fiyat ?? -1;
-        case "digerOrt":
-          return r.digerOrt ?? -1;
-      }
-    };
-    return [...suzgec].sort((a, b) => {
-      const x = deger(a);
-      const y = deger(b);
-      if (typeof x === "number" && typeof y === "number") return (x - y) * yon;
-      return String(x).localeCompare(String(y), "tr") * yon;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return rows;
   }, [
     satirlar,
-    grupSirasi,
-    tipF,
-    bilesenF,
-    istasyonF,
-    miktarAralik,
-    fireAralik,
-    satirSort,
     malzemeMap,
     alisOzetMap,
     istasyonMap,
     ilkIstasyonSlug,
   ]);
 
-  // Özet bandı görünen (filtrelenmiş) satırlara göre hesaplanır.
-  const filtreAktif =
-    tipF !== "Tümü" ||
-    bilesenF !== "" ||
-    istasyonF !== "Tümü" ||
-    miktarAralik.min !== "" ||
-    miktarAralik.max !== "" ||
-    fireAralik.min !== "" ||
-    fireAralik.max !== "";
   const bandGorunum = gorunum.filter((r) => r.s.bilesen.ref);
   const bandToplam = bandGorunum.reduce((t, r) => t + r.tutar, 0);
   const bandEnPahali = [...bandGorunum]
@@ -804,44 +654,6 @@ export function ParcaForm({
     bandToplam > 0 ? ((deger - bandToplam) / bandToplam) * 100 : 0;
 
   // ── Eylemler ──────────────────────────────────────────────────────────
-  function satirEkle(tip: "malzeme" | "parca", grup?: string) {
-    setSatirlar((s) => [
-      ...s,
-      {
-        bilesen: { tip, ref: "" },
-        miktar: 1,
-        ...(grup ? { grup } : {}),
-        // Fire yalnız MALZEME satırında anlamlı: parça satırının firesi kendi
-        // reçetesinde zaten hesaplanıyor, burada da uygulamak çift sayardı.
-        ...(tip === "malzeme" ? { fire: varsayilanFire } : {}),
-        // Malzeme satırı ilk istasyonla (Kesim) dolu başlar; kullanıcı değiştirebilir.
-        ...(tip === "malzeme" && ilkIstasyonSlug
-          ? { istasyon: ilkIstasyonSlug }
-          : {}),
-      },
-    ]);
-    setTab("recete");
-  }
-  /**
-   * Ölçü değişince miktarı da tazeler. Ölçü ile miktar iki ayrı kaynak
-   * olsaydı hangisinin doğru olduğu belirsiz kalırdı; ölçü doluysa miktar
-   * ONDAN türetilir.
-   */
-  function olcuGuncelle(i: number, degisim: { en?: number; boy?: number }) {
-    setSatirlar((l) =>
-      l.map((s, x) => {
-        if (x !== i) return s;
-        const yeni = { ...s, ...degisim };
-        const birim =
-          s.bilesen.tip === "malzeme"
-            ? malzemeMap.get(s.bilesen.ref)?.birim
-            : undefined;
-        const m = olcudenMiktar(birim, yeni.en, yeni.boy);
-        return m == null ? yeni : { ...yeni, miktar: m };
-      }),
-    );
-  }
-
   function satirGuncelle(i: number, degisim: Partial<ReceteSatiri>) {
     setSatirlar((s) => {
       const n = [...s];
@@ -929,6 +741,7 @@ export function ParcaForm({
             : s,
         ),
         olculer: olcuVeri,
+        gruplar: receteGruplari,
         // Eksik seçim yapılmış satırlar kaydedilmez; boş referanslı bir
         // paket satırı paketleme ekranında "seçilmemiş" diye görünürdü.
         paketler: paketler.map((k, idx) => ({
@@ -1532,15 +1345,7 @@ export function ParcaForm({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border bg-card px-4 py-2.5">
               <div>
                 <p className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                  {filtreAktif ? "Filtreli Maliyet" : "Maliyet Özeti"}
-                  {filtreAktif && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-amber-100 text-[9px] text-amber-800"
-                    >
-                      {bandGorunum.length}/{gecerli.length} satır
-                    </Badge>
-                  )}
+                  Maliyet Özeti
                 </p>
                 <div className="mt-1 flex items-center gap-4">
                   <MaliyetBazi
@@ -1610,675 +1415,29 @@ export function ParcaForm({
               )}
             </div>
 
-            {/* Bileşen grid'i — tam genişlik (dar ekranda yatay kayar) */}
-            <div className="overflow-x-auto rounded-md border bg-card">
-              <div className="min-w-[1180px]">
-                <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_64px_64px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("tip")}
-                    onSirala={sirala("tip")}
-                    filtre={{
-                      tip: "liste",
-                      secenekler: gruplar,
-                      deger: tipF,
-                      onDeger: setTipF,
-                    }}
-                  >
-                    Grup
-                  </SiralaFiltreBaslik>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("bilesen")}
-                    onSirala={sirala("bilesen")}
-                    filtre={{
-                      tip: "metin",
-                      deger: bilesenF,
-                      onDeger: setBilesenF,
-                    }}
-                  >
-                    Malzeme
-                  </SiralaFiltreBaslik>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("fire")}
-                    onSirala={sirala("fire")}
-                    filtre={{
-                      tip: "sayi",
-                      min: fireAralik.min,
-                      max: fireAralik.max,
-                      onDegis: (min, max) => setFireAralik({ min, max }),
-                    }}
-                  >
-                    Fire %
-                  </SiralaFiltreBaslik>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("istasyon")}
-                    onSirala={sirala("istasyon")}
-                    filtre={{
-                      tip: "liste",
-                      secenekler: istasyonlar.map((x) => x.ad),
-                      deger: istasyonF,
-                      onDeger: setIstasyonF,
-                    }}
-                  >
-                    İstasyon
-                  </SiralaFiltreBaslik>
-                  {/* Kesim ölçüleri Miktar'ın hemen solunda: En × Boy → Miktar
-                      ilişkisi okunurken görünsün. */}
-                  <span className="text-right">En</span>
-                  <span className="text-right">Boy</span>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("miktar")}
-                    onSirala={sirala("miktar")}
-                    filtre={{
-                      tip: "sayi",
-                      min: miktarAralik.min,
-                      max: miktarAralik.max,
-                      onDegis: (min, max) => setMiktarAralik({ min, max }),
-                    }}
-                  >
-                    Miktar
-                  </SiralaFiltreBaslik>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("sonAlis")}
-                    onSirala={sirala("sonAlis")}
-                  >
-                    Son Alış
-                  </SiralaFiltreBaslik>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("tutar")}
-                    onSirala={sirala("tutar")}
-                  >
-                    Tutar
-                  </SiralaFiltreBaslik>
-                  <span title="Satın alma şartlarındaki en yüksek anlaşma fiyatı">
-                    Max Şart
-                  </span>
-                  <SiralaFiltreBaslik
-                    asDiv
-                    sira={sortu("digerOrt")}
-                    onSirala={sirala("digerOrt")}
-                  >
-                    Diğer Ort.
-                  </SiralaFiltreBaslik>
-                  <span>Son Hareket</span>
-                  {/* Grup ataması + satır kaldırma kolonları (başlıksız). */}
-                  <span />
-                  <span />
-                </div>
-                <div className="divide-y">
-                  {gorunum.map((r, sira) => {
-                    const { s, i, malzeme, ozet, digerFirmalar, digerOrt } = r;
-                    const alt =
-                      s.bilesen.tip === "parca"
-                        ? parcaMap.get(s.bilesen.ref)
-                        : undefined;
-                    const acik = acikAltlar.has(i);
-                    // Ölçüden miktar yalnız m² / m birimlerinde anlamlı.
-                    const satirBirim =
-                      s.bilesen.tip === "malzeme" ? malzeme?.birim : undefined;
-                    const bLower = (satirBirim ?? "").trim().toLowerCase();
-                    const m2Mi = bLower === "m²" || bLower === "m2";
-                    const olculuMu = m2Mi || bLower === "m" || bLower === "mt";
-                    const hesaplanan = olcudenMiktar(satirBirim, s.en, s.boy);
-                    // Grup başlığı: bu satırın grubu bir öncekinden farklıysa.
-                    const grupAdi = s.grup?.trim() || "";
-                    const oncekiGrup =
-                      sira === 0 ? null : (gorunum[sira - 1].s.grup?.trim() || "");
-                    const basligiGoster = !satirSort && grupAdi !== oncekiGrup;
-                    return (
-                      <React.Fragment key={i}>
-                        {basligiGoster && (
-                          <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
-                            <FolderOpen className="size-3.5 shrink-0 text-primary" />
-                            <span className="text-xs font-semibold text-primary">
-                              {grupAdi || "Gruplanmamış"}
-                            </span>
-                            {grupAdi && (
-                              <div className="ml-auto flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-xs"
-                                  onClick={() => satirEkle("malzeme", grupAdi)}
-                                >
-                                  <Plus className="size-3" /> Malzeme
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() => grupSil(grupAdi)}
-                                  aria-label={`${grupAdi} grubunu kaldır`}
-                                  className="size-6 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash className="size-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-[minmax(76px,max-content)_minmax(170px,1fr)_60px_110px_64px_64px_100px_116px_84px_108px_112px_128px_32px_36px] items-center gap-2 px-3 py-2">
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              "w-full justify-center whitespace-nowrap",
-                              s.bilesen.tip === "malzeme"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-violet-100 text-violet-800",
-                            )}
-                          >
-                            {s.bilesen.tip === "malzeme"
-                              ? (malzeme?.grup ?? "—")
-                              : "Parça"}
-                          </Badge>
-                          <div className="flex min-w-0 items-center gap-1">
-                            {alt && (
-                              <button
-                                type="button"
-                                aria-label={acik ? "Kapat" : "İçini göster"}
-                                onClick={() =>
-                                  setAcikAltlar((a) => {
-                                    const n = new Set(a);
-                                    if (n.has(i)) n.delete(i);
-                                    else n.add(i);
-                                    return n;
-                                  })
-                                }
-                                className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                              >
-                                <ChevronRight
-                                  className={cn(
-                                    "size-4 transition-transform",
-                                    acik && "rotate-90",
-                                  )}
-                                />
-                              </button>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <SearchSelect
-                                // Malzemede gruplu sekme; parçada düz liste.
-                                sekmeler={
-                                  s.bilesen.tip === "malzeme"
-                                    ? malzemeSekmeleri
-                                    : undefined
-                                }
-                                items={
-                                  s.bilesen.tip === "malzeme"
-                                    ? undefined
-                                    : parcalar
-                                        .filter((p) => p.id !== recete?.id)
-                                        .map((p) => p.ad)
-                                }
-                                addLabel={
-                                  s.bilesen.tip === "malzeme"
-                                    ? "Yeni malzeme ekle"
-                                    : undefined
-                                }
-                                onAdd={
-                                  s.bilesen.tip === "malzeme"
-                                    ? () => {
-                                        setYeniMlzSatir(i);
-                                        setYeniMlz({
-                                          ad: "",
-                                          grup: "",
-                                          birim: birimler[0] ?? "adet",
-                                        });
-                                        setYeniMlzAcik(true);
-                                      }
-                                    : undefined
-                                }
-                                value={
-                                  !s.bilesen.ref
-                                    ? null
-                                    : s.bilesen.tip === "malzeme"
-                                      ? (tumMalzemeler
-                                          .filter(
-                                            (m) => m.id === s.bilesen.ref,
-                                          )
-                                          .map(malzemeEtiketi)[0] ?? null)
-                                      : bilesenAd(s.bilesen.tip, s.bilesen.ref)
-                                }
-                                onValueChange={(adSecim) => {
-                                  const ref =
-                                    s.bilesen.tip === "malzeme"
-                                      ? etiketToId.get(adSecim ?? "")
-                                      : parcalar.find((p) => p.ad === adSecim)
-                                          ?.id;
-                                  satirGuncelle(i, {
-                                    bilesen: { ...s.bilesen, ref: ref ?? "" },
-                                  });
-                                }}
-                                placeholder={
-                                  s.bilesen.tip === "malzeme"
-                                    ? "Malzeme seçin"
-                                    : "Parça seçin"
-                                }
-                                className="h-8"
-                              />
-                            </div>
-                          </div>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={99}
-                            step="any"
-                            value={s.fire ?? ""}
-                            placeholder="0"
-                            onChange={(e) =>
-                              satirGuncelle(i, {
-                                fire: e.target.value
-                                  ? Number(e.target.value)
-                                  : undefined,
-                              })
-                            }
-                            className="h-8 text-right tabular-nums"
-                          />
-                          {s.bilesen.tip === "malzeme" ? (
-                            <SearchSelect
-                              items={istasyonlar.map((x) => x.ad)}
-                              value={
-                                istasyonMap.get(
-                                  s.istasyon ?? ilkIstasyonSlug ?? "",
-                                )?.ad ?? null
-                              }
-                              onValueChange={(ad) =>
-                                satirGuncelle(i, {
-                                  istasyon: istasyonlar.find((x) => x.ad === ad)
-                                    ?.slug,
-                                })
-                              }
-                              placeholder="İstasyon"
-                              className="h-8"
-                            />
-                          ) : (
-                            <span
-                              className="text-xs text-muted-foreground"
-                              title="Alt parçanın tüketim yerleri kendi satırlarından gelir"
-                            >
-                              kendi reçetesi
-                            </span>
-                          )}
-                          {/* En / Boy — kesim ölçüsü (mm). Yalnız ölçüden
-                              miktar hesaplanabilen birimlerde girilir; diğer
-                              birimlerde hücre boş kalır ki kolon hizası
-                              bozulmasın. */}
-                          {olculuMu && m2Mi ? (
-                            <OlcuKutusu
-                              etiket="En"
-                              deger={s.en}
-                              onDeger={(v) => olcuGuncelle(i, { en: v })}
-                            />
-                          ) : (
-                            <span className="text-center text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {olculuMu ? (
-                            <OlcuKutusu
-                              etiket="Boy"
-                              deger={s.boy}
-                              onDeger={(v) => olcuGuncelle(i, { boy: v })}
-                            />
-                          ) : (
-                            <span className="text-center text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {/* Miktar — birim rozeti input içinde */}
-                          {(() => {
-                            const birim =
-                              s.bilesen.tip === "malzeme"
-                                ? (malzeme?.birim ?? "")
-                                : "adet";
-                            return (
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="any"
-                                  value={
-                                    hesaplanan == null
-                                      ? s.miktar
-                                      : Number(hesaplanan.toFixed(4))
-                                  }
-                                  onChange={(e) =>
-                                    satirGuncelle(i, {
-                                      miktar: Number(e.target.value),
-                                    })
-                                  }
-                                  // Ölçüden hesaplanıyorsa elle değiştirmek
-                                  // iki çelişen kaynak yaratır: kilitli.
-                                  readOnly={hesaplanan != null}
-                                  title={
-                                    hesaplanan != null
-                                      ? "Kesim ölçüsünden hesaplanıyor"
-                                      : undefined
-                                  }
-                                  className={cn(
-                                    "h-8 text-right tabular-nums",
-                                    birim && "pr-11",
-                                    hesaplanan != null &&
-                                      "bg-muted/50 text-muted-foreground",
-                                  )}
-                                />
-                                {birim && (
-                                  <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                    {birim}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          {/* Son Alış — detay hover'da */}
-                          {ozet?.sonAlis ? (
-                            <BilgiHucre
-                              deger={
-                                <span className="text-sm font-semibold tabular-nums">
-                                  {para(ozet.sonAlis.fiyat)}
-                                </span>
-                              }
-                              detay={
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-medium">
-                                    {ozet.sonAlis.cariAd}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {formatTarih(ozet.sonAlis.tarih)}
-                                  </span>
-                                </div>
-                              }
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          <span className="text-sm font-semibold tabular-nums">
-                            {para(satirTutari(s))}
-                          </span>
-                          {/* Max Şart — satın alma şartlarındaki en yüksek fiyat */}
-                          {ozet?.maxSart ? (
-                            <BilgiHucre
-                              deger={
-                                <span className="text-sm font-semibold text-rose-700 tabular-nums">
-                                  {para(ozet.maxSart.fiyat)}
-                                </span>
-                              }
-                              detay={
-                                <div className="flex flex-col gap-1">
-                                  <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                                    Satın Alma Şartları
-                                  </p>
-                                  {(ozet.sartlar ?? []).map((f) => (
-                                    <div
-                                      key={f.cariAd}
-                                      className="flex items-center justify-between gap-3"
-                                    >
-                                      <span className="min-w-0 truncate">
-                                        {f.cariAd}
-                                      </span>
-                                      <span className="shrink-0 text-muted-foreground tabular-nums">
-                                        {para(f.fiyat)}
-                                        {f.doviz !== "TL" && ` ${f.doviz}`}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              }
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {/* Diğer firmaların ortalaması — döküm hover'da */}
-                          {digerOrt !== null ? (
-                            <BilgiHucre
-                              deger={
-                                <span className="text-sm font-semibold tabular-nums">
-                                  {para(digerOrt)}
-                                </span>
-                              }
-                              detay={
-                                <div className="flex flex-col gap-1">
-                                  <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                                    Diğer Firma Ortalamaları
-                                  </p>
-                                  {digerFirmalar.map((f) => (
-                                    <div
-                                      key={f.cariAd}
-                                      className="flex items-center justify-between gap-3"
-                                    >
-                                      <span className="min-w-0 truncate">
-                                        {f.cariAd}
-                                      </span>
-                                      <span className="shrink-0 text-muted-foreground tabular-nums">
-                                        {para(f.ortalama)} ({f.alisSayisi}{" "}
-                                        alış)
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              }
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {/* Son hareket — açıklama hover'da */}
-                          {ozet?.sonHareket ? (
-                            <BilgiHucre
-                              hizala="left"
-                              deger={
-                                <span className="text-xs">
-                                  {formatTarih(ozet.sonHareket.tarih)}
-                                </span>
-                              }
-                              detay={
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-medium">
-                                    {formatTarih(ozet.sonHareket.tarih)} ·{" "}
-                                    {ozet.sonHareket.tur}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {ozet.sonHareket.aciklama}
-                                  </span>
-                                </div>
-                              }
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {/* Grup ataması: grup oluşturmak tek başına yetmez,
-                              satırın hangi gruba gideceği seçilebilmeli. */}
-                          {grupSirasi.length > 0 && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                render={
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Grubu değiştir"
-                                    title={
-                                      s.grup?.trim()
-                                        ? `Grup: ${s.grup.trim()}`
-                                        : "Gruba ata"
-                                    }
-                                  />
-                                }
-                              >
-                                <FolderOpen
-                                  className={cn(
-                                    "size-3.5",
-                                    s.grup?.trim()
-                                      ? "text-primary"
-                                      : "text-muted-foreground",
-                                  )}
-                                />
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {grupSirasi.map((g) => (
-                                  <DropdownMenuItem
-                                    key={g}
-                                    onClick={() =>
-                                      satirGuncelle(i, { grup: g })
-                                    }
-                                  >
-                                    {g}
-                                  </DropdownMenuItem>
-                                ))}
-                                {s.grup?.trim() && (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      satirGuncelle(i, { grup: undefined })
-                                    }
-                                  >
-                                    Gruptan çıkar
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Satırı kaldır"
-                            onClick={async () => {
-                              const ad = s.bilesen.ref
-                                ? bilesenAd(s.bilesen.tip, s.bilesen.ref)
-                                : "Bu satır";
-                              if (
-                                !(await onayla({
-                                  title: `${ad} reçeteden çıkarılsın mı?`,
-                                  description:
-                                    "Satır kaldırılır; değişiklik kaydedene dek kalıcı olmaz.",
-                                }))
-                              )
-                                return;
-                              setSatirlar((x) => x.filter((_, j) => j !== i));
-                            }}
-                          >
-                            <X className="size-3.5" />
-                          </Button>
-                        </div>
-
-                        {/* Alt parça patlatması (salt okunur) */}
-                        {alt && acik && (
-                          <div className="bg-muted/40 px-3 py-2">
-                            {alt.recete.length === 0 ? (
-                              <p className="pl-9 text-xs text-muted-foreground">
-                                Bu parçanın bileşeni yok.
-                              </p>
-                            ) : (
-                              <ul className="flex flex-col gap-1 pl-9">
-                                {alt.recete.map((ar, j) => (
-                                  <li
-                                    key={j}
-                                    className="flex items-center justify-between text-xs text-muted-foreground"
-                                  >
-                                    <span className="truncate">
-                                      {bilesenAd(ar.bilesen.tip, ar.bilesen.ref)}
-                                      {ar.bilesen.tip === "parca" && " (parça)"}
-                                    </span>
-                                    <span className="tabular-nums">
-                                      {ar.miktar}
-                                      {ar.fire ? ` (+%${ar.fire} fire)` : ""}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            <Link
-                              href={`/parcalar/${alt.id}`}
-                              className="mt-1.5 inline-block pl-9 text-xs text-foreground underline-offset-4 hover:underline"
-                            >
-                              Parçayı aç →
-                            </Link>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                  {/* Henüz satırı olmayan gruplar: kullanıcı grubu açıp içini
-                      sonra doldurabilmeli, yoksa grup kaybolmuş görünür. */}
-                  {!satirSort &&
-                    grupSirasi
-                      .filter(
-                        (g) => !satirlar.some((x) => (x.grup?.trim() || "") === g),
-                      )
-                      .map((g) => (
-                        <div key={`bos-${g}`}>
-                          <div className="flex items-center gap-2 border-y bg-primary/[0.06] px-3 py-1.5">
-                            <FolderOpen className="size-3.5 shrink-0 text-primary" />
-                            <span className="text-xs font-semibold text-primary">
-                              {g}
-                            </span>
-                            <div className="ml-auto flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 text-xs"
-                                onClick={() => satirEkle("malzeme", g)}
-                              >
-                                <Plus className="size-3" /> Malzeme
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => grupSil(g)}
-                                aria-label={`${g} grubunu kaldır`}
-                                className="size-6 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash className="size-3" />
-                              </Button>
-                            </div>
-                          </div>
-                          <p className="px-3 py-3 text-xs text-muted-foreground">
-                            Bu grup boş.
-                          </p>
-                        </div>
-                      ))}
-                  {satirlar.length === 0 ? (
-                    <p className="p-8 text-center text-sm text-muted-foreground">
-                      Henüz bileşen yok — aşağıdan malzeme veya alt parça ekleyin.
-                    </p>
-                  ) : (
-                    gorunum.length === 0 && (
-                      <p className="p-8 text-center text-sm text-muted-foreground">
-                        Filtreyle eşleşen satır yok.
-                      </p>
-                    )
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 border-t bg-muted/40 px-3 py-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => satirEkle("malzeme")}
-                  >
-                    <Plus className="size-3.5" /> Malzeme
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setYeniGrupAd("");
-                      setYeniGrupAcik(true);
-                    }}
-                  >
-                    <FolderOpen className="size-3.5" /> Reçete grubu oluştur
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <ReceteKartlari
+              gruplar={receteGruplari}
+              satirlar={satirlar}
+              onGruplar={setReceteGruplari}
+              onSatirlar={setSatirlar}
+              malzemeler={tumMalzemeler}
+              malzemeSekmeleri={malzemeSekmeleri}
+              etiketToId={etiketToId}
+              malzemeEtiketi={malzemeEtiketi}
+              parcaAdlari={parcaTanimlari}
+              onYeniParca={() => {
+                setYeniParcaAd("");
+                setYeniParcaAcik(true);
+              }}
+              onYeniMalzeme={(idx: number) => {
+                setYeniMlzSatir(idx);
+                setYeniMlz({ ad: "", grup: "", birim: "adet" });
+                setYeniMlzAcik(true);
+              }}
+              istasyonlar={istasyonlar.map((x) => ({ id: x.slug, ad: x.ad }))}
+              ilkIstasyonSlug={ilkIstasyonSlug}
+              varsayilanFire={varsayilanFire}
+            />
           </div>
         )}
 
@@ -2477,42 +1636,6 @@ export function ParcaForm({
         </DialogContent>
       </Dialog>
 
-      {/* Yeni reçete grubu */}
-      <Dialog open={yeniGrupAcik} onOpenChange={setYeniGrupAcik}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Reçete Grubu (Parça)</DialogTitle>
-          </DialogHeader>
-          {/* Grup = parça adı (ALT TABLA, SAĞ YAN...). Serbest metin yerine
-              Tanımlamalar → Parçalar listesinden seçiliyor ki aynı parça her
-              reçetede aynı adla geçsin; listede yoksa oradan eklenebiliyor. */}
-          <SearchSelect
-            items={parcaTanimlari.filter((x) => !grupSirasi.includes(x))}
-            value={yeniGrupAd || null}
-            onValueChange={(v) => setYeniGrupAd(v ?? "")}
-            placeholder="Parça seçin"
-            emptyText="Parça bulunamadı"
-            addLabel="Yeni parça ekle"
-            onAdd={() => {
-              setYeniParcaAd("");
-              setYeniParcaAcik(true);
-            }}
-          />
-          <p className="text-xs text-muted-foreground">
-            Reçete satırlarını parçalara ayırır. Satırın parçasını satırdaki
-            klasör düğmesinden değiştirebilirsiniz.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setYeniGrupAcik(false)}>
-              İptal
-            </Button>
-            <Button onClick={grupEkle} disabled={!yeniGrupAd.trim()}>
-              Oluştur
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Yeni parça tanımı — reçete grubu seçicisinden açılır */}
       <Dialog open={yeniParcaAcik} onOpenChange={setYeniParcaAcik}>
         <DialogContent className="sm:max-w-sm">
@@ -2699,42 +1822,6 @@ function OlcuGrubu({
 }
 
 /* ------------------------------------------------------------------ */
-/* BİLGİ HÜCRESİ                                                      */
-/* ------------------------------------------------------------------ */
-/** Reçete satırı bilgi kolonu: hücrede yalın değer, detay hover kartında. */
-function BilgiHucre({
-  deger,
-  detay,
-  hizala = "left",
-}: {
-  deger: React.ReactNode;
-  detay: React.ReactNode;
-  hizala?: "left" | "right";
-}) {
-  return (
-    <HoverCard>
-      <HoverCardTrigger
-        delay={0}
-        closeDelay={0}
-        render={
-          <div
-            className={cn(
-              "min-w-0 cursor-help",
-              hizala === "right" && "text-right",
-            )}
-          >
-            {deger}
-          </div>
-        }
-      />
-      <HoverCardContent align="end" className="w-auto min-w-56 text-xs">
-        {detay}
-      </HoverCardContent>
-    </HoverCard>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* MALİYET BAZI (özet bandı hücresi)                                  */
 /* ------------------------------------------------------------------ */
 /** Özet bandındaki tek fiyat bazı — hover'da açıklama + fark + kapsam. */
@@ -2818,31 +1905,5 @@ function MaliyetBazi({
         </div>
       </HoverCardContent>
     </HoverCard>
-  );
-}
-
-/** Reçete satırındaki dar kesim ölçüsü alanı (mm). */
-function OlcuKutusu({
-  etiket,
-  deger,
-  onDeger,
-}: {
-  etiket: string;
-  deger?: number;
-  onDeger: (v: number | undefined) => void;
-}) {
-  return (
-    <input
-      inputMode="decimal"
-      placeholder={etiket}
-      aria-label={etiket}
-      value={deger == null ? "" : String(deger)}
-      onChange={(e) => {
-        const t = e.target.value.trim().replace(",", ".");
-        const n = Number(t);
-        onDeger(t === "" || !Number.isFinite(n) || n < 0 ? undefined : n);
-      }}
-      className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-right text-xs tabular-nums outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-    />
   );
 }

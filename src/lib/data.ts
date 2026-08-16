@@ -71,31 +71,81 @@ export type ReceteSatiri = {
   fire?: number;
   /** Malzemenin tüketildiği fabrika istasyonu (slug); boşsa ilk istasyon. */
   istasyon?: string;
-  /** Reçete grubu ("Gövde", "Kapak"...); boş = gruplanmamış. */
+  /** Ait olduğu parça adı (ReceteGrup.ad); boş = parçasız bileşen. */
   grup?: string;
-  /** Kesim ölçüleri (mm) — dolu ise `miktar` bunlardan hesaplanır. */
-  en?: number;
-  boy?: number;
+  /** Kenar bandı satırında hangi kenarlara uygulandığı. */
+  bant?: KenarSecim;
+};
+
+/** Kenar bandı uygulanan kenarlar. */
+export type KenarSecim = {
+  ust?: boolean;
+  alt?: boolean;
+  sol?: boolean;
+  sag?: boolean;
 };
 
 /**
- * Ölçüden miktar: m² birimli malzemede en×boy, m birimlide yalnız boy.
+ * Modülün bir parçası (ALT TABLA, SAĞ YAN...) — reçetenin bölümü.
+ * Kesim ölçüleri burada; satırda değil, yoksa aynı bilgi her satırda
+ * çoğalır ve kenar bandı uzunluğu hesaplanamazdı.
+ */
+export type ReceteGrup = {
+  id?: number;
+  ad: string;
+  sira: number;
+  kabaEn?: number;
+  kabaBoy?: number;
+  netEn?: number;
+  netBoy?: number;
+  bitmisEn?: number;
+  bitmisBoy?: number;
+  kalinlik?: number;
+};
+
+/** Parçanın tüketim ölçüsü: kaba varsa o, yoksa net, yoksa bitmiş. */
+export function parcaOlcusu(g?: ReceteGrup): { en?: number; boy?: number } {
+  if (!g) return {};
+  if (g.kabaEn && g.kabaBoy) return { en: g.kabaEn, boy: g.kabaBoy };
+  if (g.netEn && g.netBoy) return { en: g.netEn, boy: g.netBoy };
+  return { en: g.bitmisEn, boy: g.bitmisBoy };
+}
+
+/** Bantlanan kenarların toplam uzunluğu (mm). Bant NET ölçüye uygulanır. */
+export function bantUzunlugu(g?: ReceteGrup, bant?: KenarSecim): number {
+  if (!g || !bant) return 0;
+  const en = g.netEn ?? g.bitmisEn ?? g.kabaEn ?? 0;
+  const boy = g.netBoy ?? g.bitmisBoy ?? g.kabaBoy ?? 0;
+  // Üst/alt kenarlar EN boyunca, sol/sağ kenarlar BOY boyunca uzanır.
+  return (
+    (bant.ust ? en : 0) +
+    (bant.alt ? en : 0) +
+    (bant.sol ? boy : 0) +
+    (bant.sag ? boy : 0)
+  );
+}
+
+/**
+ * Satırın miktarını PARÇA ölçüsünden hesaplar.
+ *   m² birimli → kaba kesim alanı (en × boy) / 1.000.000
+ *   m  birimli → seçili kenarların toplam uzunluğu / 1000 (kenar bandı)
  * Diğer birimlerde (adet, kg...) ölçüden miktar türetmek anlamsız — null
  * döner ve miktar elle girilir.
  */
-export function olcudenMiktar(
+export function satirMiktari(
   birim: string | undefined,
-  en?: number,
-  boy?: number,
+  grup?: ReceteGrup,
+  bant?: KenarSecim,
 ): number | null {
   const b = (birim ?? "").trim().toLowerCase();
   if (b === "m²" || b === "m2") {
+    const { en, boy } = parcaOlcusu(grup);
     if (!en || !boy) return null;
     return (en * boy) / 1_000_000;
   }
   if (b === "m" || b === "mt") {
-    if (!boy) return null;
-    return boy / 1000;
+    const mm = bantUzunlugu(grup, bant);
+    return mm > 0 ? mm / 1000 : null;
   }
   return null;
 }
@@ -349,6 +399,8 @@ export type Parca = {
   islemler?: ParcaIslem[];
   /** Koli dökümü — paketleme personeli için (bkz. ParcaPaket). */
   paketler?: ParcaPaket[];
+  /** Reçetenin parçaları (ALT TABLA, SAĞ YAN...) ve kesim ölçüleri. */
+  gruplar?: ReceteGrup[];
 };
 
 /**

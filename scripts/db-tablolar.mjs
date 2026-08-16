@@ -37,6 +37,8 @@ export const TABLO_SIRASI = [
   "parca",
   "parcaDokuman",
   "parcaIslem",
+  // Grup satırdan ÖNCE: satır gruba FK ile bağlı.
+  "receteGrup",
   "receteSatiri",
   "receteVersiyon",
   "modelParca",
@@ -92,6 +94,7 @@ export const IDENTITY_TABLOLAR = {
   listeAyar: "liste_ayar",
   sayimSatiri: "sayim_satiri",
   sistemParametre: "sistem_parametre",
+  receteGrup: "recete_grup",
   posetMalzeme: "poset_malzeme",
   parcaPaket: "parca_paket",
   parcaPaketIcerik: "parca_paket_icerik",

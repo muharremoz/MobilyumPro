@@ -44,6 +44,7 @@ model Parca {
   islemler     ParcaIslem[]
   paketler     ParcaPaket[]
   paketIcerigi ParcaPaketIcerik[] @relation("PakettekiParca")
+  receteGruplari ReceteGrup[]
 
   @@map("parca")
 }
@@ -168,6 +169,37 @@ model ReceteVersiyon {
   @@map("recete_versiyon")
 }
 
+/// Reçetenin bir bölümü = modülün PARÇASI (ALT TABLA, SAĞ YAN, ORTA DİKME...).
+///
+/// Kesim ölçüleri burada durur, satırda değil: ALT TABLA'nın suntalamı ve
+/// kenar bandı aynı fiziksel parçaya aittir; ölçüyü her satıra ayrı yazmak
+/// aynı bilgiyi çoğaltır ve kenar bandı uzunluğunu hesaplanamaz kılardı.
+model ReceteGrup {
+  id      Int    @id @default(autoincrement())
+  parcaId String @map("parca_id")
+  /// Parça adı — Tanımlamalar → Parçalar listesinden seçilir.
+  ad      String
+  sira    Int    @default(0)
+
+  // ── Kesim ölçüleri (mm) ─────────────────────────────────────────────
+  // Kaba: plakadan ilk ebatlama (malzeme tüketimi bundan hesaplanır).
+  kabaEn    Decimal? @map("kaba_en") @db.Decimal(10, 2)
+  kabaBoy   Decimal? @map("kaba_boy") @db.Decimal(10, 2)
+  // Net: bantlamadan ÖNCEKİ ölçü (tezgaha verilen).
+  netEn     Decimal? @map("net_en") @db.Decimal(10, 2)
+  netBoy    Decimal? @map("net_boy") @db.Decimal(10, 2)
+  // Bitmiş: bantlar takıldıktan sonraki nihai ölçü.
+  bitmisEn  Decimal? @map("bitmis_en") @db.Decimal(10, 2)
+  bitmisBoy Decimal? @map("bitmis_boy") @db.Decimal(10, 2)
+  kalinlik  Decimal? @db.Decimal(10, 2)
+
+  parca    Parca          @relation(fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  satirlar ReceteSatiri[]
+
+  @@unique([parcaId, ad])
+  @@map("recete_grup")
+}
+
 // ── Reçete satırı (parçanın bileşenleri: malzeme veya alt-parça) ────────
 model ReceteSatiri {
   id         Int     @id @default(autoincrement())
@@ -180,22 +212,23 @@ model ReceteSatiri {
   fire       Decimal @default(0) @db.Decimal(5, 2)
   // Bileşenin tüketildiği istasyon (fabrika rotası slug'ı; null → ilk istasyon)
   istasyon   String?
-  /// Reçete grubu adı ("Gövde", "Kapak", "Aksesuar"). Kullanıcının reçeteyi
-  /// bölümlere ayırması için; boş = gruplanmamış. Ayrı tablo yerine metin:
-  /// grup yalnız bu reçeteye ait, başka yerde kullanılmıyor.
-  grup       String?
-  /// Kesim ölçüleri (mm). Doldurulduğunda `miktar` bunlardan hesaplanır:
-  ///   m² birimli malzeme → (en × boy) / 1.000.000
-  ///   m  birimli malzeme → boy / 1000   (kenar bandı)
-  /// Ölçüler SAKLANIR: yalnız sonucu tutsaydık kullanıcı geri döndüğünde
-  /// hangi ebattan çıktığını göremez, düzeltmek için baştan hesaplaması
-  /// gerekirdi.
-  en         Decimal? @db.Decimal(10, 2)
-  boy        Decimal? @db.Decimal(10, 2)
+  /// Satırın ait olduğu parça (recete_grup). null = parçasız bileşen.
+  /// Ölçüler orada; burada tutulmuyor ki tek kaynak olsun.
+  grupId     Int?     @map("grup_id")
+  /// Kenar bandı satırında hangi kenarlara uygulandığı. Bant uzunluğu
+  /// seçili kenarların parça ölçüsünden hesaplanır.
+  bantUst    Boolean  @default(false) @map("bant_ust")
+  bantAlt    Boolean  @default(false) @map("bant_alt")
+  bantSol    Boolean  @default(false) @map("bant_sol")
+  bantSag    Boolean  @default(false) @map("bant_sag")
 
-  parca    Parca  @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  stok     Stok?  @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  altParca Parca? @relation("AltParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parca    Parca       @relation("ParcaRecete", fields: [parcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stok     Stok?       @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  altParca Parca?      @relation("AltParca", fields: [altParcaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // NoAction: Parca hem gruba hem satıra cascade ediyor; iki yol da cascade
+  // olsaydı SQL Server döngü hatası verirdi. Grup silinince satırların
+  // grupId'si kayıt mantığında temizlenir (satırlar zaten baştan yazılıyor).
+  grup     ReceteGrup? @relation(fields: [grupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("recete_satiri")
 }

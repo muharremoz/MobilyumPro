@@ -1121,7 +1121,33 @@ export async function parcaKaydet(
       }
 
       // Reçeteyi tamamen değiştir: önce sil, sonra ekle.
+      // SATIRLAR ÖNCE silinir: gruba FK ile bağlılar (NoAction), grup önce
+      // silinseydi FK ihlali olurdu.
       await tx.receteSatiri.deleteMany({ where: { parcaId } });
+      await tx.receteGrup.deleteMany({ where: { parcaId } });
+
+      // Parçalar (reçete grupları) — ölçüler burada.
+      const grupIdByAd = new Map<string, number>();
+      for (const [idx, g] of (p.gruplar ?? []).entries()) {
+        const ad = g.ad.trim();
+        if (!ad || grupIdByAd.has(ad)) continue;
+        const olusan = await tx.receteGrup.create({
+          data: {
+            parcaId,
+            ad,
+            sira: g.sira || idx + 1,
+            kabaEn: g.kabaEn ?? null,
+            kabaBoy: g.kabaBoy ?? null,
+            netEn: g.netEn ?? null,
+            netBoy: g.netBoy ?? null,
+            bitmisEn: g.bitmisEn ?? null,
+            bitmisBoy: g.bitmisBoy ?? null,
+            kalinlik: g.kalinlik ?? null,
+          },
+        });
+        grupIdByAd.set(ad, olusan.id);
+      }
+
       const satirlar = p.recete.map((r) => ({
         parcaId,
         tip: r.bilesen.tip,
@@ -1130,9 +1156,11 @@ export async function parcaKaydet(
         miktar: r.miktar,
         fire: r.fire ?? 0,
         istasyon: r.istasyon ?? null,
-        grup: r.grup?.trim() || null,
-        en: r.en ?? null,
-        boy: r.boy ?? null,
+        grupId: grupIdByAd.get(r.grup?.trim() ?? "") ?? null,
+        bantUst: r.bant?.ust ?? false,
+        bantAlt: r.bant?.alt ?? false,
+        bantSol: r.bant?.sol ?? false,
+        bantSag: r.bant?.sag ?? false,
       }));
       if (satirlar.length) await tx.receteSatiri.createMany({ data: satirlar });
 

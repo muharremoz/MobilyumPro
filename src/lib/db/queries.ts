@@ -123,6 +123,7 @@ export async function getParcalar(): Promise<Parca[]> {
           orderBy: { sira: "asc" },
           include: { icerik: { orderBy: { id: "asc" } } },
         },
+        receteGruplari: { orderBy: { sira: "asc" } },
       },
     }),
     db.receteSatiri.findMany(),
@@ -136,6 +137,11 @@ export async function getParcalar(): Promise<Parca[]> {
     arr.push({ url: d.url, tip: d.tip });
     docsByParca.set(d.parcaId, arr);
   }
+  // Satır grup ADIYLA taşınır (form onunla çalışıyor); id→ad çözümü burada.
+  const grupAdiById = new Map<number, string>();
+  for (const p of parcaRows)
+    for (const g of p.receteGruplari) grupAdiById.set(g.id, g.ad);
+
   const receteByParca = new Map<string, ReceteSatiri[]>();
   for (const r of receteRows) {
     const satir: ReceteSatiri = {
@@ -146,9 +152,16 @@ export async function getParcalar(): Promise<Parca[]> {
       miktar: Number(r.miktar),
       fire: Number(r.fire) || undefined,
       istasyon: r.istasyon ?? undefined,
-      grup: r.grup ?? undefined,
-      en: r.en == null ? undefined : Number(r.en),
-      boy: r.boy == null ? undefined : Number(r.boy),
+      grup: r.grupId == null ? undefined : grupAdiById.get(r.grupId),
+      bant:
+        r.bantUst || r.bantAlt || r.bantSol || r.bantSag
+          ? {
+              ust: r.bantUst,
+              alt: r.bantAlt,
+              sol: r.bantSol,
+              sag: r.bantSag,
+            }
+          : undefined,
     };
     const arr = receteByParca.get(r.parcaId) ?? [];
     arr.push(satir);
@@ -182,6 +195,18 @@ export async function getParcalar(): Promise<Parca[]> {
       aciklama: i.aciklama ?? undefined,
     })),
     paketler: p.paketler.map(mapPaket),
+    gruplar: p.receteGruplari.map((g) => ({
+      id: g.id,
+      ad: g.ad,
+      sira: g.sira,
+      kabaEn: sayi(g.kabaEn),
+      kabaBoy: sayi(g.kabaBoy),
+      netEn: sayi(g.netEn),
+      netBoy: sayi(g.netBoy),
+      bitmisEn: sayi(g.bitmisEn),
+      bitmisBoy: sayi(g.bitmisBoy),
+      kalinlik: sayi(g.kalinlik),
+    })),
   }));
 }
 
