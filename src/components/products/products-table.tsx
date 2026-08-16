@@ -52,7 +52,6 @@ import { useOnay } from "@/components/ui/confirm-dialog";
 import { formatTL, type Model, type UretimOncelik } from "@/lib/data";
 import { csvIndir, type CsvKolon } from "@/lib/disa-aktar";
 import {
-  modelKaydet,
   modelSil,
   modelDurumGuncelle,
   modelKategoriGuncelle,
@@ -61,6 +60,7 @@ import {
 } from "@/lib/db/actions";
 import { StokDuzeltDialog } from "./stok-duzelt-dialog";
 import { FiyatGuncelleDialog } from "./fiyat-guncelle-dialog";
+import { ModelKopyaDialog } from "@/components/products/model-kopya-dialog";
 import { UretimeGonderDialog } from "./uretime-gonder-dialog";
 import { EtiketDialog } from "./etiket-dialog";
 import { useYetki, useYonetici } from "@/components/yetki/yetki-baglam";
@@ -172,10 +172,6 @@ const TEMEL_KOLONLAR: {
   { key: "durum", label: "Durum", aciklama: "Aktif/Pasif satış durumu." },
 ];
 
-/** Kopya için geçici kod (kayıt sırasında kullanılır). */
-function kopyaId(onEk: string, taban: number, aralik: number) {
-  return `${onEk}-${Math.floor(taban + Math.random() * aralik)}`;
-}
 
 export function ProductsTable({
   urunler,
@@ -349,16 +345,10 @@ export function ProductsTable({
     }
   }
 
-  async function kopyala(u: Model) {
-    const kopya: Model = {
-      ...u,
-      id: kopyaId("URN", 1000, 9000),
-      ad: `${u.ad} (kopya)`,
-    };
-    setListe((l) => [kopya, ...l]);
-    await modelKaydet(kopya);
-    toast.success("Model kopyalandı");
-  }
+  // Kopyalama artık pencerede yapılıyor: modeli tek satır olarak çoğaltmak,
+  // modülleri paylaşımlı bıraktığı için kopyada malzeme değiştirmek orijinali
+  // de bozuyordu.
+  const [kopyaModel, setKopyaModel] = React.useState<Model | null>(null);
 
   // Context menü yardımcıları
   function panoyaKopyala(text: string, etiket: string) {
@@ -642,7 +632,7 @@ export function ProductsTable({
                   {
                     etiket: "Çoğalt",
                     ikon: CopyPlus,
-                    onSecim: () => kopyala(u),
+                    onSecim: () => setKopyaModel(u),
                   },
                   {
                     etiket: u.durum === "Aktif" ? "Pasif Yap" : "Aktif Yap",
@@ -896,6 +886,12 @@ export function ProductsTable({
         }
         onKapat={() => setEtiketHedef(null)}
         onUygulandi={etiketUygulandi}
+      />
+
+      <ModelKopyaDialog
+        model={kopyaModel}
+        acik={kopyaModel !== null}
+        onKapat={() => setKopyaModel(null)}
       />
     </div>
   );

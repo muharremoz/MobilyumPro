@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
 import { db, tarihDate } from "./index";
-import { getStok } from "./queries";
+import {
+  getIstasyonlar,
+  getMalzemeler,
+  getModeller,
+  getParcalar,
+  getStok,
+} from "./queries";
 import { getOturum } from "@/lib/oturum";
 import { sayacHazirla, sonrakiNo } from "./sayac";
 import {
@@ -73,6 +79,8 @@ import type {
   Malzeme,
   Model,
   Parca,
+  ReceteGrup,
+  ReceteSatiri,
   Depo,
   Cari,
   CariIslem,
@@ -3214,6 +3222,142 @@ export async function talepSil(
  * Kimlik alanları (id, kod, barkod) taşınmaz: yeni kart kendi kodunu alır.
  * Ada "(kopya)" eklenir, yoksa listede iki tıpatıp kayıt olur.
  */
+/**
+ * Model kopyalama penceresinin ihtiyaç duyduğu veri.
+ *
+ * Ürünler listesi sayfasına peşin yüklenmiyor: modülleri, reçeteleri ve 200+
+ * malzeme kartını her liste açılışında taşımak, kullanıcıların çoğunun hiç
+ * açmadığı bir pencere için ağır olurdu.
+ */
+export async function modelKopyaVerisi(modelId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  moduller?: {
+    parcaId: string;
+    ad: string;
+    miktar: number;
+    recete: ReceteSatiri[];
+    gruplar: ReceteGrup[];
+  }[];
+  malzemeler?: Malzeme[];
+  istasyonlar?: { slug: string; ad: string }[];
+}> {
+  const [modeller, parcalar, malzemeler, istasyonlar] = await Promise.all([
+    getModeller(),
+    getParcalar(),
+    getMalzemeler(),
+    getIstasyonlar(),
+  ]);
+  const model = modeller.find((m) => m.id === modelId);
+  if (!model) return { ok: false, error: "Model bulunamadı" };
+  const parcaMap = new Map(parcalar.map((p) => [p.id, p]));
+  const moduller = (model.parcalar ?? [])
+    .map((ps) => {
+      const p = parcaMap.get(ps.parcaId);
+      if (!p) return null;
+      return {
+        parcaId: p.id,
+        ad: p.ad,
+        miktar: ps.miktar,
+        recete: p.recete.map((r) => ({ ...r, bilesen: { ...r.bilesen } })),
+        gruplar: (p.gruplar ?? []).map((g) => ({ ...g })),
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+  return {
+    ok: true,
+    moduller,
+    malzemeler,
+    istasyonlar: istasyonlar.map((i) => ({ slug: i.slug, ad: i.ad })),
+  };
+}
+
+/**
+ * Modeli, MODÜLLERİYLE BİRLİKTE kopyalar.
+ *
+ * Eski kopyalama yalnız model satırını çoğaltıyordu; modüller paylaşımlı
+ * kaldığı için kopyada bir malzemeyi değiştirmek orijinal modeli de
+ * bozuyordu. Artık her modül yeni bir kayıt olarak doğuyor.
+ *
+ * Modül adları çağıran tarafta türetilip (DORA DOLAP → IKON DOLAP)
+ * düzenlenebilir hâlde geliyor; burada yalnız doğrulanıyor.
+ */
+export async function modelKopyala(
+  kaynakModelId: string,
+  yeniAd: string,
+  moduller: {
+    kaynakParcaId: string;
+    ad: string;
+    miktar: number;
+    recete: ReceteSatiri[];
+    gruplar: ReceteGrup[];
+  }[],
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const ad = yeniAd.trim();
+  if (!ad) return { ok: false, error: "Yeni model adı gerekli." };
+  const kaynak = await db.stok.findUnique({ where: { id: kaynakModelId } });
+  if (!kaynak) return { ok: false, error: "Kaynak model bulunamadı." };
+  if (ad.toLocaleLowerCase("tr") === kaynak.ad.toLocaleLowerCase("tr"))
+    return { ok: false, error: "Yeni ad kaynakla aynı olamaz." };
+  const bosAdli = moduller.find((m) => !m.ad.trim());
+  if (bosAdli) return { ok: false, error: "Modül adı boş bırakılamaz." };
+
+  try {
+    // Modüller ÖNCE: model onların id'lerine bağlanacak.
+    // Kaynak parçalar getParcalar() üzerinden alınıyor: ölçü/işlem/paket
+    // alanlarının ham satırdan domain tipine çevrimi orada zaten yapılmış.
+    const tumParcalar = await getParcalar();
+    const parcaMap = new Map(tumParcalar.map((x) => [x.id, x]));
+    const yeniModuller: { parcaId: string; miktar: number }[] = [];
+    for (const m of moduller) {
+      const kaynakParca = parcaMap.get(m.kaynakParcaId);
+      if (!kaynakParca)
+        return { ok: false, error: `Modül bulunamadı: ${m.ad}` };
+      const res = await parcaKaydet({
+        ad: m.ad.trim(),
+        kategori: kaynakParca.kategori,
+        aciklama: kaynakParca.aciklama,
+        durum: "Aktif",
+        recete: m.recete,
+        gruplar: m.gruplar,
+        olculer: kaynakParca.olculer,
+        islemler: kaynakParca.islemler,
+        paketler: kaynakParca.paketler,
+      });
+      if (!res.ok || !res.id)
+        return { ok: false, error: res.error ?? `Modül kopyalanamadı: ${m.ad}` };
+      yeniModuller.push({ parcaId: res.id, miktar: m.miktar });
+    }
+
+    const sonuc = await modelKaydet({
+      id: "",
+      ad,
+      kategori: kaynak.altGrup ?? kaynak.grup,
+      fiyat: Number(kaynak.satisFiyat1),
+      // Kopya sıfır bakiyeyle doğar: hareketi olmayan karta stok yazmak
+      // envanteri şişirirdi.
+      stok: 0,
+      durum: "Aktif",
+      marka: kaynak.marka ?? undefined,
+      agirlik: sayiVeya(kaynak.agirlik),
+      minStok: sayiVeya(kaynak.minStok),
+      parcalar: yeniModuller,
+    } as Model);
+    if (!sonuc.ok) return { ok: false, error: "Model kaydedilemedi." };
+
+    revalidatePath("/urunler");
+    revalidatePath("/parcalar");
+    return { ok: true, id: sonuc.id };
+  } catch {
+    return { ok: false, error: "Kopyalama sırasında hata oluştu." };
+  }
+}
+
+/** Prisma Decimal|null → number|undefined. */
+function sayiVeya(v: unknown): number | undefined {
+  return v == null ? undefined : Number(v);
+}
+
 export async function stokKopyaTaslagi(kaynakId: string): Promise<{
   ok: boolean;
   kart?: StokKarti;
