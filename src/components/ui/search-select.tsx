@@ -83,6 +83,11 @@ export function SearchSelect({
   );
   // Popup, içteki input'a değil görünür kontrolün tamamına hizalansın.
   const anchorRef = React.useRef<HTMLDivElement>(null);
+  // Arama metni: grup sütununu süzmek için gerekiyor. Base UI öğeleri kendi
+  // filtreliyor ama sekme listesi bizde, sorguyu bilmezse eşleşmesi olmayan
+  // gruplar da listede kalırdı.
+  const [sorgu, setSorgu] = React.useState("");
+  const listeRef = React.useRef<HTMLDivElement>(null);
   // Yinelenen öğeler tekilleştirilir (aynı key hatası + kaybolan öğe önlenir).
   // Aktif kaynak (sekmeli modda seçili sekmenin öğeleri) memo'nun İÇİNDE
   // hesaplanır: dışarıda "?? []" her render'da yeni dizi üretip memo'yu
@@ -94,6 +99,35 @@ export function SearchSelect({
       : items;
     return Array.from(new Set(kaynak));
   }, [sekmeler, aktifSekme, items]);
+  // Aramada yalnız eşleşmesi olan gruplar kalır ve rakam eşleşme sayısını
+  // gösterir; toplam sayı kalsaydı "AHŞAP 28" yazıp 2 satır listelenirdi.
+  const gorunurSekmeler = React.useMemo(() => {
+    if (!sekmeler) return undefined;
+    const q = sorgu.trim().toLocaleLowerCase("tr");
+    if (!q) return sekmeler.map((sek) => ({ ...sek, adet: sek.items.length }));
+    return sekmeler
+      .map((sek) => ({
+        ...sek,
+        adet: sek.items.filter((i) => i.toLocaleLowerCase("tr").includes(q))
+          .length,
+      }))
+      .filter((sek) => sek.adet > 0);
+  }, [sekmeler, sorgu]);
+
+  // Aktif grup süzülüp kaybolduysa görünen ilkine geçilir; yoksa kullanıcı
+  // eşleşme olduğu hâlde boş liste görürdü.
+  React.useEffect(() => {
+    if (!gorunurSekmeler || gorunurSekmeler.length === 0) return;
+    if (!gorunurSekmeler.some((s) => s.key === aktifSekme))
+      setAktifSekme(gorunurSekmeler[0].key);
+  }, [gorunurSekmeler, aktifSekme]);
+
+  // Grup değişince liste başa sarılır: önceki grupta aşağı inilmişse yeni
+  // grubun ilk öğeleri ekranın dışında kalıyordu.
+  React.useEffect(() => {
+    if (listeRef.current) listeRef.current.scrollTop = 0;
+  }, [aktifSekme]);
+
   // Sekmeli modda gösterimde "Etiket · " öneki atılır (değer korunur).
   const gosterim = (item: string) =>
     sekmeler ? item.replace(/^[^·]+·\s*/, "") : item;
@@ -104,6 +138,7 @@ export function SearchSelect({
       onValueChange={(v) => onValueChange?.(v as string | null)}
       open={acik}
       onOpenChange={setAcik}
+      onInputValueChange={(v) => setSorgu(String(v ?? ""))}
     >
       <div ref={anchorRef}>
         <ComboboxInput
@@ -130,9 +165,9 @@ export function SearchSelect({
             sığmayıp sarıyor ve listeyi aşağı itiyordu. Yan sütun hem sabit
             kalıyor hem uzun grup adları tam okunuyor. */}
         <div className={cn(sekmeler && "flex items-stretch")}>
-          {sekmeler && (
+          {gorunurSekmeler && gorunurSekmeler.length > 0 && (
             <div className="max-h-72 w-44 shrink-0 overflow-y-auto border-r p-1">
-              {sekmeler.map((sek) => (
+              {gorunurSekmeler.map((sek) => (
                 <button
                   key={sek.key}
                   type="button"
@@ -147,7 +182,7 @@ export function SearchSelect({
                 >
                   <span className="min-w-0 flex-1 truncate">{sek.label}</span>
                   <span className="shrink-0 tabular-nums opacity-60">
-                    {sek.items.length}
+                    {sek.adet}
                   </span>
                 </button>
               ))}
@@ -155,7 +190,7 @@ export function SearchSelect({
           )}
           <div className="min-w-0 flex-1">
             <ComboboxEmpty>{emptyText}</ComboboxEmpty>
-            <ComboboxList>
+            <ComboboxList ref={listeRef}>
               {(item: string) => (
                 <ComboboxItem key={item} value={item} className="group/oge">
                   <span className="min-w-0 flex-1 truncate">
