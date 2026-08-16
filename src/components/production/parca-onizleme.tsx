@@ -131,14 +131,11 @@ function Panel({
   en,
   boy,
   kalinlik,
-  kalinlikVarsayilan,
   bantlar,
 }: {
   en: number;
   boy: number;
   kalinlik: number;
-  /** Ölçü girilmediği için 18 mm varsayıldıysa etikette belirtilir. */
-  kalinlikVarsayilan: boolean;
   bantlar: BantGosterim[];
 }) {
   // En büyük kenar 2 birim olacak şekilde ölçekle: 400×2000 bir parça da,
@@ -265,22 +262,22 @@ function Panel({
       </Etiket>
       {/* Panel kalınlığı: çizgi doğrudan kalınlık yüzünü gösteriyor. Yalnız
           "Kalınlık 18 mm" yazsaydı neyin kalınlığı olduğu belirsiz kalırdı
-          (panelin mi, bandın mı). */}
+          (panelin mi, bandın mı).
+          SOL ÜST köşede: sağ üst, üst bant çıkmasıyla çakışıyordu. */}
       <CikmaCizgisi
-        baslangic={[g / 2, y / 2, k / 2]}
-        bitis={[g / 2 + kotaPay * 0.7, y / 2 + kotaPay * 0.7, k / 2]}
-        raf={centik * 1.6}
+        baslangic={[-g / 2, y / 2, k / 2]}
+        bitis={[-g / 2 - kotaPay * 0.7, y / 2 + kotaPay * 0.7, k / 2]}
+        raf={-centik * 1.6}
         renk={RENK.kota}
       />
       <Etiket
         konum={[
-          g / 2 + kotaPay * 0.7 + centik * 3,
+          -g / 2 - kotaPay * 0.7 - centik * 3.4,
           y / 2 + kotaPay * 0.7,
           k / 2,
         ]}
       >
         Panel kalınlığı {sayiBicim(kalinlik)} mm
-        {kalinlikVarsayilan ? " (varsayılan)" : ""}
       </Etiket>
 
       {/* Bantlı kenarlar — şerit + çıkma çizgisi + yazı */}
@@ -366,13 +363,7 @@ export function ParcaOnizleme({
           <ambientLight intensity={1.1} />
           <directionalLight position={[2, 4, 6]} intensity={0.8} />
           <directionalLight position={[-3, -2, -4]} intensity={0.25} />
-          <Panel
-            en={en}
-            boy={boy}
-            kalinlik={kal}
-            kalinlikVarsayilan={!kalinlik || kalinlik <= 0}
-            bantlar={bantliOlanlar}
-          />
+          <Panel en={en} boy={boy} kalinlik={kal} bantlar={bantliOlanlar} />
           <OrbitControls
             enablePan={false}
             minDistance={2}
@@ -387,7 +378,6 @@ export function ParcaOnizleme({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span className="tabular-nums">
           {sayiBicim(en)} × {sayiBicim(boy)} mm · {sayiBicim(kal)} mm
-          {!kalinlik || kalinlik <= 0 ? " (varsayılan)" : ""}
         </span>
         {bantliOlanlar.length === 0 ? (
           <span>Bantlı kenar yok</span>
@@ -397,14 +387,18 @@ export function ParcaOnizleme({
               Object.keys(KENAR_ADI) as (keyof KenarSecim)[]
             ).filter((k) => b.kenarlar[k]);
             return (
-              <span key={i} className="inline-flex items-center gap-1">
+              // Malzeme adı KIRPILMIYOR: "0,40*100 MM PVC SARDES (1…" gibi bir
+              // ad hangi bant olduğunu söylemiyor, atölyede işe yaramaz.
+              <span key={i} className="flex w-full items-start gap-1.5">
                 <span
-                  className="size-2.5 rounded-full"
+                  className="mt-1 size-2.5 shrink-0 rounded-full"
                   style={{ background: PALET[i % PALET.length] }}
                 />
-                <span className="max-w-40 truncate">{b.ad}</span>
-                <span className="text-muted-foreground/70">
-                  {kenarlar.map((k) => KENAR_ADI[k]).join(", ")}
+                <span className="min-w-0 flex-1">
+                  {b.ad}
+                  <span className="ml-1.5 text-muted-foreground/70">
+                    {kenarlar.map((k) => KENAR_ADI[k]).join(", ")}
+                  </span>
                 </span>
               </span>
             );
