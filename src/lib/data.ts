@@ -1094,45 +1094,6 @@ export type Depo = {
 
 // ── PROJE SİPARİŞ ────────────────────────────────────────────────────────
 
-/** Şablon parçasına bağlı malzeme (miktar türetilen ölçüden hesaplanır). */
-export type SablonParcaMalzeme = {
-  id?: number;
-  malzemeId: string;
-  fire?: number;
-  istasyon?: string;
-  /** m²/metre dışı birimlerde (adet, kg) kullanılan sabit miktar. */
-  sabitMiktar?: number;
-};
-
-/** Şablonun bir parçası. Ölçüler formülle modül ölçülerinden türer. */
-export type SablonParca = {
-  id?: number;
-  ad: string;
-  sira: number;
-  adetFormul: string;
-  enFormul: string;
-  boyFormul: string;
-  kalinlikFormul?: string;
-  bant?: KenarSecim;
-  malzemeler: SablonParcaMalzeme[];
-};
-
-/** Modül şablonu: bir dolabın iskeleti. */
-export type ModulSablon = {
-  id: string;
-  ad: string;
-  aciklama?: string;
-  durum: "Aktif" | "Pasif";
-  varsayilanEn?: number;
-  varsayilanBoy?: number;
-  varsayilanDerinlik?: number;
-  varsayilanKalinlik?: number;
-  varsayilanKapak?: number;
-  varsayilanRaf?: number;
-  varsayilanCekmece?: number;
-  parcalar: SablonParca[];
-};
-
 export type ProjeDurum = "Teklif" | "Kazanıldı" | "Kaybedildi" | "İptal";
 
 export type ProjeDokuman = {
@@ -1160,7 +1121,6 @@ export type ProjeParca = {
 /** Projeye eklenen bir modül: "3 KAPAKLI DOLAP, 1200×2200×560". */
 export type ProjeSatir = {
   id?: number;
-  sablonId?: string;
   ad: string;
   sira: number;
   adet: number;

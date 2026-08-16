@@ -122,7 +122,7 @@ export const sections: Section[] = [
     modul: "proje",
     RailIcon: I(BoxesIcon),
     items: [
-      { label: "Modül Şablonları", href: "/modul-sablonlari", modul: "proje", icon: I(BlocksIcon) },
+      { label: "Projeler", href: "/projeler", modul: "proje", icon: I(FolderTreeIcon) },
     ],
   },
   {

@@ -46,7 +46,7 @@ import type {
   TanimKalemi,
   Alis,
   StokKarti,
-  ModulSablon,
+  Proje,
   StokUretici,
   StokMusteri,
   StokDokuman,
@@ -2550,50 +2550,73 @@ export async function getStok(
 
 // ── PROJE SİPARİŞ ────────────────────────────────────────────────────────
 
-/** Modül şablonları — parçaları ve malzemeleriyle. */
-export async function getModulSablonlari(): Promise<ModulSablon[]> {
-  const rows = await db.modulSablon.findMany({
-    orderBy: { ad: "asc" },
+/** Projeler — satırları, türetilmiş parçaları ve dokümanlarıyla. */
+export async function getProjeler(): Promise<Proje[]> {
+  const rows = await db.proje.findMany({
+    orderBy: { tarih: "desc" },
     include: {
-      parcalar: {
+      dokumanlar: { orderBy: { id: "asc" } },
+      satirlar: {
         orderBy: { sira: "asc" },
-        include: { malzemeler: { orderBy: { id: "asc" } } },
+        include: {
+          parcalar: {
+            orderBy: { sira: "asc" },
+            include: { malzemeler: { orderBy: { id: "asc" } } },
+          },
+        },
       },
     },
   });
   const say = (v: unknown) => (v == null ? undefined : Number(v));
-  return rows.map((s) => ({
-    id: s.id,
-    ad: s.ad,
-    aciklama: s.aciklama ?? undefined,
-    durum: s.durum as "Aktif" | "Pasif",
-    varsayilanEn: say(s.varsayilanEn),
-    varsayilanBoy: say(s.varsayilanBoy),
-    varsayilanDerinlik: say(s.varsayilanDerinlik),
-    varsayilanKalinlik: say(s.varsayilanKalinlik),
-    varsayilanKapak: s.varsayilanKapak ?? undefined,
-    varsayilanRaf: s.varsayilanRaf ?? undefined,
-    varsayilanCekmece: s.varsayilanCekmece ?? undefined,
-    parcalar: s.parcalar.map((p) => ({
-      id: p.id,
-      ad: p.ad,
-      sira: p.sira,
-      adetFormul: p.adetFormul,
-      enFormul: p.enFormul,
-      boyFormul: p.boyFormul,
-      kalinlikFormul: p.kalinlikFormul ?? undefined,
-      bant: {
-        ust: p.bantUst,
-        alt: p.bantAlt,
-        sol: p.bantSol,
-        sag: p.bantSag,
-      },
-      malzemeler: p.malzemeler.map((m) => ({
-        id: m.id,
-        malzemeId: m.malzemeId,
-        fire: Number(m.fire),
-        istasyon: m.istasyon ?? undefined,
-        sabitMiktar: say(m.sabitMiktar),
+  return rows.map((p) => ({
+    id: p.id,
+    ad: p.ad,
+    cariId: p.cariId ?? undefined,
+    durum: p.durum as Proje["durum"],
+    tarih: p.tarih.toISOString(),
+    gecerlilik: p.gecerlilik?.toISOString(),
+    aciklama: p.aciklama ?? undefined,
+    modelId: p.modelId ?? undefined,
+    dokumanlar: p.dokumanlar.map((d) => ({
+      id: d.id,
+      ad: d.ad,
+      url: d.url,
+      tip: d.tip,
+    })),
+    satirlar: p.satirlar.map((s) => ({
+      id: s.id,
+      ad: s.ad,
+      sira: s.sira,
+      adet: s.adet,
+      en: say(s.en),
+      boy: say(s.boy),
+      derinlik: say(s.derinlik),
+      kalinlik: say(s.kalinlik),
+      kapakSayisi: s.kapakSayisi,
+      rafSayisi: s.rafSayisi,
+      cekmeceSayisi: s.cekmeceSayisi,
+      parcalar: s.parcalar.map((x) => ({
+        id: x.id,
+        ad: x.ad,
+        sira: x.sira,
+        adet: x.adet,
+        en: say(x.en),
+        boy: say(x.boy),
+        kalinlik: say(x.kalinlik),
+        bant: {
+          ust: x.bantUst,
+          alt: x.bantAlt,
+          sol: x.bantSol,
+          sag: x.bantSag,
+        },
+        elleDegisti: x.elleDegisti,
+        malzemeler: x.malzemeler.map((m) => ({
+          id: m.id,
+          malzemeId: m.malzemeId,
+          miktar: Number(m.miktar),
+          fire: Number(m.fire),
+          istasyon: m.istasyon ?? undefined,
+        })),
       })),
     })),
   }));

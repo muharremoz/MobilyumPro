@@ -1029,7 +1029,6 @@ model Stok {
   modelParcalar   ModelParca[]
   paketIcerigi    ParcaPaketIcerik[]
   talepSatirlari  SatinAlmaTalepSatiri[]
-  sablonMalzemeleri SablonParcaMalzeme[]
   projeMalzemeleri  ProjeParcaMalzeme[]
 
   @@map("stok")
@@ -1092,68 +1091,8 @@ model StokDokuman {
 // Modül listelerinde kalıyordu. Proje verisi bu yüzden AYRI tablolarda durur.
 // Kalıcı Model/Modül kaydı yalnız teklif KAZANILINCA yazılır.
 
-/// Modül şablonu: bir dolabın iskeleti (alt/üst/sağ/sol/arkalık/kapak).
-/// Bir kez tanımlanır, her projede ölçü + kapak sayısı verilerek kullanılır.
-model ModulSablon {
-  id       String  @id
-  ad       String
-  aciklama String?
-  durum    String  @default("Aktif")
-  /// Projeye eklenirken forma önerilen başlangıç değerleri (mm / adet).
-  varsayilanEn       Decimal? @map("varsayilan_en") @db.Decimal(10, 2)
-  varsayilanBoy      Decimal? @map("varsayilan_boy") @db.Decimal(10, 2)
-  varsayilanDerinlik Decimal? @map("varsayilan_derinlik") @db.Decimal(10, 2)
-  varsayilanKalinlik Decimal? @map("varsayilan_kalinlik") @db.Decimal(10, 2)
-  varsayilanKapak    Int?     @map("varsayilan_kapak")
-  varsayilanRaf      Int?     @map("varsayilan_raf")
-  varsayilanCekmece  Int?     @map("varsayilan_cekmece")
 
-  parcalar    SablonParca[]
-  projeSatirlari ProjeSatir[]
 
-  @@map("modul_sablon")
-}
-
-/// Şablonun bir parçası. Ölçüler sabit değil FORMÜL: kapak eni
-/// "(en - 2*kalinlik) / kapakSayisi" gibi modül ölçülerinden türer.
-model SablonParca {
-  id        Int    @id @default(autoincrement())
-  sablonId  String @map("sablon_id")
-  ad        String
-  sira      Int    @default(0)
-  /// Formüller — bkz. lib/formul.ts (eval yok, kendi ayrıştırıcısı var).
-  adetFormul     String @map("adet_formul") @db.NVarChar(200)
-  enFormul       String @map("en_formul") @db.NVarChar(200)
-  boyFormul      String @map("boy_formul") @db.NVarChar(200)
-  kalinlikFormul String? @map("kalinlik_formul") @db.NVarChar(200)
-  /// Kenar bandı hangi kenarlarda (parça reçetesindekiyle aynı mantık).
-  bantUst Boolean @default(false) @map("bant_ust")
-  bantAlt Boolean @default(false) @map("bant_alt")
-  bantSol Boolean @default(false) @map("bant_sol")
-  bantSag Boolean @default(false) @map("bant_sag")
-
-  sablon     ModulSablon          @relation(fields: [sablonId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  malzemeler SablonParcaMalzeme[]
-
-  @@map("sablon_parca")
-}
-
-/// Şablon parçasına bağlı malzeme. Miktar türetilen ölçüden hesaplanır
-/// (m² alandan, metre bant uzunluğundan) — reçetedeki mantığın aynısı.
-model SablonParcaMalzeme {
-  id            Int     @id @default(autoincrement())
-  sablonParcaId Int     @map("sablon_parca_id")
-  malzemeId     String  @map("malzeme_id")
-  fire          Decimal @default(0) @db.Decimal(5, 2)
-  istasyon      String?
-  /// Ölçüden türetilemeyen birimlerde (adet, kg) kullanılan sabit miktar.
-  sabitMiktar   Decimal? @map("sabit_miktar") @db.Decimal(18, 4)
-
-  parca   SablonParca @relation(fields: [sablonParcaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  malzeme Stok        @relation(fields: [malzemeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@map("sablon_parca_malzeme")
-}
 
 /// Teklif dosyası: bir otel projesi, bir müşteri işi.
 model Proje {
@@ -1192,7 +1131,6 @@ model ProjeDokuman {
 model ProjeSatir {
   id       Int     @id @default(autoincrement())
   projeId  String  @map("proje_id")
-  sablonId String? @map("sablon_id")
   ad       String
   sira     Int     @default(0)
   adet     Int     @default(1)
@@ -1205,7 +1143,6 @@ model ProjeSatir {
   cekmeceSayisi Int     @default(0) @map("cekmece_sayisi")
 
   proje    Proje        @relation(fields: [projeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sablon   ModulSablon? @relation(fields: [sablonId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   parcalar ProjeParca[]
 
   @@map("proje_satir")

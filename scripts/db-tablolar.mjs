@@ -61,10 +61,7 @@ export const TABLO_SIRASI = [
   "satinAlmaTalepSiparis",
   "sayim",
   "sayimSatiri",
-  // Proje sipariş: şablon → parça → malzeme, sonra proje → satır → parça.
-  "modulSablon",
-  "sablonParca",
-  "sablonParcaMalzeme",
+  // Proje sipariş: proje → satır → parça → malzeme.
   "proje",
   "projeDokuman",
   "projeSatir",
@@ -113,8 +110,6 @@ export const IDENTITY_TABLOLAR = {
   stokUretici: "stok_uretici",
   stokMusteri: "stok_musteri",
   stokDokuman: "stok_dokuman",
-  sablonParca: "sablon_parca",
-  sablonParcaMalzeme: "sablon_parca_malzeme",
   projeDokuman: "proje_dokuman",
   projeSatir: "proje_satir",
   projeParca: "proje_parca",
