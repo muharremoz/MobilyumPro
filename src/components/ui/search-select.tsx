@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -43,6 +43,13 @@ export interface SearchSelectProps {
   addLabel?: string;
   onAdd?: () => void;
   /**
+   * Verilirse her satırın sağında kopya düğmesi çıkar; tıklanınca o öğenin
+   * DEĞERİ ile çağrılır (gösterim değil — çağıran tarafın eşleştirmesi için).
+   * Seçim yapılmaz, popup kapanır.
+   */
+  onKopyala?: (item: string) => void;
+  kopyaBaslik?: string;
+  /**
    * Verilirse dropdown üstünde sekmeler gösterilir; aktif sekmenin öğeleri
    * listelenir. Öğe değerleri korunur, gösterimde "Etiket · " öneki atılır.
    */
@@ -64,6 +71,8 @@ export function SearchSelect({
   listeClassName,
   addLabel,
   onAdd,
+  onKopyala,
+  kopyaBaslik = "Kopyasını oluştur",
   sekmeler,
 }: SearchSelectProps) {
   // "Yeni ekle" tıklanınca popup'ı kapatabilmek için open kontrollü.
@@ -139,8 +148,26 @@ export function SearchSelect({
         <ComboboxEmpty>{emptyText}</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
-            <ComboboxItem key={item} value={item}>
-              {gosterim(item)}
+            <ComboboxItem key={item} value={item} className="group/oge">
+              <span className="min-w-0 flex-1 truncate">{gosterim(item)}</span>
+              {onKopyala && (
+                <button
+                  type="button"
+                  title={kopyaBaslik}
+                  aria-label={`${gosterim(item)} — ${kopyaBaslik}`}
+                  // mousedown: ComboboxItem seçimi mouseup'ta olur, önce
+                  // yakalamazsak kopya yerine öğe seçilirdi.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setAcik(false);
+                    onKopyala(item);
+                  }}
+                  className="ml-2 grid size-6 shrink-0 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/oge:opacity-100 focus-visible:opacity-100 hover:bg-black/10 hover:text-foreground"
+                >
+                  <Copy className="size-3.5" />
+                </button>
+              )}
             </ComboboxItem>
           )}
         </ComboboxList>

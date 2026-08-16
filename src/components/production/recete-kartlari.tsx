@@ -96,7 +96,8 @@ export function ReceteKartlari({
   /** Tanımlamalar → Parçalar (kart başlığındaki ad seçimi). */
   parcaAdlari: string[];
   onYeniParca: () => void;
-  onYeniMalzeme: (satirIndex: number) => void;
+  /** Yeni malzeme kartı aç; kaynakId verilirse o kartın kopyası olarak. */
+  onYeniMalzeme: (satirIndex: number, kaynakId?: string) => void;
   istasyonlar: AdKaydi[];
   ilkIstasyonSlug?: string;
   /** Yeni malzeme satırının başlangıç fire yüzdesi (sistem parametresi). */
@@ -400,7 +401,7 @@ export function ReceteKartlari({
                       ) && bantSatirlari.length > 0
                     }
                     onDegis={(d) => satirGuncelle(i, d)}
-                    onYeniMalzeme={() => onYeniMalzeme(i)}
+                    onYeniMalzeme={(kaynakId) => onYeniMalzeme(i, kaynakId)}
                     onSil={() =>
                       onSatirlar(
                         tazele(
@@ -443,7 +444,7 @@ export function ReceteKartlari({
                 ilkIstasyonSlug={ilkIstasyonSlug}
                 parcaSecenekleri={gruplar.map((g) => g.ad)}
                 onDegis={(d) => satirGuncelle(i, d)}
-                onYeniMalzeme={() => onYeniMalzeme(i)}
+                onYeniMalzeme={(kaynakId) => onYeniMalzeme(i, kaynakId)}
                 onSil={() => onSatirlar(satirlar.filter((_, j) => j !== i))}
               />
             ))}
@@ -513,7 +514,7 @@ function MalzemeSatiri({
   /** Miktarı başka bir satırdan türüyor (tutkal): elle girilemez. */
   otomatik?: boolean;
   onDegis: (d: Partial<ReceteSatiri>) => void;
-  onYeniMalzeme: () => void;
+  onYeniMalzeme: (kaynakId?: string) => void;
   onSil: () => void;
 }) {
   const birim = malzeme?.birim ?? "";
@@ -546,7 +547,11 @@ function MalzemeSatiri({
             }
             placeholder="Malzeme seçin"
             addLabel="Yeni malzeme ekle"
-            onAdd={onYeniMalzeme}
+            onAdd={() => onYeniMalzeme()}
+            // Kenar bantları gibi birbirinin varyantı olan kartlar çok:
+            // sıfırdan yazmak yerine mevcut satırdan kopya açılır.
+            kopyaBaslik="Bu malzemenin kopyasını oluştur"
+            onKopyala={(etiket) => onYeniMalzeme(etiketToId.get(etiket))}
             className="h-8"
           />
         </div>

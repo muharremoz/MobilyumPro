@@ -1432,9 +1432,23 @@ export function ParcaForm({
                 setYeniParcaAd("");
                 setYeniParcaAcik(true);
               }}
-              onYeniMalzeme={(idx: number) => {
+              onYeniMalzeme={(idx: number, kaynakId?: string) => {
                 setYeniMlzSatir(idx);
-                setYeniMlz({ ad: "", grup: "", birim: "adet" });
+                // Kopyala: yeni kart kaynağın grubu/birimiyle, adı "(kopya)"
+                // ekiyle açılır. Ad aynı kalsaydı listede iki tıpatıp kayıt
+                // olur, hangisinin hangisi olduğu ayırt edilemezdi.
+                const k = kaynakId
+                  ? tumMalzemeler.find((m) => m.id === kaynakId)
+                  : undefined;
+                setYeniMlz(
+                  k
+                    ? {
+                        ad: `${k.ad} (kopya)`,
+                        grup: k.grup ?? "",
+                        birim: k.birim || "adet",
+                      }
+                    : { ad: "", grup: "", birim: "adet" },
+                );
                 setYeniMlzAcik(true);
               }}
               istasyonlar={istasyonlar.map((x) => ({ id: x.slug, ad: x.ad }))}
