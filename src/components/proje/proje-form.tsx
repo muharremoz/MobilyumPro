@@ -318,10 +318,9 @@ export function ProjeForm({
           Alan ve tablo duruyor, yalnız arayüzde gösterilmiyor. */}
 
       {/* Modüller ve parçaları */}
-      <div className="grid min-h-0 gap-3 xl:grid-cols-[520px_1fr]">
-        {/* SOL: modül kartları — ikili ızgara, tek sütunda az modül
-            görünüyordu ve liste hemen uzuyordu. */}
-        <div className="grid h-fit grid-cols-2 gap-2">
+      <div className="grid min-h-0 gap-3 lg:grid-cols-[320px_1fr]">
+        {/* SOL: modül kartları */}
+        <div className="flex flex-col gap-2">
           {satirlar.map((s, i) => (
             <ModulKarti
               key={i}
@@ -340,12 +339,7 @@ export function ProjeForm({
               }}
             />
           ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="col-span-2 w-fit"
-            onClick={modulEkle}
-          >
+          <Button variant="outline" size="sm" className="w-fit" onClick={modulEkle}>
             <Plus className="size-4" /> Modül ekle
           </Button>
         </div>
@@ -370,7 +364,9 @@ export function ProjeForm({
                   eklenir.
                 </span>
               </div>
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {/* Kutular İKİLİ: üçerli dizilimde ölçü alanları daralıp
+                  rakamlar okunmaz hale geliyordu. */}
+              <div className="grid gap-2 md:grid-cols-2">
                 {secili.parcalar.map((p, pi) => (
                   <ParcaKutusu
                     key={pi}
