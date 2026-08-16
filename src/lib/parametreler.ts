@@ -149,9 +149,9 @@ export const PARAMETRELER: ParametreTanim[] = [
   },
   {
     anahtar: "tutkal_kg_metre",
-    etiket: "Metre Başına Kenarbandı Tutkalı",
+    etiket: "Kenarbandı Tutkalı (21 mm metresi)",
     aciklama:
-      "Kenar bandı olan parçalarda tutkal miktarı bu katsayıyla hesaplanır: bant metresi × katsayı.",
+      "1 metre 21 mm kenar bandı için harcanan tutkal. Diğer genişlikler oranlanır: 50 mm bandın metresi 50/21 kat tutkal yer.",
     grup: "Üretim",
     tip: "sayi",
     varsayilan: "0,007",

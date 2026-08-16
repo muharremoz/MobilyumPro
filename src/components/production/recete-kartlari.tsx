@@ -12,6 +12,7 @@ import {
   bantUzunlugu,
   parcaOlcusu,
   satirMiktari,
+  tutkalEsdegerMetre,
   tutkalMi,
   type KenarSecim,
   type Malzeme,
@@ -163,13 +164,18 @@ export function ReceteKartlari({
     const malzemeOf = (s: ReceteSatiri) =>
       s.bilesen.tip === "malzeme" ? malzemeMap.get(s.bilesen.ref) : undefined;
 
-    // Parça bazında toplam bant metresi (tutkal bundan türer).
+    // Parça bazında toplam "21 mm eşdeğeri" bant metresi.
     const bantMetre = new Map<string, number>();
     for (const s of satirListesi) {
-      if (!bantMi(malzemeOf(s)?.birim)) continue;
+      const m = malzemeOf(s);
+      if (!bantMi(m?.birim)) continue;
       const ad = s.grup ?? "";
       const mm = bantUzunlugu(grupOf(s), s.bant);
-      if (mm > 0) bantMetre.set(ad, (bantMetre.get(ad) ?? 0) + mm / 1000);
+      if (mm > 0)
+        bantMetre.set(
+          ad,
+          (bantMetre.get(ad) ?? 0) + tutkalEsdegerMetre(mm / 1000, m?.genislik),
+        );
     }
 
     return satirListesi.map((s) => {
@@ -177,8 +183,10 @@ export function ReceteKartlari({
       if (tutkalMi(m?.ad)) {
         const metre = bantMetre.get(s.grup ?? "") ?? 0;
         // Bant yoksa kullanıcının elle girdiği miktara dokunulmaz.
+        // 4 hane yetmez: ince bantta tutkal 0,0001'in altına iner ve
+        // yuvarlama miktarı sıfırlardı.
         return metre > 0
-          ? { ...s, miktar: Number((metre * tutkalKgMetre).toFixed(4)) }
+          ? { ...s, miktar: Number((metre * tutkalKgMetre).toFixed(6)) }
           : s;
       }
       const hesap = satirMiktari(m?.birim, grupOf(s), s.bant);
@@ -569,7 +577,7 @@ function MalzemeSatiri({
             readOnly={kilitli}
             title={
               otomatik
-                ? "Parçadaki toplam kenar bandı metresinden hesaplanıyor"
+                ? "Parçadaki kenar bandı metresinden hesaplanıyor (bant genişliğine göre oranlı)"
                 : hesaplanan != null
                   ? "Parçanın kesim ölçüsünden hesaplanıyor"
                   : undefined

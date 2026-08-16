@@ -368,6 +368,7 @@ export async function getMalzemeler(): Promise<Malzeme[]> {
       | undefined,
 
     birim: m.stokBirimi,
+    genislik: m.genislik != null ? Number(m.genislik) : undefined,
     stok: Number(m.stokMiktar),
     birimFiyat: Number(m.maliyetFiyati),
     doviz: (m.maliyetBirimi || "TL") as Doviz,

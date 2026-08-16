@@ -160,6 +160,21 @@ export function tutkalMi(ad?: string): boolean {
   return (ad ?? "").toLocaleLowerCase("tr").includes("tutkal");
 }
 
+/**
+ * Tutkal parametresinin tanımlandığı referans bant genişliği (mm).
+ *
+ * Tutkal tüketimi bandın genişliğiyle doğru orantılı: 50 mm bant 12 mm bandın
+ * dört katı yüzey yapıştırır. Parametre 21 mm için veriliyor, diğer
+ * genişlikler buradan oranlanıyor.
+ */
+export const TUTKAL_REFERANS_GENISLIK = 21;
+
+/** Bandın gerçek genişliğine göre "21 mm eşdeğeri" metre. */
+export function tutkalEsdegerMetre(metre: number, genislik?: number): number {
+  const g = genislik && genislik > 0 ? genislik : TUTKAL_REFERANS_GENISLIK;
+  return metre * (g / TUTKAL_REFERANS_GENISLIK);
+}
+
 export type ParcaSatiri = { parcaId: string; miktar: number };
 
 /**
@@ -634,6 +649,8 @@ export type Malzeme = {
   /** Stok grubu adı (Tanımlamalar → Gruplar ağacından). */
   grup?: string;
   birim: string; // m, m², adet, kg, lt
+  /** Kart genişliği (mm) — kenar bandında tutkal hesabı buna göre ölçeklenir. */
+  genislik?: number;
   /** Satın alma birimi (boşsa dönüşüm yok) — bkz. lib/birim.ts */
   alisBirimi?: string;
   /** 1 alış birimi kaç stok birimi eder. */
