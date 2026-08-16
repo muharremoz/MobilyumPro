@@ -1001,6 +1001,14 @@ export function ProductionPlan({
 
       {/* Alt aksiyon */}
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* Engel sebebi GÖRÜNÜR olmalı: title içinde saklıyken kullanıcı
+            düğmenin niye pasif olduğunu anlayamıyor, sebebi stok sanıyordu. */}
+        {gonderEngel && (
+          <span className="mr-auto inline-flex items-center gap-1.5 text-xs text-amber-700">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            Üretime göndermek için: {gonderEngel}
+          </span>
+        )}
         <Button
           variant="outline"
           onClick={() => olustur("Planlandı")}
