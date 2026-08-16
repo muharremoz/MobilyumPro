@@ -37,6 +37,11 @@ async function enBuyukSH(): Promise<number> {
 }
 import { yetkiVarMi } from "@/lib/yetki-sunucu";
 import {
+  BOS_DEGISKENLER,
+  formulHesapla,
+  type FormulDegiskenleri,
+} from "@/lib/formul";
+import {
   stokSilinebilirMi,
   cariSilinebilirMi,
   parcaSilinebilirMi,
@@ -78,6 +83,7 @@ import type {
   UretimOncelik,
   Malzeme,
   Model,
+  ModulSablon,
   Parca,
   ParcaIslem,
   ReceteGrup,
@@ -3731,3 +3737,134 @@ export async function parcaDokumanSil(
   }
 }
 
+// ── PROJE SİPARİŞ ────────────────────────────────────────────────────────
+
+/** Şablon kaydeder (parçaları ve malzemeleriyle birlikte sil-yeniden yaz). */
+export async function modulSablonKaydet(
+  sablon: Omit<ModulSablon, "id"> & { id?: string },
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const ad = sablon.ad.trim();
+  if (!ad) return { ok: false, error: "Şablon adı gerekli." };
+
+  // Formüller BURADA da doğrulanıyor: istemci doğrulaması atlanabilir ve
+  // bozuk formül projeye eklenene kadar fark edilmez, orada da sessizce
+  // ölçüsüz parça üretirdi.
+  const ornek: FormulDegiskenleri = {
+    ...BOS_DEGISKENLER,
+    en: sablon.varsayilanEn || 1000,
+    boy: sablon.varsayilanBoy || 2000,
+    derinlik: sablon.varsayilanDerinlik || 500,
+    kalinlik: sablon.varsayilanKalinlik || 18,
+    kapakSayisi: sablon.varsayilanKapak || 1,
+    rafSayisi: sablon.varsayilanRaf || 0,
+    cekmeceSayisi: sablon.varsayilanCekmece || 0,
+  };
+  for (const p of sablon.parcalar) {
+    if (!p.ad.trim()) return { ok: false, error: "Parça adı boş bırakılamaz." };
+    for (const [alan, formul] of [
+      ["Adet", p.adetFormul],
+      ["En", p.enFormul],
+      ["Boy", p.boyFormul],
+    ] as const) {
+      const r = formulHesapla(formul, ornek);
+      if (!r.ok)
+        return { ok: false, error: `${p.ad} · ${alan} formülü: ${r.hata}` };
+    }
+    if (p.kalinlikFormul?.trim()) {
+      const r = formulHesapla(p.kalinlikFormul, ornek);
+      if (!r.ok)
+        return { ok: false, error: `${p.ad} · Kalınlık formülü: ${r.hata}` };
+    }
+  }
+
+  try {
+    let id = sablon.id;
+    if (!id) {
+      const mevcut = await db.modulSablon.findMany({ select: { id: true } });
+      let maxNo = 1000;
+      for (const r of mevcut) {
+        const m = /^SBL-(\d+)$/.exec(r.id);
+        if (m) maxNo = Math.max(maxNo, Number(m[1]));
+      }
+      id = `SBL-${maxNo + 1}`;
+    }
+    const sablonId = id;
+
+    await db.$transaction(async (tx) => {
+      const veri = {
+        ad,
+        aciklama: sablon.aciklama?.trim() || null,
+        durum: sablon.durum,
+        varsayilanEn: sablon.varsayilanEn ?? null,
+        varsayilanBoy: sablon.varsayilanBoy ?? null,
+        varsayilanDerinlik: sablon.varsayilanDerinlik ?? null,
+        varsayilanKalinlik: sablon.varsayilanKalinlik ?? null,
+        varsayilanKapak: sablon.varsayilanKapak ?? null,
+        varsayilanRaf: sablon.varsayilanRaf ?? null,
+        varsayilanCekmece: sablon.varsayilanCekmece ?? null,
+      };
+      await tx.modulSablon.upsert({
+        where: { id: sablonId },
+        create: { id: sablonId, ...veri },
+        update: veri,
+      });
+      // Parçalar sil-yeniden yaz: malzemeler cascade ile gider.
+      await tx.sablonParca.deleteMany({ where: { sablonId } });
+      for (const [idx, p] of sablon.parcalar.entries()) {
+        const olusan = await tx.sablonParca.create({
+          data: {
+            sablonId,
+            ad: p.ad.trim(),
+            sira: p.sira || idx + 1,
+            adetFormul: p.adetFormul.trim(),
+            enFormul: p.enFormul.trim(),
+            boyFormul: p.boyFormul.trim(),
+            kalinlikFormul: p.kalinlikFormul?.trim() || null,
+            bantUst: p.bant?.ust ?? false,
+            bantAlt: p.bant?.alt ?? false,
+            bantSol: p.bant?.sol ?? false,
+            bantSag: p.bant?.sag ?? false,
+          },
+        });
+        const mlz = p.malzemeler.filter((m) => m.malzemeId);
+        if (mlz.length)
+          await tx.sablonParcaMalzeme.createMany({
+            data: mlz.map((m) => ({
+              sablonParcaId: olusan.id,
+              malzemeId: m.malzemeId,
+              fire: m.fire ?? 0,
+              istasyon: m.istasyon ?? null,
+              sabitMiktar: m.sabitMiktar ?? null,
+            })),
+          });
+      }
+    });
+
+    revalidatePath("/modul-sablonlari");
+    return { ok: true, id: sablonId };
+  } catch {
+    return { ok: false, error: "Şablon kaydedilemedi." };
+  }
+}
+
+/**
+ * Şablonu siler. Projede kullanılıyorsa ENGELLENİR: proje satırı şablona
+ * NoAction ile bağlı, silinseydi FK hatası kullanıcıya ham dönerdi.
+ */
+export async function modulSablonSil(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const kullanim = await db.projeSatir.count({ where: { sablonId: id } });
+  if (kullanim > 0)
+    return {
+      ok: false,
+      error: `Bu şablon ${kullanim} proje satırında kullanılıyor, silinemez.`,
+    };
+  try {
+    await db.modulSablon.delete({ where: { id } });
+    revalidatePath("/modul-sablonlari");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Şablon silinemedi." };
+  }
+}

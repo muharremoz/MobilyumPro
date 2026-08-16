@@ -117,6 +117,15 @@ export const sections: Section[] = [
     ],
   },
   {
+    id: "proje",
+    label: "Proje Sipariş",
+    modul: "proje",
+    RailIcon: I(BoxesIcon),
+    items: [
+      { label: "Modül Şablonları", href: "/modul-sablonlari", modul: "proje", icon: I(BlocksIcon) },
+    ],
+  },
+  {
     id: "siparis",
     label: "Sipariş Yönetimi",
     modul: "siparis",

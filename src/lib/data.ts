@@ -1091,3 +1091,99 @@ export type Depo = {
   doluluk: number;
   durum: "Aktif" | "Pasif";
 };
+
+// ── PROJE SİPARİŞ ────────────────────────────────────────────────────────
+
+/** Şablon parçasına bağlı malzeme (miktar türetilen ölçüden hesaplanır). */
+export type SablonParcaMalzeme = {
+  id?: number;
+  malzemeId: string;
+  fire?: number;
+  istasyon?: string;
+  /** m²/metre dışı birimlerde (adet, kg) kullanılan sabit miktar. */
+  sabitMiktar?: number;
+};
+
+/** Şablonun bir parçası. Ölçüler formülle modül ölçülerinden türer. */
+export type SablonParca = {
+  id?: number;
+  ad: string;
+  sira: number;
+  adetFormul: string;
+  enFormul: string;
+  boyFormul: string;
+  kalinlikFormul?: string;
+  bant?: KenarSecim;
+  malzemeler: SablonParcaMalzeme[];
+};
+
+/** Modül şablonu: bir dolabın iskeleti. */
+export type ModulSablon = {
+  id: string;
+  ad: string;
+  aciklama?: string;
+  durum: "Aktif" | "Pasif";
+  varsayilanEn?: number;
+  varsayilanBoy?: number;
+  varsayilanDerinlik?: number;
+  varsayilanKalinlik?: number;
+  varsayilanKapak?: number;
+  varsayilanRaf?: number;
+  varsayilanCekmece?: number;
+  parcalar: SablonParca[];
+};
+
+export type ProjeDurum = "Teklif" | "Kazanıldı" | "Kaybedildi" | "İptal";
+
+export type ProjeDokuman = {
+  id?: number;
+  ad: string;
+  url: string;
+  tip?: string;
+};
+
+/** Projeye eklenen modül örneğinin türetilmiş parçası. */
+export type ProjeParca = {
+  id?: number;
+  ad: string;
+  sira: number;
+  adet: number;
+  en?: number;
+  boy?: number;
+  kalinlik?: number;
+  bant?: KenarSecim;
+  /** Elle düzeltildiyse yeniden türetmede ezilmez. */
+  elleDegisti?: boolean;
+  malzemeler: { id?: number; malzemeId: string; miktar: number; fire?: number; istasyon?: string }[];
+};
+
+/** Projeye eklenen bir modül: "3 KAPAKLI DOLAP, 1200×2200×560". */
+export type ProjeSatir = {
+  id?: number;
+  sablonId?: string;
+  ad: string;
+  sira: number;
+  adet: number;
+  en?: number;
+  boy?: number;
+  derinlik?: number;
+  kalinlik?: number;
+  kapakSayisi: number;
+  rafSayisi: number;
+  cekmeceSayisi: number;
+  parcalar: ProjeParca[];
+};
+
+export type Proje = {
+  id: string;
+  ad: string;
+  cariId?: string;
+  durum: ProjeDurum;
+  tarih: string;
+  gecerlilik?: string;
+  aciklama?: string;
+  /** Kazanılınca üretilen model kaydı (tekrar dönüştürmeyi engeller). */
+  modelId?: string;
+  dokumanlar: ProjeDokuman[];
+  satirlar: ProjeSatir[];
+};

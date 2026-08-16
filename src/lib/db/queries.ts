@@ -46,6 +46,7 @@ import type {
   TanimKalemi,
   Alis,
   StokKarti,
+  ModulSablon,
   StokUretici,
   StokMusteri,
   StokDokuman,
@@ -2545,4 +2546,55 @@ export async function getStok(
       })),
     },
   };
+}
+
+// ── PROJE SİPARİŞ ────────────────────────────────────────────────────────
+
+/** Modül şablonları — parçaları ve malzemeleriyle. */
+export async function getModulSablonlari(): Promise<ModulSablon[]> {
+  const rows = await db.modulSablon.findMany({
+    orderBy: { ad: "asc" },
+    include: {
+      parcalar: {
+        orderBy: { sira: "asc" },
+        include: { malzemeler: { orderBy: { id: "asc" } } },
+      },
+    },
+  });
+  const say = (v: unknown) => (v == null ? undefined : Number(v));
+  return rows.map((s) => ({
+    id: s.id,
+    ad: s.ad,
+    aciklama: s.aciklama ?? undefined,
+    durum: s.durum as "Aktif" | "Pasif",
+    varsayilanEn: say(s.varsayilanEn),
+    varsayilanBoy: say(s.varsayilanBoy),
+    varsayilanDerinlik: say(s.varsayilanDerinlik),
+    varsayilanKalinlik: say(s.varsayilanKalinlik),
+    varsayilanKapak: s.varsayilanKapak ?? undefined,
+    varsayilanRaf: s.varsayilanRaf ?? undefined,
+    varsayilanCekmece: s.varsayilanCekmece ?? undefined,
+    parcalar: s.parcalar.map((p) => ({
+      id: p.id,
+      ad: p.ad,
+      sira: p.sira,
+      adetFormul: p.adetFormul,
+      enFormul: p.enFormul,
+      boyFormul: p.boyFormul,
+      kalinlikFormul: p.kalinlikFormul ?? undefined,
+      bant: {
+        ust: p.bantUst,
+        alt: p.bantAlt,
+        sol: p.bantSol,
+        sag: p.bantSag,
+      },
+      malzemeler: p.malzemeler.map((m) => ({
+        id: m.id,
+        malzemeId: m.malzemeId,
+        fire: Number(m.fire),
+        istasyon: m.istasyon ?? undefined,
+        sabitMiktar: say(m.sabitMiktar),
+      })),
+    })),
+  }));
 }

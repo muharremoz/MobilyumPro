@@ -39,6 +39,7 @@ export const MODULLER: Modul[] = [
   { id: "stok", label: "Stok Yönetimi" },
   { id: "tanimlamalar", label: "Tanımlamalar" },
   { id: "siparis", label: "Sipariş Yönetimi" },
+  { id: "proje", label: "Proje Sipariş" },
   { id: "satin-alma", label: "Satın Alma" },
   { id: "uretim-plan", label: "Üretim Planı" },
   { id: "uretim-takibi", label: "Üretim Takibi" },
