@@ -495,7 +495,10 @@ export function StokKartForm({
 } = {}) {
   const yetki = useYetki("stok");
   const router = useRouter();
-  const duzenleme = !!kart;
+  // id'si OLAN kart düzenlenir. Kopya taslağı da bir "kart" nesnesiyle
+  // geliyor ama id'si boş; !!kart demek onu düzenleme sanıp id'siz kayıt
+  // yazdırıyordu (bkz. stokKaydet'teki boş id koruması).
+  const duzenleme = !!kart?.id;
   const baslangic: Form = kart
     ? {
         id: kart.id,

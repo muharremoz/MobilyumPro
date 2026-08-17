@@ -3490,7 +3490,13 @@ export async function stokKaydet(
   yeni = false,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
-    const id = yeni ? (await sonrakiStokKodu(s.altGrup)).kod : s.id;
+    // Boş id ile kayıt YAZILMAZ: id birincil anahtar, boş kalırsa o kart
+    // "seçilmemiş" malzeme aramalarıyla eşleşip her boş satırda görünür.
+    // Düzenleme sanılan bir kopya taslağı tam olarak buna yol açmıştı.
+    const id =
+      yeni || !s.id?.trim()
+        ? (await sonrakiStokKodu(s.altGrup)).kod
+        : s.id;
     // Yeni kartta barkod koddan otomatik üretilir; düzenlemede korunur.
     const barkod = yeni ? kodBarkod(id) : (s.barkod ?? null);
     const veri = {
