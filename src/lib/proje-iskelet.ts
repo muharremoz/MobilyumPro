@@ -81,6 +81,14 @@ export const GOVDE_ISKELETI: IskeletParca[] = [
   },
 ];
 
+/**
+ * Gövde panelleri — arayüzde TEK KART içinde toplanır.
+ *
+ * Dördü de aynı levhadan kesilir ve aynı kenardan bantlanır; ayrı kartlarda
+ * dururken kullanıcı aynı malzemeyi dört kez seçmek zorunda kalıyordu.
+ */
+export const GOVDE_PARCALARI = ["ALT", "ÜST", "SOL YAN", "SAĞ YAN"];
+
 /** Kapak sayısıyla çoğalan parçalar — kullanıcıya "otomatik" diye gösterilir. */
 export const COGALAN_PARCALAR = ["ARKALIK", "KAPAK"];
 

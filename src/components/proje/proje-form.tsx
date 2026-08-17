@@ -11,7 +11,11 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { cn } from "@/lib/utils";
 import { usePara } from "@/components/bicim-baglam";
 import { projeKaydet } from "@/lib/db/actions";
-import { COGALAN_PARCALAR, parcalariTuret } from "@/lib/proje-iskelet";
+import {
+  COGALAN_PARCALAR,
+  GOVDE_PARCALARI,
+  parcalariTuret,
+} from "@/lib/proje-iskelet";
 import {
   satirMiktari,
   type KenarSecim,
@@ -238,6 +242,13 @@ export function ProjeForm({
   }
 
   const secili = satirlar[aktif];
+  // Gövde panelleri tek kartta, kalanlar kendi kutularında.
+  const govdeler = (secili?.parcalar ?? [])
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => GOVDE_PARCALARI.includes(p.ad));
+  const digerler = (secili?.parcalar ?? [])
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => !GOVDE_PARCALARI.includes(p.ad));
 
   return (
     <div className="flex flex-col gap-3">
@@ -378,7 +389,49 @@ export function ProjeForm({
               {/* Kutular İKİLİ: üçerli dizilimde ölçü alanları daralıp
                   rakamlar okunmaz hale geliyordu. */}
               <div className="grid gap-2 md:grid-cols-2">
-                {secili.parcalar.map((p, pi) => (
+                {/* Gövde panelleri TEK KART: dördü de aynı levhadan kesilip
+                    aynı kenardan bantlanıyor, ayrı kartlarda dururken aynı
+                    malzeme dört kez seçiliyordu. */}
+                {govdeler.length > 0 && (
+                  <GovdeKutusu
+                    parcalar={govdeler}
+                    vurgulu={
+                      seciliParca !== null &&
+                      GOVDE_PARCALARI.includes(seciliParca)
+                    }
+                    kutuRef={(el) => {
+                      for (const g of govdeler)
+                        kutuRefleri.current.set(g.p.ad, el);
+                    }}
+                    malzemeler={malzemeler}
+                    malzemeMap={malzemeMap}
+                    malzemeSekmeleri={malzemeSekmeleri}
+                    etiketToId={etiketToId}
+                    malzemeEtiketi={malzemeEtiketi}
+                    maliyet={govdeler.reduce(
+                      (t, g) => t + parcaMaliyeti(g.p),
+                      0,
+                    )}
+                    para={para}
+                    onDegis={(index, d) =>
+                      satirGuncelle(aktif, {
+                        parcalar: secili.parcalar.map((x, j) =>
+                          j === index ? { ...x, ...d, elleDegisti: true } : x,
+                        ),
+                      })
+                    }
+                    onHepsineDegis={(d) =>
+                      satirGuncelle(aktif, {
+                        parcalar: secili.parcalar.map((x, j) =>
+                          govdeler.some((g) => g.i === j)
+                            ? { ...x, ...d, elleDegisti: true }
+                            : x,
+                        ),
+                      })
+                    }
+                  />
+                )}
+                {digerler.map(({ p, i: pi }) => (
                   <ParcaKutusu
                     key={pi}
                     parca={p}
@@ -843,6 +896,205 @@ function ParcaKutusu({
             onDegis({
               malzemeler: [
                 ...parca.malzemeler,
+                { malzemeId: "", miktar: 1, fire: 0 },
+              ],
+            })
+          }
+        >
+          <Plus className="size-3" /> Malzeme
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Gövde kartı — ALT / ÜST / SOL YAN / SAĞ YAN tek kutuda.
+ *
+ * Dördü de aynı levhadan kesilir ve genelde aynı kenardan bantlanır. Ayrı
+ * kutularda dururken kullanıcı aynı malzemeyi dört kez seçiyor, kart ızgarası
+ * da gereksiz uzuyordu. Ölçüler panel başına ayrı (yan panel ile alt panel
+ * aynı değil), malzeme ve bant seçimi ORTAK.
+ */
+function GovdeKutusu({
+  parcalar,
+  vurgulu,
+  kutuRef,
+  malzemeler,
+  malzemeMap,
+  malzemeSekmeleri,
+  etiketToId,
+  malzemeEtiketi,
+  maliyet,
+  para,
+  onDegis,
+  onHepsineDegis,
+}: {
+  parcalar: { p: ProjeParca; i: number }[];
+  vurgulu?: boolean;
+  kutuRef?: (el: HTMLDivElement | null) => void;
+  malzemeler: Malzeme[];
+  malzemeMap: Map<string, Malzeme>;
+  malzemeSekmeleri: { key: string; label: string; items: string[] }[];
+  etiketToId: Map<string, string>;
+  malzemeEtiketi: (m: Malzeme) => string;
+  maliyet: number;
+  para: (n: number) => string;
+  onDegis: (parcaIndex: number, d: Partial<ProjeParca>) => void;
+  onHepsineDegis: (d: Partial<ProjeParca>) => void;
+}) {
+  // Ortak malzeme/bant ilk panelden okunur; seçim hepsine yazıldığı için
+  // dördü zaten aynı kalıyor.
+  const ilk = parcalar[0].p;
+  const bant = ilk.bant ?? {};
+
+  return (
+    <div
+      ref={kutuRef}
+      className={cn(
+        "flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5 transition-colors md:col-span-2",
+        vurgulu && "border-primary ring-1 ring-primary/40",
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-semibold">GÖVDE</span>
+        <span className="rounded bg-muted px-1 text-[9px] text-muted-foreground">
+          {parcalar.length} panel
+        </span>
+        <span className="ml-auto text-[11px] tabular-nums">{para(maliyet)}</span>
+      </div>
+
+      {/* Panel ölçüleri — her panel kendi satırında */}
+      <div className="grid gap-1 sm:grid-cols-2">
+        {parcalar.map(({ p, i }) => (
+          <div
+            key={p.ad}
+            className="flex items-center gap-1 rounded border bg-card px-1.5 py-1"
+          >
+            <span className="w-16 shrink-0 truncate text-[10px] font-medium">
+              {p.ad}
+            </span>
+            <OlcuAlani
+              etiket="Adet"
+              deger={p.adet}
+              onDeger={(v) => onDegis(i, { adet: Math.max(1, v) })}
+            />
+            <OlcuAlani
+              etiket="En"
+              deger={p.en}
+              onDeger={(v) => onDegis(i, { en: v })}
+            />
+            <OlcuAlani
+              etiket="Boy"
+              deger={p.boy}
+              onDeger={(v) => onDegis(i, { boy: v })}
+            />
+            <OlcuAlani
+              etiket="Kal."
+              deger={p.kalinlik}
+              onDeger={(v) => onDegis(i, { kalinlik: v })}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Ortak malzemeler */}
+      <div className="flex flex-col gap-1">
+        {ilk.malzemeler.map((m, mi) => {
+          const mlz = malzemeMap.get(m.malzemeId);
+          const kenarli = bantMi(mlz?.birim);
+          return (
+            <div
+              key={`${mi}-${m.malzemeId || "bos"}`}
+              className="flex flex-col gap-1"
+            >
+              <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1">
+                  <SearchSelect
+                    sekmeler={malzemeSekmeleri}
+                    value={
+                      mlz
+                        ? (malzemeler
+                            .filter((x) => x.id === mlz.id)
+                            .map(malzemeEtiketi)[0] ?? null)
+                        : null
+                    }
+                    onValueChange={(etiket) =>
+                      onHepsineDegis({
+                        malzemeler: ilk.malzemeler.map((x, j) =>
+                          j === mi
+                            ? {
+                                ...x,
+                                malzemeId: etiketToId.get(etiket ?? "") ?? "",
+                              }
+                            : x,
+                        ),
+                      })
+                    }
+                    placeholder="Malzeme seçin"
+                    className="h-7"
+                  />
+                </div>
+                <span className="w-28 shrink-0 text-right text-[10px] text-muted-foreground">
+                  dört panele uygulanır
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    onHepsineDegis({
+                      malzemeler: ilk.malzemeler.filter((_, j) => j !== mi),
+                    })
+                  }
+                  aria-label="Malzemeyi kaldır"
+                >
+                  <Trash className="size-3" />
+                </Button>
+              </div>
+
+              {kenarli && (
+                <div className="flex flex-wrap items-center gap-1 pl-1">
+                  <span className="text-[10px] text-muted-foreground">
+                    Kenarlar:
+                  </span>
+                  {(
+                    [
+                      ["ust", "Üst"],
+                      ["alt", "Alt"],
+                      ["sol", "Sol"],
+                      ["sag", "Sağ"],
+                    ] as [keyof KenarSecim, string][]
+                  ).map(([k, etiket]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() =>
+                        onHepsineDegis({ bant: { ...bant, [k]: !bant[k] } })
+                      }
+                      className={cn(
+                        "rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        bant[k]
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      {etiket}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 w-fit text-[10px]"
+          onClick={() =>
+            onHepsineDegis({
+              malzemeler: [
+                ...ilk.malzemeler,
                 { malzemeId: "", miktar: 1, fire: 0 },
               ],
             })
