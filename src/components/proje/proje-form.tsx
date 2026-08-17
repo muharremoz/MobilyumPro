@@ -732,7 +732,14 @@ function ParcaKutusu({
           );
           const kenarli = bantMi(mlz?.birim);
           return (
-            <div key={i} className="flex flex-col gap-1">
+            // Anahtar SEÇİLEN MALZEMEYİ de içeriyor: yalnız indeksle
+            // anahtarlanınca bir satır silinip yerine boş satır eklendiğinde
+            // React aynı bileşen örneğini kullanıyor ve seçicinin içindeki
+            // eski metin ekranda kalıyordu.
+            <div
+              key={`${i}-${m.malzemeId || "bos"}`}
+              className="flex flex-col gap-1"
+            >
               <div className="flex items-center gap-1">
                 <div className="min-w-0 flex-1">
                   <SearchSelect
@@ -768,9 +775,7 @@ function ParcaKutusu({
                     className="flex h-7 items-center justify-end rounded-md border bg-muted/40 pr-9 pl-2 text-xs text-foreground tabular-nums"
                     title="Parçanın ölçüsünden hesaplanıyor"
                   >
-                    {hesap == null
-                      ? (m.miktar ?? 1)
-                      : Number(hesap.toFixed(3))}
+                    {hesap == null ? (m.miktar ?? 1) : Number(hesap.toFixed(3))}
                   </div>
                   {mlz?.birim && (
                     <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
