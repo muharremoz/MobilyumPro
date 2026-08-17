@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { usePara } from "@/components/bicim-baglam";
 import { projeKaydet } from "@/lib/db/actions";
 import {
-  COGALAN_PARCALAR,
   GOVDE_PARCALARI,
   parcalariTuret,
 } from "@/lib/proje-iskelet";
@@ -242,13 +241,23 @@ export function ProjeForm({
   }
 
   const secili = satirlar[aktif];
-  // Gövde panelleri tek kartta, kalanlar kendi kutularında.
-  const govdeler = (secili?.parcalar ?? [])
-    .map((p, i) => ({ p, i }))
-    .filter(({ p }) => GOVDE_PARCALARI.includes(p.ad));
-  const digerler = (secili?.parcalar ?? [])
-    .map((p, i) => ({ p, i }))
-    .filter(({ p }) => !GOVDE_PARCALARI.includes(p.ad));
+  /**
+   * Parçalar kutulara öbeklenir: gövde panelleri "GÖVDE"de, çoğalan parçalar
+   * ("KAPAK 1", "KAPAK 2") kendi taban adları altında. Hepsi aynı malzemeden
+   * olduğu için malzemeyi kutu başına bir kez seçmek yetiyor.
+   */
+  const obekler = React.useMemo(() => {
+    const harita = new Map<string, { p: ProjeParca; i: number }[]>();
+    (secili?.parcalar ?? []).forEach((p, i) => {
+      const taban = GOVDE_PARCALARI.includes(p.ad)
+        ? "GÖVDE"
+        : p.ad.replace(/\s+\d+$/, "");
+      const arr = harita.get(taban) ?? [];
+      arr.push({ p, i });
+      harita.set(taban, arr);
+    });
+    return [...harita.entries()];
+  }, [secili]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -389,29 +398,24 @@ export function ProjeForm({
               {/* Kutular İKİLİ: üçerli dizilimde ölçü alanları daralıp
                   rakamlar okunmaz hale geliyordu. */}
               <div className="grid gap-2 md:grid-cols-2">
-                {/* Gövde panelleri TEK KART: dördü de aynı levhadan kesilip
-                    aynı kenardan bantlanıyor, ayrı kartlarda dururken aynı
-                    malzeme dört kez seçiliyordu. */}
-                {govdeler.length > 0 && (
-                  <GovdeKutusu
-                    parcalar={govdeler}
-                    vurgulu={
-                      seciliParca !== null &&
-                      GOVDE_PARCALARI.includes(seciliParca)
-                    }
+                {obekler.map(([baslik, grup]) => (
+                  <GrupKutusu
+                    key={baslik}
+                    baslik={baslik}
+                    parcalar={grup}
+                    // Tek parçalı öbek (ARKALIK, RAF) yarım genişlikte kalır;
+                    // GÖVDE ve çok kapaklı öbekler tam satırı kullanır.
+                    genis={grup.length > 1}
+                    vurgulu={grup.some((g) => g.p.ad === seciliParca)}
                     kutuRef={(el) => {
-                      for (const g of govdeler)
-                        kutuRefleri.current.set(g.p.ad, el);
+                      for (const g of grup) kutuRefleri.current.set(g.p.ad, el);
                     }}
                     malzemeler={malzemeler}
                     malzemeMap={malzemeMap}
                     malzemeSekmeleri={malzemeSekmeleri}
                     etiketToId={etiketToId}
                     malzemeEtiketi={malzemeEtiketi}
-                    maliyet={govdeler.reduce(
-                      (t, g) => t + parcaMaliyeti(g.p),
-                      0,
-                    )}
+                    maliyet={grup.reduce((t, g) => t + parcaMaliyeti(g.p), 0)}
                     para={para}
                     onDegis={(index, d) =>
                       satirGuncelle(aktif, {
@@ -423,31 +427,9 @@ export function ProjeForm({
                     onHepsineDegis={(d) =>
                       satirGuncelle(aktif, {
                         parcalar: secili.parcalar.map((x, j) =>
-                          govdeler.some((g) => g.i === j)
+                          grup.some((g) => g.i === j)
                             ? { ...x, ...d, elleDegisti: true }
                             : x,
-                        ),
-                      })
-                    }
-                  />
-                )}
-                {digerler.map(({ p, i: pi }) => (
-                  <ParcaKutusu
-                    key={pi}
-                    parca={p}
-                    vurgulu={seciliParca === p.ad}
-                    kutuRef={(el) => kutuRefleri.current.set(p.ad, el)}
-                    malzemeler={malzemeler}
-                    malzemeMap={malzemeMap}
-                    malzemeSekmeleri={malzemeSekmeleri}
-                    etiketToId={etiketToId}
-                    malzemeEtiketi={malzemeEtiketi}
-                    maliyet={parcaMaliyeti(p)}
-                    para={para}
-                    onDegis={(d) =>
-                      satirGuncelle(aktif, {
-                        parcalar: secili.parcalar.map((x, j) =>
-                          j === pi ? { ...x, ...d, elleDegisti: true } : x,
                         ),
                       })
                     }
@@ -694,230 +676,20 @@ function Sayac({
   );
 }
 
-/** Sağdaki parça kutusu: ölçüler + kenar bandı + malzeme. */
-function ParcaKutusu({
-  parca,
-  vurgulu,
-  kutuRef,
-  malzemeler,
-  malzemeMap,
-  malzemeSekmeleri,
-  etiketToId,
-  malzemeEtiketi,
-  maliyet,
-  para,
-  onDegis,
-}: {
-  parca: ProjeParca;
-  vurgulu?: boolean;
-  kutuRef?: (el: HTMLDivElement | null) => void;
-  malzemeler: Malzeme[];
-  malzemeMap: Map<string, Malzeme>;
-  malzemeSekmeleri: { key: string; label: string; items: string[] }[];
-  etiketToId: Map<string, string>;
-  malzemeEtiketi: (m: Malzeme) => string;
-  maliyet: number;
-  para: (n: number) => string;
-  onDegis: (d: Partial<ProjeParca>) => void;
-}) {
-  const bant = parca.bant ?? {};
-  const otomatik = COGALAN_PARCALAR.some((x) => parca.ad.startsWith(x));
-  return (
-    <div
-      ref={kutuRef}
-      className={cn(
-        "flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5 transition-colors",
-        vurgulu && "border-primary ring-1 ring-primary/40",
-      )}
-    >
-      <div className="flex items-center gap-1.5">
-        <span className="truncate text-xs font-semibold">{parca.ad}</span>
-        {otomatik && (
-          <span className="rounded bg-primary/10 px-1 text-[9px] font-medium text-primary">
-            otomatik
-          </span>
-        )}
-        {parca.elleDegisti && (
-          <span className="rounded bg-amber-100 px-1 text-[9px] font-medium text-amber-800">
-            elle
-          </span>
-        )}
-        <span className="ml-auto text-[11px] tabular-nums">
-          {para(maliyet)}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-4 gap-1">
-        <OlcuAlani
-          etiket="Adet"
-          deger={parca.adet}
-          onDeger={(v) => onDegis({ adet: Math.max(1, v) })}
-        />
-        <OlcuAlani
-          etiket="En"
-          deger={parca.en}
-          onDeger={(v) => onDegis({ en: v })}
-        />
-        <OlcuAlani
-          etiket="Boy"
-          deger={parca.boy}
-          onDeger={(v) => onDegis({ boy: v })}
-        />
-        <OlcuAlani
-          etiket="Kalınlık"
-          deger={parca.kalinlik}
-          onDeger={(v) => onDegis({ kalinlik: v })}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        {parca.malzemeler.map((m, i) => {
-          const mlz = malzemeMap.get(m.malzemeId);
-          const hesap = satirMiktari(
-            mlz?.birim,
-            {
-              ad: parca.ad,
-              sira: parca.sira,
-              netEn: parca.en,
-              netBoy: parca.boy,
-            },
-            parca.bant,
-          );
-          const kenarli = bantMi(mlz?.birim);
-          return (
-            // Anahtar SEÇİLEN MALZEMEYİ de içeriyor: yalnız indeksle
-            // anahtarlanınca bir satır silinip yerine boş satır eklendiğinde
-            // React aynı bileşen örneğini kullanıyor ve seçicinin içindeki
-            // eski metin ekranda kalıyordu.
-            <div
-              key={`${i}-${m.malzemeId || "bos"}`}
-              className="flex flex-col gap-1"
-            >
-              <div className="flex items-center gap-1">
-                <div className="min-w-0 flex-1">
-                  <SearchSelect
-                    sekmeler={malzemeSekmeleri}
-                    value={
-                      mlz
-                        ? (malzemeler
-                            .filter((x) => x.id === mlz.id)
-                            .map(malzemeEtiketi)[0] ?? null)
-                        : null
-                    }
-                    onValueChange={(etiket) =>
-                      onDegis({
-                        malzemeler: parca.malzemeler.map((x, j) =>
-                          j === i
-                            ? {
-                                ...x,
-                                malzemeId: etiketToId.get(etiket ?? "") ?? "",
-                              }
-                            : x,
-                        ),
-                      })
-                    }
-                    placeholder="Malzeme seçin"
-                    className="h-7"
-                  />
-                </div>
-                {/* Miktar çerçeveli bir alanda: düz yazıyken hangi rakamın
-                    hangi malzemeye ait olduğu seçilmiyordu. Değer ölçüden
-                    türediği için salt okunur. */}
-                <div className="relative w-24 shrink-0">
-                  <div
-                    className="flex h-7 items-center justify-end rounded-md border bg-muted/40 pr-9 pl-2 text-xs text-foreground tabular-nums"
-                    title="Parçanın ölçüsünden hesaplanıyor"
-                  >
-                    {hesap == null ? (m.miktar ?? 1) : Number(hesap.toFixed(3))}
-                  </div>
-                  {mlz?.birim && (
-                    <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {mlz.birim}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() =>
-                    onDegis({
-                      malzemeler: parca.malzemeler.filter((_, j) => j !== i),
-                    })
-                  }
-                  aria-label="Malzemeyi kaldır"
-                >
-                  <Trash className="size-3" />
-                </Button>
-              </div>
-
-              {/* Kenar seçimi YALNIZ kenar bandı satırının altında: bant
-                  seçilmemişken dört düğme her kutuda yer kaplıyor ve
-                  suntalam satırıyla ilgisiz görünüyordu. */}
-              {kenarli && (
-                <div className="flex flex-wrap items-center gap-1 pl-1">
-                  <span className="text-[10px] text-muted-foreground">
-                    Kenarlar:
-                  </span>
-                  {(
-                    [
-                      ["ust", "Üst"],
-                      ["alt", "Alt"],
-                      ["sol", "Sol"],
-                      ["sag", "Sağ"],
-                    ] as [keyof KenarSecim, string][]
-                  ).map(([k, etiket]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() =>
-                        onDegis({ bant: { ...bant, [k]: !bant[k] } })
-                      }
-                      className={cn(
-                        "rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
-                        bant[k]
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      {etiket}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-6 w-fit text-[10px]"
-          onClick={() =>
-            onDegis({
-              malzemeler: [
-                ...parca.malzemeler,
-                { malzemeId: "", miktar: 1, fire: 0 },
-              ],
-            })
-          }
-        >
-          <Plus className="size-3" /> Malzeme
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /**
- * Gövde kartı — ALT / ÜST / SOL YAN / SAĞ YAN tek kutuda.
+ * Aynı işi gören parçaları TEK KUTUDA toplayan kart.
  *
- * Dördü de aynı levhadan kesilir ve genelde aynı kenardan bantlanır. Ayrı
- * kutularda dururken kullanıcı aynı malzemeyi dört kez seçiyor, kart ızgarası
- * da gereksiz uzuyordu. Ölçüler panel başına ayrı (yan panel ile alt panel
- * aynı değil), malzeme ve bant seçimi ORTAK.
+ * GÖVDE (alt/üst/yanlar), ARKALIK'lar ve KAPAK'lar hep aynı malzemeden olur
+ * ve aynı kenarlardan bantlanır. Ayrı kutularda dururken kullanıcı aynı
+ * malzemeyi üç-dört kez seçiyor, kart ızgarası da gereksiz uzuyordu.
+ *
+ * Ölçüler parça başına AYRI (yan panel ile alt panel aynı değil, bir kapağın
+ * ölçüsü ayrıca düzeltilebilmeli); malzeme ve bant seçimi ORTAK.
  */
-function GovdeKutusu({
+function GrupKutusu({
+  baslik,
   parcalar,
+  genis,
   vurgulu,
   kutuRef,
   malzemeler,
@@ -930,7 +702,10 @@ function GovdeKutusu({
   onDegis,
   onHepsineDegis,
 }: {
+  baslik: string;
   parcalar: { p: ProjeParca; i: number }[];
+  /** Tam satır mı kaplasın (çok parçalı öbekler). */
+  genis?: boolean;
   vurgulu?: boolean;
   kutuRef?: (el: HTMLDivElement | null) => void;
   malzemeler: Malzeme[];
@@ -952,16 +727,19 @@ function GovdeKutusu({
     <div
       ref={kutuRef}
       className={cn(
-        "flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5 transition-colors md:col-span-2",
+        "flex flex-col gap-2 rounded-lg border bg-muted/10 p-2.5 transition-colors",
+        genis && "md:col-span-2",
         vurgulu && "border-primary ring-1 ring-primary/40",
       )}
     >
       <div className="flex items-center gap-1.5">
-        <span className="text-xs font-semibold">GÖVDE</span>
+        <span className="text-xs font-semibold">{baslik}</span>
         <span className="rounded bg-muted px-1 text-[9px] text-muted-foreground">
-          {parcalar.length} panel
+          {parcalar.length} parça
         </span>
-        <span className="ml-auto text-[11px] tabular-nums">{para(maliyet)}</span>
+        <span className="ml-auto text-[11px] tabular-nums">
+          {para(maliyet)}
+        </span>
       </div>
 
       {/* Panel ölçüleri — her panel kendi satırında */}
@@ -1035,8 +813,8 @@ function GovdeKutusu({
                     className="h-7"
                   />
                 </div>
-                <span className="w-28 shrink-0 text-right text-[10px] text-muted-foreground">
-                  dört panele uygulanır
+                <span className="w-32 shrink-0 text-right text-[10px] text-muted-foreground">
+                  {parcalar.length} parçaya uygulanır
                 </span>
                 <Button
                   variant="ghost"
